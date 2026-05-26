@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TuneVault — Autonomous Remediation | Auto-Fix Oracle Database Issues</title>
+    <meta name="application-name" content="TuneVault">
+    <meta name="description" content="TuneVault Autonomous Remediation: AI-powered automatic fixes for Oracle database issues with approval workflows and full audit trails. Enterprise-grade safety rails.">
+    <meta property="og:title" content="TuneVault — Autonomous Remediation | Auto-Fix Oracle Database Issues">
+    <meta property="og:description" content="AI-powered automatic remediation for Oracle database issues — apply fixes with approval workflows, safety rails, and complete audit trails.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://tunevault.app/features/autonomous-remediation">
+    <meta property="og:image" content="https://tunevault.app/og/autonomous-remediation.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="TuneVault autonomous remediation — AI-powered auto-fixes with approval workflows">
+    <meta property="og:site_name" content="TuneVault">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Autonomous Remediation — Auto-Fix Oracle Database Issues | TuneVault">
+    <meta name="twitter:description" content="AI-powered automatic remediation for Oracle issues — apply fixes with approval workflows and audit trails.">
+    <meta name="twitter:image" content="https://tunevault.app/og/autonomous-remediation.png">
+    <link rel="canonical" href="https://tunevault.app/features/autonomous-remediation">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="apple-touch-icon" href="/favicon.svg">
+    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://tunevault.app/#organization","name":"TuneVault","alternateName":"TuneVault.app","url":"https://tunevault.app","logo":{"@type":"ImageObject","url":"https://tunevault.app/logo.png","width":512,"height":512},"description":"AI agent that autonomously manages Oracle database operations.","foundingDate":"2026","sameAs":["https://www.linkedin.com/in/kirankumarale/","https://linuxappsdba.blogspot.com"]},{"@type":"WebSite","@id":"https://tunevault.app/#website","name":"TuneVault","alternateName":["TuneVault.app"],"url":"https://tunevault.app","publisher":{"@id":"https://tunevault.app/#organization"}}]}</script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0a0a0c;
+            --surface: #111114;
+            --surface-2: #1a1a1f;
+            --border: #2a2a30;
+            --text: #e8e8ed;
+            --text-dim: #b8b8c8;
+            --accent: #f0a830;
+            --accent-dim: rgba(240, 168, 48, 0.10);
+            --green: #34d399;
+            --red: #f87171;
+            --blue: #60a5fa;
+            --purple: #a78bfa;
+        }
+        body {
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        .grain {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+            pointer-events: none; z-index: 999;
+        }
+
+        /* ── Hero ── */
+        .hero {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 80px 48px 64px;
+            border-bottom: 1px solid var(--border);
+        }
+        .hero-eyebrow {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2.5px;
+            color: var(--accent);
+            margin-bottom: 18px;
+        }
+        .hero h1 {
+            font-size: clamp(36px, 5vw, 56px);
+            font-weight: 700;
+            letter-spacing: -2px;
+            line-height: 1.05;
+            margin-bottom: 20px;
+            max-width: 720px;
+        }
+        .hero h1 em { font-style: normal; color: var(--accent); }
+        .hero-desc {
+            font-size: 17px;
+            color: var(--text-dim);
+            max-width: 560px;
+            line-height: 1.7;
+            margin-bottom: 36px;
+        }
+        .hero-cta-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .btn-primary {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 14px 28px; background: var(--accent); color: #0a0a0c;
+            border-radius: 8px; font-size: 15px; font-weight: 600;
+            text-decoration: none; transition: all 0.2s; border: none; cursor: pointer;
+        }
+        .btn-primary:hover { background: #e09820; transform: translateY(-2px); }
+        .btn-secondary {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 14px 28px; background: transparent; color: var(--text);
+            border: 1px solid var(--border); border-radius: 8px;
+            font-size: 15px; font-weight: 600; text-decoration: none; transition: all 0.2s;
+        }
+        .btn-secondary:hover { background: var(--surface); border-color: var(--text-dim); transform: translateY(-2px); }
+
+        /* ── Sections ── */
+        .section {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 80px 48px;
+            border-bottom: 1px solid var(--border);
+        }
+        .section h2 {
+            font-size: clamp(28px, 4vw, 42px);
+            font-weight: 700;
+            letter-spacing: -1px;
+            margin-bottom: 48px;
+            max-width: 640px;
+        }
+        .section h2 em { font-style: normal; color: var(--accent); }
+
+        /* ── Grid Cards ── */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-bottom: 12px;
+        }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            transition: all 0.2s;
+        }
+        .card:hover {
+            border-color: var(--accent-dim);
+            background: var(--surface-2);
+            transform: translateY(-4px);
+        }
+        .card-icon {
+            font-size: 32px;
+            margin-bottom: 16px;
+        }
+        .card h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        .card p {
+            font-size: 14px;
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+
+        /* ── Mode Grid ── */
+        .modes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+        }
+        .mode-card {
+            background: linear-gradient(135deg, var(--surface-2) 0%, var(--surface) 100%);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 28px;
+            position: relative;
+        }
+        .mode-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent), transparent);
+            border-radius: 12px 12px 0 0;
+        }
+        .mode-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--accent);
+            margin-bottom: 12px;
+        }
+        .mode-card h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 14px;
+        }
+        .mode-card p {
+            font-size: 14px;
+            color: var(--text-dim);
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+        .mode-details {
+            font-size: 13px;
+            color: var(--text-dim);
+            background: rgba(240, 168, 48, 0.05);
+            border-left: 2px solid var(--accent);
+            padding: 12px 14px;
+            border-radius: 4px;
+            margin-top: 12px;
+        }
+
+        /* ── Audit Trail ── */
+        .audit-section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            margin-bottom: 48px;
+        }
+        .audit-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .audit-header h3 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .audit-timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .audit-event {
+            display: flex;
+            gap: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        .audit-event:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        .audit-time {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--text-dim);
+            min-width: 80px;
+        }
+        .audit-detail {
+            flex: 1;
+        }
+        .audit-action {
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+        .audit-meta {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        /* ── Safety Rails ── */
+        .rails-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 20px;
+        }
+        .rail-item {
+            display: flex;
+            gap: 16px;
+        }
+        .rail-icon {
+            flex-shrink: 0;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(52, 211, 153, 0.10);
+            border-radius: 8px;
+            font-size: 20px;
+        }
+        .rail-content h4 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .rail-content p {
+            font-size: 13px;
+            color: var(--text-dim);
+            line-height: 1.5;
+        }
+
+        /* ── Form ── */
+        .beta-form {
+            background: linear-gradient(135deg, rgba(240, 168, 48, 0.05) 0%, rgba(240, 168, 48, 0.02) 100%);
+            border: 1px solid var(--accent-dim);
+            border-radius: 12px;
+            padding: 40px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        .beta-form h3 {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+        .beta-form p {
+            font-size: 14px;
+            color: var(--text-dim);
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .form-group {
+            margin-bottom: 18px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(240, 168, 48, 0.10);
+        }
+        .form-submit {
+            width: 100%;
+            padding: 14px 24px;
+            background: var(--accent);
+            color: #0a0a0c;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .form-submit:hover {
+            background: #e09820;
+            transform: translateY(-2px);
+        }
+        .form-submit:active {
+            transform: translateY(0);
+        }
+        .form-message {
+            margin-top: 16px;
+            padding: 12px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            text-align: center;
+            display: none;
+        }
+        .form-message.success {
+            background: rgba(52, 211, 153, 0.10);
+            color: var(--green);
+            display: block;
+        }
+        .form-message.error {
+            background: rgba(248, 113, 113, 0.10);
+            color: var(--red);
+            display: block;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            .hero, .section { padding: 48px 24px; }
+            .cards-grid, .modes-grid { grid-template-columns: 1fr; }
+            .beta-form { padding: 32px 24px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="grain"></div>
+
+    <!-- ── Hero ── -->
+    <section class="hero">
+        <div class="hero-eyebrow">🤖 Autonomous Remediation</div>
+        <h1>Auto-Fix Oracle Issues with <em>Intelligent Approval</em></h1>
+        <p class="hero-desc">
+            Detect and remediate database issues in real-time. TuneVault's AI identifies problems, recommends fixes, and can apply them automatically — with full approval workflows, safety rails, and complete audit trails for enterprise compliance.
+        </p>
+        <div class="hero-cta-row">
+            <a href="/dashboard" class="btn-primary">Try Beta Access</a>
+            <a href="#beta-form" class="btn-secondary">Learn More</a>
+        </div>
+    </section>
+
+    <!-- ── What It Auto-Fixes ── -->
+    <section class="section">
+        <h2>What It Auto-<em>Fixes</em></h2>
+        <div class="cards-grid">
+            <div class="card">
+                <div class="card-icon">⚡</div>
+                <h3>Lock Contention</h3>
+                <p>Detect blocking sessions and automatically terminate or rollback conflicting transactions.</p>
+            </div>
+            <div class="card">
+                <div class="card-icon">🧹</div>
+                <h3>Temp Space Cleanup</h3>
+                <p>Identify and remove orphaned temporary segments and unused temp objects.</p>
+            </div>
+            <div class="card">
+                <div class="card-icon">📊</div>
+                <h3>Stale Statistics</h3>
+                <p>Analyze tables with outdated optimizer statistics and trigger automated gathering.</p>
+            </div>
+            <div class="card">
+                <div class="card-icon">💾</div>
+                <h3>Archive Logs</h3>
+                <p>Detect stalled archive log processing and restart the archiver automatically.</p>
+            </div>
+            <div class="card">
+                <div class="card-icon">🔐</div>
+                <h3>Expired Passwords</h3>
+                <p>Identify database users with expired passwords and apply policy resets.</p>
+            </div>
+            <div class="card">
+                <div class="card-icon">⚠️</div>
+                <h3>Tablespace Alerts</h3>
+                <p>Monitor free space and trigger immediate recovery actions before outages.</p>
+            </div>
+            <div class="card">
+                <div class="card-icon">🔄</div>
+                <h3>Hung Sessions</h3>
+                <p>Identify and kill sessions stuck in long-running waits with compliance audit.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Approval Modes ── -->
+    <section class="section">
+        <h2>How Approval <em>Works</em></h2>
+        <div class="modes-grid">
+            <div class="mode-card">
+                <div class="mode-label">Manual</div>
+                <h3>Review & Approve</h3>
+                <p>Every fix is presented for review with detailed analysis, before/after impact estimates, and rollback options.</p>
+                <div class="mode-details">
+                    <strong>For:</strong> Production environments, critical changes, regulatory requirements
+                </div>
+            </div>
+            <div class="mode-card">
+                <div class="mode-label">Auto + Log</div>
+                <h3>Apply & Audit</h3>
+                <p>Non-disruptive fixes are applied automatically with full before/after snapshots logged for compliance.</p>
+                <div class="mode-details">
+                    <strong>For:</strong> Routine maintenance, safe operations, non-critical issues
+                </div>
+            </div>
+            <div class="mode-card">
+                <div class="mode-label">Locked</div>
+                <h3>Require Approval</h3>
+                <p>High-risk fixes require explicit approval from designated DBAs or roles before execution begins.</p>
+                <div class="mode-details">
+                    <strong>For:</strong> Risk-sensitive operations, team governance, audit compliance
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Audit Trail ── -->
+    <section class="section">
+        <h2>Complete <em>Audit Trail</em></h2>
+        <div class="audit-section">
+            <div class="audit-header">
+                <h3>Sample Remediation Audit</h3>
+            </div>
+            <div class="audit-timeline">
+                <div class="audit-event">
+                    <div class="audit-time">14:23:17</div>
+                    <div class="audit-detail">
+                        <div class="audit-action">✓ Issue Detected</div>
+                        <div class="audit-meta">Lock contention on EMP table; 12 blocked sessions, 45s max wait</div>
+                    </div>
+                </div>
+                <div class="audit-event">
+                    <div class="audit-time">14:23:32</div>
+                    <div class="audit-detail">
+                        <div class="audit-action">→ Fix Recommended</div>
+                        <div class="audit-meta">Terminate session SID=456 (INSERT); impact: 1 row rollback</div>
+                    </div>
+                </div>
+                <div class="audit-event">
+                    <div class="audit-time">14:23:45</div>
+                    <div class="audit-detail">
+                        <div class="audit-action">👤 Approved By</div>
+                        <div class="audit-meta">sarah.chen@company.com (Senior DBA)</div>
+                    </div>
+                </div>
+                <div class="audit-event">
+                    <div class="audit-time">14:23:48</div>
+                    <div class="audit-detail">
+                        <div class="audit-action">✓ Fix Applied</div>
+                        <div class="audit-meta">Session terminated; blocked sessions resumed within 200ms</div>
+                    </div>
+                </div>
+                <div class="audit-event">
+                    <div class="audit-time">14:23:55</div>
+                    <div class="audit-detail">
+                        <div class="audit-action">✓ Verified</div>
+                        <div class="audit-meta">Health check passed; EMP table lock contention resolved</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Safety Rails ── -->
+    <section class="section">
+        <h2>Enterprise <em>Safety Rails</em></h2>
+        <div class="rails-list">
+            <div class="rail-item">
+                <div class="rail-icon">🔒</div>
+                <div class="rail-content">
+                    <h4>Dry-Run Preview</h4>
+                    <p>Every fix is tested in a simulated environment before execution.</p>
+                </div>
+            </div>
+            <div class="rail-item">
+                <div class="rail-icon">⏮️</div>
+                <div class="rail-content">
+                    <h4>Instant Rollback</h4>
+                    <p>One-click reversal with automatic transaction logs and undo scripts.</p>
+                </div>
+            </div>
+            <div class="rail-item">
+                <div class="rail-icon">🚫</div>
+                <div class="rail-content">
+                    <h4>Canary Mode</h4>
+                    <p>Apply fixes to non-prod first; promote after validation.</p>
+                </div>
+            </div>
+            <div class="rail-item">
+                <div class="rail-icon">⏱️</div>
+                <div class="rail-content">
+                    <h4>Rate Limiting</h4>
+                    <p>Fixes are spaced to prevent cascade failures or resource exhaustion.</p>
+                </div>
+            </div>
+            <div class="rail-item">
+                <div class="rail-icon">🔔</div>
+                <div class="rail-content">
+                    <h4>Instant Alerts</h4>
+                    <p>Real-time notifications to DBAs and compliance teams on every action.</p>
+                </div>
+            </div>
+            <div class="rail-item">
+                <div class="rail-icon">📋</div>
+                <div class="rail-content">
+                    <h4>Compliance Logs</h4>
+                    <p>Immutable audit records for SOX, HIPAA, and PCI-DSS compliance.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Beta Form ── -->
+    <section class="section">
+        <form id="beta-form" class="beta-form">
+            <h3>Join the Beta</h3>
+            <p>Get early access to Autonomous Remediation before general availability.</p>
+
+            <div class="form-group">
+                <label for="email">Work Email</label>
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    placeholder="you@company.com"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="company">Company</label>
+                <input
+                    type="text"
+                    id="company"
+                    name="company"
+                    placeholder="Acme Corp"
+                >
+            </div>
+
+            <button type="submit" class="form-submit">Request Access</button>
+            <div class="form-message"></div>
+        </form>
+    </section>
+
+    <script>
+        // Handle beta form submission
+        const betaForm = document.getElementById('beta-form');
+        betaForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const email = document.getElementById('email').value;
+            const company = document.getElementById('company').value;
+            const messageEl = betaForm.querySelector('.form-message');
+
+            try {
+                const response = await fetch('/api/autonomous-remediation-beta', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, company })
+                });
+
+                if (response.ok) {
+                    messageEl.textContent = '✓ Thank you! Check your email for next steps.';
+                    messageEl.classList.remove('error');
+                    messageEl.classList.add('success');
+                    betaForm.reset();
+                } else {
+                    messageEl.textContent = '❌ Error: ' + (await response.json()).error;
+                    messageEl.classList.remove('success');
+                    messageEl.classList.add('error');
+                }
+            } catch (err) {
+                messageEl.textContent = '❌ Network error. Please try again.';
+                messageEl.classList.remove('success');
+                messageEl.classList.add('error');
+            }
+        });
+    </script>
+</body>
+</html>

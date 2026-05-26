@@ -1,0 +1,415 @@
+<\!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oracle Archive Log Destination Full Runbook — ORA-19809, ORA-00257 | TuneVault</title>
+    <meta name="description" content="Oracle archive log destination full? Fix ORA-19809 and ORA-00257 archiver errors fast. Step-by-step RMAN cleanup, space recovery, and retention policy configuration to prevent recurrence.">
+    <meta name="author" content="TuneVault">
+    <link rel="canonical" href="https://tunevault.app/resources/runbooks/archive-log-destination-full">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <meta property="og:title" content="Oracle Archive Log Destination Full Runbook — TuneVault">
+    <meta property="og:description" content="ORA-19809 or ORA-00257 stopping transactions? Production-tested RMAN cleanup and archivelog retention fix.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://tunevault.app/resources/runbooks/archive-log-destination-full">
+    <meta property="og:site_name" content="TuneVault">
+    <meta property="og:image" content="https://tunevault.app/og/runbook.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="Oracle DBA Runbook — TuneVault production-tested recovery guide">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://tunevault.app/og/runbook.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://tunevault.app/#organization",
+          "name": "TuneVault",
+          "url": "https://tunevault.app",
+          "logo": { "@type": "ImageObject", "url": "https://tunevault.app/logo.png" },
+          "description": "AI agent that autonomously manages Oracle database operations.",
+          "foundingDate": "2026",
+          "founder": { "@type": "Person", "name": "Kiran Kumar Ale", "url": "https://tunevault.app/about" },
+          "contactPoint": { "@type": "ContactPoint", "email": "hello@tunevault.app", "contactType": "customer support" }
+        },
+        {
+          "@type": "TechArticle",
+          "@id": "https://tunevault.app/resources/runbooks/archive-log-destination-full#article",
+          "headline": "Oracle Archive Log Destination Full Recovery Runbook",
+          "description": "Fix ORA-19809 and ORA-00257 archiver errors. RMAN cleanup, space recovery, and retention policy configuration.",
+          "url": "https://tunevault.app/resources/runbooks/archive-log-destination-full",
+          "datePublished": "2026-05-15",
+          "dateModified": "2026-05-15",
+          "author": { "@type": "Person", "name": "Kiran Kumar Ale", "url": "https://tunevault.app/about" },
+          "publisher": { "@id": "https://tunevault.app/#organization" },
+          "about": [
+            { "@type": "Thing", "name": "Oracle Database" },
+            { "@type": "Thing", "name": "RMAN" },
+            { "@type": "Thing", "name": "ORA-19809" },
+            { "@type": "Thing", "name": "Archive Log Management" }
+          ]
+        }
+      ]
+    }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+    <style>
+        :root { --bg:#0a0a0c;--surface:#111114;--surface2:#18181c;--border:#2a2a30;--text:#e8e8ed;--text-dim:#9898a8;--accent:#f0a830;--accent-dim:rgba(240,168,48,0.12);--red:#f87171;--red-dim:rgba(248,113,113,0.1);--green:#4ade80;--green-dim:rgba(74,222,128,0.1);--blue:#60a5fa;--blue-dim:rgba(96,165,250,0.1); }
+        *{box-sizing:border-box;margin:0;padding:0;}
+        body{background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif;line-height:1.7;}
+        a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
+        nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+        .nav-logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;color:var(--text);text-decoration:none;}
+        .nav-logo-icon{width:28px;height:28px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:13px;color:#0a0a0c;font-weight:700;}
+        .nav-links{display:flex;align-items:center;gap:20px;}
+        .nav-links a{font-size:13px;color:var(--text-dim);transition:color 0.15s;}
+        .nav-links a:hover{color:var(--text);text-decoration:none;}
+        .nav-cta{background:var(--accent);color:#0a0a0c \!important;padding:6px 16px;border-radius:6px;font-weight:600;font-size:13px \!important;}
+        .page-wrap{max-width:820px;margin:0 auto;padding:48px 24px 80px;}
+        .breadcrumb{font-size:13px;color:var(--text-dim);margin-bottom:32px;}
+        .breadcrumb a{color:var(--text-dim);}
+        .breadcrumb a:hover{color:var(--accent);}
+        .breadcrumb span{margin:0 6px;}
+        .article-header{margin-bottom:40px;}
+        .article-tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:3px 10px;border-radius:20px;background:var(--red-dim);color:var(--red);margin-bottom:16px;}
+        .article-header h1{font-size:clamp(26px,4vw,40px);font-weight:700;line-height:1.2;margin-bottom:16px;}
+        .article-meta{display:flex;gap:20px;flex-wrap:wrap;font-size:13px;color:var(--text-dim);}
+        .toc{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 24px;margin-bottom:40px;}
+        .toc-title{font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-dim);margin-bottom:12px;}
+        .toc ol{padding-left:20px;}.toc li{margin-bottom:6px;}.toc a{font-size:14px;color:var(--text-dim);}
+        .toc a:hover{color:var(--accent);}
+        h2{font-size:22px;font-weight:700;margin:48px 0 16px;padding-top:32px;color:var(--text);border-top:1px solid var(--border);}
+        h2:first-of-type{border-top:none;margin-top:0;padding-top:0;}
+        h3{font-size:17px;font-weight:600;margin:28px 0 12px;color:var(--text);}
+        p{margin-bottom:16px;color:var(--text);font-size:15px;}
+        ul,ol{padding-left:22px;margin-bottom:16px;}li{margin-bottom:8px;font-size:15px;}
+        pre{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:18px 20px;overflow-x:auto;margin:16px 0 24px;}
+        code{font-family:'JetBrains Mono',monospace;font-size:13px;color:#93c5fd;line-height:1.6;}
+        p code,li code{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:12.5px;color:#93c5fd;}
+        .comment{color:#6b7280;}.keyword{color:#f0a830;}.string{color:#4ade80;}
+        .callout{border-radius:10px;padding:18px 20px;margin:20px 0;font-size:14px;}
+        .callout-critical{background:var(--red-dim);border:1px solid rgba(248,113,113,0.3);}
+        .callout-warning{background:var(--accent-dim);border:1px solid rgba(240,168,48,0.3);}
+        .callout-info{background:var(--blue-dim);border:1px solid rgba(96,165,250,0.3);}
+        .callout-success{background:var(--green-dim);border:1px solid rgba(74,222,128,0.3);}
+        .callout-title{font-weight:700;margin-bottom:6px;}
+        .callout-critical .callout-title{color:var(--red);}
+        .callout-warning .callout-title{color:var(--accent);}
+        .callout-info .callout-title{color:var(--blue);}
+        .callout-success .callout-title{color:var(--green);}
+        .cta-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:32px;text-align:center;margin:48px 0;}
+        .cta-box h3{font-size:20px;margin-bottom:8px;}
+        .cta-box p{color:var(--text-dim);margin-bottom:20px;font-size:14px;}
+        .cta-btn{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#0a0a0c;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;transition:background 0.15s;}
+        .cta-btn:hover{background:#e09820;text-decoration:none;}
+        .nav-footer{display:flex;justify-content:space-between;gap:16px;margin-top:48px;padding-top:32px;border-top:1px solid var(--border);flex-wrap:wrap;}
+        .nav-footer a{font-size:14px;font-weight:500;color:var(--text-dim);display:flex;align-items:center;gap:6px;}
+        .nav-footer a:hover{color:var(--accent);text-decoration:none;}
+        footer{border-top:1px solid var(--border);padding:32px 24px;text-align:center;font-size:13px;color:var(--text-dim);}
+        .footer-links{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin-bottom:12px;}
+        .footer-links a{color:var(--text-dim);}
+        @media(max-width:600px){.page-wrap{padding:32px 16px 60px;}}
+    </style>
+</head>
+<body>
+
+<nav>
+    <a href="/" class="nav-logo">
+        <div class="nav-logo-icon">TV</div>
+        TuneVault
+    </a>
+    <div class="nav-links">
+        <a href="/resources/runbooks">Runbooks</a>
+        <a href="/blog">Blog</a>
+        <a href="/signup?path=health-check&redirect=/dashboard" class="nav-cta">Start Free</a>
+    </div>
+</nav>
+
+<div class="page-wrap">
+
+    <div class="breadcrumb">
+        <a href="/">TuneVault</a>
+        <span>›</span>
+        <a href="/resources/runbooks">Runbooks</a>
+        <span>›</span>
+        Archive Log Destination Full
+    </div>
+
+    <div class="article-header">
+        <div class="article-tag">📦 Archive Log Emergency</div>
+        <h1>Oracle Archive Log Destination Full Runbook</h1>
+        <div class="article-meta">
+            <span>⏱ 5–20 min recovery</span>
+            <span>ARCHIVELOG mode databases</span>
+            <span>Updated 2026-05-15</span>
+        </div>
+    </div>
+
+    <div class="callout callout-critical">
+        <div class="callout-title">🔴 Database is hanging right now?</div>
+        If the database has stopped accepting new transactions (sessions hanging, apps unresponsive), jump to <strong>Step 3: Emergency RMAN Cleanup</strong> immediately. The database will resume within seconds of freeing space.
+    </div>
+
+    <div class="toc">
+        <div class="toc-title">In this runbook</div>
+        <ol>
+            <li><a href="#symptoms">Error signatures and symptoms</a></li>
+            <li><a href="#diagnose">Diagnose the archive destination</a></li>
+            <li><a href="#emergency-cleanup">Emergency RMAN cleanup</a></li>
+            <li><a href="#retention-policy">Set a proper retention policy</a></li>
+            <li><a href="#fra-config">FRA configuration best practices</a></li>
+            <li><a href="#verify">Verify archiving has resumed</a></li>
+            <li><a href="#prevention">Prevention: monitoring and automation</a></li>
+        </ol>
+    </div>
+
+    <h2 id="symptoms">1. Error Signatures and Symptoms</h2>
+
+    <p>Two errors typically surface when the archive log destination is full:</p>
+
+    <div class="callout callout-critical">
+        <div class="callout-title">ORA-19809 / ORA-19804</div>
+        <code>ORA-19809: limit exceeded for recovery files<br>ORA-19804: cannot reclaim 52428800 bytes disk space from 107374182400 limit</code><br>
+        The Fast Recovery Area (FRA) has hit its size limit. These errors appear when Oracle cannot write new archive logs into the FRA.
+    </div>
+
+    <div class="callout callout-critical" style="margin-top:12px;">
+        <div class="callout-title">ORA-00257</div>
+        <code>ORA-00257: archiver error. Connect internal only, until freed.</code><br>
+        The archiver (ARCn) process cannot write archive logs. Only SYSDBA connections are allowed. All other sessions will hang waiting for archive log space.
+    </div>
+
+    <p>Other signs:</p>
+    <ul>
+        <li>Alert log: <code>ARC0: Archival stopped, error occurred. Will continue retrying</code></li>
+        <li>Alert log: <code>ARCH: Archival stopped, error occurred</code></li>
+        <li>All application sessions hanging indefinitely</li>
+        <li>OS-level: <code>df -h</code> shows archive destination filesystem at 100%</li>
+        <li>TuneVault health check flag: archive destination usage > 85%</li>
+    </ul>
+
+    <h2 id="diagnose">2. Diagnose the Archive Destination</h2>
+
+    <h3>2a. Check FRA usage</h3>
+    <pre><code><span class="comment">-- FRA space usage breakdown</span>
+<span class="keyword">SELECT</span>
+  space_limit/1073741824                    AS fra_size_gb,
+  space_used/1073741824                     AS used_gb,
+  space_reclaimable/1073741824              AS reclaimable_gb,
+  ROUND((space_used - space_reclaimable) / space_limit * 100, 1) AS pct_truly_used
+<span class="keyword">FROM</span> v$recovery_file_dest;
+
+<span class="comment">-- Breakdown by file type in FRA</span>
+<span class="keyword">SELECT</span>
+  file_type,
+  number_of_files,
+  ROUND(space_used/1073741824, 2) AS used_gb,
+  ROUND(space_reclaimable/1073741824, 2) AS reclaimable_gb
+<span class="keyword">FROM</span> v$recovery_area_usage
+<span class="keyword">ORDER BY</span> space_used <span class="keyword">DESC</span>;</code></pre>
+
+    <h3>2b. Check archive log status</h3>
+    <pre><code><span class="comment">-- Archive logs in FRA and their status</span>
+<span class="keyword">SELECT</span>
+  name,
+  ROUND(blocks * block_size / 1048576, 1) AS size_mb,
+  archived,
+  status,
+  next_time
+<span class="keyword">FROM</span> v$archived_log
+<span class="keyword">WHERE</span> standby_dest = <span class="string">'NO'</span>
+  AND name IS NOT NULL
+<span class="keyword">ORDER BY</span> next_time <span class="keyword">DESC</span>
+<span class="keyword">FETCH FIRST</span> 20 <span class="keyword">ROWS ONLY</span>;
+
+<span class="comment">-- How many archive logs exist and their total size</span>
+<span class="keyword">SELECT</span>
+  COUNT(*) AS num_arclogs,
+  ROUND(SUM(blocks * block_size)/1073741824, 2) AS total_gb,
+  MIN(next_time) AS oldest,
+  MAX(next_time) AS newest
+<span class="keyword">FROM</span> v$archived_log
+<span class="keyword">WHERE</span> standby_dest = <span class="string">'NO'</span>
+  AND name IS NOT NULL
+  AND status \!= <span class="string">'D'</span>;</code></pre>
+
+    <h3>2c. Check archive destination if NOT using FRA</h3>
+    <pre><code><span class="comment">-- Check archive log destination parameters</span>
+<span class="keyword">SHOW PARAMETER</span> log_archive_dest;
+<span class="keyword">SHOW PARAMETER</span> log_archive_dest_1;
+
+<span class="comment">-- Check OS-level filesystem space (run as oracle OS user)</span>
+<span class="comment">-- df -h /u01/app/oracle/archivelog</span></code></pre>
+
+    <h2 id="emergency-cleanup">3. Emergency RMAN Cleanup</h2>
+
+    <div class="callout callout-warning">
+        <div class="callout-title">⚠️ Before deleting archive logs</div>
+        Confirm all archive logs have been applied to any standby databases or Data Guard standbys. Deleting unshipped arclogs will break replication. Check <code>v$archived_log</code> where <code>applied = 'NO'</code> before proceeding.
+    </div>
+
+    <h3>3a. Crosscheck and delete obsolete backups (safest first step)</h3>
+    <pre><code><span class="comment">-- Connect to RMAN as target</span>
+<span class="comment">-- rman target /</span>
+
+CROSSCHECK ARCHIVELOG ALL;
+DELETE NOPROMPT EXPIRED ARCHIVELOG ALL;
+
+<span class="comment">-- Delete archive logs already backed up (safe)</span>
+DELETE NOPROMPT ARCHIVELOG ALL BACKED UP 1 TIMES TO DISK;</code></pre>
+
+    <h3>3b. Delete archive logs older than N hours/days</h3>
+    <pre><code><span class="comment">-- Delete archive logs older than 24 hours (adjust to your RPO)</span>
+DELETE NOPROMPT ARCHIVELOG ALL COMPLETED BEFORE 'SYSDATE-1';
+
+<span class="comment">-- Delete archive logs older than 7 days</span>
+DELETE NOPROMPT ARCHIVELOG ALL COMPLETED BEFORE 'SYSDATE-7';</code></pre>
+
+    <div class="callout callout-info">
+        <div class="callout-title">ℹ️ "NOPROMPT" flag</div>
+        The <code>NOPROMPT</code> flag skips the "are you sure?" confirmation. Remove it on your first run if you want to preview what will be deleted before committing.
+    </div>
+
+    <h3>3c. If FRA is completely full — force delete to unblock DB</h3>
+    <pre><code><span class="comment">-- Last resort: delete ALL archive logs (DB is down, no standby)</span>
+<span class="comment">-- This will prevent point-in-time recovery to times covered by deleted logs</span>
+DELETE NOPROMPT ARCHIVELOG ALL COMPLETED BEFORE SYSDATE;
+
+<span class="comment">-- After deletion, release the FRA space Oracle tracks</span>
+CROSSCHECK BACKUP;
+DELETE NOPROMPT EXPIRED BACKUP;</code></pre>
+
+    <h3>3d. If OS filesystem is full (archive logs outside FRA)</h3>
+    <pre><code><span class="comment">-- Run as OS oracle user — check filesystem</span>
+<span class="comment">-- df -h /u01/app/oracle/archivelog</span>
+
+<span class="comment">-- List archive logs by size, oldest first</span>
+<span class="comment">-- ls -lhrt /u01/app/oracle/archivelog/</span>
+
+<span class="comment">-- NEVER manually delete archive log files from the OS</span>
+<span class="comment">-- Always use RMAN crosscheck + delete so Oracle's catalog stays in sync</span>
+CROSSCHECK ARCHIVELOG ALL;
+DELETE NOPROMPT ARCHIVELOG ALL COMPLETED BEFORE 'SYSDATE-2';</code></pre>
+
+    <h2 id="retention-policy">4. Set a Proper Retention Policy</h2>
+
+    <p>Without a retention policy, RMAN keeps archive logs indefinitely. Set one now to prevent recurrence:</p>
+
+    <pre><code><span class="comment">-- Connect to RMAN</span>
+
+<span class="comment">-- Option A: Retain based on recovery window (recommended)</span>
+<span class="comment">-- Keep enough to recover to any point in the last 7 days</span>
+CONFIGURE RETENTION POLICY TO RECOVERY WINDOW OF 7 DAYS;
+
+<span class="comment">-- Option B: Retain based on redundancy (number of backup copies)</span>
+CONFIGURE RETENTION POLICY TO REDUNDANCY 2;
+
+<span class="comment">-- Option C: Explicitly delete archived logs after successful backup</span>
+CONFIGURE ARCHIVELOG DELETION POLICY TO BACKED UP 1 TIMES TO DISK;</code></pre>
+
+    <h2 id="fra-config">5. FRA Configuration Best Practices</h2>
+
+    <h3>5a. Increase FRA size</h3>
+    <pre><code><span class="comment">-- Check current FRA location and size</span>
+<span class="keyword">SHOW PARAMETER</span> db_recovery_file_dest;
+<span class="keyword">SHOW PARAMETER</span> db_recovery_file_dest_size;
+
+<span class="comment">-- Increase FRA size (online, no restart needed)</span>
+<span class="keyword">ALTER SYSTEM SET</span> db_recovery_file_dest_size = 50G <span class="keyword">SCOPE</span>=BOTH;
+
+<span class="comment">-- Move FRA to a larger filesystem</span>
+<span class="keyword">ALTER SYSTEM SET</span> db_recovery_file_dest = <span class="string">'/u02/fast_recovery_area'</span> <span class="keyword">SCOPE</span>=BOTH;</code></pre>
+
+    <h3>5b. Size the FRA correctly</h3>
+    <p>A correctly sized FRA should hold:</p>
+    <ul>
+        <li>One full database backup</li>
+        <li>All archive logs since the last backup</li>
+        <li>Incremental backups within the recovery window</li>
+        <li>Flashback logs (if flashback database is enabled)</li>
+    </ul>
+    <p>Rule of thumb: <strong>FRA size = 3× the size of your database</strong> if you run daily backups with a 7-day recovery window.</p>
+
+    <pre><code><span class="comment">-- Calculate minimum recommended FRA size</span>
+<span class="keyword">SELECT</span>
+  ROUND(SUM(bytes)/1073741824, 1) AS db_size_gb,
+  ROUND(SUM(bytes)/1073741824 * 3, 1) AS recommended_fra_gb
+<span class="keyword">FROM</span> dba_data_files;</code></pre>
+
+    <h2 id="verify">6. Verify Archiving Has Resumed</h2>
+
+    <pre><code><span class="comment">-- Force a log switch to test archiving is working</span>
+<span class="keyword">ALTER SYSTEM</span> SWITCH LOGFILE;
+
+<span class="comment">-- Wait 10 seconds, then verify the log was archived</span>
+<span class="keyword">SELECT</span> sequence#, archived, status
+<span class="keyword">FROM</span> v$log
+<span class="keyword">ORDER BY</span> sequence# <span class="keyword">DESC</span>;
+
+<span class="comment">-- Check archiver process status</span>
+<span class="keyword">SELECT</span> status, log_sequence, process
+<span class="keyword">FROM</span> v$archive_processes
+<span class="keyword">WHERE</span> status \!= <span class="string">'IDLE'</span>
+<span class="keyword">ORDER BY</span> log_sequence <span class="keyword">DESC</span>;
+
+<span class="comment">-- Confirm no more ORA-00257 in alert log</span>
+<span class="keyword">SELECT</span> originating_timestamp, message_text
+<span class="keyword">FROM</span> v$diag_alert_ext
+<span class="keyword">WHERE</span> message_text <span class="keyword">LIKE</span> <span class="string">'%ORA-00257%'</span>
+  <span class="keyword">OR</span> message_text <span class="keyword">LIKE</span> <span class="string">'%Archival stopped%'</span>
+<span class="keyword">ORDER BY</span> originating_timestamp <span class="keyword">DESC</span>
+<span class="keyword">FETCH FIRST</span> 10 <span class="keyword">ROWS ONLY</span>;</code></pre>
+
+    <h2 id="prevention">7. Prevention: Monitoring and Automation</h2>
+
+    <p>Archive log destination full is entirely preventable with the right monitoring. The typical failure sequence is:</p>
+    <ol>
+        <li>FRA or archive destination grows past 85% — no alert fires</li>
+        <li>FRA hits 100% — archiver stops, database hangs</li>
+        <li>On-call DBA gets paged by angry users 15 minutes later</li>
+    </ol>
+
+    <div class="callout callout-success">
+        <div class="callout-title">✅ Prevention checklist</div>
+        <ul style="margin:8px 0 0 20px;">
+            <li>RMAN retention policy configured (recovery window or redundancy)</li>
+            <li>FRA sized at 3× database size minimum</li>
+            <li>Alert on FRA usage &gt; 70% (warning) and &gt; 85% (critical)</li>
+            <li>Automated RMAN backup with <code>DELETE INPUT</code> option</li>
+            <li>Weekly RMAN crosscheck to remove expired entries</li>
+            <li>If using standby: monitor <code>v$archived_log where applied = 'NO'</code></li>
+        </ul>
+    </div>
+
+    <div class="cta-box">
+        <h3>Catch archive log pressure before it pages you</h3>
+        <p>TuneVault monitors FRA utilisation and archive log destination space across all your Oracle instances, with threshold alerts at 70% and 85%.</p>
+        <a href="/signup?path=health-check&redirect=/dashboard" class="cta-btn">Run a Free Health Check →</a>
+    </div>
+
+    <div class="nav-footer">
+        <a href="/resources/runbooks/tablespace-full-recovery">← Tablespace Full Recovery</a>
+        <a href="/resources/runbooks/opp-tuning-ebs">OPP Tuning for EBS →</a>
+    </div>
+
+</div>
+
+<footer>
+    <div class="footer-links">
+        <a href="/">TuneVault</a>
+        <a href="/resources/runbooks">Runbooks</a>
+        <a href="/blog">Blog</a>
+        <a href="/compare">Compare Tools</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/about">About</a>
+        <a href="/privacy">Privacy</a>
+    </div>
+    <p style="margin-top:12px;">© 2026 TuneVault · <a href="mailto:hello@tunevault.app">hello@tunevault.app</a></p>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,700 @@
+{
+  "_comment": "Synthetic EBS 12.2 proxy payload for self-test endpoint. Mirrors what oracle-proxy.py v3.2.1+ emits against a real EBS 12.2 instance. Used by POST /api/admin/proxy/self-test to validate parsing, scoring, and AI summary end-to-end without a live Oracle box. LAST_UPDATED: 2026-05-13.",
+
+  "scenarios": {
+
+    "healthy": {
+      "_description": "Healthy EBS 12.2 instance. All managers running, no patching in progress. Use to confirm baseline rendering.",
+      "proxy_version": "3.2.1",
+      "instance": {
+        "db_name": "EBSPROD",
+        "version": "19.22.0.0.0",
+        "status": "OPEN",
+        "uptime_days": 142,
+        "startup_time": "2025-12-21 08:30:00",
+        "platform": "Linux x86 64-bit"
+      },
+      "tablespaces": [
+        { "name": "SYSTEM",  "used_gb": 8.2,  "total_gb": 12.0, "pct_used": 68, "status": "ONLINE", "autoextend": true  },
+        { "name": "SYSAUX",  "used_gb": 5.1,  "total_gb": 8.0,  "pct_used": 64, "status": "ONLINE", "autoextend": true  },
+        { "name": "APPS_TS_TX_DATA", "used_gb": 210.4, "total_gb": 400.0, "pct_used": 53, "status": "ONLINE", "autoextend": true },
+        { "name": "APPS_TS_TX_IDX",  "used_gb": 98.7,  "total_gb": 200.0, "pct_used": 49, "status": "ONLINE", "autoextend": true },
+        { "name": "APPS_TS_SEED",     "used_gb": 14.3,  "total_gb": 20.0,  "pct_used": 72, "status": "ONLINE", "autoextend": false },
+        { "name": "UNDOTBS1",         "used_gb": 4.8,   "total_gb": 20.0,  "pct_used": 24, "status": "ONLINE", "autoextend": true  },
+        { "name": "TEMP",             "used_gb": 2.1,   "total_gb": 10.0,  "pct_used": 21, "status": "ONLINE", "autoextend": true  }
+      ],
+      "wait_events": [
+        { "event": "db file sequential read", "wait_class": "User I/O",       "total_waits": 8421033, "avg_wait_ms": 0.8, "pct_db_time": 4.2 },
+        { "event": "log file sync",           "wait_class": "Commit",         "total_waits": 312041,  "avg_wait_ms": 1.2, "pct_db_time": 1.8 },
+        { "event": "SQL*Net message from client", "wait_class": "Idle",       "total_waits": 18923000,"avg_wait_ms": 0.3, "pct_db_time": 0.9 }
+      ],
+      "top_sql": [
+        { "sql_id": "7vc3bwk5yp8kq", "plan_hash_value": 1234567890, "elapsed_per_exec_ms": 1.2, "buffer_gets_per_exec": 145, "executions": 4829012, "issue": null },
+        { "sql_id": "a9m2fp1kx3nbr", "plan_hash_value": 9876543210, "elapsed_per_exec_ms": 3.8, "buffer_gets_per_exec": 892, "executions": 218400,  "issue": null }
+      ],
+      "index_analysis": [
+        { "index_name": "HR.EMP_DEPT_IDX", "table_name": "EMPLOYEES", "owner": "HR", "pct_deleted": 8, "size_mb": 42.3 }
+      ],
+      "sga_stats": {
+        "sga_size_gb": 24.0,
+        "buffer_cache_gb": 16.0,
+        "shared_pool_gb": 4.0,
+        "large_pool_gb": 0.5,
+        "buffer_cache_hit_ratio": 98.7,
+        "shared_pool_free_pct": 22.1,
+        "hard_parses_per_sec": 4.2,
+        "soft_parses_per_sec": 312.8
+      },
+      "pga_stats": {
+        "pga_target_gb": 8.0,
+        "pga_allocated_gb": 3.2,
+        "cache_hit_pct": 97.4,
+        "multipass_executions_pct": 0.0,
+        "over_allocation_count": 0
+      },
+      "redo_stats": { "log_switch_per_hour": 3.2, "redo_size_mb_per_hour": 480 },
+      "os_stats": {
+        "cpu_count": 16,
+        "avg_cpu_utilization_pct": 22.0,
+        "avg_io_wait_pct": 1.8,
+        "free_memory_gb": 14.3
+      },
+      "undo_stats": {
+        "current": { "tablespace_name": "UNDOTBS1", "pct_used": 24, "retention_secs": 900 }
+      },
+      "temp_stats": {
+        "current": { "tablespace_name": "TEMP", "pct_used": 21 }
+      },
+      "alert_log": {
+        "summary": { "critical": 0, "warning": 2 },
+        "entries": [
+          { "timestamp": "2026-05-12 03:14:22", "severity": "warning", "message": "ORA-01555: snapshot too old: rollback segment number 4 with name \"_SYSSMU4_\"" },
+          { "timestamp": "2026-05-11 22:01:05", "severity": "warning", "message": "ORA-00054: resource busy and acquire with NOWAIT specified" }
+        ]
+      },
+      "resource_limits": {
+        "current": [
+          { "resource": "sessions",  "current": 312, "limit": 2000, "pct_max_used": 15.6 },
+          { "resource": "processes", "current": 288, "limit": 1800, "pct_max_used": 16.0 }
+        ]
+      },
+      "sga_pga_history": {
+        "current": { "sga_target_gb": 24.0, "pga_target_gb": 8.0, "memory_target_gb": 0, "sga_max_gb": 24.0 }
+      },
+      "backup_stats": {
+        "rman_backup": {
+          "status": "ok",
+          "full_backup_hours_ago": 18.4,
+          "last_full_backup": { "end_time": "2026-05-12 14:22:00" }
+        },
+        "fra_usage": { "pct_used": 38.2 },
+        "archivelog_rate": {
+          "archivelog_mode": true,
+          "switches_per_hour": 3.2,
+          "switches_24h": 77,
+          "log_groups": [
+            { "group": 1, "size_mb": 500 }, { "group": 2, "size_mb": 500 }, { "group": 3, "size_mb": 500 }
+          ]
+        }
+      },
+      "db_objects": {
+        "invalid_objects": { "count": 0, "packages": 0, "procedures": 0, "views": 0, "triggers": 0 },
+        "stale_stats": { "stale_count": 3, "never_analyzed": 0 },
+        "recyclebin": { "object_count": 12, "size_gb": 0.2 },
+        "scn_headroom": { "current_scn": 9842341234, "days_remaining": 892 },
+        "controlfiles": { "count": 3, "invalid_count": 0 },
+        "spfile": { "param_file_type": "SPFILE", "using_spfile": true }
+      },
+      "session_stats": { "total_sessions": 312, "active_sessions": 48, "user_sessions": 302, "blocked_sessions": 0 },
+      "security_stats": {},
+      "schema_stats": {
+        "disk_sort_pct": 0.1, "full_table_scan_pct": 3.2, "disk_sorts": 42, "mem_sorts": 48291,
+        "long_scans": 12,
+        "top_segments": [{ "owner": "APPS", "segment_name": "FND_LOBS", "segment_type": "TABLE", "size_gb": 18.4 }],
+        "problem_datafiles": 0, "offline_datafiles": 0
+      },
+      "snapshot_info": { "begin_snap": 12841, "end_snap": 12842, "elapsed_minutes": 60 },
+      "ebs_detected": true,
+      "ebs_operations": {
+        "concurrent_managers": {
+          "cm01": { "name": "Internal Manager", "max_processes": 1, "running_processes": 1, "control_code": "", "status": "ok" },
+          "cm02": { "pending_requests": 4 },
+          "cm03": { "name": "Output Post Processor", "max_processes": 2, "running_processes": 2, "status": "ok" },
+          "cm05": { "completed_24h": 3842, "avg_runtime_secs": 14.3 },
+          "cm06": [
+            { "name": "Standard Manager",         "max_processes": 10, "running_processes": 10, "target_processes": 10 },
+            { "name": "Payables Open Interface Import", "max_processes": 2, "running_processes": 2, "target_processes": 2 }
+          ],
+          "cm09": [],
+          "cm10": { "error_requests_24h": 1 }
+        },
+        "workflow": {
+          "wf01": [],
+          "wf02": { "error_count": 3 },
+          "wf03": { "mailer_running": true, "status": "RUNNING", "startup_mode": "AUTOMATIC", "deferred_ready": 2 },
+          "wf07": [],
+          "wf08": { "pending_over_2h": 8, "pending_over_8h": 0 },
+          "wf09": [
+            { "name": "Workflow Agent Listener",   "status": "RUNNING", "startup_mode": "AUTOMATIC", "enabled": true },
+            { "name": "Workflow Notification Mailer", "status": "RUNNING", "startup_mode": "AUTOMATIC", "enabled": true }
+          ],
+          "status": "ok",
+          "mailer_running": true
+        },
+        "security": {
+          "sc12": { "signon_audit_level": "FORM", "audit_enabled": true },
+          "sc14": [
+            { "user_name": "SYSADMIN",  "responsibility": "System Administrator" },
+            { "user_name": "ITADMIN",   "responsibility": "System Administrator" }
+          ]
+        },
+        "functional": {
+          "fb01": [],
+          "fb03": { "pending_over_7d": 12 },
+          "fb04": { "active_users_24h": 312 }
+        },
+        "observability": { "ot05": null },
+        "config_drift": { "cd07": null },
+        "_adop_status": {
+          "check_id": "ADOP_STATUS",
+          "status": "ok",
+          "severity": "info",
+          "message": "No active ADOP sessions.",
+          "sessions": [],
+          "active_sessions": 0,
+          "failed_sessions": 0
+        },
+        "_apps_env": {},
+        "_overall_status": "ok"
+      },
+      "ebs_probe_error": null
+    },
+
+    "warning": {
+      "_description": "EBS instance with moderate issues: tablespace at 85%, OPP running below target, WF notification backlog, pending requests elevated. Use to validate amber severity paths.",
+      "proxy_version": "3.2.1",
+      "instance": {
+        "db_name": "EBSPROD",
+        "version": "19.22.0.0.0",
+        "status": "OPEN",
+        "uptime_days": 28,
+        "startup_time": "2026-04-15 06:00:00",
+        "platform": "Linux x86 64-bit"
+      },
+      "tablespaces": [
+        { "name": "SYSTEM",  "used_gb": 8.9,  "total_gb": 12.0, "pct_used": 74, "status": "ONLINE", "autoextend": true },
+        { "name": "SYSAUX",  "used_gb": 6.2,  "total_gb": 8.0,  "pct_used": 78, "status": "ONLINE", "autoextend": true },
+        { "name": "APPS_TS_TX_DATA", "used_gb": 342.1, "total_gb": 400.0, "pct_used": 86, "status": "ONLINE", "autoextend": false },
+        { "name": "APPS_TS_TX_IDX",  "used_gb": 161.3, "total_gb": 200.0, "pct_used": 81, "status": "ONLINE", "autoextend": false },
+        { "name": "APPS_TS_SEED",     "used_gb": 15.8,  "total_gb": 20.0,  "pct_used": 79, "status": "ONLINE", "autoextend": false },
+        { "name": "UNDOTBS1",         "used_gb": 14.2,  "total_gb": 20.0,  "pct_used": 71, "status": "ONLINE", "autoextend": true },
+        { "name": "TEMP",             "used_gb": 7.1,   "total_gb": 10.0,  "pct_used": 71, "status": "ONLINE", "autoextend": true }
+      ],
+      "wait_events": [
+        { "event": "db file sequential read",  "wait_class": "User I/O", "total_waits": 24812003, "avg_wait_ms": 2.1, "pct_db_time": 9.8 },
+        { "event": "log file sync",            "wait_class": "Commit",   "total_waits": 892041,   "avg_wait_ms": 3.8, "pct_db_time": 6.2 },
+        { "event": "enq: TX - row lock contention", "wait_class": "Application", "total_waits": 48120, "avg_wait_ms": 18.4, "pct_db_time": 4.1 }
+      ],
+      "top_sql": [
+        { "sql_id": "9kf2mx7wpq1az", "plan_hash_value": 2847392818, "elapsed_per_exec_ms": 8.4, "buffer_gets_per_exec": 2841, "executions": 182400, "issue": "high buffer gets" }
+      ],
+      "index_analysis": [
+        { "index_name": "APPS.FND_LOG_MESSAGES_N1", "table_name": "FND_LOG_MESSAGES", "owner": "APPS", "pct_deleted": 48, "size_mb": 1842.0 },
+        { "index_name": "APPS.WF_ITEM_ACTIVITY_STATUSES_N1", "table_name": "WF_ITEM_ACTIVITY_STATUSES", "owner": "APPS", "pct_deleted": 41, "size_mb": 612.3 }
+      ],
+      "sga_stats": {
+        "sga_size_gb": 24.0,
+        "buffer_cache_gb": 16.0,
+        "shared_pool_gb": 4.0,
+        "large_pool_gb": 0.5,
+        "buffer_cache_hit_ratio": 93.2,
+        "shared_pool_free_pct": 11.4,
+        "hard_parses_per_sec": 18.2,
+        "soft_parses_per_sec": 482.1
+      },
+      "pga_stats": {
+        "pga_target_gb": 8.0,
+        "pga_allocated_gb": 5.8,
+        "cache_hit_pct": 92.1,
+        "multipass_executions_pct": 0.8,
+        "over_allocation_count": 12
+      },
+      "redo_stats": { "log_switch_per_hour": 8.4, "redo_size_mb_per_hour": 1240 },
+      "os_stats": {
+        "cpu_count": 16,
+        "avg_cpu_utilization_pct": 68.0,
+        "avg_io_wait_pct": 8.2,
+        "free_memory_gb": 3.8
+      },
+      "undo_stats": {
+        "current": { "tablespace_name": "UNDOTBS1", "pct_used": 71, "retention_secs": 900 }
+      },
+      "temp_stats": {
+        "current": { "tablespace_name": "TEMP", "pct_used": 71 }
+      },
+      "alert_log": {
+        "summary": { "critical": 2, "warning": 18 },
+        "entries": [
+          { "timestamp": "2026-05-13 02:41:12", "severity": "critical", "message": "ORA-04031: unable to allocate 4096 bytes of shared memory" },
+          { "timestamp": "2026-05-12 23:18:44", "severity": "critical", "message": "ORA-01652: unable to extend temp segment by 128 in tablespace TEMP" }
+        ]
+      },
+      "resource_limits": {
+        "current": [
+          { "resource": "sessions",  "current": 892, "limit": 2000, "pct_max_used": 44.6 },
+          { "resource": "processes", "current": 812, "limit": 1800, "pct_max_used": 45.1 }
+        ]
+      },
+      "sga_pga_history": {
+        "current": { "sga_target_gb": 24.0, "pga_target_gb": 8.0, "memory_target_gb": 0, "sga_max_gb": 24.0 }
+      },
+      "backup_stats": {
+        "rman_backup": {
+          "status": "warning",
+          "full_backup_hours_ago": 36.2,
+          "last_full_backup": { "end_time": "2026-05-11 20:14:00" }
+        },
+        "fra_usage": { "pct_used": 82.1 },
+        "archivelog_rate": {
+          "archivelog_mode": true,
+          "switches_per_hour": 8.4,
+          "switches_24h": 202,
+          "log_groups": [
+            { "group": 1, "size_mb": 200 }, { "group": 2, "size_mb": 200 }, { "group": 3, "size_mb": 200 }
+          ]
+        }
+      },
+      "db_objects": {
+        "invalid_objects": { "count": 14, "packages": 6, "procedures": 4, "views": 3, "triggers": 1 },
+        "stale_stats": { "stale_count": 42, "never_analyzed": 8 },
+        "recyclebin": { "object_count": 841, "size_gb": 4.2 },
+        "scn_headroom": { "current_scn": 9842341234, "days_remaining": 421 },
+        "controlfiles": { "count": 2, "invalid_count": 0 },
+        "spfile": { "param_file_type": "SPFILE", "using_spfile": true }
+      },
+      "session_stats": { "total_sessions": 892, "active_sessions": 214, "user_sessions": 861, "blocked_sessions": 2 },
+      "security_stats": {},
+      "schema_stats": {
+        "disk_sort_pct": 2.8, "full_table_scan_pct": 12.4, "disk_sorts": 8412, "mem_sorts": 301824,
+        "long_scans": 412,
+        "top_segments": [
+          { "owner": "APPS", "segment_name": "FND_LOG_MESSAGES", "segment_type": "TABLE", "size_gb": 98.4 },
+          { "owner": "APPS", "segment_name": "WF_ITEM_ACTIVITY_STATUSES", "segment_type": "TABLE", "size_gb": 42.1 }
+        ],
+        "problem_datafiles": 0, "offline_datafiles": 0
+      },
+      "snapshot_info": { "begin_snap": 14120, "end_snap": 14121, "elapsed_minutes": 60 },
+      "ebs_detected": true,
+      "ebs_operations": {
+        "concurrent_managers": {
+          "cm01": { "name": "Internal Manager", "max_processes": 1, "running_processes": 1, "control_code": "", "status": "ok" },
+          "cm02": { "pending_requests": 87 },
+          "cm03": { "name": "Output Post Processor", "max_processes": 4, "running_processes": 2, "status": "warning", "recommendation": "OPP running below target capacity — PDF output may be delayed" },
+          "cm05": { "completed_24h": 2841, "avg_runtime_secs": 782 },
+          "cm06": [
+            { "name": "Standard Manager", "max_processes": 10, "running_processes": 8, "target_processes": 10 }
+          ],
+          "cm09": [],
+          "cm10": { "error_requests_24h": 12 }
+        },
+        "workflow": {
+          "wf01": [],
+          "wf02": { "error_count": 28 },
+          "wf03": { "mailer_running": true, "status": "RUNNING", "startup_mode": "AUTOMATIC", "deferred_ready": 148 },
+          "wf07": [],
+          "wf08": { "pending_over_2h": 214, "pending_over_8h": 18 },
+          "wf09": [
+            { "name": "Workflow Agent Listener",   "status": "RUNNING", "startup_mode": "AUTOMATIC", "enabled": true },
+            { "name": "Workflow Notification Mailer", "status": "RUNNING", "startup_mode": "AUTOMATIC", "enabled": true }
+          ],
+          "status": "warning",
+          "mailer_running": true
+        },
+        "security": {
+          "sc12": { "signon_audit_level": "FORM", "audit_enabled": true },
+          "sc14": [
+            { "user_name": "SYSADMIN", "responsibility": "System Administrator" },
+            { "user_name": "ITOPS",    "responsibility": "System Administrator" },
+            { "user_name": "DBADMIN",  "responsibility": "System Administrator" }
+          ]
+        },
+        "functional": {
+          "fb01": [],
+          "fb03": { "pending_over_7d": 84 },
+          "fb04": { "active_users_24h": 248 }
+        },
+        "observability": { "ot05": null },
+        "config_drift": { "cd07": null },
+        "_adop_status": {
+          "check_id": "ADOP_STATUS",
+          "status": "ok",
+          "severity": "info",
+          "message": "No active ADOP sessions.",
+          "sessions": [],
+          "active_sessions": 0,
+          "failed_sessions": 0
+        },
+        "_apps_env": {},
+        "_overall_status": "warning"
+      },
+      "ebs_probe_error": null
+    },
+
+    "critical": {
+      "_description": "Critical EBS instance: tablespace >90%, ICM down, OPP down, WF Mailer stopped, Notification Mailer service component stopped, ADOP failed sessions. Use to validate red severity paths and critical issue rendering.",
+      "proxy_version": "3.2.1",
+      "instance": {
+        "db_name": "EBSPROD",
+        "version": "19.22.0.0.0",
+        "status": "OPEN",
+        "uptime_days": 3,
+        "startup_time": "2026-05-10 02:18:00",
+        "platform": "Linux x86 64-bit"
+      },
+      "tablespaces": [
+        { "name": "SYSTEM",  "used_gb": 10.8, "total_gb": 12.0, "pct_used": 90, "status": "ONLINE", "autoextend": false },
+        { "name": "SYSAUX",  "used_gb": 7.8,  "total_gb": 8.0,  "pct_used": 98, "status": "ONLINE", "autoextend": false },
+        { "name": "APPS_TS_TX_DATA", "used_gb": 392.1, "total_gb": 400.0, "pct_used": 98, "status": "ONLINE", "autoextend": false },
+        { "name": "APPS_TS_TX_IDX",  "used_gb": 196.4, "total_gb": 200.0, "pct_used": 98, "status": "ONLINE", "autoextend": false },
+        { "name": "APPS_TS_SEED",     "used_gb": 19.1,  "total_gb": 20.0,  "pct_used": 96, "status": "ONLINE", "autoextend": false },
+        { "name": "UNDOTBS1",         "used_gb": 19.2,  "total_gb": 20.0,  "pct_used": 96, "status": "ONLINE", "autoextend": false },
+        { "name": "TEMP",             "used_gb": 9.8,   "total_gb": 10.0,  "pct_used": 98, "status": "ONLINE", "autoextend": false }
+      ],
+      "wait_events": [
+        { "event": "enq: TX - row lock contention", "wait_class": "Application",  "total_waits": 482001, "avg_wait_ms": 48.2, "pct_db_time": 24.1 },
+        { "event": "db file scattered read",         "wait_class": "User I/O",     "total_waits": 8412003,"avg_wait_ms": 12.4, "pct_db_time": 18.3 },
+        { "event": "log file sync",                  "wait_class": "Commit",        "total_waits": 2812041,"avg_wait_ms": 14.8, "pct_db_time": 12.9 },
+        { "event": "library cache lock",             "wait_class": "Concurrency",   "total_waits": 48213,  "avg_wait_ms": 82.1, "pct_db_time": 10.4 }
+      ],
+      "top_sql": [
+        { "sql_id": "6tm4bkp2yw8nz", "plan_hash_value": 4821938102, "elapsed_per_exec_ms": 842.4, "buffer_gets_per_exec": 284190, "executions": 18421, "issue": "full table scan" },
+        { "sql_id": "d2x8qa1nkj5rp", "plan_hash_value": 2938401823, "elapsed_per_exec_ms": 482.1, "buffer_gets_per_exec": 121842, "executions": 42180, "issue": "missing index" },
+        { "sql_id": "y7mb3fzw9ptcn", "plan_hash_value": 8301927401, "elapsed_per_exec_ms": 284.8, "buffer_gets_per_exec": 98412,  "executions": 84210, "issue": "high buffer gets" }
+      ],
+      "index_analysis": [
+        { "index_name": "APPS.FND_LOG_MESSAGES_N1",          "table_name": "FND_LOG_MESSAGES",           "owner": "APPS", "pct_deleted": 78, "size_mb": 4821.0 },
+        { "index_name": "APPS.WF_ITEM_ACTIVITY_STATUSES_N1", "table_name": "WF_ITEM_ACTIVITY_STATUSES", "owner": "APPS", "pct_deleted": 72, "size_mb": 2410.0 },
+        { "index_name": "APPS.ICX_SESSIONS_N1",              "table_name": "ICX_SESSIONS",               "owner": "APPS", "pct_deleted": 84, "size_mb": 1284.0 }
+      ],
+      "sga_stats": {
+        "sga_size_gb": 24.0,
+        "buffer_cache_gb": 16.0,
+        "shared_pool_gb": 4.0,
+        "large_pool_gb": 0.5,
+        "buffer_cache_hit_ratio": 78.4,
+        "shared_pool_free_pct": 2.1,
+        "hard_parses_per_sec": 218.4,
+        "soft_parses_per_sec": 1284.2
+      },
+      "pga_stats": {
+        "pga_target_gb": 8.0,
+        "pga_allocated_gb": 9.8,
+        "cache_hit_pct": 72.8,
+        "multipass_executions_pct": 12.4,
+        "over_allocation_count": 284
+      },
+      "redo_stats": { "log_switch_per_hour": 28.4, "redo_size_mb_per_hour": 4821 },
+      "os_stats": {
+        "cpu_count": 16,
+        "avg_cpu_utilization_pct": 94.2,
+        "avg_io_wait_pct": 28.4,
+        "free_memory_gb": 0.8
+      },
+      "undo_stats": {
+        "current": { "tablespace_name": "UNDOTBS1", "pct_used": 96, "retention_secs": 900 }
+      },
+      "temp_stats": {
+        "current": { "tablespace_name": "TEMP", "pct_used": 98 }
+      },
+      "alert_log": {
+        "summary": { "critical": 28, "warning": 84 },
+        "entries": [
+          { "timestamp": "2026-05-13 07:12:44", "severity": "critical", "message": "ORA-01653: unable to extend table APPS.FND_LOG_MESSAGES by 128 in tablespace APPS_TS_TX_DATA" },
+          { "timestamp": "2026-05-13 07:10:21", "severity": "critical", "message": "ORA-04031: unable to allocate 16384 bytes of shared memory (\"shared pool\",\"unknown object\",\"sga heap(1,0)\",\"KGLH0\")" },
+          { "timestamp": "2026-05-13 06:48:12", "severity": "critical", "message": "ORA-01555: snapshot too old: rollback segment number 12" }
+        ]
+      },
+      "resource_limits": {
+        "current": [
+          { "resource": "sessions",  "current": 1892, "limit": 2000, "pct_max_used": 94.6 },
+          { "resource": "processes", "current": 1742, "limit": 1800, "pct_max_used": 96.8 }
+        ]
+      },
+      "sga_pga_history": {
+        "current": { "sga_target_gb": 24.0, "pga_target_gb": 8.0, "memory_target_gb": 0, "sga_max_gb": 24.0 }
+      },
+      "backup_stats": {
+        "rman_backup": {
+          "status": "critical",
+          "full_backup_hours_ago": 84.2,
+          "last_full_backup": { "end_time": "2026-05-09 23:01:00" }
+        },
+        "fra_usage": { "pct_used": 96.4 },
+        "archivelog_rate": {
+          "archivelog_mode": true,
+          "switches_per_hour": 28.4,
+          "switches_24h": 682,
+          "log_groups": [
+            { "group": 1, "size_mb": 50 }, { "group": 2, "size_mb": 50 }, { "group": 3, "size_mb": 50 }
+          ]
+        }
+      },
+      "db_objects": {
+        "invalid_objects": { "count": 84, "packages": 28, "procedures": 21, "views": 24, "triggers": 11 },
+        "stale_stats": { "stale_count": 284, "never_analyzed": 42 },
+        "recyclebin": { "object_count": 4821, "size_gb": 28.4 },
+        "scn_headroom": { "current_scn": 9842341234, "days_remaining": 421 },
+        "controlfiles": { "count": 1, "invalid_count": 0 },
+        "spfile": { "param_file_type": "PFILE", "using_spfile": false }
+      },
+      "session_stats": { "total_sessions": 1892, "active_sessions": 1284, "user_sessions": 1841, "blocked_sessions": 28 },
+      "security_stats": {},
+      "schema_stats": {
+        "disk_sort_pct": 18.4, "full_table_scan_pct": 48.2, "disk_sorts": 284120, "mem_sorts": 1284012,
+        "long_scans": 8421,
+        "top_segments": [
+          { "owner": "APPS", "segment_name": "FND_LOG_MESSAGES",          "segment_type": "TABLE", "size_gb": 284.1 },
+          { "owner": "APPS", "segment_name": "WF_ITEM_ACTIVITY_STATUSES", "segment_type": "TABLE", "size_gb": 142.8 }
+        ],
+        "problem_datafiles": 2, "offline_datafiles": 2
+      },
+      "snapshot_info": { "begin_snap": 18421, "end_snap": 18422, "elapsed_minutes": 60 },
+      "ebs_detected": true,
+      "ebs_operations": {
+        "concurrent_managers": {
+          "cm01": { "name": "Internal Manager", "max_processes": 1, "running_processes": 0, "control_code": "X", "status": "critical" },
+          "cm02": { "pending_requests": 842 },
+          "cm03": { "name": "Output Post Processor", "max_processes": 4, "running_processes": 0, "status": "critical", "recommendation": "CRITICAL: OPP is down — all PDF/report output queued with no delivery" },
+          "cm05": { "completed_24h": 284, "avg_runtime_secs": 7284 },
+          "cm06": [
+            { "name": "Standard Manager", "max_processes": 10, "running_processes": 0, "target_processes": 10 }
+          ],
+          "cm09": [],
+          "cm10": { "error_requests_24h": 284 }
+        },
+        "workflow": {
+          "wf01": [],
+          "wf02": { "error_count": 2841 },
+          "wf03": { "mailer_running": false, "status": "STOPPED", "startup_mode": "AUTOMATIC", "deferred_ready": 4821 },
+          "wf07": [],
+          "wf08": { "pending_over_2h": 4821, "pending_over_8h": 1284 },
+          "wf09": [
+            { "name": "Workflow Agent Listener",     "status": "STOPPED",  "startup_mode": "AUTOMATIC", "enabled": false },
+            { "name": "Workflow Notification Mailer", "status": "STOPPED", "startup_mode": "AUTOMATIC", "enabled": false }
+          ],
+          "status": "critical",
+          "mailer_running": false
+        },
+        "security": {
+          "sc12": { "signon_audit_level": "NONE", "audit_enabled": false },
+          "sc14": [
+            { "user_name": "SYSADMIN",  "responsibility": "System Administrator" },
+            { "user_name": "ITOPS",     "responsibility": "System Administrator" },
+            { "user_name": "DBADMIN",   "responsibility": "System Administrator" },
+            { "user_name": "DBAOPS2",   "responsibility": "System Administrator" },
+            { "user_name": "APPSADM",   "responsibility": "System Administrator" },
+            { "user_name": "SUPERUSER", "responsibility": "System Administrator" },
+            { "user_name": "AUDITOR",   "responsibility": "System Administrator" }
+          ]
+        },
+        "functional": {
+          "fb01": [],
+          "fb03": { "pending_over_7d": 4821 },
+          "fb04": { "active_users_24h": 18 }
+        },
+        "observability": { "ot05": null },
+        "config_drift": { "cd07": null },
+        "_adop_status": {
+          "check_id": "ADOP_STATUS",
+          "status": "critical",
+          "severity": "critical",
+          "message": "2 ADOP session(s) in FAILED state — patching cycle is stalled.",
+          "sessions": [
+            { "session_id": 4182, "prepare_status": "C", "apply_status": "C", "cutover_status": "F", "cleanup_status": "N", "phase": "cutover", "status": "F" },
+            { "session_id": 4181, "prepare_status": "C", "apply_status": "F", "cutover_status": "N", "cleanup_status": "N", "phase": "apply", "status": "F" }
+          ],
+          "active_sessions": 0,
+          "failed_sessions": 2
+        },
+        "_apps_env": {},
+        "_overall_status": "critical"
+      },
+      "ebs_probe_error": null
+    },
+
+    "ebs_patching": {
+      "_description": "EBS instance with active ADOP patching cycle in CUTOVER phase. System is in partial dual-fs state: most CMs paused, OPP at minimum capacity, WF deferred queue elevated. Use to validate ADOP amber state and patching-in-progress UX.",
+      "proxy_version": "3.2.1",
+      "instance": {
+        "db_name": "EBSPROD",
+        "version": "19.22.0.0.0",
+        "status": "OPEN",
+        "uptime_days": 98,
+        "startup_time": "2026-02-04 04:12:00",
+        "platform": "Linux x86 64-bit"
+      },
+      "tablespaces": [
+        { "name": "SYSTEM",           "used_gb": 9.1,  "total_gb": 12.0, "pct_used": 76, "status": "ONLINE", "autoextend": true },
+        { "name": "SYSAUX",           "used_gb": 5.8,  "total_gb": 8.0,  "pct_used": 73, "status": "ONLINE", "autoextend": true },
+        { "name": "APPS_TS_TX_DATA",  "used_gb": 248.2, "total_gb": 400.0,"pct_used": 62, "status": "ONLINE", "autoextend": true },
+        { "name": "APPS_TS_TX_IDX",   "used_gb": 112.4, "total_gb": 200.0,"pct_used": 56, "status": "ONLINE", "autoextend": true },
+        { "name": "APPS_TS_SEED",     "used_gb": 15.1,  "total_gb": 20.0, "pct_used": 76, "status": "ONLINE", "autoextend": false },
+        { "name": "UNDOTBS1",         "used_gb": 8.4,   "total_gb": 20.0, "pct_used": 42, "status": "ONLINE", "autoextend": true },
+        { "name": "TEMP",             "used_gb": 4.8,   "total_gb": 10.0, "pct_used": 48, "status": "ONLINE", "autoextend": true }
+      ],
+      "wait_events": [
+        { "event": "db file sequential read", "wait_class": "User I/O", "total_waits": 12481003, "avg_wait_ms": 1.4, "pct_db_time": 6.8 },
+        { "event": "log file sync",           "wait_class": "Commit",   "total_waits": 492041,   "avg_wait_ms": 2.1, "pct_db_time": 3.4 }
+      ],
+      "top_sql": [
+        { "sql_id": "4pz8xn2bk6qam", "plan_hash_value": 3829401823, "elapsed_per_exec_ms": 4.2, "buffer_gets_per_exec": 481, "executions": 2841042, "issue": null }
+      ],
+      "index_analysis": [],
+      "sga_stats": {
+        "sga_size_gb": 24.0,
+        "buffer_cache_gb": 16.0,
+        "shared_pool_gb": 4.0,
+        "large_pool_gb": 0.5,
+        "buffer_cache_hit_ratio": 96.8,
+        "shared_pool_free_pct": 18.4,
+        "hard_parses_per_sec": 8.4,
+        "soft_parses_per_sec": 428.1
+      },
+      "pga_stats": {
+        "pga_target_gb": 8.0,
+        "pga_allocated_gb": 4.1,
+        "cache_hit_pct": 95.8,
+        "multipass_executions_pct": 0.2,
+        "over_allocation_count": 4
+      },
+      "redo_stats": { "log_switch_per_hour": 4.8, "redo_size_mb_per_hour": 820 },
+      "os_stats": {
+        "cpu_count": 16,
+        "avg_cpu_utilization_pct": 48.0,
+        "avg_io_wait_pct": 4.2,
+        "free_memory_gb": 8.4
+      },
+      "undo_stats": {
+        "current": { "tablespace_name": "UNDOTBS1", "pct_used": 42, "retention_secs": 900 }
+      },
+      "temp_stats": {
+        "current": { "tablespace_name": "TEMP", "pct_used": 48 }
+      },
+      "alert_log": {
+        "summary": { "critical": 0, "warning": 4 },
+        "entries": [
+          { "timestamp": "2026-05-13 04:18:22", "severity": "warning", "message": "WARNING: ADOP cutover phase in progress — online patching dual-filesystem active" }
+        ]
+      },
+      "resource_limits": {
+        "current": [
+          { "resource": "sessions",  "current": 481, "limit": 2000, "pct_max_used": 24.1 },
+          { "resource": "processes", "current": 442, "limit": 1800, "pct_max_used": 24.6 }
+        ]
+      },
+      "sga_pga_history": {
+        "current": { "sga_target_gb": 24.0, "pga_target_gb": 8.0, "memory_target_gb": 0, "sga_max_gb": 24.0 }
+      },
+      "backup_stats": {
+        "rman_backup": {
+          "status": "ok",
+          "full_backup_hours_ago": 22.1,
+          "last_full_backup": { "end_time": "2026-05-12 09:42:00" }
+        },
+        "fra_usage": { "pct_used": 48.2 },
+        "archivelog_rate": {
+          "archivelog_mode": true,
+          "switches_per_hour": 4.8,
+          "switches_24h": 115,
+          "log_groups": [
+            { "group": 1, "size_mb": 500 }, { "group": 2, "size_mb": 500 }, { "group": 3, "size_mb": 500 }
+          ]
+        }
+      },
+      "db_objects": {
+        "invalid_objects": { "count": 28, "packages": 12, "procedures": 8, "views": 6, "triggers": 2 },
+        "stale_stats": { "stale_count": 18, "never_analyzed": 2 },
+        "recyclebin": { "object_count": 84, "size_gb": 1.2 },
+        "scn_headroom": { "current_scn": 9842341234, "days_remaining": 612 },
+        "controlfiles": { "count": 3, "invalid_count": 0 },
+        "spfile": { "param_file_type": "SPFILE", "using_spfile": true }
+      },
+      "session_stats": { "total_sessions": 481, "active_sessions": 84, "user_sessions": 462, "blocked_sessions": 0 },
+      "security_stats": {},
+      "schema_stats": {
+        "disk_sort_pct": 0.4, "full_table_scan_pct": 6.8, "disk_sorts": 1284, "mem_sorts": 284120,
+        "long_scans": 84,
+        "top_segments": [
+          { "owner": "APPS", "segment_name": "APPS_TS_TX_DATA_PATCH", "segment_type": "TABLE", "size_gb": 24.1 }
+        ],
+        "problem_datafiles": 0, "offline_datafiles": 0
+      },
+      "snapshot_info": { "begin_snap": 16281, "end_snap": 16282, "elapsed_minutes": 60 },
+      "ebs_detected": true,
+      "ebs_operations": {
+        "concurrent_managers": {
+          "cm01": { "name": "Internal Manager", "max_processes": 1, "running_processes": 1, "control_code": "", "status": "ok" },
+          "cm02": { "pending_requests": 28 },
+          "cm03": { "name": "Output Post Processor", "max_processes": 4, "running_processes": 1, "status": "warning", "recommendation": "OPP at minimum capacity during patching — expected during ADOP cutover" },
+          "cm05": { "completed_24h": 1284, "avg_runtime_secs": 48.2 },
+          "cm06": [
+            { "name": "Standard Manager", "max_processes": 10, "running_processes": 2, "target_processes": 10 }
+          ],
+          "cm09": [],
+          "cm10": { "error_requests_24h": 4 }
+        },
+        "workflow": {
+          "wf01": [],
+          "wf02": { "error_count": 8 },
+          "wf03": { "mailer_running": true, "status": "RUNNING", "startup_mode": "AUTOMATIC", "deferred_ready": 284 },
+          "wf07": [],
+          "wf08": { "pending_over_2h": 84, "pending_over_8h": 8 },
+          "wf09": [
+            { "name": "Workflow Agent Listener",     "status": "RUNNING", "startup_mode": "AUTOMATIC", "enabled": true },
+            { "name": "Workflow Notification Mailer", "status": "RUNNING", "startup_mode": "AUTOMATIC", "enabled": true }
+          ],
+          "status": "warning",
+          "mailer_running": true
+        },
+        "security": {
+          "sc12": { "signon_audit_level": "FORM", "audit_enabled": true },
+          "sc14": [
+            { "user_name": "SYSADMIN", "responsibility": "System Administrator" },
+            { "user_name": "PATCH_ADMIN", "responsibility": "System Administrator" }
+          ]
+        },
+        "functional": {
+          "fb01": [],
+          "fb03": { "pending_over_7d": 28 },
+          "fb04": { "active_users_24h": 42 }
+        },
+        "observability": { "ot05": null },
+        "config_drift": { "cd07": null },
+        "_adop_status": {
+          "check_id": "ADOP_STATUS",
+          "status": "warning",
+          "severity": "warning",
+          "message": "1 active ADOP patching session in CUTOVER phase. Do not start another patching cycle.",
+          "sessions": [
+            {
+              "session_id": 4183,
+              "prepare_status": "C",
+              "apply_status": "C",
+              "cutover_status": "R",
+              "cleanup_status": "N",
+              "phase": "cutover",
+              "status": "R",
+              "start_date": "2026-05-13 01:42:00",
+              "patch_level": "12.2.12"
+            }
+          ],
+          "active_sessions": 1,
+          "failed_sessions": 0
+        },
+        "_apps_env": {},
+        "_overall_status": "warning"
+      },
+      "ebs_probe_error": null
+    }
+  }
+}

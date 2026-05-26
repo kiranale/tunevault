@@ -1,0 +1,1556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TuneVault Blog — Oracle DBA Field Notes by Kiran Kumar Ale</title>
+  <meta name="application-name" content="TuneVault">
+  <meta name="author" content="Kiran Kumar Ale">
+  <meta name="description" content="Oracle Operations Field Notes — 28 curated articles on EBS 12.2, migration, patching, ADOP, security, RAC/Data Guard, and Cloud/OCI. Written by Kiran Kumar Ale, Oracle DBA &amp; EBS architect with 20+ years experience and 23 certifications.">
+  <meta name="keywords" content="Oracle DBA blog, Oracle EBS 12.2, Oracle patching, ADOP, Oracle security, RAC Data Guard, OCI migration, ZDM, Oracle performance tuning, Kiran Kumar Ale">
+  <link rel="canonical" href="https://tunevault.app/blog">
+  <meta property="og:title" content="TuneVault Blog — Oracle DBA Field Notes by Kiran Kumar Ale">
+  <meta property="og:description" content="28 curated Oracle DBA articles covering EBS 12.2, migration, patching, ADOP, security, RAC/Data Guard, and Cloud/OCI by a 20-year Oracle expert with 23 certifications.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://tunevault.app/blog">
+  <meta property="og:image" content="https://tunevault.app/og/blog.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="TuneVault Oracle DBA Blog">
+  <meta property="og:site_name" content="TuneVault">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Oracle DBA Blog — Field Notes by Kiran Kumar Ale | TuneVault">
+  <meta name="twitter:description" content="28 curated Oracle DBA articles covering EBS 12.2, migration, patching, ADOP, security, RAC/Data Guard, and OCI.">
+  <meta name="twitter:image" content="https://tunevault.app/og/blog.png">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://tunevault.app/#organization",
+        "name": "TuneVault",
+        "alternateName": "TuneVault.app",
+        "url": "https://tunevault.app",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://tunevault.app/logo.png",
+          "width": 512,
+          "height": 512
+        },
+        "description": "AI-powered Oracle database health monitoring and autonomous operations platform.",
+        "foundingDate": "2026",
+        "founder": {
+          "@type": "Person",
+          "@id": "https://tunevault.app/#kiran",
+          "name": "Kiran Kumar Ale",
+          "sameAs": [
+            "https://www.linkedin.com/in/kirankumarale/",
+            "https://linuxappsdba.blogspot.com"
+          ]
+        },
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "email": "hello@tunevault.app",
+          "contactType": "customer support"
+        },
+        "sameAs": [
+          "https://www.linkedin.com/in/kirankumarale/",
+          "https://linuxappsdba.blogspot.com"
+        ]
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://tunevault.app/#website",
+        "name": "TuneVault",
+        "alternateName": ["TuneVault.app"],
+        "url": "https://tunevault.app",
+        "publisher": { "@id": "https://tunevault.app/#organization" }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://tunevault.app/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Resources",
+            "item": "https://tunevault.app/blog"
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "Blog",
+            "item": "https://tunevault.app/blog"
+          }
+        ]
+      },
+      {
+        "@type": "ItemList",
+        "name": "Oracle Operations Field Notes — TuneVault Blog",
+        "url": "https://tunevault.app/blog",
+        "numberOfItems": 28,
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "Oracle Zero Downtime Migration (ZDM) — Complete Guide",
+              "url": "https://linuxappsdba.blogspot.com/2025/05/oracle-zdm-zero-downtime-migration.html",
+              "datePublished": "2025-05-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "Zero Downtime Migration (ZDM) — Supported Workflows and Platforms",
+              "url": "https://linuxappsdba.blogspot.com/2025/05/zero-downtime-migration-zdm.html",
+              "datePublished": "2025-05-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "Oracle Database Performance Crisis: A Comprehensive Analysis and Strategic Recommendations",
+              "url": "https://linuxappsdba.blogspot.com/2024/04/oracle-database-performance-crisis.html",
+              "datePublished": "2024-04-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 4,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "Top 10 Common Causes for a Database Crash and Their Fixes",
+              "url": "https://linuxappsdba.blogspot.com/2024/04/top-10-common-causes-for-database-crash.html",
+              "datePublished": "2024-04-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 5,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "The Flow of a SELECT or DML Inside Oracle Database",
+              "url": "https://linuxappsdba.blogspot.com/2024/04/the-flow-of-select-or-dml-inside-oracle.html",
+              "datePublished": "2024-04-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 6,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "ECPUC: EBS Critical Patch Update Checker",
+              "url": "https://linuxappsdba.blogspot.com/2024/02/ecpuc.html",
+              "datePublished": "2024-02-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 7,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "Oracle Database Security Assessment Tool (DBSAT) 3.0",
+              "url": "https://linuxappsdba.blogspot.com/2024/01/oracle-database-security-assessment.html",
+              "datePublished": "2024-01-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 8,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "Oracle Data Safe — Cloud Service Deep Dive",
+              "url": "https://linuxappsdba.blogspot.com/2024/01/oracle-data-safe-cloud-service.html",
+              "datePublished": "2024-01-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 9,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "OCI Cloud Guard: Automated Security Posture Management",
+              "url": "https://linuxappsdba.blogspot.com/2024/01/cloud-guard.html",
+              "datePublished": "2024-01-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 10,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "OCI Vulnerability Scanning Service — Strengthen Cloud Host Security",
+              "url": "https://linuxappsdba.blogspot.com/2024/01/vulnerability-scanning-service.html",
+              "datePublished": "2024-01-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 11,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "Oracle Database@Azure — Integration Guide",
+              "url": "https://linuxappsdba.blogspot.com/2024/01/oracle-databaseazure.html",
+              "datePublished": "2024-01-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 12,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "Federating Microsoft Active Directory with Oracle Cloud Infrastructure",
+              "url": "https://linuxappsdba.blogspot.com/2024/01/federating-microsoft-active-directory.html",
+              "datePublished": "2024-01-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 13,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "EBS_SYSTEM Schema Migration in 12.2.11",
+              "url": "https://linuxappsdba.blogspot.com/2021/11/ebssystem-schema-in-12211.html",
+              "datePublished": "2021-11-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 14,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "ADOP File System Synchronization Options in EBS 12.2.10",
+              "url": "https://linuxappsdba.blogspot.com/2021/02/adop-file-system-synchronization.html",
+              "datePublished": "2021-02-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 15,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "UTL_FILE_DIR Issue After Upgrading to 19c",
+              "url": "https://linuxappsdba.blogspot.com/2021/02/utlfiledir-issue-in-19c.html",
+              "datePublished": "2021-02-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 16,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "DB Switchover to Standby Using DGMGRL",
+              "url": "https://linuxappsdba.blogspot.com/2021/02/db-switchover-to-standby-dgmgrl.html",
+              "datePublished": "2021-02-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 17,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "High-Level EBS Upgrade Steps: 12.1.3 to 12.2.9",
+              "url": "https://linuxappsdba.blogspot.com/2021/01/high-level-upgrade-steps-1213-to-1229.html",
+              "datePublished": "2021-01-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 18,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "Install, Configure and Integrate OID 12c and OAM 12c with EBS 12.2",
+              "url": "https://linuxappsdba.blogspot.com/2021/01/install-configure-and-integrate-oid-12c.html",
+              "datePublished": "2021-01-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 19,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "EBS 12.2.12 New Features and Enhancements",
+              "url": "https://linuxappsdba.blogspot.com/2023/01/ebs-12212-new-features.html",
+              "datePublished": "2023-01-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 20,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "EBS 12.2 Online Patching (ADOP) — Cutover Phase Deep Dive",
+              "url": "https://linuxappsdba.blogspot.com/2020/06/ebs-122-online-patching-adop-cutover.html",
+              "datePublished": "2020-06-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 21,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "Oracle EBS 12.2 — Configuring Multi-Node Topology",
+              "url": "https://linuxappsdba.blogspot.com/2019/09/oracle-ebs-122-configuring-multi-node.html",
+              "datePublished": "2019-09-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 22,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "EBS 12.2 TechStack Upgrade — AD-TXK Delta Patches",
+              "url": "https://linuxappsdba.blogspot.com/2019/01/ebs-122-techstack-upgrade-ad-txk-delta.html",
+              "datePublished": "2019-01-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 23,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "Oracle Database Audit Vault and Database Firewall (AVDF) — Architecture Guide",
+              "url": "https://linuxappsdba.blogspot.com/2018/06/oracle-database-audit-vault-and.html",
+              "datePublished": "2018-06-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 24,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "EBS 12.2 Cloning Procedure — Complete Steps",
+              "url": "https://linuxappsdba.blogspot.com/2017/08/ebs-122-cloning-procedure.html",
+              "datePublished": "2017-08-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 25,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "Oracle EBS 12.2 — Database Upgrade from 11g to 12c",
+              "url": "https://linuxappsdba.blogspot.com/2017/01/oracle-ebs-122-database-upgrade-11g-12c.html",
+              "datePublished": "2017-01-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 26,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "Oracle Quarterly CPU Patch Application — Step-by-Step Guide",
+              "url": "https://linuxappsdba.blogspot.com/2016/07/oracle-quarterly-cpu-patch-application.html",
+              "datePublished": "2016-07-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 27,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "EBS 12.2 — Install and Configure Oracle HTTP Server (OHS) 12c",
+              "url": "https://linuxappsdba.blogspot.com/2016/01/ebs-122-install-configure-oracle-http.html",
+              "datePublished": "2016-01-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          },
+          {
+            "@type": "ListItem",
+            "position": 28,
+            "item": {
+              "@type": "BlogPosting",
+              "name": "Oracle E-Business Suite 12.2 Installation — Complete Guide",
+              "url": "https://linuxappsdba.blogspot.com/2015/03/oracle-e-business-suite-122-installation.html",
+              "datePublished": "2015-03-01",
+              "author": { "@type": "Person", "@id": "https://tunevault.app/#kiran", "name": "Kiran Kumar Ale", "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"] },
+              "publisher": { "@id": "https://tunevault.app/#organization" }
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0c;
+      --surface: #111114;
+      --surface-2: #1a1a1f;
+      --border: #2a2a30;
+      --border-hover: #3a3a44;
+      --text: #e8e8ed;
+      --text-dim: #b8b8c8;
+      --accent: #f0a830;
+      --accent-dim: rgba(240, 168, 48, 0.10);
+      --green: #34d399;
+      --red: #f87171;
+      --blue: #60a5fa;
+      --purple: #a78bfa;
+    }
+
+    body {
+      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .grain {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    /* Nav wrapper */
+    .nav-wrapper {
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: rgba(10,10,12,0.95);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 9999;
+    }
+
+    nav#nav-root {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    /* ── Page header ─────────────────────────────────────────────── */
+    .page-header {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 64px 48px 48px;
+      border-bottom: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 48px;
+      align-items: start;
+    }
+
+    .header-left {}
+
+    .page-eyebrow {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2.5px;
+      color: var(--accent);
+      margin-bottom: 16px;
+    }
+
+    .page-header h1 {
+      font-size: clamp(26px, 3.5vw, 40px);
+      font-weight: 700;
+      letter-spacing: -1px;
+      line-height: 1.15;
+      margin-bottom: 14px;
+    }
+
+    .page-header h1 em {
+      font-style: normal;
+      color: var(--accent);
+    }
+
+    .page-header .subhead {
+      color: var(--text-dim);
+      font-size: 0.975rem;
+      max-width: 560px;
+      line-height: 1.75;
+      margin-bottom: 28px;
+    }
+
+    /* ── Author card (sidebar on desktop) ───────────────────────── */
+    .author-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      position: sticky;
+      top: 80px;
+    }
+
+    .author-card-top {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .author-avatar {
+      width: 48px;
+      height: 48px;
+      background: var(--accent-dim);
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--accent);
+      flex-shrink: 0;
+      letter-spacing: -0.5px;
+    }
+
+    .author-meta {}
+
+    .author-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      display: block;
+    }
+
+    .author-title {
+      font-size: 12px;
+      color: var(--text-dim);
+      display: block;
+      margin-top: 2px;
+    }
+
+    .author-body {
+      font-size: 12.5px;
+      color: var(--text-dim);
+      line-height: 1.65;
+      border-top: 1px solid var(--border);
+      padding-top: 14px;
+      margin-bottom: 16px;
+    }
+
+    .author-body strong {
+      color: var(--text);
+    }
+
+    .author-links {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .author-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 500;
+      transition: opacity 0.15s;
+    }
+
+    .author-link:hover { opacity: 0.75; }
+
+    .author-link svg { flex-shrink: 0; }
+
+    /* ── Search + filter bar ─────────────────────────────────────── */
+    .controls-bar {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px 48px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .search-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .search-wrap svg {
+      position: absolute;
+      left: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      pointer-events: none;
+    }
+
+    #search-input {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 7px 14px 7px 34px;
+      font-family: inherit;
+      font-size: 12px;
+      color: var(--text);
+      width: 200px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    #search-input::placeholder { color: var(--text-dim); }
+    #search-input:focus { border-color: var(--accent); }
+
+    .filter-divider {
+      width: 1px;
+      height: 20px;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+
+    .filter-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-dim);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .filter-chips {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .filter-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-family: inherit;
+      font-size: 11.5px;
+      font-weight: 500;
+      padding: 5px 12px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .filter-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .filter-btn.active {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .filter-count {
+      font-size: 10px;
+      opacity: 0.7;
+      margin-left: 2px;
+    }
+
+    /* ── Article count line ──────────────────────────────────────── */
+    .results-line {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 14px 48px 0;
+      font-size: 12px;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ── Cards grid ──────────────────────────────────────────────── */
+    .cards-grid {
+      max-width: 1200px;
+      margin: 16px auto 0;
+      padding: 0 48px 80px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-2px);
+    }
+
+    .card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-category {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 3px 9px;
+      border-radius: 4px;
+    }
+
+    .cat-migration      { background: rgba(52,211,153,0.10); color: #34d399; border: 1px solid rgba(52,211,153,0.25); }
+    .cat-ebs12          { background: rgba(96,165,250,0.10); color: #60a5fa; border: 1px solid rgba(96,165,250,0.25); }
+    .cat-security       { background: rgba(248,113,113,0.10); color: #f87171; border: 1px solid rgba(248,113,113,0.25); }
+    .cat-patching       { background: rgba(240,168,48,0.12); color: #f0a830; border: 1px solid rgba(240,168,48,0.25); }
+    .cat-adop           { background: rgba(251,146,60,0.10); color: #fb923c; border: 1px solid rgba(251,146,60,0.25); }
+    .cat-performance    { background: rgba(240,168,48,0.12); color: #f0a830; border: 1px solid rgba(240,168,48,0.25); }
+    .cat-dbops          { background: rgba(156,163,175,0.10); color: #9ca3af; border: 1px solid rgba(156,163,175,0.2); }
+    .cat-cloud          { background: rgba(167,139,250,0.10); color: #a78bfa; border: 1px solid rgba(167,139,250,0.25); }
+    .cat-rac            { background: rgba(99,102,241,0.10); color: #818cf8; border: 1px solid rgba(99,102,241,0.25); }
+
+    .card-date {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .card-title {
+      font-size: 14.5px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.45;
+    }
+
+    .card-summary {
+      font-size: 12.5px;
+      color: var(--text-dim);
+      line-height: 1.65;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      flex: 1;
+    }
+
+    .card-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+      text-decoration: none;
+      padding-top: 4px;
+      transition: opacity 0.15s;
+    }
+
+    .card-link:hover {
+      opacity: 0.75;
+      text-decoration: underline;
+    }
+
+    .card-link svg { flex-shrink: 0; }
+
+    /* ── Empty state ─────────────────────────────────────────────── */
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 80px 24px;
+      color: var(--text-dim);
+      font-size: 14px;
+    }
+
+    /* ── CTA inline strips ───────────────────────────────────────── */
+    .inline-cta-strip {
+      max-width: 1200px;
+      margin: 8px auto;
+      padding: 0 48px;
+    }
+
+    .inline-cta-strip .strip-inner {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .strip-inner p {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .strip-inner p strong {
+      color: var(--text);
+    }
+
+    .strip-link {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--accent);
+      text-decoration: none;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: opacity 0.15s;
+    }
+
+    .strip-link:hover { opacity: 0.75; }
+
+    /* ── CTA banner ──────────────────────────────────────────────── */
+    .cta-banner {
+      max-width: 1200px;
+      margin: 32px auto 80px;
+      padding: 0 48px;
+    }
+
+    .cta-inner {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 40px 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 32px;
+    }
+
+    .cta-text h2 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .cta-text p {
+      color: var(--text-dim);
+      font-size: 13.5px;
+      max-width: 480px;
+    }
+
+    .cta-actions {
+      display: flex;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 22px;
+      background: var(--accent);
+      color: #0a0a0c;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: opacity 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn-primary:hover { opacity: 0.85; }
+
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 22px;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: border-color 0.2s, color 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ── Footer ──────────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 28px 48px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text-dim);
+      font-size: 12px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    footer a { color: inherit; text-decoration: none; }
+    footer a:hover { color: var(--accent); }
+    footer .brand-name { color: var(--accent); }
+    .footer-links { display: flex; gap: 20px; }
+
+    /* ── Responsive ──────────────────────────────────────────────── */
+    @media (max-width: 1000px) {
+      .page-header {
+        grid-template-columns: 1fr;
+        gap: 32px;
+        padding: 40px 24px 32px;
+      }
+      .author-card {
+        position: static;
+        max-width: 480px;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .controls-bar { padding: 16px 24px; }
+      .cards-grid { padding: 0 24px 60px; grid-template-columns: 1fr; }
+      .cta-banner, .inline-cta-strip { padding: 0 24px; }
+      .cta-inner { flex-direction: column; align-items: flex-start; padding: 28px 24px; }
+      .cta-actions { flex-wrap: wrap; }
+      footer { padding: 20px 24px; flex-direction: column; gap: 10px; text-align: center; }
+      .footer-links { flex-wrap: wrap; justify-content: center; }
+      .results-line { padding: 12px 24px 0; }
+    }
+
+    @media (max-width: 600px) {
+      .page-header h1 { font-size: 22px; }
+      .controls-bar { gap: 8px; }
+      #search-input { width: 160px; }
+      .filter-chips { gap: 4px; }
+      .filter-btn { font-size: 10.5px; padding: 4px 9px; }
+      .strip-inner { flex-direction: column; align-items: flex-start; gap: 10px; }
+    }
+  </style>
+</head>
+<body>
+<div class="grain"></div>
+
+<div class="nav-wrapper">
+  <nav id="nav-root"></nav>
+</div>
+
+<!-- ── Page header with author card ──────────────────────────── -->
+<div class="page-header">
+  <div class="header-left">
+    <div class="page-eyebrow">Oracle DBA Knowledge Base</div>
+    <h1>Oracle Operations —<br><em>Field Notes</em></h1>
+    <p class="subhead">28 curated deep-dives on EBS 12.2, Zero Downtime Migration, ADOP, security auditing, patching, RAC/Data Guard, and OCI — drawn from 20+ years of Oracle production work.</p>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+      <a href="/signup?path=health-check&redirect=/dashboard" class="btn-primary" style="font-size:13px;">Run Free Oracle Health Check &rarr;</a>
+      <a href="/vs-oem" class="btn-secondary" style="font-size:13px;">TuneVault vs Oracle OEM</a>
+    </div>
+  </div>
+
+  <!-- Author card — sticky on desktop, inline on mobile -->
+  <div class="author-card">
+    <div class="author-card-top">
+      <div class="author-avatar">KA</div>
+      <div class="author-meta">
+        <span class="author-name">Kiran Kumar Ale</span>
+        <span class="author-title">Oracle DBA &amp; EBS Architect</span>
+      </div>
+    </div>
+    <div class="author-body">
+      <strong>20+ years</strong> delivering Oracle EBS, database, RAC, and cloud migrations for global enterprises. <strong>23 Oracle certifications</strong> across DBA, EBS, Cloud Infrastructure, and Security tracks.
+    </div>
+    <div class="author-links">
+      <a href="https://www.linkedin.com/in/kirankumarale/" target="_blank" rel="noopener" class="author-link">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+        linkedin.com/in/kirankumarale
+      </a>
+      <a href="mailto:hello@tunevault.app" class="author-link">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        hello@tunevault.app
+      </a>
+      <a href="https://linuxappsdba.blogspot.com" target="_blank" rel="noopener" class="author-link">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        linuxappsdba.blogspot.com
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- ── Search + category filter bar ──────────────────────────── -->
+<div class="controls-bar">
+  <div class="search-wrap">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" id="search-input" placeholder="Search articles…" oninput="applyFilters()" autocomplete="off">
+  </div>
+  <div class="filter-divider"></div>
+  <span class="filter-label">Category:</span>
+  <div class="filter-chips">
+    <button class="filter-btn active" data-cat="all"         onclick="setFilter('all', this)">All <span class="filter-count">28</span></button>
+    <button class="filter-btn" data-cat="ebs12"      onclick="setFilter('ebs12', this)">EBS 12.2 <span class="filter-count">8</span></button>
+    <button class="filter-btn" data-cat="migration"  onclick="setFilter('migration', this)">Migration <span class="filter-count">6</span></button>
+    <button class="filter-btn" data-cat="security"   onclick="setFilter('security', this)">Security &amp; Auditing <span class="filter-count">5</span></button>
+    <button class="filter-btn" data-cat="patching"   onclick="setFilter('patching', this)">Patching <span class="filter-count">2</span></button>
+    <button class="filter-btn" data-cat="cloud"      onclick="setFilter('cloud', this)">Cloud / OCI <span class="filter-count">2</span></button>
+    <button class="filter-btn" data-cat="adop"       onclick="setFilter('adop', this)">ADOP <span class="filter-count">1</span></button>
+    <button class="filter-btn" data-cat="dbops"      onclick="setFilter('dbops', this)">DB Ops <span class="filter-count">2</span></button>
+    <button class="filter-btn" data-cat="performance" onclick="setFilter('performance', this)">Performance <span class="filter-count">1</span></button>
+    <button class="filter-btn" data-cat="rac"        onclick="setFilter('rac', this)">RAC / Data Guard <span class="filter-count">1</span></button>
+  </div>
+</div>
+
+<!-- ── Results line ───────────────────────────────────────────── -->
+<div class="results-line" id="results-line">Showing 28 articles</div>
+
+<!-- ── Article grid ──────────────────────────────────────────── -->
+<div class="cards-grid" id="cards-grid">
+
+  <!-- MIGRATION × 6 ───────────────────────────────────────────── -->
+  <article class="card" data-cat="migration" data-title="oracle zero downtime migration zdm complete guide">
+    <div class="card-top">
+      <span class="card-category cat-migration">Migration</span>
+      <span class="card-date">May 2025</span>
+    </div>
+    <div class="card-title">Oracle Zero Downtime Migration (ZDM) — Complete Guide</div>
+    <div class="card-summary">10-section deep dive into Oracle ZDM: architecture, pre-requisites, installation, response file parameters, migration execution flow, pausing before switchover, monitoring logs, troubleshooting common errors, and best practices from production migrations.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2025/05/oracle-zdm-zero-downtime-migration.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+  <article class="card" data-cat="migration" data-title="zero downtime migration zdm supported workflows platforms">
+    <div class="card-top">
+      <span class="card-category cat-migration">Migration</span>
+      <span class="card-date">May 2025</span>
+    </div>
+    <div class="card-title">Zero Downtime Migration (ZDM) — Supported Workflows and Platforms</div>
+    <div class="card-summary">ZDM supports four migration workflows: Logical Offline (Data Pump), Physical Offline (RMAN), Physical Online (Data Guard), and Logical Online (GoldenGate). Source support includes Linux, Solaris, AIX, AWS RDS, and on-prem. Targets include OCI and Oracle@Azure.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2025/05/zero-downtime-migration-zdm.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+  <article class="card" data-cat="migration" data-title="high-level ebs upgrade steps 12.1.3 12.2.9">
+    <div class="card-top">
+      <span class="card-category cat-migration">Migration</span>
+      <span class="card-date">Jan 2021</span>
+    </div>
+    <div class="card-title">High-Level EBS Upgrade Steps: 12.1.3 to 12.2.9</div>
+    <div class="card-summary">Visual reference and detailed walkthrough of the full EBS upgrade path from 12.1.3 to 12.2.9 — covering pre-upgrade preparation, ADOP phases, database upgrade steps, and post-upgrade validation procedures.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2021/01/high-level-upgrade-steps-1213-to-1229.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+  <article class="card" data-cat="migration" data-title="oracle ebs 12.2 database upgrade 11g 12c">
+    <div class="card-top">
+      <span class="card-category cat-migration">Migration</span>
+      <span class="card-date">Jan 2017</span>
+    </div>
+    <div class="card-title">Oracle EBS 12.2 — Database Upgrade from 11g to 12c</div>
+    <div class="card-summary">Full procedure for upgrading the Oracle database tier under EBS 12.2 from 11gR2 to 12c — pre-upgrade scripts, DBUA workflow, post-upgrade recompilation, and EBS compatibility validation steps after the upgrade is complete.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2017/01/oracle-ebs-122-database-upgrade-11g-12c.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+  <article class="card" data-cat="migration" data-title="ebs 12.2 cloning procedure complete steps">
+    <div class="card-top">
+      <span class="card-category cat-migration">Migration</span>
+      <span class="card-date">Aug 2017</span>
+    </div>
+    <div class="card-title">EBS 12.2 Cloning Procedure — Complete Steps</div>
+    <div class="card-summary">Definitive reference for cloning an Oracle EBS 12.2 instance — covering pre-clone preparation, rapid clone execution on DB and apps tiers, post-clone configuration, autoconfig, and sanity checks to confirm the clone is production-equivalent.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2017/08/ebs-122-cloning-procedure.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+  <article class="card" data-cat="migration" data-title="oracle e-business suite 12.2 installation complete guide">
+    <div class="card-top">
+      <span class="card-category cat-migration">Migration</span>
+      <span class="card-date">Mar 2015</span>
+    </div>
+    <div class="card-title">Oracle E-Business Suite 12.2 Installation — Complete Guide</div>
+    <div class="card-summary">From-scratch installation guide for Oracle EBS 12.2 on Linux — covering OS prerequisites, database installation, EBS Rapid Install Wizard phases, post-install configuration, autoconfig, and first-login verification. Ground zero for any new EBS environment.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2015/03/oracle-e-business-suite-122-installation.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+  <!-- EBS 12.2 × 10 ───────────────────────────────────────────── -->
+  <article class="card" data-cat="ebs12" data-title="ebs 12.2.12 new features enhancements">
+    <div class="card-top">
+      <span class="card-category cat-ebs12">EBS 12.2</span>
+      <span class="card-date">Jan 2023</span>
+    </div>
+    <div class="card-title">EBS 12.2.12 New Features and Enhancements</div>
+    <div class="card-summary">What's new in EBS 12.2.12 — highlighting security hardening, TLS 1.3 enforcement, Java 17 support in the WebLogic domain, AD-TXK Delta 14 requirements, and functional module enhancements across Financials, Supply Chain, and HR.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2023/01/ebs-12212-new-features.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+  <article class="card" data-cat="ebs12" data-title="ebs system schema migration 12.2.11">
+    <div class="card-top">
+      <span class="card-category cat-ebs12">EBS 12.2</span>
+      <span class="card-date">Nov 2021</span>
+    </div>
+    <div class="card-title">EBS_SYSTEM Schema Migration in 12.2.11</div>
+    <div class="card-summary">Oracle EBS 12.2.11 introduces the EBS_SYSTEM schema migration (Doc ID 2755875.1). Requires AD-TXK Delta 13 or later. Covers the requirements, migration procedure, and how to apply the Consolidated Patch for EBS 12.2.3–12.2.10 environments.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2021/11/ebssystem-schema-in-12211.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+  <article class="card" data-cat="ebs12" data-title="install configure integrate oid 12c oam 12c ebs 12.2 sso">
+    <div class="card-top">
+      <span class="card-category cat-ebs12">EBS 12.2</span>
+      <span class="card-date">Jan 2021</span>
+    </div>
+    <div class="card-title">Install, Configure and Integrate OID 12c and OAM 12c with EBS 12.2</div>
+    <div class="card-summary">End-to-end guide for integrating Oracle Internet Directory 12c and Oracle Access Manager 12c with EBS 12.2 for Single Sign-On. Covers OID/OAM installation, Webgate deployment, TLS wallet setup, DIP synchronization, and OAM registration with EBS.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2021/01/install-configure-and-integrate-oid-12c.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+  <article class="card" data-cat="ebs12" data-title="oracle ebs 12.2 configuring multi-node topology">
+    <div class="card-top">
+      <span class="card-category cat-ebs12">EBS 12.2</span>
+      <span class="card-date">Sep 2019</span>
+    </div>
+    <div class="card-title">Oracle EBS 12.2 — Configuring Multi-Node Topology</div>
+    <div class="card-summary">Architecture and configuration steps for scaling EBS 12.2 to a multi-node topology — adding application tier nodes, configuring shared file systems, load balancer setup, WebLogic cluster configuration, and autoconfig coordination across all nodes.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2019/09/oracle-ebs-122-configuring-multi-node.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+  <article class="card" data-cat="ebs12" data-title="ebs 12.2 techstack upgrade ad-txk delta patches">
+    <div class="card-top">
+      <span class="card-category cat-ebs12">EBS 12.2</span>
+      <span class="card-date">Jan 2019</span>
+    </div>
+    <div class="card-title">EBS 12.2 TechStack Upgrade — AD-TXK Delta Patches</div>
+    <div class="card-summary">How to apply AD-TXK Delta patches to upgrade the EBS 12.2 TechStack (WebLogic, JDK, OHS, and Oracle AS tier) — including patch identification, ADOP prepare phase, patching sequence, conflict resolution, and post-patch autoconfig and validation.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2019/01/ebs-122-techstack-upgrade-ad-txk-delta.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+  <article class="card" data-cat="ebs12" data-title="ebs 12.2 online patching adop cutover phase deep dive">
+    <div class="card-top">
+      <span class="card-category cat-ebs12">EBS 12.2</span>
+      <span class="card-date">Jun 2020</span>
+    </div>
+    <div class="card-title">EBS 12.2 Online Patching (ADOP) — Cutover Phase Deep Dive</div>
+    <div class="card-summary">Detailed breakdown of the ADOP cutover phase — the most critical and time-sensitive step in EBS 12.2 patching. Covers pre-cutover checks, session management, cutover execution, patched edition promotion, and rollback if cutover fails.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2020/06/ebs-122-online-patching-adop-cutover.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+  <article class="card" data-cat="ebs12" data-title="ebs 12.2 install configure oracle http server ohs 12c">
+    <div class="card-top">
+      <span class="card-category cat-ebs12">EBS 12.2</span>
+      <span class="card-date">Jan 2016</span>
+    </div>
+    <div class="card-title">EBS 12.2 — Install and Configure Oracle HTTP Server (OHS) 12c</div>
+    <div class="card-summary">Step-by-step installation and configuration of Oracle HTTP Server 12c (12.1.2) as the web tier for EBS 12.2. Covers binaries installation, Oracle Instance creation, mod_wl_ohs configuration, SSL certificate setup, and integration testing with EBS.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2016/01/ebs-122-install-configure-oracle-http.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+  <article class="card" data-cat="ebs12" data-title="utl_file_dir issue after upgrading 19c ebs concurrent">
+    <div class="card-top">
+      <span class="card-category cat-ebs12">EBS 12.2</span>
+      <span class="card-date">Feb 2021</span>
+    </div>
+    <div class="card-title">UTL_FILE_DIR Issue After Upgrading to 19c</div>
+    <div class="card-summary">After upgrading to Oracle 19c, concurrent requests fail with ORA-20100 (FDPSTP failed, temporary file creation for FND_FILE failed). Cause is the removal of utl_file_dir parameter. Full fix using txkCfgUtlfileDir.pl and directory creation steps.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2021/02/utlfiledir-issue-in-19c.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+  <!-- CTA strip #1 – inserted naturally mid-grid -->
+  <div class="card" style="border-style:dashed;background:transparent;justify-content:center;align-items:flex-start;gap:8px;">
+    <p style="font-size:13px;color:var(--text-dim);line-height:1.6;"><strong style="color:var(--text);">TuneVault automates 200+ checks</strong> covering all these categories — EBS ops, patching gaps, security posture, performance, and RAC health — in minutes.</p>
+    <a href="/signup?path=health-check&redirect=/dashboard" style="font-size:12.5px;font-weight:700;color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;gap:5px;">Run a free Oracle health check &rarr;</a>
+  </div>
+
+  <!-- SECURITY & AUDITING × 6 ─────────────────────────────────── -->
+  <article class="card" data-cat="security" data-title="oracle database security assessment tool dbsat 3.0">
+    <div class="card-top">
+      <span class="card-category cat-security">Security</span>
+      <span class="card-date">Jan 2024</span>
+    </div>
+    <div class="card-title">Oracle Database Security Assessment Tool (DBSAT) 3.0</div>
+    <div class="card-summary">DBSAT 3.0 brings Oracle Best Practice findings, support for Oracle 23c SQL Firewall, updated DISA STIG V2R8 compliance, desupport notices for proactive risk management, and expanded sensitive data discovery including India PAN and Aadhaar.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2024/01/oracle-database-security-assessment.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+  <article class="card" data-cat="security" data-title="oracle data safe cloud service deep dive">
+    <div class="card-top">
+      <span class="card-category cat-security">Security</span>
+      <span class="card-date">Jan 2024</span>
+    </div>
+    <div class="card-title">Oracle Data Safe — Cloud Service Deep Dive</div>
+    <div class="card-summary">Complete walkthrough of Oracle Data Safe's seven capabilities: Security Assessment, User Assessment, Data Discovery, Data Masking, Activity Auditing, real-time Alerts, and SQL Firewall (Oracle 23c kernel). Centralized security control for Oracle fleets.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2024/01/oracle-data-safe-cloud-service.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+  <article class="card" data-cat="security" data-title="oci cloud guard automated security posture management">
+    <div class="card-top">
+      <span class="card-category cat-security">Security</span>
+      <span class="card-date">Jan 2024</span>
+    </div>
+    <div class="card-title">OCI Cloud Guard: Automated Security Posture Management</div>
+    <div class="card-summary">Cloud Guard detects misconfigured resources, risky activities, and delivers out-of-the-box security recipes for OCI tenancies. Explains Targets, Detectors, Problems, and Responders — the four components of Oracle's centralized cloud security console.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2024/01/cloud-guard.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+  <article class="card" data-cat="security" data-title="oci vulnerability scanning service cloud host security">
+    <div class="card-top">
+      <span class="card-category cat-security">Security</span>
+      <span class="card-date">Jan 2024</span>
+    </div>
+    <div class="card-title">OCI Vulnerability Scanning Service — Strengthen Cloud Host Security</div>
+    <div class="card-summary">Oracle Cloud's Vulnerability Scanning Service inspects OS components against open-source CVE databases, validates against CIS benchmarks, and identifies open ports — all free for paying customers. How to create scan recipes and interpret host scan results.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2024/01/vulnerability-scanning-service.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+  <article class="card" data-cat="security" data-title="oracle database audit vault database firewall avdf architecture">
+    <div class="card-top">
+      <span class="card-category cat-security">Security &amp; Auditing</span>
+      <span class="card-date">Jun 2018</span>
+    </div>
+    <div class="card-title">Oracle Database Audit Vault and Database Firewall (AVDF) — Architecture Guide</div>
+    <div class="card-summary">Architecture overview and deployment guide for Oracle AVDF — how Audit Vault collects and stores audit trails from Oracle, SQL Server, MySQL, and Sybase, while the Database Firewall monitors and blocks unauthorized SQL in real time. Includes high availability setup.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2018/06/oracle-database-audit-vault-and.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+  <!-- PATCHING × 4 ────────────────────────────────────────────── -->
+  <article class="card" data-cat="patching" data-title="ecpuc ebs critical patch update checker">
+    <div class="card-top">
+      <span class="card-category cat-patching">Patching</span>
+      <span class="card-date">Feb 2024</span>
+    </div>
+    <div class="card-title">ECPUC: EBS Critical Patch Update Checker</div>
+    <div class="card-summary">The E-Business Suite Critical Patch Update Checker (ECPUC.sql) generates a comprehensive report of required patches and security fixes for your EBS environment as of the latest quarterly Oracle CPU. Available with Patch 35583866, run as APPS user.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2024/02/ecpuc.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+  <article class="card" data-cat="patching" data-title="oracle quarterly cpu patch application step-by-step guide">
+    <div class="card-top">
+      <span class="card-category cat-patching">Patching</span>
+      <span class="card-date">Jul 2016</span>
+    </div>
+    <div class="card-title">Oracle Quarterly CPU Patch Application — Step-by-Step Guide</div>
+    <div class="card-summary">Complete procedure for applying Oracle's quarterly Critical Patch Update to a production Oracle database — identifying applicable patches, conflict checking, OPatch prerequisite validation, patch application, and post-patch database validation and restart.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2016/07/oracle-quarterly-cpu-patch-application.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+  <!-- ADOP × 3 ────────────────────────────────────────────────── -->
+  <article class="card" data-cat="adop" data-title="adop file system synchronization options ebs 12.2.10">
+    <div class="card-top">
+      <span class="card-category cat-adop">ADOP</span>
+      <span class="card-date">Feb 2021</span>
+    </div>
+    <div class="card-title">ADOP File System Synchronization Options in EBS 12.2.10</div>
+    <div class="card-summary">New in AD/TXK Delta 12 and EBS 12.2.10: the prepare_sync_mode and fs_clone_sync_mode parameters give DBAs granular control over how ADOP synchronizes file systems. Delta mode vs patch mode vs cp mode — explained with use cases.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2021/02/adop-file-system-synchronization.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+  <!-- CLOUD / OCI × 4 ─────────────────────────────────────────── -->
+  <article class="card" data-cat="cloud" data-title="oracle database azure integration guide exadata">
+    <div class="card-top">
+      <span class="card-category cat-cloud">Cloud / OCI</span>
+      <span class="card-date">Jan 2024</span>
+    </div>
+    <div class="card-title">Oracle Database@Azure — Integration Guide</div>
+    <div class="card-summary">Provisioning Oracle Exadata infrastructure on Microsoft Azure via the Oracle Database@Azure service. Covers identity federation with Entra ID, Azure group and role setup, Exadata VM cluster provisioning, database creation, and IAC with Terraform and PowerShell.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2024/01/oracle-databaseazure.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+  <article class="card" data-cat="cloud" data-title="federating microsoft active directory oracle cloud infrastructure oci iam">
+    <div class="card-top">
+      <span class="card-category cat-cloud">Cloud / OCI</span>
+      <span class="card-date">Jan 2024</span>
+    </div>
+    <div class="card-title">Federating Microsoft Active Directory with Oracle Cloud Infrastructure</div>
+    <div class="card-summary">Step-by-step guide for federating AD FS with OCI IAM — retrieving SAML metadata, adding AD as an identity provider, configuring claim rules, setting up IAM policies for group mappings, and sharing tenant information with federated users.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2024/01/federating-microsoft-active-directory.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+  <!-- PERFORMANCE TUNING × 1 ──────────────────────────────────── -->
+  <article class="card" data-cat="performance" data-title="oracle database performance crisis comprehensive analysis recommendations">
+    <div class="card-top">
+      <span class="card-category cat-performance">Performance</span>
+      <span class="card-date">Apr 2024</span>
+    </div>
+    <div class="card-title">Oracle Database Performance Crisis: A Comprehensive Analysis and Strategic Recommendations</div>
+    <div class="card-summary">Real-world breakdown of a severe EBS performance crisis — CPU maxed at 120 load average on 16-core DB, 250+ concurrent requests pending. Covers root causes including stale statistics, adaptive features, and backup contention, and the step-by-step resolution.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2024/04/oracle-database-performance-crisis.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+  <!-- DB OPS / CONCEPTS × 2 ───────────────────────────────────── -->
+  <article class="card" data-cat="dbops" data-title="top 10 common causes database crash fixes oracle">
+    <div class="card-top">
+      <span class="card-category cat-dbops">DB Operations</span>
+      <span class="card-date">Apr 2024</span>
+    </div>
+    <div class="card-title">Top 10 Common Causes for a Database Crash and Their Fixes</div>
+    <div class="card-summary">Practical reference covering the top 10 reasons Oracle databases crash — from insufficient memory and corrupted data files to resource contention, listener issues, and excessive redo log generation — each with diagnostic SQL and fix commands.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2024/04/top-10-common-causes-for-database-crash.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+  <article class="card" data-cat="dbops" data-title="flow select dml inside oracle database sql execution">
+    <div class="card-top">
+      <span class="card-category cat-dbops">DB Operations</span>
+      <span class="card-date">Apr 2024</span>
+    </div>
+    <div class="card-title">The Flow of a SELECT or DML Inside Oracle Database</div>
+    <div class="card-summary">A 13-step walkthrough of what happens when Oracle executes a SQL statement — from client connection and authentication through SGA initialization, SQL parsing, redo logging, buffer cache access, commit/rollback, and session cleanup.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2024/04/the-flow-of-select-or-dml-inside-oracle.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+  <!-- RAC / DATA GUARD × 1 ────────────────────────────────────── -->
+  <article class="card" data-cat="rac" data-title="db switchover standby dgmgrl rac data guard">
+    <div class="card-top">
+      <span class="card-category cat-rac">RAC / Data Guard</span>
+      <span class="card-date">Feb 2021</span>
+    </div>
+    <div class="card-title">DB Switchover to Standby Using DGMGRL</div>
+    <div class="card-summary">Step-by-step RAC switchover procedure using DGMGRL for EBS environments. Covers transport-off/apply-off state changes, creating guarantee flashback restore points on both primary and standby, srvctl operations, and post-switchover service configuration.</div>
+    <a class="card-link" href="https://linuxappsdba.blogspot.com/2021/02/db-switchover-to-standby-dgmgrl.html" target="_blank" rel="author external noopener">
+      Read on linuxappsdba.blogspot.com
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 9.5L9.5 2.5M9.5 2.5H5M9.5 2.5V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </article>
+
+</div>
+
+<!-- ── Cross-link strips ──────────────────────────────────────── -->
+<div class="inline-cta-strip" style="margin-bottom:16px;">
+  <div class="strip-inner">
+    <p><strong>TuneVault vs Oracle OEM.</strong> See how TuneVault's automated health checks compare to Oracle Enterprise Manager on cost, setup time, and depth of EBS-specific coverage.</p>
+    <a href="/vs-oem" class="strip-link">Compare TuneVault vs OEM &rarr;</a>
+  </div>
+</div>
+<div class="inline-cta-strip">
+  <div class="strip-inner">
+    <p><strong>Why I built TuneVault.</strong> Read Kiran's founder essay on why Oracle EBS monitoring needed a fundamentally different approach.</p>
+    <a href="/about" class="strip-link">Read the founder essay &rarr;</a>
+  </div>
+</div>
+
+<!-- ── Main CTA ───────────────────────────────────────────────── -->
+<div class="cta-banner">
+  <div class="cta-inner">
+    <div class="cta-text">
+      <h2>See These Checks Running on Your Database</h2>
+      <p>TuneVault runs 200+ automated checks — covering performance, EBS operations, security, patching gaps, and more — in minutes. No agents, no inbound firewall rules.</p>
+    </div>
+    <div class="cta-actions">
+      <a href="/signup?path=health-check&redirect=/dashboard" class="btn-primary">Run Free Health Check &rarr;</a>
+      <a href="/sample-report" class="btn-secondary">View Sample Report</a>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <span><span class="brand-name">TuneVault</span> &copy; 2026</span>
+  <div class="footer-links">
+    <a href="/about">About</a>
+    <a href="/blog">Blog</a>
+    <a href="/features">Features</a>
+    <a href="/pricing">Pricing</a>
+    <a href="/compare">Compare</a>
+    <a href="/trust">Trust</a>
+    <a href="/docs/oracle-setup">Setup Guide</a>
+    <a href="/terms">Terms</a>
+    <a href="/privacy">Privacy</a>
+  </div>
+</footer>
+
+<script src="/nav-component.js"></script>
+<script>
+  window.tvNav.init('main');
+
+  var currentCat = 'all';
+  var currentSearch = '';
+
+  function setFilter(cat, btn) {
+    currentCat = cat;
+    document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    applyFilters();
+  }
+
+  function applyFilters() {
+    currentSearch = (document.getElementById('search-input').value || '').toLowerCase().trim();
+    var cards = document.querySelectorAll('#cards-grid .card[data-cat]');
+    var shown = 0;
+    cards.forEach(function(card) {
+      var catMatch = (currentCat === 'all') || (card.getAttribute('data-cat') === currentCat);
+      var titleAttr = (card.getAttribute('data-title') || '') + ' ' + (card.querySelector('.card-title') ? card.querySelector('.card-title').textContent : '');
+      var summaryText = card.querySelector('.card-summary') ? card.querySelector('.card-summary').textContent : '';
+      var searchMatch = !currentSearch || (titleAttr.toLowerCase().indexOf(currentSearch) !== -1) || (summaryText.toLowerCase().indexOf(currentSearch) !== -1);
+      if (catMatch && searchMatch) {
+        card.style.display = '';
+        shown++;
+      } else {
+        card.style.display = 'none';
+      }
+    });
+
+    // Results line
+    var line = document.getElementById('results-line');
+    if (line) {
+      var label = currentSearch ? 'matching "' + currentSearch + '"' : (currentCat !== 'all' ? 'in this category' : 'articles');
+      line.textContent = 'Showing ' + shown + ' ' + label;
+    }
+
+    // Empty state
+    var empty = document.getElementById('empty-state');
+    if (shown === 0) {
+      if (!empty) {
+        var el = document.createElement('div');
+        el.id = 'empty-state';
+        el.className = 'empty-state';
+        el.textContent = 'No articles match your search. Try a different keyword or category.';
+        document.getElementById('cards-grid').appendChild(el);
+      }
+    } else {
+      if (empty) empty.remove();
+    }
+  }
+</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

@@ -1,0 +1,425 @@
+name: install.sh OL7 Full-Systemd Gate
+
+# Proves install.sh boots a real systemd service on Oracle Linux 7 (Python 3.6)
+# using a stub cloud server — no headless mode, no mocked systemd.
+#
+# WHY this matters: headless smoke tests verify drivers install. This gate verifies
+# the full production path: systemd unit created → service active → agent connects
+# to cloud → heartbeat flows. A broken install.sh cannot pass this gate.
+#
+# Architecture:
+#   1. Stub cloud server (Node.js HTTPS, self-signed) runs on the GitHub runner host.
+#   2. /etc/hosts in the OL7 container maps tunevault.app → host IP (172.17.0.1).
+#   3. install.sh runs inside the OL7 container against the stub cloud.
+#   4. Assertions verify systemd unit, journal milestones, doctor --deep, register+heartbeat.
+#
+# Trigger: every PR to main + every push to main (pre-deploy gate).
+# Schedule: daily cron against live install.sh URL with Postmark alert on failure.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Daily at 06:00 UTC — live URL regression check
+    - cron: '0 6 * * *'
+
+env:
+  # Docker host IP reachable from inside containers on the default bridge network
+  DOCKER_HOST_IP: '172.17.0.1'
+  STUB_PORT: '8443'
+  # Paths inside the container
+  CONTAINER_REPO: '/tunevault'
+  CONTAINER_AUDIT: '/tmp/stub-audit'
+  # Stub cert paths on the runner host
+  STUB_CERT: '/tmp/stub-tls/stub.crt'
+  STUB_KEY:  '/tmp/stub-tls/stub.key'
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # PR + push gate: full systemd integration test on OL7
+  # ═══════════════════════════════════════════════════════════════════════════
+  ol7-systemd-gate:
+    name: OL7 Full-Systemd Install Gate
+    runs-on: ubuntu-latest
+    # Skip this job during schedule runs (daily live check uses separate job below)
+    if: github.event_name != 'schedule'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Step 1: Generate self-signed TLS cert for stub server ────────────────
+      - name: Generate self-signed TLS cert
+        run: |
+          mkdir -p /tmp/stub-tls
+          openssl req -x509 -newkey rsa:2048 -keyout "${{ env.STUB_KEY }}" \
+            -out "${{ env.STUB_CERT }}" -days 1 -nodes \
+            -subj "/CN=tunevault.app" \
+            -addext "subjectAltName=DNS:tunevault.app,IP:${{ env.DOCKER_HOST_IP }}"
+          echo "TLS cert generated"
+          openssl x509 -noout -text -in "${{ env.STUB_CERT }}" | grep -E "(Subject:|DNS:|IP:)"
+
+      # ── Step 2: Start stub cloud server on the runner host ───────────────────
+      # Runs on the host (not inside Docker) so the OL7 container can reach it
+      # via the Docker bridge IP (172.17.0.1).
+      - name: Start stub cloud server
+        run: |
+          node tests/e2e/stub-cloud-server.js \
+            --port "${{ env.STUB_PORT }}" \
+            --tls-cert "${{ env.STUB_CERT }}" \
+            --tls-key "${{ env.STUB_KEY }}" \
+            > /tmp/stub-server.log 2>&1 &
+
+          # Wait for stub to be ready (poll /api/health with self-signed cert)
+          echo "Waiting for stub server to be ready..."
+          for i in $(seq 1 20); do
+            if curl -sk "https://localhost:${{ env.STUB_PORT }}/api/health" | grep -q '"status"'; then
+              echo "Stub server ready after ${i}s"
+              break
+            fi
+            sleep 1
+            [ "$i" -eq 20 ] && echo "FAIL: Stub server never became ready" && cat /tmp/stub-server.log && exit 1
+          done
+
+      # ── Step 3: Mount stub CA into OL7 container trust store ─────────────────
+      # Copies the self-signed cert into the repo dir so the container can access it.
+      - name: Stage stub CA cert for container
+        run: |
+          mkdir -p tests/e2e/stub-ca
+          cp "${{ env.STUB_CERT }}" tests/e2e/stub-ca/stub-ca.crt
+
+      # ── Step 4: Run install.sh inside OL7 container with systemd as PID 1 ────
+      # Strategy: start OL7 container with systemd init, exec the install script,
+      # then exec the assertions — all in one step to keep the container alive.
+      - name: Run install.sh + assert in OL7 systemd container
+        id: ol7_install
+        timeout-minutes: 15
+        run: |
+          set -euo pipefail
+
+          # Shared audit directory on the host — stub server writes here, runner reads.
+          mkdir -p /tmp/stub-audit
+
+          echo "=== Starting OL7 systemd container ==="
+          docker run -d \
+            --name ol7-systemd \
+            --privileged \
+            --cgroupns=host \
+            -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+            -v "${{ github.workspace }}:/tunevault:ro" \
+            -v "/tmp/stub-audit:/tmp/stub-audit" \
+            -v "${{ env.STUB_CERT }}:/etc/pki/ca-trust/source/anchors/stub-ca.crt:ro" \
+            oraclelinux:7 \
+            /usr/sbin/init
+
+          # Wait for systemd to be ready inside container
+          echo "Waiting for systemd to be ready..."
+          for i in $(seq 1 30); do
+            if docker exec ol7-systemd systemctl is-system-running 2>/dev/null | grep -qE '^(running|degraded)$'; then
+              echo "Systemd ready after ${i}s"
+              break
+            fi
+            sleep 1
+            [ "$i" -eq 30 ] && echo "WARN: Systemd not ready after 30s — continuing anyway"
+          done
+
+          # ── Install base packages ──────────────────────────────────────────────
+          echo "=== Installing base packages ==="
+          docker exec ol7-systemd bash -c "
+            yum install -y python3 curl sudo systemd-libs ca-certificates 2>&1 | tail -5
+            update-ca-trust extract 2>/dev/null || true
+            echo 'Base packages installed'
+            python3 --version
+          "
+
+          # ── Patch /etc/hosts: tunevault.app → stub server on Docker bridge ─────
+          echo "=== Patching /etc/hosts ==="
+          docker exec ol7-systemd bash -c "
+            echo '${{ env.DOCKER_HOST_IP }} tunevault.app' >> /etc/hosts
+            grep tunevault.app /etc/hosts
+          "
+
+          # ── Install stub CA cert into OL7 trust store ──────────────────────────
+          echo "=== Installing stub CA cert ==="
+          docker exec ol7-systemd bash -c "
+            update-ca-trust extract 2>/dev/null || true
+            # Verify our cert is trusted
+            curl -sv https://tunevault.app:${{ env.STUB_PORT }}/api/health 2>&1 | grep -E '(SSL|TLS|200|status)' || true
+          "
+
+          # ── Copy repo files to writable location ───────────────────────────────
+          # Repo is mounted read-only; install.sh needs to be executable.
+          echo "=== Staging installer ==="
+          docker exec ol7-systemd bash -c "
+            mkdir -p /opt/tv-ci
+            cp /tunevault/install.sh /opt/tv-ci/install.sh
+            cp /tunevault/oracle-proxy.py /opt/tv-ci/oracle-proxy.py
+            chmod +x /opt/tv-ci/install.sh
+          "
+
+          # Pre-stage oracle-proxy.py so the download step doesn't need prod URL.
+          docker exec ol7-systemd bash -c "
+            mkdir -p /opt/tunevault
+            cp /tunevault/oracle-proxy.py /opt/tunevault/oracle-proxy.py
+            chmod +x /opt/tunevault/oracle-proxy.py
+          "
+
+          # ── Set up install token via provision endpoint ────────────────────────
+          # We use a fake token; stub /api/agent/provision returns dummy creds.
+          FAKE_TOKEN="ci-gate-token-$(date +%s)"
+
+          # ── Run install.sh (full mode — NOT headless, uses stub cloud) ──────────
+          echo "=== Running install.sh against stub cloud ==="
+          docker exec ol7-systemd bash -c "
+            export TUNEVAULT_TOKEN='${FAKE_TOKEN}'
+            export TUNEVAULT_API='https://tunevault.app:${{ env.STUB_PORT }}'
+
+            # Run installer; expect systemd service to start
+            bash /opt/tv-ci/install.sh 2>&1
+          " | tee /tmp/install-ol7.log || {
+            INSTALL_RC=$?
+            echo "=== INSTALL LOG ==="
+            cat /tmp/install-ol7.log
+            echo "FAIL: install.sh exited $INSTALL_RC"
+            exit $INSTALL_RC
+          }
+
+          echo "=== Install step complete ==="
+
+      # ── Step 5: Assertions ───────────────────────────────────────────────────
+      - name: Assert systemd service is active
+        if: always() && steps.ol7_install.outcome == 'success'
+        run: |
+          echo "=== Assertion 1: systemctl is-active tunevault-agent ==="
+          STATUS=$(docker exec ol7-systemd systemctl is-active tunevault-agent 2>/dev/null || echo "unknown")
+          echo "Service status: $STATUS"
+          if [ "$STATUS" = "active" ]; then
+            echo "PASS: tunevault-agent is active"
+          else
+            echo "FAIL: tunevault-agent is not active (status=$STATUS)"
+            docker exec ol7-systemd systemctl status tunevault-agent --no-pager 2>&1 || true
+            docker exec ol7-systemd journalctl -u tunevault-agent -n 30 --no-pager 2>&1 || true
+            exit 1
+          fi
+
+      - name: Assert journal contains all 8 milestone lines
+        if: always() && steps.ol7_install.outcome == 'success'
+        run: |
+          echo "=== Assertion 2: 8 milestones in journalctl ==="
+          JOURNAL=$(docker exec ol7-systemd journalctl -t tunevault-agent --no-pager -q 2>/dev/null || echo "")
+          echo "--- Journal output ---"
+          echo "$JOURNAL"
+          echo "---"
+
+          FAIL=0
+          check_milestone() {
+            local pattern="$1"
+            local label="$2"
+            if echo "$JOURNAL" | grep -q "$pattern"; then
+              echo "PASS milestone: $label"
+            else
+              echo "FAIL milestone: $label (pattern: $pattern)"
+              FAIL=1
+            fi
+          }
+
+          # Milestones from oracle-proxy.py structured logging (v3.6.2)
+          check_milestone "agent boot"            "1: agent boot"
+          check_milestone "env loaded"            "2: env loaded"
+          check_milestone "python deps ok"        "3: python deps ok"
+          check_milestone "cloud dns resolve"     "4: cloud dns resolve"
+          check_milestone "cloud reachability"    "5: cloud reachability"
+          check_milestone "long-poll loop entered" "7: long-poll loop entered"
+          # Milestones 6 + 8 appear only after first successful poll to stub
+          check_milestone "register"              "6: register"
+          check_milestone "heartbeat"             "8: heartbeat"
+
+          if [ "$FAIL" -eq 1 ]; then
+            echo "FAIL: One or more milestone lines missing from journal"
+            exit 1
+          fi
+          echo "PASS: All 8 milestones present in journal"
+
+      - name: Assert doctor --deep exits 0
+        if: always() && steps.ol7_install.outcome == 'success'
+        run: |
+          echo "=== Assertion 3: tunevault-agent doctor --deep ==="
+          docker exec ol7-systemd bash -c "
+            export TUNEVAULT_API='https://tunevault.app:${{ env.STUB_PORT }}'
+            tunevault-agent doctor --deep 2>&1
+          " && echo "PASS: doctor --deep exited 0" || {
+            echo "FAIL: doctor --deep exited non-zero"
+            exit 1
+          }
+
+      - name: Assert stub received /register AND at least one /heartbeat
+        if: always() && steps.ol7_install.outcome == 'success'
+        run: |
+          echo "=== Assertion 4: stub cloud received register + heartbeat ==="
+          FAIL=0
+
+          if [ -f /tmp/stub-audit/received-register ] || [ -f /tmp/stub-audit/received-provision ]; then
+            echo "PASS: stub received a /register or /provision call"
+          else
+            echo "FAIL: stub never received a register/provision call"
+            FAIL=1
+          fi
+
+          if [ -f /tmp/stub-audit/received-heartbeat ]; then
+            echo "PASS: stub received at least one /heartbeat (poll) call"
+          else
+            echo "FAIL: stub never received a heartbeat call"
+            echo "Stub server log:"
+            cat /tmp/stub-server.log | tail -30 || true
+            FAIL=1
+          fi
+
+          if [ "$FAIL" -eq 1 ]; then exit 1; fi
+          echo "PASS: All stub call assertions passed"
+
+      # ── Step 6: Cleanup ──────────────────────────────────────────────────────
+      - name: Dump logs on failure
+        if: failure()
+        run: |
+          echo "=== Install log ==="
+          cat /tmp/install-ol7.log 2>/dev/null || echo "(no install log)"
+          echo ""
+          echo "=== Stub server log ==="
+          cat /tmp/stub-server.log 2>/dev/null || echo "(no stub log)"
+          echo ""
+          echo "=== Stub audit files ==="
+          ls -la /tmp/stub-audit/ 2>/dev/null || echo "(empty)"
+          echo ""
+          echo "=== OL7 container: systemctl status ==="
+          docker exec ol7-systemd systemctl status tunevault-agent --no-pager 2>&1 || true
+          echo ""
+          echo "=== OL7 container: full journal ==="
+          docker exec ol7-systemd journalctl -u tunevault-agent --no-pager 2>&1 || true
+
+      - name: Stop stub server + container
+        if: always()
+        run: |
+          # Kill stub server
+          if [ -f /tmp/stub-cloud.pid ]; then
+            kill "$(cat /tmp/stub-cloud.pid)" 2>/dev/null || true
+          fi
+          # Stop container
+          docker stop ol7-systemd 2>/dev/null || true
+          docker rm ol7-systemd 2>/dev/null || true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Gate job: required for branch protection — merges block if ol7-systemd-gate fails
+  # ═══════════════════════════════════════════════════════════════════════════
+  ol7-gate-required:
+    name: OL7 Gate (required)
+    runs-on: ubuntu-latest
+    needs: ol7-systemd-gate
+    if: always() && github.event_name != 'schedule'
+    steps:
+      - name: Check gate result
+        run: |
+          RESULT="${{ needs.ol7-systemd-gate.result }}"
+          echo "OL7 gate result: $RESULT"
+          if [ "$RESULT" = "success" ]; then
+            echo "Gate PASSED — merge allowed"
+          elif [ "$RESULT" = "skipped" ]; then
+            echo "Gate SKIPPED (schedule trigger) — merge allowed"
+          else
+            echo "Gate FAILED (result=$RESULT) — merge blocked"
+            exit 1
+          fi
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Daily live-URL check: runs install.sh --headless from prod URL, alerts on failure
+  # ═══════════════════════════════════════════════════════════════════════════
+  daily-live-installer-check:
+    name: Daily Live Installer Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+
+    steps:
+      - name: Checkout (for stub server + alert script)
+        uses: actions/checkout@v4
+
+      # Run headless install from the live prod URL in an OL7 container.
+      # WHY headless: live check verifies the tarball/installer is downloadable
+      # and drivers install correctly — systemd check would require a real Oracle host.
+      - name: Run live install.sh --headless in OL7 container
+        id: live_check
+        continue-on-error: true
+        run: |
+          docker run --rm \
+            --privileged \
+            -v "${{ github.workspace }}:/tunevault:ro" \
+            oraclelinux:7 \
+            bash -c "
+              yum install -y python3 curl 2>&1 | tail -3
+
+              # Download live install.sh from prod URL
+              curl -fsSL https://tunevault.app/install.sh -o /tmp/live-install.sh
+              chmod +x /tmp/live-install.sh
+
+              # Pre-stage oracle-proxy.py to avoid download from prod
+              mkdir -p /opt/tunevault
+              cp /tunevault/oracle-proxy.py /opt/tunevault/oracle-proxy.py
+
+              # Run headless
+              TUNEVAULT_API=http://127.0.0.1:1 \
+              bash /tmp/live-install.sh --headless 2>&1
+            " > /tmp/live-install.log 2>&1
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+
+      # ── Alert on failure ──────────────────────────────────────────────────────
+      - name: Alert operator on live installer failure
+        if: steps.live_check.outcome == 'failure'
+        env:
+          POSTMARK_SERVER_TOKEN: ${{ secrets.POSTMARK_SERVER_TOKEN }}
+          ALERT_EMAIL: ${{ secrets.OPS_ALERT_EMAIL || 'ops@tunevault.app' }}
+        run: |
+          INSTALL_LOG=$(head -100 /tmp/live-install.log 2>/dev/null || echo "(no log)")
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          # Build Postmark payload
+          PAYLOAD=$(node -e "
+            const log = process.env.INSTALL_LOG || '';
+            const runUrl = process.env.RUN_URL || '';
+            const to = process.env.ALERT_EMAIL || 'ops@tunevault.app';
+            console.log(JSON.stringify({
+              From: 'alerts@tunevault.app',
+              To: to,
+              Subject: '[ALERT] TuneVault live install.sh BROKEN — ' + new Date().toISOString().slice(0,10),
+              HtmlBody: '<h2>Live Installer Check Failed</h2>' +
+                '<p>The daily CI check against <code>https://tunevault.app/install.sh</code> failed on Oracle Linux 7.</p>' +
+                '<p><a href=\"' + runUrl + '\">View CI run</a></p>' +
+                '<h3>Install log (first 100 lines):</h3>' +
+                '<pre>' + log.replace(/</g,'&lt;').replace(/>/g,'&gt;').slice(0,4000) + '</pre>',
+              MessageStream: 'outbound',
+            }));
+          " INSTALL_LOG="$INSTALL_LOG" RUN_URL="$RUN_URL" ALERT_EMAIL="$ALERT_EMAIL")
+
+          if [ -n "$POSTMARK_SERVER_TOKEN" ]; then
+            HTTP_STATUS=$(curl -s -o /tmp/postmark-resp.txt -w "%{http_code}" \
+              -X POST "https://api.postmarkapp.com/email" \
+              -H "Accept: application/json" \
+              -H "Content-Type: application/json" \
+              -H "X-Postmark-Server-Token: $POSTMARK_SERVER_TOKEN" \
+              -d "$PAYLOAD")
+            echo "Postmark response: $HTTP_STATUS"
+            cat /tmp/postmark-resp.txt
+          else
+            echo "WARN: POSTMARK_SERVER_TOKEN not set — alert not sent (but CI job fails below)"
+          fi
+
+          echo "=== Live install log ==="
+          cat /tmp/live-install.log
+
+          # Fail the workflow so the broken state is visible in GitHub
+          exit 1
+
+      - name: Report live check passed
+        if: steps.live_check.outcome == 'success'
+        run: |
+          echo "Daily live installer check PASSED on Oracle Linux 7"
+          echo "Live install.sh at https://tunevault.app/install.sh is healthy"

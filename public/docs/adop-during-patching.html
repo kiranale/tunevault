@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ADOP Patch Cycle — What TuneVault Does and Doesn't Do | TuneVault Docs</title>
+  <meta name="description" content="What Oracle health checks are safe to run during an active ADOP online patching cycle, and which ones are misleading. Covers all 54+ checks.">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c; --surface: #111114; --surface-2: #1a1a1f;
+      --border: #2a2a30; --text: #e8e8ed; --text-dim: #b8b8c8;
+      --accent: #f0a830; --green: #34d399; --red: #f87171;
+      --yellow: #fbbf24; --blue: #60a5fa;
+    }
+    body { font-family: 'Space Grotesk', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    .nav-wrapper { border-bottom: 1px solid var(--border); background: rgba(10,10,12,0.95); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 9999; }
+    #nav-root { max-width: 1200px; margin: 0 auto; padding: 14px 48px; }
+    .doc-wrap { max-width: 820px; margin: 0 auto; padding: 60px 48px 100px; }
+    h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 8px; }
+    .subtitle { color: var(--text-dim); font-size: 15px; margin-bottom: 40px; }
+    h2 { font-size: 18px; font-weight: 700; margin: 40px 0 12px; color: var(--accent); }
+    h3 { font-size: 15px; font-weight: 600; margin: 24px 0 8px; }
+    p { margin-bottom: 14px; font-size: 15px; color: var(--text-dim); }
+    p strong { color: var(--text); }
+    code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: var(--surface-2); padding: 2px 6px; border-radius: 4px; color: var(--accent); }
+    .adop-alert {
+      background: linear-gradient(90deg, rgba(220,38,38,0.15) 0%, rgba(185,28,28,0.08) 100%);
+      border: 1.5px solid rgba(248,113,113,0.4);
+      border-radius: 10px; padding: 16px 20px; margin: 24px 0;
+    }
+    .adop-alert strong { color: #fca5a5; }
+    .check-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }
+    .check-table th { text-align: left; padding: 10px 14px; background: var(--surface-2); color: var(--text-dim); font-weight: 600; border-bottom: 1px solid var(--border); }
+    .check-table td { padding: 9px 14px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: top; }
+    .check-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .safe { color: var(--green); font-weight: 600; }
+    .unsafe { color: var(--red); font-weight: 600; }
+    .caution { color: var(--yellow); font-weight: 600; }
+    .phase-badge { display: inline-block; padding: 2px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+    .pb-prepare  { background: rgba(96,165,250,0.15); color: var(--blue); border: 1px solid rgba(96,165,250,0.3); }
+    .pb-apply    { background: rgba(251,191,36,0.15);  color: var(--yellow); border: 1px solid rgba(251,191,36,0.3); }
+    .pb-cutover  { background: rgba(248,113,113,0.15); color: var(--red); border: 1px solid rgba(248,113,113,0.3); }
+    .pb-finalize { background: rgba(52,211,153,0.15);  color: var(--green); border: 1px solid rgba(52,211,153,0.3); }
+    .pb-cleanup  { background: rgba(52,211,153,0.1);   color: var(--green); border: 1px solid rgba(52,211,153,0.2); }
+    .toc { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 32px 0; }
+    .toc-title { font-size: 12px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+    .toc a { display: block; font-size: 14px; color: var(--text-dim); text-decoration: none; padding: 3px 0; }
+    .toc a:hover { color: var(--accent); }
+    @media (max-width: 700px) {
+      .doc-wrap { padding: 40px 20px 80px; }
+      #nav-root { padding: 14px 20px; }
+    }
+  </style>
+</head>
+<body>
+<div class="nav-wrapper">
+  <div id="nav-root"></div>
+</div>
+<script src="/nav-component.js"></script>
+<script>window.tvNav && window.tvNav.init('main');</script>
+
+<div class="doc-wrap">
+
+  <h1>ADOP Patch Cycle — Safe vs. Misleading Health Checks</h1>
+  <p class="subtitle">What to do (and not do) when TuneVault shows the red ADOP banner.</p>
+
+  <div class="adop-alert">
+    <strong>🔴 You're here because TuneVault detected active ADOP patch services</strong> (<code>*_ebs_patch</code> in <code>V$ACTIVE_SERVICES</code>).
+    This means Oracle's online patching cycle is in progress — the RUN and PATCH filesystems are split.
+    Health metrics captured now describe a <strong>transient state</strong>, not steady-state production.
+  </div>
+
+  <div class="toc">
+    <div class="toc-title">On this page</div>
+    <a href="#how-adop-works">How ADOP online patching works</a>
+    <a href="#phases">ADOP phases and what TuneVault shows</a>
+    <a href="#check-matrix">Check safety matrix (54+ checks)</a>
+    <a href="#blocked-ops">Operations blocked during patching</a>
+    <a href="#safe-to-run">What is safe to run</a>
+    <a href="#after-cutover">After cutover</a>
+  </div>
+
+  <!-- ── How ADOP works ── -->
+  <h2 id="how-adop-works">How ADOP Online Patching Works</h2>
+  <p>
+    ADOP (<strong>AD Online Patching</strong>) splits EBS into two filesystem editions:
+    the <strong>RUN</strong> edition (live production) and the <strong>PATCH</strong> edition (where patching happens).
+    Oracle signals this by registering <code>APPSSID_ebs_patch</code> and <code>DBSID_ebs_patch</code> services
+    in the listener — exactly what TuneVault detects via <code>V$ACTIVE_SERVICES</code>.
+  </p>
+  <p>
+    While ADOP is active, the database itself is normal — all DB-level metrics (tablespace, sessions, wait events)
+    reflect production accurately. But <strong>application-tier objects are in flux</strong>:
+    Concurrent Managers may run on the RUN edition while the patch edition is being updated,
+    Workflow Mailer state is frozen, and FNDLOAD/APEX metadata may be mid-migration.
+  </p>
+
+  <!-- ── Phases ── -->
+  <h2 id="phases">ADOP Phases</h2>
+  <p>Each phase changes what TuneVault can reliably measure:</p>
+
+  <table class="check-table">
+    <thead><tr><th>Phase</th><th>What's happening</th><th>Risk level</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="phase-badge pb-prepare">PREPARE</span></td>
+        <td>Patch filesystem being set up. RUN edition fully operational. DB-level checks safe.</td>
+        <td class="safe">Low</td>
+      </tr>
+      <tr>
+        <td><span class="phase-badge pb-apply">APPLY</span></td>
+        <td>Patches being applied to PATCH edition. Concurrent queue depth is partially cut over. Workflow Mailer is frozen on RUN edition.</td>
+        <td class="caution">Medium</td>
+      </tr>
+      <tr>
+        <td><span class="phase-badge pb-cutover">CUTOVER</span></td>
+        <td>Production flips from RUN to PATCH edition. This is the window of maximum flux — some sessions disconnect, new ones connect to the new edition. Avoid ALL destructive ops.</td>
+        <td class="unsafe">High — avoid ops</td>
+      </tr>
+      <tr>
+        <td><span class="phase-badge pb-finalize">FINALIZE</span></td>
+        <td>Old RUN edition being cleaned up. System is on new edition. Most operations safe again.</td>
+        <td class="safe">Low</td>
+      </tr>
+      <tr>
+        <td><span class="phase-badge pb-cleanup">CLEANUP</span></td>
+        <td>Housekeeping. Old edition objects removed. Fully safe.</td>
+        <td class="safe">Safe</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ── Check safety matrix ── -->
+  <h2 id="check-matrix">Check Safety Matrix</h2>
+  <p>The following table lists TuneVault's health checks and whether they are reliable during ADOP.</p>
+
+  <table class="check-table">
+    <thead><tr><th>Check</th><th>Category</th><th>Safe during ADOP?</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>Tablespace Usage</td><td>Storage</td><td class="safe">✓ Safe</td><td>Reads <code>DBA_TABLESPACE_USAGE_METRICS</code> — DB-level, unaffected by ADOP filesystem split.</td></tr>
+      <tr><td>FRA Usage</td><td>Storage</td><td class="safe">✓ Safe</td><td>Reads <code>V$RECOVERY_FILE_DEST</code> — pure DB metric.</td></tr>
+      <tr><td>Archive Log Rate</td><td>Storage</td><td class="safe">✓ Safe</td><td>REDO generation is a DB-level metric. ADOP does not affect archive rate directly.</td></tr>
+      <tr><td>Undo Utilization</td><td>Storage</td><td class="safe">✓ Safe</td><td>UNDO usage reflects live transactions — valid, though ADOP cutover briefly spikes it.</td></tr>
+      <tr><td>Temp Space</td><td>Storage</td><td class="safe">✓ Safe</td><td>Temp tablespace usage is DB-level.</td></tr>
+      <tr><td>Top SQL by CPU/Reads</td><td>Performance</td><td class="caution">⚠ Caution</td><td>During APPLY, patch-edition SQL may skew the top list. Values are real but context-dependent.</td></tr>
+      <tr><td>Wait Events Summary</td><td>Performance</td><td class="caution">⚠ Caution</td><td>ADOP APPLY generates heavy I/O and library cache activity. Wait events are real but inflated.</td></tr>
+      <tr><td>Blocking Sessions</td><td>Sessions</td><td class="safe">✓ Safe</td><td>Real blocking is still a problem. Report is accurate.</td></tr>
+      <tr><td>Long-Running Sessions</td><td>Sessions</td><td class="caution">⚠ Caution</td><td>ADOP workers run as long-running sessions. They're expected — not a sign of DBA intervention needed.</td></tr>
+      <tr><td>Instance Parameters</td><td>Configuration</td><td class="safe">✓ Safe</td><td>DB parameters are unaffected by ADOP.</td></tr>
+      <tr><td>Invalid Objects</td><td>Configuration</td><td class="unsafe">✗ Misleading</td><td>ADOP intentionally invalidates objects during APPLY. Report will show hundreds of invalids — this is normal and expected.</td></tr>
+      <tr><td>Stale Statistics</td><td>Performance</td><td class="unsafe">✗ Misleading</td><td>ADOP gathers stats on the patch edition. Stale stat alerts during APPLY are ADOP-normal, not DBA action items.</td></tr>
+      <tr><td>Concurrent Manager Queue Depth</td><td>EBS</td><td class="unsafe">✗ Misleading</td><td>During CUTOVER, ICM re-initializes. Queue depth reflects the cut-over transition, not a stuck manager. Do not bounce CM.</td></tr>
+      <tr><td>Workflow Mailer State</td><td>EBS</td><td class="unsafe">✗ Misleading</td><td>WF Mailer is intentionally suspended during ADOP APPLY. The "stopped" status is expected. Do not restart it.</td></tr>
+      <tr><td>FND Top Programs</td><td>EBS</td><td class="caution">⚠ Caution</td><td>Patch-edition jobs (ADOP stages) show up as top programs. Not actionable during patching.</td></tr>
+      <tr><td>EBS System Health (APPS.DUAL probe)</td><td>EBS</td><td class="safe">✓ Safe</td><td>Connectivity probe. Always safe — just verifies DB→APPS schema path is alive.</td></tr>
+      <tr><td>Patch Level / Last CPU</td><td>EBS</td><td class="safe">✓ Safe</td><td>Reads <code>AD_APPLIED_PATCHES</code> — read-only, unaffected by in-flight ADOP.</td></tr>
+      <tr><td>ETCC Check Status</td><td>EBS</td><td class="caution">⚠ Caution</td><td>ETCC results will change after the patch is applied. Run after CLEANUP for a meaningful result.</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ── Blocked ops ── -->
+  <h2 id="blocked-ops">Operations Blocked During Patching</h2>
+  <p>
+    TuneVault blocks the following operations when <code>patching=true</code>. These carry a high risk of
+    interfering with the ADOP session or leaving the system in an inconsistent state:
+  </p>
+  <ul style="margin: 0 0 16px 20px; color: var(--text-dim); font-size: 15px; line-height: 2;">
+    <li><strong>Bounce/Start/Stop Concurrent Manager</strong> — ICM re-init during cutover is ADOP-managed.</li>
+    <li><strong>Restart Workflow Mailer</strong> — intentionally suspended; restarting it mid-ADOP can corrupt WF state.</li>
+    <li><strong>Kill Sessions</strong> — ADOP workers look like long-running sessions; killing them aborts the patch.</li>
+    <li><strong>Rolling bounce (WLS/Apache/OHS)</strong> — app-tier bounces during cutover break the in-flight filesystem flip.</li>
+    <li><strong>Parameter changes (ALTER SYSTEM)</strong> — risky at any time; forbidden during active patching.</li>
+  </ul>
+  <p>
+    To override a block, enter the <strong>ADOP session ID</strong> (shown in the banner) in the override field.
+    This is intentionally friction-heavy — only do this if you have confirmed with the patching DBA that the
+    operation is safe at the current phase.
+  </p>
+
+  <!-- ── Safe to run ── -->
+  <h2 id="safe-to-run">What Is Safe During ADOP</h2>
+  <ul style="margin: 0 0 16px 20px; color: var(--text-dim); font-size: 15px; line-height: 2;">
+    <li>Running a full health check (all storage + session + configuration checks are accurate).</li>
+    <li>Viewing tablespace growth, FRA, archive log rate.</li>
+    <li>Reviewing blocking sessions and killing <em>non-ADOP</em> blockers.</li>
+    <li>Accessing the ADDM panel (task-based analysis of pre-ADOP baseline is valid).</li>
+    <li>Viewing patch history, EBS version levels, ETCC results (for informational context).</li>
+    <li>Exporting PDF/XLSX reports (the data is valid, with the caveats noted above).</li>
+  </ul>
+
+  <!-- ── After cutover ── -->
+  <h2 id="after-cutover">After Cutover — Clearing the Banner</h2>
+  <p>
+    The ADOP banner clears automatically when:
+  </p>
+  <ul style="margin: 0 0 16px 20px; color: var(--text-dim); font-size: 15px; line-height: 2;">
+    <li>The <code>*_ebs_patch</code> services are no longer registered in <code>V$ACTIVE_SERVICES</code> (post-cleanup phase).</li>
+    <li>A new health pack runs — the detector re-checks on every health-pack completion.</li>
+    <li>You click the <strong>↻ Refresh</strong> button on the banner (rate-limited to once per 60s).</li>
+  </ul>
+  <p>
+    After cutover completes, re-run the full health check to get a clean baseline on the new production edition.
+    The "Invalid Objects" count will normalize within minutes as the background recompilation job runs.
+  </p>
+
+  <div style="margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border);">
+    <a href="/ebs-deep" style="color: var(--accent); text-decoration: none; font-size: 14px;">← Back to Deep EBS Mode</a>
+    &nbsp;&nbsp;
+    <a href="/docs/privileges" style="color: var(--text-dim); text-decoration: none; font-size: 14px;">DBA Role Setup Guide →</a>
+  </div>
+
+</div>
+</body>
+</html>

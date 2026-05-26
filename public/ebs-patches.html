@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EBS Patches — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://tunevault.app/ebs-patches">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c;
+      --surface: #111114;
+      --surface-2: #1a1a1f;
+      --border: #2a2a30;
+      --text: #e8e8ed;
+      --text-dim: #b8b8c8;
+      --accent: #f0a830;
+      --accent-dim: rgba(240,168,48,0.12);
+      --green: #34d399;
+      --green-dim: rgba(52,211,153,0.12);
+      --red: #f87171;
+      --red-dim: rgba(248,113,113,0.12);
+      --yellow: #fbbf24;
+      --yellow-dim: rgba(251,191,36,0.12);
+      --blue: #60a5fa;
+      --blue-dim: rgba(96,165,250,0.12);
+      --orange: #fb923c;
+      --orange-dim: rgba(251,146,60,0.12);
+      --purple: #a78bfa;
+      --purple-dim: rgba(167,139,250,0.12);
+    }
+    body {
+      font-family: 'Space Grotesk', -apple-system, sans-serif;
+      background: var(--bg); color: var(--text);
+      line-height: 1.6; min-height: 100vh; overflow-x: hidden;
+    }
+    .grain {
+      position: fixed; top:0; left:0; right:0; bottom:0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 999;
+    }
+    nav {
+      background: rgba(10,10,12,0.95); border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 9999;
+    }
+    .page-wrap { max-width: 1200px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    /* ── Toolbar ── */
+    .toolbar {
+      display: flex; align-items: center; gap: 16px; margin-bottom: 28px; flex-wrap: wrap;
+    }
+    .toolbar-left { flex: 1; }
+    .toolbar h1 { font-size: 22px; font-weight: 700; }
+    .toolbar p { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+    .conn-select {
+      background: var(--surface); border: 1px solid var(--border); color: var(--text);
+      font-family: inherit; font-size: 13px; padding: 8px 12px; border-radius: 8px;
+      min-width: 240px; cursor: pointer;
+    }
+    .conn-select:focus { outline: none; border-color: var(--accent); }
+    .btn-run {
+      padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      border: none; cursor: pointer; background: var(--accent); color: #0a0a0c;
+      transition: all 0.15s; font-family: inherit; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-run:hover { background: #e09820; }
+    .btn-run:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Sub-tabs (Oracle Home tabs) ── */
+    .sub-tabs {
+      display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 28px;
+      border-bottom: 1px solid var(--border); padding-bottom: 0;
+    }
+    .sub-tab {
+      padding: 8px 16px; font-size: 13px; font-weight: 500; border: none;
+      background: none; color: var(--text-dim); cursor: pointer; border-bottom: 2px solid transparent;
+      margin-bottom: -1px; transition: all 0.15s; white-space: nowrap;
+    }
+    .sub-tab:hover { color: var(--text); }
+    .sub-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ── Section panels ── */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ── Info cards ── */
+    .info-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(300px,1fr)); gap: 16px; margin-bottom: 24px;
+    }
+    .info-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px;
+    }
+    .info-card-title {
+      font-size: 13px; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;
+    }
+    .info-card-sub { font-size: 12px; color: var(--text-dim); margin-bottom: 12px; }
+
+    /* ── Home card ── */
+    .home-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 20px; margin-bottom: 16px;
+    }
+    .home-header {
+      display: flex; align-items: flex-start; gap: 14px; margin-bottom: 14px;
+    }
+    .home-icon {
+      width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center;
+      justify-content: center; font-size: 18px; flex-shrink: 0;
+    }
+    .home-title { font-size: 15px; font-weight: 700; }
+    .home-sub { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+    .home-desc { font-size: 13px; color: var(--text-dim); margin-bottom: 14px; line-height: 1.5; }
+    .cmd-block {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text);
+      background: #0d0d10; border: 1px solid var(--border); border-radius: 6px;
+      padding: 12px 14px; white-space: pre-wrap; word-break: break-all; margin-bottom: 12px;
+    }
+    .result-area {
+      margin-top: 12px; display: none;
+    }
+    .result-area.visible { display: block; }
+    .result-pre {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      background: #0d0d10; border: 1px solid var(--border); border-radius: 6px;
+      padding: 12px; white-space: pre-wrap; word-break: break-all; color: var(--text);
+      max-height: 320px; overflow-y: auto;
+    }
+
+    /* ── Status badge ── */
+    .badge {
+      display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px;
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+    }
+    .badge-green { background: var(--green-dim); color: var(--green); }
+    .badge-red { background: var(--red-dim); color: var(--red); }
+    .badge-yellow { background: var(--yellow-dim); color: var(--yellow); }
+    .badge-blue { background: var(--blue-dim); color: var(--blue); }
+    .badge-purple { background: var(--purple-dim); color: var(--purple); }
+    .badge-amber { background: var(--accent-dim); color: var(--accent); }
+
+    /* ── Table ── */
+    .data-table-wrap { overflow-x: auto; margin-top: 12px; }
+    .data-table {
+      width: 100%; border-collapse: collapse; font-size: 12px;
+    }
+    .data-table th {
+      text-align: left; padding: 7px 12px; background: var(--surface-2);
+      border-bottom: 1px solid var(--border); color: var(--text-dim);
+      font-size: 11px; white-space: nowrap;
+    }
+    .data-table td {
+      padding: 7px 12px; border-bottom: 1px solid rgba(255,255,255,0.04);
+      color: var(--text); white-space: nowrap; max-width: 280px;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+
+    /* ── Section label ── */
+    .section-label {
+      font-size: 10px; font-weight: 700; color: var(--text-dim);
+      letter-spacing: .1em; text-transform: uppercase;
+      margin: 28px 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    }
+    .section-label:first-child { margin-top: 0; }
+
+    /* ── Mismatch banner ── */
+    .mismatch-banner {
+      display: none; background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.4);
+      border-radius: 10px; padding: 14px 18px; margin-bottom: 20px;
+    }
+    .mismatch-banner.visible { display: block; }
+    .mismatch-banner-header {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer;
+    }
+    .mismatch-banner-title { font-size: 14px; font-weight: 700; color: var(--red); }
+    .mismatch-banner-count {
+      font-size: 12px; color: var(--text-dim); white-space: nowrap;
+    }
+    .mismatch-toggle { font-size: 12px; color: var(--red); background: none; border: none; cursor: pointer; padding: 0; }
+    .mismatch-detail { display: none; margin-top: 10px; }
+    .mismatch-detail.open { display: block; }
+    .mismatch-group { margin-top: 10px; }
+    .mismatch-group-label { font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+    .mismatch-pill {
+      display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 4px;
+      font-size: 11px; font-family: 'JetBrains Mono', monospace; margin: 2px;
+      background: rgba(248,113,113,0.1); color: var(--red); border: 1px solid rgba(248,113,113,0.25);
+    }
+
+    /* ── OK banner ── */
+    .ok-banner {
+      display: none; background: var(--green-dim); border: 1px solid rgba(52,211,153,0.3);
+      border-radius: 10px; padding: 12px 16px; margin-bottom: 20px;
+      font-size: 13px; color: var(--green); font-weight: 600;
+    }
+    .ok-banner.visible { display: block; }
+
+    /* ── Home section header with patch count ── */
+    .home-section { margin-bottom: 24px; }
+    .home-section-header {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+    }
+    .home-section-title { font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: .1em; flex: 1; }
+    .patch-count-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px;
+      background: var(--accent-dim); color: var(--accent);
+    }
+
+    /* ── Tooltip ── */
+    .tooltip-wrap { position: relative; display: inline-flex; align-items: center; }
+    .tooltip-icon {
+      width: 15px; height: 15px; border-radius: 50%; background: var(--surface-2);
+      border: 1px solid var(--border); color: var(--text-dim); font-size: 10px;
+      font-weight: 700; display: inline-flex; align-items: center; justify-content: center;
+      cursor: help; margin-left: 6px; flex-shrink: 0;
+    }
+    .tooltip-box {
+      display: none; position: absolute; left: 50%; top: calc(100% + 6px);
+      transform: translateX(-50%); width: 260px; background: #1e1e26;
+      border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
+      font-size: 11px; color: var(--text-dim); line-height: 1.5; z-index: 200;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4); white-space: normal; text-align: left;
+    }
+    .tooltip-wrap:hover .tooltip-box { display: block; }
+
+    /* ── Non-EBS notice ── */
+    .non-ebs-notice {
+      background: var(--surface); border: 1px solid rgba(96,165,250,0.3); border-radius: 10px;
+      padding: 20px 24px; text-align: center; display: none;
+    }
+    .non-ebs-notice.visible { display: block; }
+    .non-ebs-notice p { color: var(--text-dim); font-size: 14px; }
+
+    /* ── Spinner ── */
+    .spinner {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.2); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Empty state ── */
+    .empty-state { text-align: center; padding: 48px; color: var(--text-dim); }
+    .empty-state .icon { font-size: 36px; margin-bottom: 10px; }
+    .empty-state h3 { font-size: 15px; color: var(--text); margin-bottom: 4px; }
+
+    @media(max-width:600px) {
+      .info-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="grain"></div>
+<nav>
+  <div id="nav-root"></div>
+</nav>
+
+<div class="page-wrap">
+  <!-- ── Toolbar ── -->
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <h1>🩹 EBS Patches</h1>
+      <p>Patch inventory across all Oracle Homes — FMW, WLS, 10.1.2, Apps, AD/TXK, ATG/PCU, ETCC</p>
+    </div>
+    <select class="conn-select" id="conn-select" onchange="onConnChange()">
+      <option value="">— Select connection —</option>
+    </select>
+    <button class="btn-run" id="run-btn" onclick="runAll()" disabled>▶ Run All</button>
+  </div>
+
+  <!-- ── Non-EBS notice ── -->
+  <div class="non-ebs-notice" id="non-ebs-notice">
+    <div style="font-size:28px;margin-bottom:8px">🔌</div>
+    <p>EBS Patches require an EBS-enabled connection (is_ebs = true).<br>
+    Select an EBS connection or use the DB Ops → Patches tab for RDBMS patch analysis.</p>
+  </div>
+
+  <!-- ── Sub-tabs ── -->
+  <div class="sub-tabs" id="sub-tabs">
+    <button class="sub-tab active" data-panel="fmw"      onclick="switchTab('fmw',this)">🏗️ FMW Homes</button>
+    <button class="sub-tab"        data-panel="wls"      onclick="switchTab('wls',this)">⚙️ WLS</button>
+    <button class="sub-tab"        data-panel="forms"    onclick="switchTab('forms',this)">📝 10.1.2 Forms/Reports</button>
+    <button class="sub-tab"        data-panel="apps"     onclick="switchTab('apps',this)">📦 Apps (adpatch/adop)</button>
+    <button class="sub-tab"        data-panel="adtxk"    onclick="switchTab('adtxk',this)">🔖 AD/TXK Codelevels</button>
+    <button class="sub-tab"        data-panel="atgpcu"   onclick="switchTab('atgpcu',this)">🎯 ATG/PCU</button>
+    <button class="sub-tab"        data-panel="etcc"     onclick="switchTab('etcc',this)">✅ ETCC</button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ FMW Homes -->
+  <div class="panel active" id="panel-fmw">
+
+    <!-- ── Mismatch banner (populated by runFmwInventory) ── -->
+    <div class="mismatch-banner" id="fmw-mismatch-banner">
+      <div class="mismatch-banner-header" onclick="toggleMismatchDetail()">
+        <span class="mismatch-banner-title">⚠ FMW home mismatch detected</span>
+        <span class="mismatch-banner-count" id="mismatch-count-label"></span>
+        <button class="mismatch-toggle" id="mismatch-toggle-btn">▾ Show details</button>
+      </div>
+      <div class="mismatch-detail" id="mismatch-detail">
+        <div class="mismatch-group" id="mismatch-in-common-not-home" style="display:none">
+          <div class="mismatch-group-label">In oracle_common — missing from Oracle_Home</div>
+          <div id="mismatch-pills-common-not-home"></div>
+        </div>
+        <div class="mismatch-group" id="mismatch-in-home-not-common" style="display:none">
+          <div class="mismatch-group-label">In Oracle_Home — missing from oracle_common</div>
+          <div id="mismatch-pills-home-not-common"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── All-clear banner ── -->
+    <div class="ok-banner" id="fmw-ok-banner">
+      ✅ FMW homes are in sync — all patches match between oracle_common and Oracle_Home
+    </div>
+
+    <!-- ── Run Inventory button ── -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+      <div style="flex:1">
+        <div style="font-size:13px;color:var(--text-dim)">
+          Run <code style="font-family:JetBrains Mono,monospace;font-size:11px;color:var(--accent)">opatch lsinventory</code> on both FMW homes to detect patch mismatches.
+          Requires an apps-tier SSH target for this connection.
+        </div>
+      </div>
+      <button class="btn-run" id="fmw-inventory-btn" onclick="runFmwInventory()" disabled>
+        🔍 Run Inventory + Mismatch Check
+      </button>
+    </div>
+
+    <!-- ── DB ORACLE_HOME section ── -->
+    <div class="home-section" id="section-db-oracle-home">
+      <div class="home-section-header">
+        <div class="home-section-title">
+          DB ORACLE_HOME
+          <div class="tooltip-wrap">
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-box">
+              The RDBMS Oracle Home (e.g. <code>/u01/install/APPS/19.0.0</code>). Contains the Oracle Database binaries. Patched via OPatch with Release Updates (RU/RUR) and CPU patches. Separate from the FMW homes — DB patching requires database shutdown.
+            </div>
+          </div>
+        </div>
+        <span class="patch-count-badge" id="count-db-oracle-home" style="display:none"></span>
+      </div>
+      <div class="home-card">
+        <div class="home-header">
+          <div class="home-icon" style="background:var(--orange-dim)">🗄️</div>
+          <div>
+            <div class="home-title" style="display:flex;align-items:center;gap:6px">
+              DB ORACLE_HOME
+              <span class="badge badge-amber">$ORACLE_HOME</span>
+            </div>
+            <div class="home-sub">Oracle Database binaries — patched with RU/RUR and CPU patches</div>
+          </div>
+        </div>
+        <div class="home-desc">
+          The RDBMS Oracle Home (typically <code style="font-family:JetBrains Mono,monospace;font-size:11px;color:var(--accent)">/u01/install/APPS/19.0.0</code> for a 19c EBS instance). Contains the Oracle DB kernel. CPU/RU patches applied here require database shutdown and datapatch.
+        </div>
+        <div class="cmd-block">$ORACLE_HOME/OPatch/opatch lsinventory -oh $ORACLE_HOME</div>
+        <button class="btn-run" style="margin-bottom:12px" onclick="runOhCmd('db-oracle-home', 'db.opatch.oracle_home', 'db_tier')">▶ Run via SSH</button>
+        <div class="result-area" id="result-db-oracle-home">
+          <div style="font-size:11px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Output</div>
+          <div class="result-pre" id="result-pre-db-oracle-home"></div>
+        </div>
+        <!-- Structured patch list populated by runFmwInventory -->
+        <div id="patches-db-oracle-home"></div>
+      </div>
+    </div>
+
+    <!-- ── FMW oracle_common section ── -->
+    <div class="home-section" id="section-oracle-common">
+      <div class="home-section-header">
+        <div class="home-section-title">
+          FMW oracle_common
+          <div class="tooltip-wrap">
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-box">
+              The shared FMW infrastructure home (e.g. <code>/u01/install/APPS/fs1/FMW_Home/oracle_common</code>). Contains OPSS (security framework), MDS (metadata services), and JRF (Java Required Files). All FMW components depend on this home. Patches here must match Oracle_Home to avoid JRF/OPSS version skew.
+            </div>
+          </div>
+        </div>
+        <span class="patch-count-badge" id="count-oracle-common" style="display:none"></span>
+      </div>
+      <div class="home-card" id="card-oracle-common">
+        <div class="home-header">
+          <div class="home-icon" style="background:var(--blue-dim)">🗂️</div>
+          <div>
+            <div class="home-title" style="display:flex;align-items:center;gap:6px">
+              oracle_common
+              <span class="badge badge-blue">Shared FMW</span>
+            </div>
+            <div class="home-sub">OPSS, MDS, JRF — shared by all FMW components</div>
+          </div>
+        </div>
+        <div class="home-desc">
+          The <code style="font-family:JetBrains Mono,monospace;font-size:11px;color:var(--accent)">oracle_common</code> home under <code style="font-family:JetBrains Mono,monospace;font-size:11px;color:var(--accent)">$FMW_HOME</code> is the shared FMW infrastructure home. Patches here cover OPSS security framework, MDS metadata services, and JRF (Java Required Files). <strong>Must be in sync with Oracle_Home</strong> — a mismatch causes WLS startup failures.
+        </div>
+        <div class="cmd-block">$FMW_HOME/oracle_common/OPatch/opatch lsinventory -oh $FMW_HOME/oracle_common</div>
+        <button class="btn-run" style="margin-bottom:12px" onclick="runOhCmd('oracle-common', 'fmw.opatch.oracle_common', 'apps_tier')">▶ Run via SSH</button>
+        <div class="result-area" id="result-oracle-common">
+          <div style="font-size:11px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Output</div>
+          <div class="result-pre" id="result-pre-oracle-common"></div>
+        </div>
+        <!-- Structured patch list populated by runFmwInventory -->
+        <div id="patches-oracle-common"></div>
+      </div>
+    </div>
+
+    <!-- ── FMW Oracle_Home (WLS) section ── -->
+    <div class="home-section" id="section-oracle-home-wls">
+      <div class="home-section-header">
+        <div class="home-section-title">
+          FMW Oracle_Home (WLS)
+          <div class="tooltip-wrap">
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-box">
+              The WebLogic Server Oracle Home (e.g. <code>/u01/install/APPS/fs1/FMW_Home/Oracle_Home</code>). Contains WLS 12.2.1.x binaries — the application server hosting EBS. Patches here cover WLS PSUs and JVM updates. Must be patched to match oracle_common. Under online patching (ADOP), both fs1 and fs2 have separate FMW homes.
+            </div>
+          </div>
+        </div>
+        <span class="patch-count-badge" id="count-oracle-home-wls" style="display:none"></span>
+      </div>
+      <div class="home-card" id="card-oracle-home-wls">
+        <div class="home-header">
+          <div class="home-icon" style="background:var(--purple-dim)">⚙️</div>
+          <div>
+            <div class="home-title" style="display:flex;align-items:center;gap:6px">
+              Oracle_Home
+              <span class="badge badge-purple">WLS</span>
+            </div>
+            <div class="home-sub">WebLogic Server binaries — WLS PSUs and JVM patches</div>
+          </div>
+        </div>
+        <div class="home-desc">
+          The <code style="font-family:JetBrains Mono,monospace;font-size:11px;color:var(--accent)">Oracle_Home</code> under <code style="font-family:JetBrains Mono,monospace;font-size:11px;color:var(--accent)">$FMW_HOME</code> is the WebLogic Server Oracle Home. Patches here cover WLS PSUs (Patch Set Updates) and JVM security fixes. <strong>Silent failure mode:</strong> a patch applied to oracle_common but missing here (or vice versa) causes JRF dependency mismatches that can prevent WLS from starting after an ADOP cutover.
+        </div>
+        <div class="cmd-block">$FMW_HOME/Oracle_Home/OPatch/opatch lsinventory -oh $FMW_HOME/Oracle_Home</div>
+        <button class="btn-run" style="margin-bottom:12px" onclick="runOhCmd('oracle-home-wls', 'fmw.opatch.oracle_home', 'apps_tier')">▶ Run via SSH</button>
+        <div class="result-area" id="result-oracle-home-wls">
+          <div style="font-size:11px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Output</div>
+          <div class="result-pre" id="result-pre-oracle-home-wls"></div>
+        </div>
+        <!-- Structured patch list populated by runFmwInventory -->
+        <div id="patches-oracle-home-wls"></div>
+      </div>
+    </div>
+
+    <!-- ── webtier section (OHS — separate from WLS Oracle_Home) ── -->
+    <div class="home-section">
+      <div class="home-section-header">
+        <div class="home-section-title">
+          webtier (OHS)
+          <div class="tooltip-wrap">
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-box">
+              The Oracle HTTP Server home (e.g. <code>/u01/install/APPS/fs1/FMW_Home/webtier</code>). Contains OHS (Apache-based HTTP server) and <code>mod_wl_ohs</code> — the WLS proxy module. Patches here fix web-tier TLS/SSL vulnerabilities. Not directly involved in the oracle_common ↔ Oracle_Home mismatch — checked separately.
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="home-card">
+        <div class="home-header">
+          <div class="home-icon" style="background:var(--yellow-dim)">🌐</div>
+          <div>
+            <div class="home-title" style="display:flex;align-items:center;gap:6px">
+              webtier
+              <span class="badge badge-yellow">OHS / mod_wl</span>
+            </div>
+            <div class="home-sub">Oracle HTTP Server, mod_wl_ohs, SSL configuration</div>
+          </div>
+        </div>
+        <div class="home-desc">
+          The <code style="font-family:JetBrains Mono,monospace;font-size:11px;color:var(--accent)">webtier</code> home contains Oracle HTTP Server (OHS) and <code style="font-family:JetBrains Mono,monospace;font-size:11px;color:var(--accent)">mod_wl_ohs</code>. This is <strong>distinct from Oracle_Home/WLS</strong> — it is the HTTP layer in front of WLS, not the WLS server itself.
+        </div>
+        <div class="cmd-block">$FMW_HOME/webtier/OPatch/opatch lsinventory -oh $FMW_HOME/webtier</div>
+        <button class="btn-run" style="margin-bottom:12px" onclick="runSshOpatch('webtier', '$FMW_HOME/webtier/OPatch/opatch lsinventory -oh $FMW_HOME/webtier')">▶ Run via SSH</button>
+        <div class="result-area" id="result-webtier">
+          <div style="font-size:11px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Output</div>
+          <div class="result-pre" id="result-pre-webtier"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ WLS -->
+  <div class="panel" id="panel-wls">
+    <div class="section-label">WebLogic Server (WLS) — $FMW_HOME/wlserver</div>
+    <div class="home-card">
+      <div class="home-header">
+        <div class="home-icon" style="background:var(--amber-dim, var(--accent-dim))">⚙️</div>
+        <div>
+          <div class="home-title">WebLogic Server <span class="badge badge-amber">$FMW_HOME/wlserver</span></div>
+          <div class="home-sub">12.2.1.3+: OPatch · Pre-12.2.1.3: BSU (BEA Smart Update)</div>
+        </div>
+      </div>
+      <div class="home-desc">
+        WLS patching depends on version. 12.2.1.3 and later use OPatch; older versions use BSU (<code style="font-family:JetBrains Mono,monospace;font-size:11px;color:var(--accent)">bsu.sh -report</code>). TuneVault automatically detects which tool to use based on the WLS version detected via SSH.
+      </div>
+
+      <div class="section-label" style="margin-top:0">OPatch (12.2.1.3+)</div>
+      <div class="cmd-block">$FMW_HOME/wlserver/OPatch/opatch lsinventory -oh $FMW_HOME/wlserver</div>
+      <button class="btn-run" style="margin-bottom:20px" onclick="runSshCmd('wls-opatch', '$FMW_HOME/wlserver/OPatch/opatch lsinventory -oh $FMW_HOME/wlserver')">▶ Run via SSH (OPatch)</button>
+      <div class="result-area" id="result-wls-opatch">
+        <div style="font-size:11px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Output</div>
+        <div class="result-pre" id="result-pre-wls-opatch"></div>
+      </div>
+
+      <div class="section-label">BSU (Pre-12.2.1.3)</div>
+      <div class="cmd-block">$MW_HOME/utils/bsu/bsu.sh -report</div>
+      <button class="btn-run" style="margin-bottom:12px" onclick="runSshCmd('wls-bsu', '$MW_HOME/utils/bsu/bsu.sh -report')">▶ Run via SSH (BSU)</button>
+      <div class="result-area" id="result-wls-bsu">
+        <div style="font-size:11px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Output</div>
+        <div class="result-pre" id="result-pre-wls-bsu"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ 10.1.2 -->
+  <div class="panel" id="panel-forms">
+    <div class="section-label">10.1.2 Oracle Home — Forms &amp; Reports (legacy tech stack)</div>
+    <div class="home-card">
+      <div class="home-header">
+        <div class="home-icon" style="background:var(--yellow-dim)">📝</div>
+        <div>
+          <div class="home-title">Forms 10.1.2 / Reports 10.1.2 <span class="badge badge-yellow">Legacy</span></div>
+          <div class="home-sub">Still critical in EBS 12.2 — Forms 10.1.2.x and Reports 10.1.2.x</div>
+        </div>
+      </div>
+      <div class="home-desc">
+        The 10.1.2 tech stack is legacy but still ships in EBS 12.2. This Oracle Home contains Forms and Reports. Patches are applied via OPatch against the 10.1.2 home, separate from the FMW tier.
+      </div>
+      <div class="cmd-block">$ORACLE_HOME/OPatch/opatch lsinventory -detail</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px">⚠ Substitute <code style="font-family:JetBrains Mono,monospace;font-size:11px;color:var(--accent)">$ORACLE_HOME</code> with the actual 10.1.2 Oracle Home path (not the DB home). Typically: <code style="font-family:JetBrains Mono,monospace;font-size:11px;color:var(--accent)">/u01/oracle/VIS/apps/tech_st/10.1.2</code></div>
+      <button class="btn-run" style="margin-bottom:12px" onclick="runSshCmd('forms-1012', '$ORACLE_HOME/OPatch/opatch lsinventory -detail')">▶ Run via SSH</button>
+      <div class="result-area" id="result-forms-1012">
+        <div style="font-size:11px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Output</div>
+        <div class="result-pre" id="result-pre-forms-1012"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ Apps (adpatch/adop) -->
+  <div class="panel" id="panel-apps">
+    <div class="section-label">Apps Patches — applied via adpatch (pre-R12.2) or adop (R12.2 online patching)</div>
+    <div id="apps-content">
+      <div class="empty-state" id="apps-empty">
+        <div class="icon">🔌</div>
+        <h3>Select a connection to load Apps patch history</h3>
+        <p style="font-size:13px">Queries AD_APPLIED_PATCHES and AD_BUGS for the applied patch record.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ AD/TXK -->
+  <div class="panel" id="panel-adtxk">
+    <div class="section-label">AD/TXK Codelevels — from AD_TRACKABLE_ENTITIES</div>
+    <div id="adtxk-content">
+      <div class="empty-state" id="adtxk-empty">
+        <div class="icon">🔌</div>
+        <h3>Select a connection to load AD/TXK codelevels</h3>
+        <p style="font-size:13px">Queries AD_TRACKABLE_ENTITIES for AD and TXK codelevel strings.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ ATG/PCU -->
+  <div class="panel" id="panel-atgpcu">
+    <div class="section-label">ATG/PCU — ATG_PF rollup and Platform Cumulative Update status</div>
+    <div id="atgpcu-content">
+      <div class="empty-state" id="atgpcu-empty">
+        <div class="icon">🔌</div>
+        <h3>Select a connection to load ATG/PCU status</h3>
+        <p style="font-size:13px">Queries ATG_PF patch level and last PCU applied from AD_APPLIED_PATCHES.</p>
+      </div>
+    </div>
+
+    <div style="margin-top:20px" id="atgpcu-ssh-section">
+      <div class="section-label">ATG_PF Patch Level — SSH verification</div>
+      <div class="home-card">
+        <div class="home-desc" style="margin-bottom:12px">Verify ATG_PF codelevel from the application tier using the maintained FMW version file.</div>
+        <div class="cmd-block">cat $FMW_HOME/oracle_common/common/templates/jrf/version.properties | grep "oracle.fmw.patchversion"</div>
+        <button class="btn-run" style="margin-bottom:12px" onclick="runSshCmd('atg-version', 'cat $FMW_HOME/oracle_common/common/templates/jrf/version.properties')">▶ Run via SSH</button>
+        <div class="result-area" id="result-atg-version">
+          <div class="result-pre" id="result-pre-atg-version"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ ETCC -->
+  <div class="panel" id="panel-etcc">
+    <div class="section-label">ETCC — Enterprise Technology Codelevel Checker</div>
+    <div style="font-size:13px;color:var(--text-dim);margin-bottom:20px">
+      ETCC validates that all technology stack components meet Oracle's minimum codelevel requirements. Run both scripts for full compliance.
+      See MOS Doc 1594274.1 for ETCC documentation.
+    </div>
+
+    <div class="home-card" id="card-etcc-db">
+      <div class="home-header">
+        <div class="home-icon" style="background:var(--green-dim)">🗄️</div>
+        <div>
+          <div class="home-title">checkDBpatch.sh <span class="badge badge-blue">DB Tier</span></div>
+          <div class="home-sub">Database-tier technology compliance check</div>
+        </div>
+      </div>
+      <div class="home-desc">Validates the RDBMS Oracle Home against Oracle's minimum codelevel requirements for EBS compatibility. Run as oracle OS user from the DB tier.</div>
+      <div class="cmd-block">$ETCC_HOME/checkDBpatch.sh</div>
+      <button class="btn-run" style="margin-bottom:12px" onclick="runSshCmd('etcc-db', '$ETCC_HOME/checkDBpatch.sh')">▶ Run via SSH</button>
+      <div class="result-area" id="result-etcc-db">
+        <div style="font-size:11px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Output</div>
+        <div class="result-pre" id="result-pre-etcc-db"></div>
+      </div>
+    </div>
+
+    <div class="home-card" id="card-etcc-mt">
+      <div class="home-header">
+        <div class="home-icon" style="background:var(--green-dim)">🏗️</div>
+        <div>
+          <div class="home-title">checkMTpatch.sh <span class="badge badge-blue">Middle Tier</span></div>
+          <div class="home-sub">Application middle-tier technology compliance check</div>
+        </div>
+      </div>
+      <div class="home-desc">Validates the FMW, WLS, and 10.1.2 technology stack homes against Oracle's minimum codelevel requirements. Run as applmgr OS user from the apps tier.</div>
+      <div class="cmd-block">$ETCC_HOME/checkMTpatch.sh</div>
+      <button class="btn-run" style="margin-bottom:12px" onclick="runSshCmd('etcc-mt', '$ETCC_HOME/checkMTpatch.sh')">▶ Run via SSH</button>
+      <div class="result-area" id="result-etcc-mt">
+        <div style="font-size:11px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Output</div>
+        <div class="result-pre" id="result-pre-etcc-mt"></div>
+      </div>
+    </div>
+
+    <div id="etcc-sql-content">
+      <!-- ETCC SQL results populated from patch advisor API -->
+    </div>
+  </div>
+
+</div><!-- /page-wrap -->
+
+<script src="/connection-state.js"></script>
+<script src="/nav-component.js"></script>
+<script>
+  window.tvNav.init('ebs-ops');
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  let connections = [];
+  let selectedConn = null;
+  let sshTargets = [];
+  let patchData = null;   // cached API response from /api/patches/advisor/:id
+  let activePanel = (location.hash || '#fmw').slice(1) || 'fmw';
+
+  // ── Boot ──────────────────────────────────────────────────────────────────
+  (async function init() {
+    await loadConnections();
+    switchTabByName(activePanel);
+  })();
+
+  async function loadConnections() {
+    const r = await fetch('/api/connections', { credentials: 'include' });
+    if (!r.ok) return;
+    connections = tvConn.parseList(await r.json());
+    const sel = document.getElementById('conn-select');
+    connections.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name || (c.host + ':' + c.port);
+      sel.appendChild(opt);
+    });
+    tvConn.bind(sel, connections);
+    if (sel.value) await onConnChange();
+    else if (connections.length === 1) { sel.value = connections[0].id; tvConn.save(connections[0].id); await onConnChange(); }
+  }
+
+  async function onConnChange() {
+    const connId = document.getElementById('conn-select').value;
+    if (connId) tvConn.save(connId);
+    selectedConn = connections.find(c => String(c.id) === String(connId)) || null;
+    patchData = null;
+
+    const btn = document.getElementById('run-btn');
+    const fmwBtn = document.getElementById('fmw-inventory-btn');
+    btn.disabled = !selectedConn;
+
+    // Show/hide non-EBS notice
+    const notice = document.getElementById('non-ebs-notice');
+    const subTabs = document.getElementById('sub-tabs');
+    if (selectedConn && !selectedConn.is_ebs) {
+      notice.classList.add('visible');
+      subTabs.style.display = 'none';
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    } else {
+      notice.classList.remove('visible');
+      subTabs.style.display = 'flex';
+      switchTabByName(activePanel);
+    }
+
+    if (selectedConn && selectedConn.is_ebs) {
+      // Load SSH targets
+      const tgt = await fetch('/api/ebs-ssh-checks/target/' + connId, { credentials: 'include' }).catch(() => null);
+      sshTargets = (tgt && tgt.ok) ? ((await tgt.json()).targets || []) : [];
+
+      // Enable FMW inventory button only if there's an apps-tier target
+      const hasAppsTarget = sshTargets.some(t => t.role === 'apps_tier') || sshTargets.length > 0;
+      if (fmwBtn) fmwBtn.disabled = !hasAppsTarget;
+
+      // Load patch data from the existing advisor endpoint
+      await loadPatchData();
+    } else {
+      if (fmwBtn) fmwBtn.disabled = true;
+    }
+  }
+
+  async function loadPatchData() {
+    if (!selectedConn) return;
+    try {
+      const r = await fetch('/api/patches/advisor/' + selectedConn.id, { credentials: 'include' });
+      patchData = r.ok ? await r.json() : null;
+      if (patchData) {
+        renderAppsTab();
+        renderAdTxkTab();
+        renderAtgPcuTab();
+        renderEtccSqlResults();
+      }
+    } catch (_) { patchData = null; }
+  }
+
+  async function runAll() {
+    if (!selectedConn) return;
+    await loadPatchData();
+  }
+
+  // ── Tab switching ─────────────────────────────────────────────────────────
+  function switchTab(name, btn) {
+    activePanel = name;
+    location.hash = '#' + name;
+    document.querySelectorAll('.sub-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    const panel = document.getElementById('panel-' + name);
+    if (panel) panel.classList.add('active');
+  }
+
+  function switchTabByName(name) {
+    const btn = document.querySelector('.sub-tab[data-panel="' + name + '"]');
+    if (btn) switchTab(name, btn);
+    else { const first = document.querySelector('.sub-tab'); if (first) first.click(); }
+  }
+
+  // ── SSH command runner for OPatch home commands ────────────────────────────
+  // cmdId: element id suffix for result display
+  // commandKey: logical key → maps to actual shell command string
+  // targetRole: 'apps_tier' | 'db_tier' — picks the right SSH target.
+  const OH_COMMANDS = {
+    'db.opatch.oracle_home':     '$ORACLE_HOME/OPatch/opatch lsinventory -oh $ORACLE_HOME',
+    'fmw.opatch.oracle_common':  '$FMW_HOME/oracle_common/OPatch/opatch lsinventory -oh $FMW_HOME/oracle_common',
+    'fmw.opatch.oracle_home':    '$FMW_HOME/Oracle_Home/OPatch/opatch lsinventory -oh $FMW_HOME/Oracle_Home',
+  };
+
+  async function runOhCmd(cmdId, commandKey, targetRole) {
+    const command = OH_COMMANDS[commandKey];
+    if (!command) {
+      alert('Unknown command key: ' + commandKey);
+      return;
+    }
+    const target = sshTargets.find(t => t.role === targetRole) || sshTargets[0];
+    if (!target) {
+      alert('No SSH targets configured for this connection. Configure SSH access in Settings → SSH Targets.');
+      return;
+    }
+    const resultEl = document.getElementById('result-' + cmdId);
+    const preEl    = document.getElementById('result-pre-' + cmdId);
+    if (resultEl) resultEl.classList.add('visible');
+    if (preEl) preEl.textContent = 'Running…';
+
+    try {
+      const r = await fetch('/api/ssh-targets/' + target.id + '/execute', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command }),
+      });
+      const data = await r.json();
+      if (data.blocked) {
+        if (preEl) preEl.textContent = 'Blocked: ' + (data.error || data.blockReason || 'command not on allowlist');
+      } else {
+        if (preEl) preEl.textContent = data.stdout || data.stderr || 'No output';
+      }
+    } catch (err) {
+      if (preEl) preEl.textContent = 'Error: ' + err.message;
+    }
+  }
+
+  // ── SSH raw opatch runner (for webtier and manual opatch commands) ──────────
+  // Sends the command string directly — requires opatch to be on the allowlist.
+  async function runSshOpatch(cmdId, command) {
+    const target = sshTargets.find(t => t.role === 'apps_tier') || sshTargets[0];
+    if (!target) {
+      alert('No SSH targets configured for this connection. Configure SSH access in Settings → SSH Targets.');
+      return;
+    }
+    const resultEl = document.getElementById('result-' + cmdId);
+    const preEl    = document.getElementById('result-pre-' + cmdId);
+    if (resultEl) resultEl.classList.add('visible');
+    if (preEl) preEl.textContent = 'Running…';
+
+    try {
+      const r = await fetch('/api/ssh-targets/' + target.id + '/execute', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command }),
+      });
+      const data = await r.json();
+      if (data.blocked) {
+        if (preEl) preEl.textContent = 'Blocked: ' + (data.error || 'command not on allowlist');
+      } else {
+        if (preEl) preEl.textContent = data.stdout || data.stderr || 'No output';
+      }
+    } catch (err) {
+      if (preEl) preEl.textContent = 'Error: ' + err.message;
+    }
+  }
+
+  // ── FMW mismatch inventory run ─────────────────────────────────────────────
+  async function runFmwInventory() {
+    if (!selectedConn) return;
+    const appsTarget = sshTargets.find(t => t.role === 'apps_tier') || sshTargets[0];
+    const dbTarget   = sshTargets.find(t => t.role === 'db_tier');
+
+    if (!appsTarget) {
+      alert('No apps-tier SSH target configured for this connection. Configure SSH access in Settings → SSH Targets.');
+      return;
+    }
+
+    const btn = document.getElementById('fmw-inventory-btn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Running inventory…';
+
+    // Clear previous banners
+    document.getElementById('fmw-mismatch-banner').classList.remove('visible');
+    document.getElementById('fmw-ok-banner').classList.remove('visible');
+
+    try {
+      const body = { apps_target_id: appsTarget.id, connection_id: selectedConn.id };
+      if (dbTarget) body.db_target_id = dbTarget.id;
+
+      const r = await fetch('/api/patches/fmw-inventory', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        alert('Inventory failed: ' + (err.error || r.status));
+        return;
+      }
+
+      const data = await r.json();
+      renderFmwInventoryResults(data);
+
+    } catch (err) {
+      alert('Error: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🔍 Run Inventory + Mismatch Check';
+    }
+  }
+
+  function renderFmwInventoryResults(data) {
+    const { results, mismatch } = data;
+
+    // Render oracle_common patches
+    renderPatchList('patches-oracle-common', 'count-oracle-common', results.oracle_common);
+
+    // Render Oracle_Home (WLS) patches
+    renderPatchList('patches-oracle-home-wls', 'count-oracle-home-wls', results.oracle_home);
+
+    // Render DB ORACLE_HOME patches (if present)
+    if (results.db_oracle_home) {
+      renderPatchList('patches-db-oracle-home', 'count-db-oracle-home', results.db_oracle_home);
+    }
+
+    // Render mismatch banner
+    if (mismatch.hasMismatch) {
+      const total = mismatch.inCommonNotHome.length + mismatch.inHomeNotCommon.length;
+      document.getElementById('mismatch-count-label').textContent = total + ' patch' + (total !== 1 ? 'es' : '') + ' differ';
+      document.getElementById('fmw-mismatch-banner').classList.add('visible');
+
+      if (mismatch.inCommonNotHome.length) {
+        const grp = document.getElementById('mismatch-in-common-not-home');
+        grp.style.display = 'block';
+        document.getElementById('mismatch-pills-common-not-home').innerHTML =
+          mismatch.inCommonNotHome.map(p =>
+            '<span class="mismatch-pill">🔵 ' + escHtml(p.id) + '</span>'
+          ).join('');
+      }
+
+      if (mismatch.inHomeNotCommon.length) {
+        const grp = document.getElementById('mismatch-in-home-not-common');
+        grp.style.display = 'block';
+        document.getElementById('mismatch-pills-home-not-common').innerHTML =
+          mismatch.inHomeNotCommon.map(p =>
+            '<span class="mismatch-pill">🟣 ' + escHtml(p.id) + '</span>'
+          ).join('');
+      }
+    } else if (results.oracle_common && results.oracle_home &&
+               !results.oracle_common.error && !results.oracle_home.error) {
+      document.getElementById('fmw-ok-banner').classList.add('visible');
+    }
+  }
+
+  function renderPatchList(containerId, countId, homeResult) {
+    const container = document.getElementById(containerId);
+    const countBadge = document.getElementById(countId);
+    if (!container) return;
+
+    if (!homeResult || homeResult.error) {
+      const msg = homeResult?.error || 'No data';
+      container.innerHTML = '<div style="font-size:12px;color:var(--text-dim);padding:8px 0">' + escHtml(msg) + '</div>';
+      if (countBadge) countBadge.style.display = 'none';
+      return;
+    }
+
+    const patches = homeResult.patches || [];
+    if (countBadge) {
+      countBadge.textContent = patches.length + ' patch' + (patches.length !== 1 ? 'es' : '');
+      countBadge.style.display = 'inline';
+    }
+
+    if (!patches.length) {
+      container.innerHTML = '<div style="font-size:12px;color:var(--text-dim);padding:8px 0">No patches found in inventory output.</div>';
+      return;
+    }
+
+    let html = '<div class="data-table-wrap" style="margin-top:12px"><table class="data-table">';
+    html += '<thead><tr><th>Patch ID</th><th>Description</th></tr></thead><tbody>';
+    patches.forEach(p => {
+      html += '<tr>';
+      html += '<td style="font-family:JetBrains Mono,monospace;color:var(--accent)">' + escHtml(p.id) + '</td>';
+      html += '<td style="color:var(--text-dim)">' + escHtml(p.description || '—') + '</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+  }
+
+  function toggleMismatchDetail() {
+    const detail = document.getElementById('mismatch-detail');
+    const btn    = document.getElementById('mismatch-toggle-btn');
+    detail.classList.toggle('open');
+    btn.textContent = detail.classList.contains('open') ? '▴ Hide details' : '▾ Show details';
+  }
+
+  // ── Legacy alias (kept for WLS tab + any other tabs using old runSshCmd) ───
+  async function runSshCmd(cmdId, command) {
+    await runSshOpatch(cmdId, command);
+  }
+
+  // ── Apps tab — render from patchData ─────────────────────────────────────
+  function renderAppsTab() {
+    const container = document.getElementById('apps-content');
+    if (!patchData) {
+      container.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><h3>No data available</h3></div>';
+      return;
+    }
+
+    const ebs = patchData.ebs_level;
+    if (!ebs) {
+      container.innerHTML = '<div class="empty-state"><div class="icon">🔌</div><h3>No EBS patch data found</h3><p style="font-size:13px">Ensure APPS schema access is available for this connection.</p></div>';
+      return;
+    }
+
+    let html = '';
+
+    // Applied patches table
+    if (ebs.applied_patches && ebs.applied_patches.length) {
+      html += '<div class="section-label">Recent Applied Patches (AD_APPLIED_PATCHES)</div>';
+      html += '<div class="data-table-wrap"><table class="data-table">';
+      html += '<thead><tr><th>Patch Name</th><th>Type</th><th>Applied Date</th><th>Maint Pack</th></tr></thead><tbody>';
+      ebs.applied_patches.forEach(p => {
+        html += '<tr>';
+        html += '<td style="font-family:JetBrains Mono,monospace;color:var(--accent)">' + escHtml(p.patch_name || '—') + '</td>';
+        html += '<td>' + escHtml(p.patch_type || '—') + '</td>';
+        html += '<td>' + escHtml(p.applied_date || '—') + '</td>';
+        html += '<td style="color:var(--text-dim)">' + escHtml(p.maint_pack_name || '—') + '</td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+
+    // ADOP sessions
+    if (ebs.adop_sessions && ebs.adop_sessions.length) {
+      html += '<div class="section-label" style="margin-top:24px">ADOP Session History (ad_adop_sessions — last 10)</div>';
+      html += '<div class="data-table-wrap"><table class="data-table">';
+      html += '<thead><tr><th>Session</th><th>Prepare</th><th>Apply</th><th>Finalize</th><th>Cutover</th><th>Cleanup</th><th>Started</th><th>Cutover Time</th></tr></thead><tbody>';
+      ebs.adop_sessions.forEach(s => {
+        const statusBadge = (val) => {
+          const color = val === 'C' ? 'badge-green' : val === 'F' ? 'badge-red' : val === 'N/A' ? '' : 'badge-yellow';
+          return '<span class="badge ' + color + '">' + escHtml(val) + '</span>';
+        };
+        html += '<tr>';
+        html += '<td style="font-family:JetBrains Mono,monospace">' + escHtml(String(s.session_id || '')) + '</td>';
+        html += '<td>' + statusBadge(s.prepare_status) + '</td>';
+        html += '<td>' + statusBadge(s.apply_status) + '</td>';
+        html += '<td>' + statusBadge(s.finalize_status) + '</td>';
+        html += '<td>' + statusBadge(s.cutover_status) + '</td>';
+        html += '<td>' + statusBadge(s.cleanup_status) + '</td>';
+        html += '<td style="color:var(--text-dim)">' + escHtml(s.start_date || '—') + '</td>';
+        html += '<td style="color:var(--text-dim)">' + escHtml(s.cutover_time || '—') + '</td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+
+    if (!ebs.applied_patches?.length && !ebs.adop_sessions?.length) {
+      html = '<div class="empty-state"><div class="icon">📭</div><h3>No Apps patch records found</h3><p style="font-size:13px">Verify APPS schema access on this connection.</p></div>';
+    }
+
+    container.innerHTML = html;
+  }
+
+  // ── AD/TXK tab ────────────────────────────────────────────────────────────
+  function renderAdTxkTab() {
+    const container = document.getElementById('adtxk-content');
+    if (!patchData || !patchData.ebs_level) {
+      container.innerHTML = '<div class="empty-state"><div class="icon">🔌</div><h3>No EBS data — select an EBS connection</h3></div>';
+      return;
+    }
+
+    const ebs = patchData.ebs_level;
+    const ad  = ebs.ad_codelevel;
+    const txk = ebs.txk_codelevel;
+
+    let html = '<div class="info-grid">';
+
+    html += '<div class="info-card">';
+    html += '<div class="info-card-title">🔧 AD Codelevel <span class="badge badge-purple">AD</span></div>';
+    html += '<div class="info-card-sub">Application DBA technology codelevel</div>';
+    if (ad) {
+      html += '<div style="font-family:JetBrains Mono,monospace;font-size:16px;font-weight:700;color:var(--accent)">' + escHtml(ad) + '</div>';
+    } else {
+      html += '<div style="color:var(--text-dim);font-size:13px">Not detected</div>';
+    }
+    html += '</div>';
+
+    html += '<div class="info-card">';
+    html += '<div class="info-card-title">🔩 TXK Codelevel <span class="badge badge-blue">TXK</span></div>';
+    html += '<div class="info-card-sub">Technology stack (TXK) codelevel</div>';
+    if (txk) {
+      html += '<div style="font-family:JetBrains Mono,monospace;font-size:16px;font-weight:700;color:var(--accent)">' + escHtml(txk) + '</div>';
+    } else {
+      html += '<div style="color:var(--text-dim);font-size:13px">Not detected</div>';
+    }
+    html += '</div>';
+
+    html += '</div>';
+
+    // SSH fallback
+    html += '<div class="section-label" style="margin-top:24px">Verify via SSH (AD_TRACKABLE_ENTITIES)</div>';
+    html += '<div class="home-card"><div class="cmd-block">sqlplus apps/<APPS_PWD> @$AD_TOP/patch/115/sql/adtrk.sql</div>';
+    html += '<button class="btn-run" style="margin-bottom:12px" onclick="runSshCmd(\'adtxk-sql\', \'echo q | sqlplus apps/apps @$AD_TOP/patch/115/sql/adtrk.sql 2>&1 | head -40\')">▶ Run via SSH</button>';
+    html += '<div class="result-area" id="result-adtxk-sql"><div class="result-pre" id="result-pre-adtxk-sql"></div></div></div>';
+
+    container.innerHTML = html;
+  }
+
+  // ── ATG/PCU tab ───────────────────────────────────────────────────────────
+  function renderAtgPcuTab() {
+    const container = document.getElementById('atgpcu-content');
+    if (!patchData || !patchData.ebs_level) {
+      container.innerHTML = '<div class="empty-state"><div class="icon">🔌</div><h3>No EBS data — select an EBS connection</h3></div>';
+      return;
+    }
+
+    const ebs = patchData.ebs_level;
+    // ATG/PCU — look for ATG-related patches in applied_patches
+    const atgPatches = (ebs.applied_patches || []).filter(p =>
+      (p.maint_pack_name || '').includes('ATG') ||
+      (p.maint_pack_name || '').includes('PCU') ||
+      (p.patch_type || '') === 'U'
+    );
+
+    let html = '';
+    if (atgPatches.length) {
+      html += '<div class="section-label">ATG_PF / PCU Patches Detected</div>';
+      html += '<div class="data-table-wrap"><table class="data-table">';
+      html += '<thead><tr><th>Patch</th><th>Type</th><th>Applied</th><th>Maint Pack</th></tr></thead><tbody>';
+      atgPatches.forEach(p => {
+        html += '<tr>';
+        html += '<td style="font-family:JetBrains Mono,monospace;color:var(--accent)">' + escHtml(p.patch_name || '—') + '</td>';
+        html += '<td>' + escHtml(p.patch_type || '—') + '</td>';
+        html += '<td>' + escHtml(p.applied_date || '—') + '</td>';
+        html += '<td style="color:var(--text-dim)">' + escHtml(p.maint_pack_name || '—') + '</td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+    } else {
+      html = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;color:var(--text-dim);font-size:13px">No ATG_PF or PCU-specific patches found in AD_APPLIED_PATCHES. Use SSH verification below to check the FMW version file.</div>';
+    }
+
+    container.innerHTML = html;
+  }
+
+  // ── ETCC SQL results ──────────────────────────────────────────────────────
+  function renderEtccSqlResults() {
+    const container = document.getElementById('etcc-sql-content');
+    if (!patchData) { container.innerHTML = ''; return; }
+
+    const g = patchData.gap_analysis;
+    if (!g) { container.innerHTML = ''; return; }
+
+    let html = '<div class="section-label" style="margin-top:24px">DB Patch Gap Analysis (RDBMS — ETCC context)</div>';
+    html += '<div class="info-grid">';
+
+    html += '<div class="info-card">';
+    html += '<div class="info-card-title">Current DB Patch</div>';
+    html += '<div class="info-card-sub">From DBA_REGISTRY_SQLPATCH</div>';
+    if (g.current_patch) {
+      html += '<div style="font-size:14px;font-weight:600;color:var(--accent)">' + escHtml(g.current_patch.label || g.current_patch.patch_id || '—') + '</div>';
+      if (g.current_patch.date) html += '<div style="font-size:12px;color:var(--text-dim);margin-top:4px">' + escHtml(g.current_patch.date) + '</div>';
+    } else {
+      html += '<div style="color:var(--text-dim)">Not detected</div>';
+    }
+    html += '</div>';
+
+    const sevColor = !g.severity_summary ? 'badge-green' :
+                     g.severity_summary === 'CRITICAL' ? 'badge-red' :
+                     g.severity_summary === 'HIGH' ? 'badge-yellow' : 'badge-blue';
+    html += '<div class="info-card">';
+    html += '<div class="info-card-title">Gap Status <span class="badge ' + sevColor + '">' + escHtml(g.severity_summary || (g.fully_patched ? 'UP TO DATE' : '—')) + '</span></div>';
+    html += '<div class="info-card-sub">Quarters behind latest CPU</div>';
+    html += '<div style="font-size:28px;font-weight:700;color:' + (g.quarters_behind === 0 ? 'var(--green)' : 'var(--red)') + '">' + (g.quarters_behind != null ? g.quarters_behind : '—') + '</div>';
+    html += '<div style="font-size:12px;color:var(--text-dim)">quarters behind</div>';
+    html += '</div>';
+
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+</script>
+<div style="text-align:center;padding:24px 16px 16px;border-top:1px solid rgba(255,255,255,0.05);margin-top:32px;">
+  <span style="font-size:12px;color:#9898a8;">Need help? <a href="mailto:support@tunevault.app" style="color:#f0a830;text-decoration:none;">support@tunevault.app</a></span>
+</div>
+<script src="/tunebot.js"></script>
+</body>
+</html>

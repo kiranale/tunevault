@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Performance Advisor — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+    <link rel="canonical" href="https://tunevault.app/performance-advisor">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <script src="/nav-component.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c;
+      --surface: #111114;
+      --surface-2: #1a1a1f;
+      --border: #2a2a30;
+      --text: #e8e8ed;
+      --text-dim: #b8b8c8;
+      --accent: #f0a830;
+      --accent-dim: rgba(240, 168, 48, 0.12);
+      --green: #34d399;
+      --green-dim: rgba(52, 211, 153, 0.12);
+      --red: #f87171;
+      --red-dim: rgba(248, 113, 113, 0.12);
+      --yellow: #fbbf24;
+      --yellow-dim: rgba(251, 191, 36, 0.12);
+      --blue: #60a5fa;
+      --blue-dim: rgba(96, 165, 250, 0.12);
+      --amber: #f59e0b;
+      --amber-dim: rgba(245, 158, 11, 0.12);
+      --purple: #a78bfa;
+      --purple-dim: rgba(167, 139, 250, 0.12);
+    }
+    body {
+      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    .grain {
+      position: fixed; top: 0; left: 0;
+      width: 100vw; height: 100vh; overflow: hidden;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 999;
+    }
+    /* Layout */
+    .page-wrapper { max-width: 1300px; margin: 0 auto; padding: 48px 48px 80px; }
+    /* Page header */
+    .page-header {
+      padding: 36px 0 0;
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 24px; flex-wrap: wrap;
+    }
+    .page-header h1 {
+      font-size: 24px; font-weight: 700; letter-spacing: -0.5px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .page-header p { margin-top: 6px; color: var(--text-dim); font-size: 14px; max-width: 620px; }
+    .header-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--purple-dim); color: var(--purple);
+      border: 1px solid rgba(167,139,250,0.2); border-radius: 6px;
+      padding: 3px 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    /* Connection bar */
+    .conn-bar {
+      display: flex; align-items: center; gap: 12px;
+      margin-top: 20px; flex-wrap: wrap;
+    }
+    .conn-bar label { font-size: 13px; color: var(--text-dim); white-space: nowrap; }
+    .conn-select {
+      background: var(--surface-2); border: 1px solid var(--border);
+      color: var(--text); border-radius: 8px; padding: 7px 12px;
+      font-size: 13px; font-family: inherit; min-width: 220px; cursor: pointer; outline: none;
+    }
+    .conn-select:focus { border-color: var(--accent); }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      font-family: inherit; cursor: pointer; border: none; transition: all 0.18s;
+    }
+    .btn-primary {
+      background: var(--accent); color: #0a0a0c;
+    }
+    .btn-primary:hover { opacity: 0.88; }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-secondary {
+      background: var(--surface-2); color: var(--text); border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: var(--border); }
+    .fetched-at { font-size: 12px; color: var(--text-dim); }
+
+    /* Section cards */
+    .section-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 24px; margin-top: 20px;
+    }
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px; gap: 12px; flex-wrap: wrap;
+    }
+    .section-title {
+      font-size: 15px; font-weight: 700;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .section-subtitle { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
+    .count-badge {
+      display: inline-flex; align-items: center;
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 6px; padding: 2px 8px;
+      font-size: 11px; font-weight: 700; color: var(--text-dim);
+    }
+
+    /* AI Summary card */
+    .ai-summary-card {
+      background: linear-gradient(135deg, rgba(167,139,250,0.08) 0%, rgba(240,168,48,0.04) 100%);
+      border: 1px solid rgba(167,139,250,0.25);
+      border-radius: 12px; padding: 20px; margin-top: 20px;
+    }
+    .ai-summary-label {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--purple); margin-bottom: 8px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .ai-summary-text { font-size: 14px; line-height: 1.65; color: var(--text); }
+
+    /* Empty state */
+    .empty-state-card {
+      background: var(--amber-dim); border: 1px solid rgba(245,158,11,0.3);
+      border-radius: 12px; padding: 24px; margin-top: 20px;
+    }
+    .empty-state-icon { font-size: 24px; margin-bottom: 12px; }
+    .empty-state-title { font-size: 15px; font-weight: 700; color: var(--amber); margin-bottom: 8px; }
+    .empty-state-body { font-size: 13px; color: var(--text-dim); line-height: 1.65; }
+    .empty-state-body ul { margin: 8px 0 0 20px; }
+    .empty-state-body li { margin-bottom: 4px; }
+    .empty-state-link { color: var(--accent); text-decoration: none; font-weight: 600; }
+    .empty-state-link:hover { text-decoration: underline; }
+
+    /* Not licensed */
+    .not-licensed-card {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 24px; margin-top: 20px;
+    }
+    .not-licensed-title { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+    .not-licensed-body { font-size: 13px; color: var(--text-dim); line-height: 1.65; }
+
+    /* Findings table */
+    .findings-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    .findings-table th {
+      text-align: left; padding: 10px 12px;
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.05em; color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+    }
+    .findings-table td {
+      padding: 12px 12px; font-size: 13px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      vertical-align: top;
+    }
+    .findings-table tr:last-child td { border-bottom: none; }
+    .findings-table tr.expandable { cursor: pointer; transition: background 0.15s; }
+    .findings-table tr.expandable:hover td { background: var(--surface-2); }
+    .detail-row td { padding: 0; }
+    .detail-row .detail-inner {
+      background: var(--surface-2); padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      display: none;
+    }
+    .detail-row.open .detail-inner { display: block; }
+    .expand-icon { font-size: 10px; color: var(--text-dim); transition: transform 0.2s; display: inline-block; }
+    tr.expanded .expand-icon { transform: rotate(90deg); }
+    .type-badge {
+      display: inline-flex; align-items: center;
+      border-radius: 5px; padding: 2px 8px;
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+    }
+    .type-problem { background: var(--red-dim); color: var(--red); }
+    .type-information { background: var(--blue-dim); color: var(--blue); }
+    .type-warning { background: var(--yellow-dim); color: var(--yellow); }
+    .type-error { background: var(--red-dim); color: var(--red); }
+    .impact-bar-wrap { display: flex; align-items: center; gap: 8px; }
+    .impact-bar { height: 4px; border-radius: 2px; background: var(--accent); min-width: 4px; }
+    .impact-val { font-size: 12px; font-weight: 700; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+    .rec-action {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px 14px; margin-top: 8px;
+      font-size: 12px; line-height: 1.6; color: var(--text);
+    }
+    .copy-btn {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      color: var(--text-dim); border-radius: 6px; padding: 4px 10px;
+      font-size: 11px; font-family: inherit; cursor: pointer; margin-top: 8px;
+      transition: all 0.15s;
+    }
+    .copy-btn:hover { color: var(--text); background: var(--border); }
+    .copy-btn.copied { color: var(--green); border-color: var(--green); }
+
+    /* Timeline (ADDM snapshots) */
+    .timeline { display: flex; flex-direction: column; gap: 0; margin-top: 8px; }
+    .timeline-item {
+      display: flex; align-items: stretch; gap: 16px;
+      padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .timeline-item:last-child { border-bottom: none; }
+    .timeline-left { display: flex; flex-direction: column; align-items: center; gap: 0; width: 20px; }
+    .timeline-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--accent); flex-shrink: 0; margin-top: 5px;
+    }
+    .timeline-dot.complete { background: var(--green); }
+    .timeline-dot.error { background: var(--red); }
+    .timeline-line { flex: 1; width: 1px; background: var(--border); margin-top: 4px; }
+    .timeline-content { flex: 1; padding-bottom: 4px; }
+    .timeline-name { font-size: 13px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+    .timeline-meta { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+    .timeline-status {
+      display: inline-flex; align-items: center;
+      border-radius: 5px; padding: 1px 7px;
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+    }
+    .status-completed { background: var(--green-dim); color: var(--green); }
+    .status-error { background: var(--red-dim); color: var(--red); }
+    .status-executing { background: var(--yellow-dim); color: var(--yellow); }
+
+    /* Empty-state probe box */
+    .probe-box {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px; margin-top: 16px;
+    }
+    .probe-box-title {
+      font-size: 13px; font-weight: 700; color: var(--text-dim);
+      text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 14px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .probe-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+    .probe-item {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px 16px;
+    }
+    .probe-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin-bottom: 6px; }
+    .probe-value { font-size: 13px; font-family: 'JetBrains Mono', monospace; line-height: 1.5; word-break: break-all; }
+    .probe-hint { font-size: 12px; color: var(--text-dim); margin-top: 6px; line-height: 1.5; }
+    .probe-ok { color: var(--green); }
+    .probe-warn { color: var(--amber); }
+    .probe-err { color: var(--red); }
+    .probe-spinner { display: inline-flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: 13px; }
+
+    /* Show SQL toggle */
+    .show-sql-btn {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: none; border: 1px solid var(--border);
+      color: var(--text-dim); border-radius: 5px; padding: 2px 8px;
+      font-size: 11px; font-family: 'JetBrains Mono', monospace;
+      cursor: pointer; transition: all 0.15s; white-space: nowrap;
+      vertical-align: middle; margin-left: 8px;
+    }
+    .show-sql-btn:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
+
+    /* Show SQL modal */
+    .sql-modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px); z-index: 1000;
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    .sql-modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 0; max-width: 740px; width: 100%;
+      max-height: 80vh; display: flex; flex-direction: column;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+    }
+    .sql-modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 24px; border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .sql-modal-title { font-size: 15px; font-weight: 700; }
+    .sql-modal-close {
+      background: none; border: none; color: var(--text-dim);
+      font-size: 20px; cursor: pointer; padding: 2px 6px;
+      border-radius: 6px; transition: all 0.15s;
+    }
+    .sql-modal-close:hover { color: var(--text); background: var(--surface-2); }
+    .sql-modal-body { padding: 20px 24px; overflow-y: auto; flex: 1; }
+    .sql-meta { font-size: 12px; color: var(--text-dim); margin-bottom: 14px; display: flex; flex-wrap: wrap; gap: 12px; }
+    .sql-meta-item { display: flex; align-items: center; gap: 5px; }
+    .sql-meta-label { text-transform: uppercase; letter-spacing: 0.04em; font-size: 10px; font-weight: 700; }
+    .sql-source-tag {
+      display: inline-flex; background: var(--blue-dim); color: var(--blue);
+      border-radius: 5px; padding: 1px 7px; font-size: 11px; font-weight: 600;
+      font-family: 'JetBrains Mono', monospace; margin: 2px;
+    }
+    .sql-block {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 16px; font-family: 'JetBrains Mono', monospace;
+      font-size: 12px; line-height: 1.65; color: var(--text);
+      white-space: pre-wrap; word-break: break-all; margin-top: 12px;
+    }
+    .sql-modal-footer {
+      padding: 14px 24px; border-top: 1px solid var(--border); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    }
+    .sql-timestamp { font-size: 12px; color: var(--text-dim); }
+
+    /* Error card */
+    .error-card {
+      background: var(--red-dim); border: 1px solid rgba(248,113,113,0.3);
+      border-radius: 12px; padding: 20px; margin-top: 20px;
+    }
+    .error-title { font-size: 14px; font-weight: 700; color: var(--red); margin-bottom: 6px; }
+    .error-body { font-size: 13px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
+
+    /* No data yet */
+    .no-data-card {
+      background: var(--surface-2); border: 1px dashed var(--border);
+      border-radius: 12px; padding: 40px 24px; margin-top: 20px;
+      text-align: center;
+    }
+    .no-data-icon { font-size: 32px; margin-bottom: 12px; }
+    .no-data-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .no-data-body { font-size: 13px; color: var(--text-dim); max-width: 460px; margin: 0 auto 20px; }
+
+    /* Loading spinner */
+    .spinner {
+      width: 18px; height: 18px; border: 2px solid rgba(240,168,48,0.3);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.7s linear infinite; flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Hidden */
+    .hidden { display: none !important; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      nav { padding: 14px 20px; }
+      .nav-links { display: none; }
+      .page-wrapper { padding: 48px 20px 60px; }
+      .conn-bar { flex-direction: column; align-items: flex-start; }
+      .conn-select { min-width: unset; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<div class="grain"></div>
+
+<div id="nav-root"></div>
+
+<div class="page-wrapper">
+  <!-- Page header -->
+  <div class="page-header">
+    <div>
+      <h1>
+        🔭 Performance Advisor
+        <span class="header-badge">Oracle Built-in Intelligence</span>
+      </h1>
+      <p>ADDM findings, SQL Tuning Advisor output, and ranked recommendations — surfaced, translated, and prioritised by TuneVault. Requires Enterprise Edition + Diagnostics Pack.</p>
+    </div>
+  </div>
+
+  <!-- Connection bar -->
+  <div class="conn-bar">
+    <label for="conn-select">Connection:</label>
+    <select id="conn-select" class="conn-select">
+      <option value="">Loading connections…</option>
+    </select>
+    <button id="btn-fetch" class="btn btn-primary" onclick="triggerFetch()" disabled>
+      <span id="fetch-spinner" class="spinner hidden"></span>
+      <span id="fetch-label">🔄 Fetch from Oracle</span>
+    </button>
+    <span id="fetched-at" class="fetched-at hidden"></span>
+  </div>
+
+  <!-- Main content area -->
+  <div id="content">
+    <!-- Initial state before connection chosen -->
+    <div id="state-idle" class="no-data-card">
+      <div class="no-data-icon">🔭</div>
+      <div class="no-data-title">Select a connection to begin</div>
+      <div class="no-data-body">Choose an Oracle connection above, then click <strong>Fetch from Oracle</strong> to load ADDM findings and SQL Tuning Advisor output.</div>
+    </div>
+
+    <!-- Loading -->
+    <div id="state-loading" class="hidden" style="padding: 40px 0; text-align: center;">
+      <div style="display:inline-flex;align-items:center;gap:12px;">
+        <div class="spinner"></div>
+        <span style="color:var(--text-dim);font-size:14px;">Querying Oracle advisor views…</span>
+      </div>
+      <div style="margin-top:12px;color:var(--text-dim);font-size:12px;">Running 4 queries against DBA_ADDM_TASKS, DBA_ADVISOR_FINDINGS, DBA_ADVISOR_RECOMMENDATIONS, DBA_ADVISOR_TASKS…</div>
+    </div>
+
+    <!-- Not licensed -->
+    <div id="state-not-licensed" class="not-licensed-card hidden">
+      <div class="not-licensed-title">🔒 Oracle Diagnostics Pack required</div>
+      <div id="not-licensed-reason" class="not-licensed-body">Enterprise Edition + Oracle Diagnostics Pack license required to access ADDM views.</div>
+      <div class="not-licensed-body" style="margin-top:12px;">
+        TuneVault still monitors your database through wait events, Top SQL, blocking sessions, and ASH-based active session analysis — available on the <a href="/performance" style="color:var(--accent);text-decoration:none;font-weight:600;">Performance tab</a>.
+      </div>
+    </div>
+
+    <!-- Fetch error -->
+    <div id="state-error" class="error-card hidden">
+      <div class="error-title">⚠ Oracle connection failed</div>
+      <div id="error-body" class="error-body">—</div>
+    </div>
+
+    <!-- Empty state: ADDM ran but found no significant load -->
+    <div id="state-empty" class="empty-state-card hidden">
+      <div class="empty-state-icon">ℹ️</div>
+      <div class="empty-state-title">Oracle ADDM ran but found no significant load</div>
+      <div class="empty-state-body">
+        <p>ADDM analysed the recent AWR snapshots and reported <em>no significant database activity</em>. This usually means one of three things:</p>
+        <ul>
+          <li><strong>Light workload</strong> — the snapshot window captured an idle or low-traffic period.</li>
+          <li><strong>Short AWR interval</strong> — if your AWR snapshot interval is under 30 minutes, individual windows may not capture enough activity to trigger findings.</li>
+          <li><strong>Genuinely healthy idle period</strong> — the database was running well during this window.</li>
+        </ul>
+        <p style="margin-top:12px;">TuneVault is still monitoring wait events, top SQL, and ASH directly. For live signal, see
+          <a href="/performance" class="empty-state-link">Performance &rsaquo; Active Sessions</a>.
+        </p>
+        <p style="margin-top:8px;">You can also manually trigger a new ADDM analysis — click <strong>Fetch from Oracle</strong> during a busier window.</p>
+      </div>
+    </div>
+
+    <!-- Diagnostic probe box: shown above empty state after probes run -->
+    <div id="probe-box" class="probe-box hidden">
+      <div class="probe-box-title">🔬 Diagnostic: Why is ADDM empty?</div>
+      <div id="probe-loading" class="probe-spinner">
+        <div class="spinner" style="width:14px;height:14px;"></div> Running 4 Oracle diagnostic probes…
+      </div>
+      <div id="probe-grid" class="probe-grid hidden">
+        <!-- populated by JS -->
+      </div>
+    </div>
+
+    <!-- Main data -->
+    <div id="state-data" class="hidden">
+
+      <!-- AI Summary -->
+      <div id="ai-summary-section" class="ai-summary-card hidden">
+        <div class="ai-summary-label">🤖 AI Summary</div>
+        <div id="ai-summary-text" class="ai-summary-text">—</div>
+      </div>
+
+      <!-- Active Findings -->
+      <div class="section-card">
+        <div class="section-header">
+          <div>
+            <div class="section-title">🔥 Active Findings <span id="findings-count" class="count-badge">0</span></div>
+            <div class="section-subtitle">ADDM findings sorted by impact % of total DB time</div>
+          </div>
+        </div>
+        <div id="findings-content">
+          <div id="findings-empty" class="no-data-body" style="padding:20px 0;text-align:center;">No findings in the last 7 days.</div>
+          <table id="findings-table" class="findings-table hidden">
+            <thead>
+              <tr>
+                <th style="width:24px;"></th>
+                <th>Type</th>
+                <th>Impact</th>
+                <th>Finding</th>
+                <th>Task</th>
+              </tr>
+            </thead>
+            <tbody id="findings-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Recommended Actions -->
+      <div class="section-card">
+        <div class="section-header">
+          <div>
+            <div class="section-title">⚡ Recommended Actions <span id="recs-count" class="count-badge">0</span></div>
+            <div class="section-subtitle">ADDM recommendations sorted by performance benefit %</div>
+          </div>
+        </div>
+        <div id="recs-content">
+          <div id="recs-empty" class="no-data-body" style="padding:20px 0;text-align:center;">No recommendations for the last 7 days.</div>
+          <table id="recs-table" class="findings-table hidden">
+            <thead>
+              <tr>
+                <th style="width:24px;"></th>
+                <th>Type</th>
+                <th>Benefit</th>
+                <th>Recommended Action</th>
+              </tr>
+            </thead>
+            <tbody id="recs-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ADDM Snapshots Timeline -->
+      <div class="section-card">
+        <div class="section-header">
+          <div>
+            <div class="section-title">📅 ADDM Snapshot History <span id="tasks-count" class="count-badge">0</span></div>
+            <div class="section-subtitle">Recent ADDM analysis tasks (last 7 days), newest first</div>
+          </div>
+        </div>
+        <div id="tasks-content">
+          <div id="tasks-empty" class="no-data-body" style="padding:20px 0;text-align:center;">No ADDM tasks found in the last 7 days.</div>
+          <div id="tasks-timeline" class="timeline hidden"></div>
+        </div>
+      </div>
+
+      <!-- SQL Tuning Advisor Tasks -->
+      <div class="section-card">
+        <div class="section-header">
+          <div>
+            <div class="section-title">🧮 SQL Tuning Advisor <span id="sta-count" class="count-badge">0</span></div>
+            <div class="section-subtitle">Automatic SQL Tuning Advisor tasks (last 7 days)</div>
+          </div>
+        </div>
+        <div id="sta-content">
+          <div id="sta-empty" class="no-data-body" style="padding:20px 0;text-align:center;">No SQL Tuning Advisor tasks found in the last 7 days.</div>
+          <div id="sta-list" class="hidden"></div>
+        </div>
+      </div>
+
+    </div><!-- /state-data -->
+  </div><!-- /content -->
+</div><!-- /page-wrapper -->
+
+<script>
+'use strict';
+
+var _connections = [];
+var _expandedFinding = null;
+var _expandedRec = null;
+var _currentConnId = null;
+var _sqlRegistry = {}; // check_id → registry entry, loaded on first use
+var _fetchedAt = null;  // timestamp of last Oracle fetch
+
+// ── Auth (shared cookie approach, mirrors other pages) ────────────────────────
+
+function getToken() {
+  var match = document.cookie.match(/(?:^|;\s*)tv_session=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+function authHeaders() {
+  var t = getToken();
+  return t ? { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+
+window.addEventListener('load', function() {
+  window.tvNav.init('dashboard');
+  loadConnections();
+  loadSqlRegistry();
+  document.getElementById('conn-select').addEventListener('change', onConnectionChange);
+  // Close modal on Escape
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeSqlModal();
+  });
+});
+
+function loadConnections() {
+  fetch('/api/connections', { headers: authHeaders() })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var sel = document.getElementById('conn-select');
+      var conns = data.connections || data || [];
+      _connections = conns;
+      sel.innerHTML = '<option value="">— Select connection —</option>';
+      conns.forEach(function(c) {
+        var opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.label || (c.host + ':' + (c.port || 1521) + '/' + c.service_name);
+        sel.appendChild(opt);
+      });
+      // Demo option
+      var demo = document.createElement('option');
+      demo.value = 'demo';
+      demo.textContent = '📊 Demo (sample data)';
+      sel.appendChild(demo);
+      sel.disabled = false;
+
+      // Pre-select if connId in URL
+      var urlParams = new URLSearchParams(window.location.search);
+      var cid = urlParams.get('conn');
+      if (cid) {
+        sel.value = cid;
+        onConnectionChange();
+      }
+    })
+    .catch(function() {
+      document.getElementById('conn-select').innerHTML = '<option value="">Failed to load connections</option>';
+    });
+}
+
+function onConnectionChange() {
+  var sel = document.getElementById('conn-select');
+  var connId = sel.value;
+  _currentConnId = connId || null;
+  if (!connId) {
+    showState('idle');
+    document.getElementById('btn-fetch').disabled = true;
+    return;
+  }
+  document.getElementById('btn-fetch').disabled = false;
+  document.getElementById('fetched-at').classList.add('hidden');
+  hideProbeBox();
+
+  // Try to load cached data first
+  loadCachedFindings(connId);
+}
+
+// ── Fetch and display ─────────────────────────────────────────────────────────
+
+function loadCachedFindings(connId) {
+  showState('loading');
+  fetch('/api/advisor/' + connId + '/findings', { headers: authHeaders() })
+    .then(function(r) {
+      if (r.status === 404) { showState('idle'); return null; }
+      return r.json();
+    })
+    .then(function(data) {
+      if (!data) return;
+      renderData(data);
+    })
+    .catch(function(err) {
+      showState('idle');
+    });
+}
+
+function triggerFetch() {
+  var connId = document.getElementById('conn-select').value;
+  if (!connId) return;
+
+  showState('loading');
+  setFetching(true);
+
+  fetch('/api/advisor/' + connId + '/fetch', {
+    method: 'POST',
+    headers: authHeaders(),
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      renderData(data);
+    })
+    .catch(function(err) {
+      showState('error');
+      document.getElementById('error-body').textContent = String(err.message || err);
+    })
+    .finally(function() {
+      setFetching(false);
+    });
+}
+
+function setFetching(loading) {
+  var btn = document.getElementById('btn-fetch');
+  var spinner = document.getElementById('fetch-spinner');
+  var label = document.getElementById('fetch-label');
+  btn.disabled = loading;
+  if (loading) {
+    spinner.classList.remove('hidden');
+    label.textContent = 'Fetching…';
+  } else {
+    spinner.classList.add('hidden');
+    label.textContent = '🔄 Fetch from Oracle';
+  }
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+
+function renderData(data) {
+  hideProbeBox();
+
+  if (!data.licensed) {
+    document.getElementById('not-licensed-reason').textContent =
+      data.not_licensed_reason || 'Oracle Diagnostics Pack license required.';
+    showState('not-licensed');
+    return;
+  }
+
+  if (data.fetch_error) {
+    document.getElementById('error-body').textContent = data.fetch_error;
+    showState('error');
+    return;
+  }
+
+  if (data.empty_state) {
+    showState('empty');
+    updateFetchedAt(data.fetched_at);
+    // Automatically run diagnostic probes to explain the empty state
+    runEmptyStateProbes();
+    return;
+  }
+
+  // Show main data state
+  showState('data');
+  updateFetchedAt(data.fetched_at);
+  _fetchedAt = data.fetched_at || null;
+
+  // AI summary
+  if (data.ai_summary) {
+    document.getElementById('ai-summary-text').textContent = data.ai_summary;
+    document.getElementById('ai-summary-section').classList.remove('hidden');
+  } else {
+    document.getElementById('ai-summary-section').classList.add('hidden');
+  }
+
+  renderFindings(data.findings || []);
+  renderRecommendations(data.recommendations || []);
+  renderAddmTasks(data.addm_tasks || []);
+  renderStaTasks(data.sql_tuning_tasks || []);
+}
+
+function updateFetchedAt(ts) {
+  if (!ts) return;
+  var el = document.getElementById('fetched-at');
+  el.textContent = 'Last fetched: ' + new Date(ts).toLocaleString();
+  el.classList.remove('hidden');
+}
+
+// ── Findings ──────────────────────────────────────────────────────────────────
+
+function renderFindings(findings) {
+  var count = findings.length;
+  document.getElementById('findings-count').textContent = count;
+  _expandedFinding = null;
+
+  if (count === 0) {
+    document.getElementById('findings-empty').style.display = 'block';
+    document.getElementById('findings-table').classList.add('hidden');
+    return;
+  }
+
+  document.getElementById('findings-empty').style.display = 'none';
+  var tbody = document.getElementById('findings-tbody');
+  tbody.innerHTML = '';
+
+  findings.forEach(function(f, idx) {
+    var typeCls = 'type-' + (f.type || 'information').toLowerCase().replace(/\s+/g, '-');
+    var impact = Number(f.impact_pct || 0);
+    var barWidth = Math.max(4, Math.min(120, impact * 6)) + 'px';
+
+    var tr = document.createElement('tr');
+    tr.className = 'expandable';
+    tr.dataset.idx = idx;
+    tr.onclick = function() { toggleFinding(idx); };
+    tr.innerHTML =
+      '<td><span class="expand-icon">▶</span></td>' +
+      '<td><span class="type-badge ' + typeCls + '">' + esc(f.type || 'INFORMATION') + '</span></td>' +
+      '<td><div class="impact-bar-wrap"><div class="impact-bar" style="width:' + barWidth + '"></div><span class="impact-val">' + (impact > 0 ? impact.toFixed(1) + '%' : '—') + '</span></div></td>' +
+      '<td style="max-width:500px;">' + esc(f.message || '') + '</td>' +
+      '<td style="color:var(--text-dim);font-size:12px;font-family:\'JetBrains Mono\',monospace;">Task #' + esc(f.task_id) + '</td>';
+
+    var detailTr = document.createElement('tr');
+    detailTr.className = 'detail-row';
+    detailTr.dataset.detail = idx;
+    detailTr.innerHTML =
+      '<td colspan="5"><div class="detail-inner">' +
+      '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-dim);margin-bottom:8px;">Finding Detail</div>' +
+      '<div style="font-size:13px;line-height:1.65;">' + esc(f.message || '') + '</div>' +
+      '<div style="margin-top:10px;font-size:12px;color:var(--text-dim);">Task #' + esc(f.task_id) + ' · Finding #' + esc(f.finding_id) + ' · Type: ' + esc(f.type) + (impact > 0 ? ' · Impact: ' + impact.toFixed(1) + '% of DB time' : '') +
+        ' <button class="show-sql-btn" onclick="event.stopPropagation();showSqlForCheck(\'advisor_findings\')">&#x3C;/&#x3E; Show SQL</button>' +
+      '</div>' +
+      '</div></td>';
+
+    tbody.appendChild(tr);
+    tbody.appendChild(detailTr);
+  });
+
+  document.getElementById('findings-table').classList.remove('hidden');
+}
+
+function toggleFinding(idx) {
+  var rows = document.querySelectorAll('#findings-tbody tr.expandable');
+  var details = document.querySelectorAll('#findings-tbody tr.detail-row');
+  if (_expandedFinding === idx) {
+    rows[idx].classList.remove('expanded');
+    details[idx].classList.remove('open');
+    _expandedFinding = null;
+  } else {
+    if (_expandedFinding !== null) {
+      rows[_expandedFinding].classList.remove('expanded');
+      details[_expandedFinding].classList.remove('open');
+    }
+    rows[idx].classList.add('expanded');
+    details[idx].classList.add('open');
+    _expandedFinding = idx;
+  }
+}
+
+// ── Recommendations ───────────────────────────────────────────────────────────
+
+function renderRecommendations(recs) {
+  var count = recs.length;
+  document.getElementById('recs-count').textContent = count;
+  _expandedRec = null;
+
+  if (count === 0) {
+    document.getElementById('recs-empty').style.display = 'block';
+    document.getElementById('recs-table').classList.add('hidden');
+    return;
+  }
+
+  document.getElementById('recs-empty').style.display = 'none';
+  var tbody = document.getElementById('recs-tbody');
+  tbody.innerHTML = '';
+
+  recs.forEach(function(r, idx) {
+    var benefit = Number(r.benefit || 0);
+    var barWidth = Math.max(4, Math.min(120, benefit * 6)) + 'px';
+    var typeCls = 'type-information';
+
+    var tr = document.createElement('tr');
+    tr.className = 'expandable';
+    tr.dataset.idx = idx;
+    tr.onclick = function() { toggleRec(idx); };
+    tr.innerHTML =
+      '<td><span class="expand-icon">▶</span></td>' +
+      '<td><span class="type-badge ' + typeCls + '">' + esc(r.type || '—') + '</span></td>' +
+      '<td><div class="impact-bar-wrap"><div class="impact-bar" style="width:' + barWidth + ';background:var(--green)"></div><span class="impact-val" style="color:var(--green);">' + (benefit > 0 ? benefit.toFixed(1) + '%' : '—') + '</span></div></td>' +
+      '<td style="max-width:560px;">' + esc((r.action_message || '').substring(0, 120)) + (r.action_message && r.action_message.length > 120 ? '…' : '') + '</td>';
+
+    var detailTr = document.createElement('tr');
+    detailTr.className = 'detail-row';
+    detailTr.dataset.detail = idx;
+    var copyId = 'copy-rec-' + idx;
+    detailTr.innerHTML =
+      '<td colspan="4"><div class="detail-inner">' +
+      '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-dim);margin-bottom:8px;">Recommended Action</div>' +
+      '<div class="rec-action">' + esc(r.action_message || '') + '</div>' +
+      '<button class="copy-btn" id="' + copyId + '" onclick="copyRec(event,' + idx + ')" data-copy-text="' + esc(r.action_message || '') + '">📋 Copy</button>' +
+      '<div style="margin-top:10px;font-size:12px;color:var(--text-dim);">Task #' + esc(r.task_id) + ' · Rec #' + esc(r.rec_id) + ' · Finding #' + esc(r.finding_id) + (benefit > 0 ? ' · Benefit: ' + benefit.toFixed(1) + '%' : '') +
+        ' <button class="show-sql-btn" onclick="event.stopPropagation();showSqlForCheck(\'advisor_recommendations\')">&#x3C;/&#x3E; Show SQL</button>' +
+      '</div>' +
+      '</div></td>';
+
+    tbody.appendChild(tr);
+    tbody.appendChild(detailTr);
+  });
+
+  document.getElementById('recs-table').classList.remove('hidden');
+}
+
+function toggleRec(idx) {
+  var rows = document.querySelectorAll('#recs-tbody tr.expandable');
+  var details = document.querySelectorAll('#recs-tbody tr.detail-row');
+  if (_expandedRec === idx) {
+    rows[idx].classList.remove('expanded');
+    details[idx].classList.remove('open');
+    _expandedRec = null;
+  } else {
+    if (_expandedRec !== null) {
+      rows[_expandedRec].classList.remove('expanded');
+      details[_expandedRec].classList.remove('open');
+    }
+    rows[idx].classList.add('expanded');
+    details[idx].classList.add('open');
+    _expandedRec = idx;
+  }
+}
+
+function copyRec(evt, idx) {
+  evt.stopPropagation();
+  var btn = document.getElementById('copy-rec-' + idx);
+  var text = btn.getAttribute('data-copy-text') || '';
+  navigator.clipboard.writeText(text).then(function() {
+    var orig = btn.innerHTML;
+    btn.textContent = '✓ Copied';
+    btn.classList.add('copied');
+    setTimeout(function() { btn.innerHTML = orig; btn.classList.remove('copied'); }, 2000);
+  }).catch(function() {
+    var ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+  });
+}
+
+// ── ADDM Tasks Timeline ───────────────────────────────────────────────────────
+
+function renderAddmTasks(tasks) {
+  var count = tasks.length;
+  document.getElementById('tasks-count').textContent = count;
+
+  // Always show Show SQL button in section header for ADDM tasks
+  var tasksSection = document.getElementById('tasks-content').closest('.section-card');
+  if (tasksSection) {
+    var header = tasksSection.querySelector('.section-header');
+    if (header && !header.querySelector('.show-sql-btn')) {
+      var btn = document.createElement('button');
+      btn.className = 'show-sql-btn';
+      btn.innerHTML = '&#x3C;/&#x3E; Show SQL';
+      btn.onclick = function() { showSqlForCheck('addm_tasks'); };
+      header.appendChild(btn);
+    }
+  }
+
+  if (count === 0) {
+    document.getElementById('tasks-empty').style.display = 'block';
+    document.getElementById('tasks-timeline').classList.add('hidden');
+    return;
+  }
+
+  document.getElementById('tasks-empty').style.display = 'none';
+  var tl = document.getElementById('tasks-timeline');
+  tl.innerHTML = '';
+
+  tasks.forEach(function(t, idx) {
+    var statusLower = (t.status || '').toLowerCase();
+    var dotCls = statusLower === 'completed' ? 'complete' : statusLower === 'error' ? 'error' : '';
+    var statusCls = statusLower === 'completed' ? 'status-completed' : statusLower === 'error' ? 'status-error' : 'status-executing';
+
+    var item = document.createElement('div');
+    item.className = 'timeline-item';
+    item.innerHTML =
+      '<div class="timeline-left">' +
+        '<div class="timeline-dot ' + dotCls + '"></div>' +
+        (idx < tasks.length - 1 ? '<div class="timeline-line"></div>' : '') +
+      '</div>' +
+      '<div class="timeline-content">' +
+        '<div class="timeline-name">' + esc(t.task_name || 'Task #' + t.task_id) +
+          ' <span class="timeline-status ' + statusCls + '">' + esc(t.status || '—') + '</span>' +
+        '</div>' +
+        '<div class="timeline-meta">' +
+          (t.created ? '📅 ' + esc(t.created) : '') +
+          (t.begin_snap_id ? ' &bull; Snap ' + esc(t.begin_snap_id) + '→' + esc(t.end_snap_id) : '') +
+          ' &bull; Task #' + esc(t.task_id) +
+        '</div>' +
+      '</div>';
+
+    tl.appendChild(item);
+  });
+
+  tl.classList.remove('hidden');
+}
+
+// ── SQL Tuning Advisor ────────────────────────────────────────────────────────
+
+function renderStaTasks(tasks) {
+  var count = tasks.length;
+  document.getElementById('sta-count').textContent = count;
+
+  // Always show Show SQL button in STA section header
+  var staSection = document.getElementById('sta-content').closest('.section-card');
+  if (staSection) {
+    var header = staSection.querySelector('.section-header');
+    if (header && !header.querySelector('.show-sql-btn')) {
+      var btn = document.createElement('button');
+      btn.className = 'show-sql-btn';
+      btn.innerHTML = '&#x3C;/&#x3E; Show SQL';
+      btn.onclick = function() { showSqlForCheck('sql_tuning_advisor_tasks'); };
+      header.appendChild(btn);
+    }
+  }
+
+  if (count === 0) {
+    document.getElementById('sta-empty').style.display = 'block';
+    document.getElementById('sta-list').classList.add('hidden');
+    return;
+  }
+
+  document.getElementById('sta-empty').style.display = 'none';
+  var list = document.getElementById('sta-list');
+  list.innerHTML = '';
+
+  tasks.forEach(function(t) {
+    var statusLower = (t.status || '').toLowerCase();
+    var statusCls = statusLower === 'completed' ? 'status-completed' : statusLower === 'error' ? 'status-error' : 'status-executing';
+
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04);';
+    row.innerHTML =
+      '<span style="font-size:13px;font-weight:600;font-family:\'JetBrains Mono\',monospace;flex:1;">' + esc(t.task_name || 'Task #' + t.task_id) + '</span>' +
+      '<span class="timeline-status ' + statusCls + '">' + esc(t.status || '—') + '</span>' +
+      '<span style="font-size:12px;color:var(--text-dim);">' + esc(t.created || '') + '</span>';
+    list.appendChild(row);
+  });
+
+  list.classList.remove('hidden');
+}
+
+// ── Empty-state probe box ──────────────────────────────────────────────────────
+
+function hideProbeBox() {
+  document.getElementById('probe-box').classList.add('hidden');
+}
+
+function runEmptyStateProbes() {
+  var connId = _currentConnId;
+  if (!connId) return;
+
+  var box = document.getElementById('probe-box');
+  var loadingEl = document.getElementById('probe-loading');
+  var gridEl = document.getElementById('probe-grid');
+
+  box.classList.remove('hidden');
+  loadingEl.classList.remove('hidden');
+  gridEl.classList.add('hidden');
+  gridEl.innerHTML = '';
+
+  fetch('/api/advisor/' + connId + '/empty-state-probes', {
+    method: 'POST',
+    headers: authHeaders(),
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      loadingEl.classList.add('hidden');
+      renderProbeGrid(data);
+      gridEl.classList.remove('hidden');
+    })
+    .catch(function(err) {
+      loadingEl.innerHTML = '<span style="color:var(--red);">⚠ Probe failed: ' + esc(String(err.message || err)) + '</span>';
+    });
+}
+
+function renderProbeGrid(data) {
+  var grid = document.getElementById('probe-grid');
+  grid.innerHTML = '';
+
+  // Probe 1: AWR snapshots
+  var awr = data.awr;
+  var awrHtml;
+  if (data.errors && data.errors.awr) {
+    awrHtml = '<div class="probe-value probe-err">Error: ' + esc(data.errors.awr) + '</div>';
+  } else if (!awr) {
+    awrHtml = '<div class="probe-value probe-warn">No data</div>';
+  } else if (awr.snap_count === 0) {
+    awrHtml = '<div class="probe-value probe-err">0 snapshots in last 24h</div>' +
+      '<div class="probe-hint">⚠ STATISTICS_LEVEL may be BASIC, or MMON is not generating snapshots. Check: <code>SELECT VALUE FROM V$PARAMETER WHERE NAME=\'statistics_level\'</code></div>';
+  } else {
+    awrHtml = '<div class="probe-value probe-ok">' + esc(awr.snap_count) + ' snapshot' + (awr.snap_count !== 1 ? 's' : '') + ' in last 24h ✓</div>';
+    if (awr.oldest_snap && awr.newest_snap) {
+      awrHtml += '<div class="probe-hint">Window: ' + esc(String(awr.oldest_snap).replace('T', ' ').split('.')[0]) + ' → ' + esc(String(awr.newest_snap).replace('T', ' ').split('.')[0]) + '</div>';
+    }
+    awrHtml += '<button class="show-sql-btn" style="margin-top:6px;" onclick="showSqlForCheck(\'awr_snapshot_availability\')">&#x3C;/&#x3E; Show SQL</button>';
+  }
+
+  grid.appendChild(probeItem('AWR Snapshot Availability', awrHtml));
+
+  // Probe 2: License / pack access
+  var lic = data.license;
+  var licHtml;
+  if (data.errors && data.errors.license) {
+    licHtml = '<div class="probe-value probe-err">Error: ' + esc(data.errors.license) + '</div>';
+  } else if (!lic) {
+    licHtml = '<div class="probe-value probe-warn">No data</div>';
+  } else {
+    var val = (lic.value || '').toUpperCase();
+    var isFullyLicensed = val.includes('DIAGNOSTIC') && val.includes('TUNING');
+    var isDiagnosticOnly = val.includes('DIAGNOSTIC') && !val.includes('TUNING');
+    var colorCls = isFullyLicensed ? 'probe-ok' : (val === 'NONE' ? 'probe-err' : 'probe-warn');
+    licHtml = '<div class="probe-value ' + colorCls + '">' + esc(lic.value || 'NONE') + '</div>';
+    if (val === 'NONE') {
+      licHtml += '<div class="probe-hint">⚠ No management packs licensed. ADDM requires <strong>DIAGNOSTIC+TUNING</strong>.</div>';
+    } else if (isDiagnosticOnly) {
+      licHtml += '<div class="probe-hint">Diagnostics Pack only. SQL Tuning Advisor features need Tuning Pack too.</div>';
+    } else if (isFullyLicensed) {
+      licHtml += '<div class="probe-hint">Both Diagnostics + Tuning Pack licensed ✓</div>';
+    }
+    licHtml += '<button class="show-sql-btn" style="margin-top:6px;" onclick="showSqlForCheck(\'diagnostic_pack_license\')">&#x3C;/&#x3E; Show SQL</button>';
+  }
+
+  grid.appendChild(probeItem('Diagnostic Pack License', licHtml));
+
+  // Probe 3: Last ADDM task
+  var lt = data.lastTask;
+  var ltHtml;
+  if (data.errors && data.errors.lastTask) {
+    ltHtml = '<div class="probe-value probe-err">Error: ' + esc(data.errors.lastTask) + '</div>';
+  } else if (!lt) {
+    ltHtml = '<div class="probe-value probe-warn">No data</div>';
+  } else if (!lt.last_completion) {
+    ltHtml = '<div class="probe-value probe-warn">No completed ADDM tasks ever found</div>' +
+      '<div class="probe-hint">ADDM may not be running, or this is a fresh instance.</div>';
+  } else {
+    var lastTs = String(lt.last_completion).replace('T', ' ').split('.')[0];
+    ltHtml = '<div class="probe-value probe-ok">Last: ' + esc(lastTs) + '</div>' +
+      '<div class="probe-hint">Total completed: ' + esc(lt.total_completed) + ' task' + (lt.total_completed !== 1 ? 's' : '') + '. The 7-day window just has no new activity.</div>';
+    ltHtml += '<button class="show-sql-btn" style="margin-top:6px;" onclick="showSqlForCheck(\'last_addm_task\')">&#x3C;/&#x3E; Show SQL</button>';
+  }
+
+  grid.appendChild(probeItem('Last Completed ADDM Task', ltHtml));
+
+  // Probe 4: Edition
+  var ed = data.edition;
+  var edHtml;
+  if (data.errors && data.errors.edition) {
+    edHtml = '<div class="probe-value probe-err">Error: ' + esc(data.errors.edition) + '</div>';
+  } else if (!ed) {
+    edHtml = '<div class="probe-value probe-warn">No data</div>';
+  } else {
+    var banner = (ed.banner || '');
+    var isSE = /standard edition/i.test(banner);
+    var colorCls2 = isSE ? 'probe-err' : 'probe-ok';
+    edHtml = '<div class="probe-value ' + colorCls2 + '" style="font-size:12px;">' + esc(banner) + '</div>';
+    if (isSE) {
+      edHtml += '<div class="probe-hint">⚠ ADDM is an <strong>Enterprise Edition + Diagnostics Pack</strong> feature. Not available on Standard Edition. Consider <a href="/performance" style="color:var(--accent);">Statspack-based analysis</a> on the Performance tab.</div>';
+    } else {
+      edHtml += '<div class="probe-hint">Enterprise Edition — ADDM is available ✓</div>';
+    }
+    edHtml += '<button class="show-sql-btn" style="margin-top:6px;" onclick="showSqlForCheck(\'db_edition\')">&#x3C;/&#x3E; Show SQL</button>';
+  }
+
+  grid.appendChild(probeItem('Database Edition', edHtml));
+}
+
+function probeItem(label, contentHtml) {
+  var div = document.createElement('div');
+  div.className = 'probe-item';
+  div.innerHTML = '<div class="probe-label">' + esc(label) + '</div>' + contentHtml;
+  return div;
+}
+
+// ── SQL Registry & Modal ───────────────────────────────────────────────────────
+
+function loadSqlRegistry() {
+  fetch('/api/advisor/checks/source', { headers: authHeaders() })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      (data.checks || []).forEach(function(c) {
+        _sqlRegistry[c.check_id] = c;
+      });
+    })
+    .catch(function() { /* non-critical, Show SQL just won't open */ });
+}
+
+function showSqlForCheck(checkId) {
+  var entry = _sqlRegistry[checkId];
+  if (!entry) {
+    alert('SQL definition not loaded yet. Try again in a moment.');
+    return;
+  }
+
+  document.getElementById('sql-modal-title').textContent = entry.title;
+  document.getElementById('sql-modal-desc').textContent = entry.description || '';
+  document.getElementById('sql-modal-sql').textContent = entry.sql;
+
+  // Source objects
+  var meta = document.getElementById('sql-modal-meta');
+  var sourceTags = (entry.source_objects || []).map(function(obj) {
+    return '<span class="sql-source-tag">' + esc(obj) + '</span>';
+  }).join(' ');
+  meta.innerHTML =
+    '<div class="sql-meta-item"><span class="sql-meta-label">Source views:</span>' + sourceTags + '</div>';
+
+  // Timestamp
+  var tsEl = document.getElementById('sql-modal-ts');
+  tsEl.textContent = _fetchedAt ? 'Last fetched: ' + new Date(_fetchedAt).toLocaleString() : '';
+
+  document.getElementById('sql-modal-overlay').classList.remove('hidden');
+}
+
+function closeSqlModal(evt) {
+  if (evt && evt.target !== document.getElementById('sql-modal-overlay')) return;
+  document.getElementById('sql-modal-overlay').classList.add('hidden');
+}
+
+function copySqlModal() {
+  var sql = document.getElementById('sql-modal-sql').textContent;
+  var btn = document.getElementById('sql-copy-btn');
+  navigator.clipboard.writeText(sql).then(function() {
+    var orig = btn.textContent;
+    btn.textContent = '✓ Copied';
+    btn.classList.add('copied');
+    setTimeout(function() { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
+  }).catch(function() {
+    var ta = document.createElement('textarea');
+    ta.value = sql; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+  });
+}
+
+// ── State management ──────────────────────────────────────────────────────────
+
+function showState(state) {
+  var states = ['idle', 'loading', 'not-licensed', 'error', 'empty', 'data'];
+  states.forEach(function(s) {
+    var el = document.getElementById('state-' + s);
+    if (el) {
+      if (s === state) el.classList.remove('hidden');
+      else el.classList.add('hidden');
+    }
+  });
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+</script>
+<!-- Show SQL Modal -->
+<div id="sql-modal-overlay" class="sql-modal-overlay hidden" onclick="closeSqlModal(event)">
+  <div class="sql-modal" onclick="event.stopPropagation()">
+    <div class="sql-modal-header">
+      <div>
+        <div class="sql-modal-title" id="sql-modal-title">Query Source</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:3px;" id="sql-modal-desc"></div>
+      </div>
+      <button class="sql-modal-close" onclick="closeSqlModal()">✕</button>
+    </div>
+    <div class="sql-modal-body">
+      <div class="sql-meta" id="sql-modal-meta"></div>
+      <div style="font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;font-weight:700;margin-bottom:6px;">SQL Query</div>
+      <div class="sql-block" id="sql-modal-sql"></div>
+    </div>
+    <div class="sql-modal-footer">
+      <span class="sql-timestamp" id="sql-modal-ts"></span>
+      <button class="btn btn-secondary" id="sql-copy-btn" onclick="copySqlModal()" style="font-size:12px;padding:6px 14px;">📋 Copy SQL</button>
+    </div>
+  </div>
+</div>
+
+<script src="/tv-tracker.js"></script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

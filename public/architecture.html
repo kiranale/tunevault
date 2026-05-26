@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TuneVault Architecture — How EBS Live Monitor Works (Polling + SSE)</title>
+    <meta name="description" content="How TuneVault's lightweight Python proxy works. Outbound-only HTTPS polling every 30s, Server-Sent Events dashboard, zero inbound ports, no Oracle binary access. Read-only SQL queries only. Full technical explainer.">
+    <meta property="og:title" content="TuneVault Architecture — How EBS Live Monitor Works">
+    <meta property="og:description" content="Polling vs push, data flow diagram, security posture, and SSE explained. Everything a security-minded DBA needs before evaluating TuneVault.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://tunevault.app/architecture">
+    <meta property="og:image" content="https://tunevault.app/og/features.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="TuneVault features — 100+ Oracle health checks across 15 categories">
+    <meta property="og:site_name" content="TuneVault">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="TuneVault Architecture — How EBS Live Monitor Works">
+    <meta name="twitter:description" content="Polling vs push, data flow, security posture, SSE. Full technical explainer for Oracle DBAs and infosec reviewers.">
+    <meta name="twitter:image" content="https://tunevault.app/og/features.png">
+    <meta name="keywords" content="TuneVault architecture, EBS live monitor, Oracle proxy agent, SSE dashboard, Oracle EBS monitoring how it works, outbound only Oracle monitoring, Oracle health check architecture">
+    <link rel="canonical" href="https://tunevault.app/architecture">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="apple-touch-icon" href="/favicon.svg">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0c;
+            --surface: #111114;
+            --surface-2: #1a1a1f;
+            --surface-3: #222228;
+            --border: #2a2a30;
+            --border-hover: #3a3a44;
+            --text: #e8e8ed;
+            --text-dim: #b8b8c8;
+            --text-muted: #9898a8;
+            --accent: #f0a830;
+            --accent-dim: rgba(240, 168, 48, 0.10);
+            --accent-glow: rgba(240, 168, 48, 0.15);
+            --green: #34d399;
+            --green-dim: rgba(52, 211, 153, 0.10);
+            --red: #f87171;
+            --blue: #60a5fa;
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Grain texture */
+        .grain {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        /* ── Hero ──────────────────────────────────────────────── */
+        .hero {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 64px 48px 56px;
+            position: relative;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 50%;
+            transform: translateX(-50%);
+            width: 800px; height: 400px;
+            background: radial-gradient(ellipse at center top, rgba(240,168,48,0.06) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .hero-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--accent-dim);
+            border: 1px solid rgba(240,168,48,0.2);
+            color: var(--accent);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 14px;
+            border-radius: 20px;
+            margin-bottom: 24px;
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        .hero h1 {
+            font-size: clamp(28px, 4vw, 52px);
+            font-weight: 700;
+            letter-spacing: -1.5px;
+            line-height: 1.08;
+            margin-bottom: 20px;
+            max-width: 800px;
+        }
+        .hero h1 em {
+            font-style: normal;
+            color: var(--accent);
+        }
+        .hero p {
+            font-size: 17px;
+            color: var(--text-dim);
+            max-width: 620px;
+            line-height: 1.75;
+        }
+
+        /* ── Sections ─────────────────────────────────────────── */
+        .arch-content {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 48px 80px;
+        }
+
+        .arch-section {
+            padding: 56px 0;
+            border-top: 1px solid var(--border);
+        }
+
+        .section-eyebrow {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--accent);
+            margin-bottom: 14px;
+        }
+
+        .section-heading {
+            font-size: clamp(22px, 3vw, 32px);
+            font-weight: 700;
+            letter-spacing: -0.8px;
+            margin-bottom: 16px;
+            line-height: 1.15;
+        }
+
+        .section-body {
+            font-size: 15px;
+            color: var(--text-dim);
+            max-width: 680px;
+            line-height: 1.8;
+        }
+
+        .section-body strong { color: var(--text); font-weight: 600; }
+
+        /* ── Data flow diagram ─────────────────────────────────── */
+        .flow-diagram {
+            margin: 40px 0 8px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 36px 32px;
+            overflow-x: auto;
+        }
+
+        .flow-row {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            min-width: 560px;
+        }
+
+        .flow-zone {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .flow-zone-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin-bottom: 2px;
+        }
+
+        .flow-box {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 18px;
+            font-size: 13px;
+            font-weight: 500;
+            white-space: nowrap;
+            position: relative;
+        }
+
+        .flow-box.accent-border { border-color: rgba(240,168,48,0.4); }
+        .flow-box.green-border  { border-color: rgba(52,211,153,0.3); }
+        .flow-box.blue-border   { border-color: rgba(96,165,250,0.3); }
+
+        .flow-box .flow-sub {
+            display: block;
+            font-size: 11px;
+            color: var(--text-dim);
+            font-weight: 400;
+            margin-top: 3px;
+        }
+
+        .flow-arrow {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0 12px;
+            flex-shrink: 0;
+        }
+
+        .flow-arrow-line {
+            height: 2px;
+            width: 48px;
+            background: linear-gradient(90deg, var(--border), rgba(240,168,48,0.5));
+            position: relative;
+        }
+
+        .flow-arrow-line::after {
+            content: '▶';
+            position: absolute;
+            right: -6px;
+            top: -7px;
+            font-size: 8px;
+            color: var(--accent);
+        }
+
+        .flow-arrow-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--accent);
+            margin-top: 6px;
+            white-space: nowrap;
+        }
+
+        /* ── 3-column probe grid ──────────────────────────────── */
+        .probe-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-top: 36px;
+        }
+
+        .probe-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 24px;
+            transition: border-color 0.2s;
+        }
+
+        .probe-card:hover { border-color: var(--border-hover); }
+
+        .probe-card-icon {
+            width: 36px; height: 36px;
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 16px;
+            font-size: 16px;
+        }
+
+        .probe-card-icon.os  { background: rgba(240,168,48,0.12); }
+        .probe-card-icon.db  { background: rgba(52,211,153,0.10); }
+        .probe-card-icon.net { background: rgba(96,165,250,0.10); }
+
+        .probe-card h3 {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: -0.2px;
+        }
+
+        .probe-card p {
+            font-size: 13px;
+            color: var(--text-dim);
+            line-height: 1.7;
+            margin-bottom: 14px;
+        }
+
+        .probe-examples {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .probe-examples li {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+            padding: 5px 10px;
+            background: var(--surface-2);
+            border-radius: 4px;
+            line-height: 1.4;
+        }
+
+        .probe-examples li strong {
+            color: var(--accent);
+            font-weight: 400;
+        }
+
+        /* ── Reason cards ──────────────────────────────────────── */
+        .reason-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-top: 36px;
+        }
+
+        .reason-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 24px;
+        }
+
+        .reason-card h3 {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .reason-card h3 .badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 20px;
+            background: var(--accent-dim);
+            color: var(--accent);
+            border: 1px solid rgba(240,168,48,0.2);
+            font-weight: 600;
+        }
+
+        .reason-card p {
+            font-size: 13px;
+            color: var(--text-dim);
+            line-height: 1.7;
+        }
+
+        /* ── SSE diagram ──────────────────────────────────────── */
+        .sse-diagram {
+            margin-top: 36px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .sse-diagram-header {
+            background: var(--surface-2);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 24px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sse-diagram-header .dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: pulse 1.8s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.35; }
+        }
+
+        .sse-steps {
+            padding: 28px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .sse-step {
+            display: grid;
+            grid-template-columns: 28px 1fr;
+            gap: 16px;
+            padding: 16px 0;
+            border-bottom: 1px solid rgba(42,42,48,0.5);
+        }
+
+        .sse-step:last-child { border-bottom: none; }
+
+        .sse-step-num {
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            background: var(--accent-dim);
+            border: 1px solid rgba(240,168,48,0.25);
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--accent);
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .sse-step-text h4 {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .sse-step-text p {
+            font-size: 13px;
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+
+        /* ── Security grid ──────────────────────────────────────── */
+        .security-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+            margin-top: 36px;
+        }
+
+        .security-item {
+            display: flex;
+            gap: 14px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+            transition: border-color 0.2s;
+        }
+
+        .security-item:hover { border-color: var(--border-hover); }
+
+        .security-icon {
+            width: 32px; height: 32px;
+            border-radius: 8px;
+            background: var(--green-dim);
+            border: 1px solid rgba(52,211,153,0.2);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .security-item h3 {
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .security-item p {
+            font-size: 13px;
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+
+        /* ── Stat bar ──────────────────────────────────────────── */
+        .stat-bar {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1px;
+            background: var(--border);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 40px;
+        }
+
+        .stat-cell {
+            background: var(--surface);
+            padding: 22px 24px;
+            text-align: center;
+        }
+
+        .stat-cell .num {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 28px;
+            font-weight: 500;
+            color: var(--accent);
+            display: block;
+        }
+
+        .stat-cell .lbl {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-top: 4px;
+        }
+
+        /* ── Bottom CTA ────────────────────────────────────────── */
+        .bottom-cta {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 48px;
+            text-align: center;
+            margin-top: 56px;
+        }
+
+        .bottom-cta h2 {
+            font-size: clamp(20px, 3vw, 28px);
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 12px;
+        }
+
+        .bottom-cta p {
+            font-size: 15px;
+            color: var(--text-dim);
+            margin-bottom: 28px;
+        }
+
+        .cta-group {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            background: var(--accent);
+            color: #0a0a0c;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .btn-primary:hover {
+            background: #f5b84a;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            background: transparent;
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* ── Footer ────────────────────────────────────────────── */
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 28px 48px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+            color: var(--text-muted);
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        footer a { color: var(--text-muted); text-decoration: none; }
+        footer a:hover { color: var(--accent); }
+        .footer-links { display: flex; gap: 20px; flex-wrap: wrap; }
+
+        /* ── Responsive ─────────────────────────────────────────── */
+        @media (max-width: 900px) {
+            .hero, .arch-content { padding-left: 24px; padding-right: 24px; }
+            .probe-grid { grid-template-columns: 1fr; }
+            .reason-grid { grid-template-columns: 1fr; }
+            .security-grid { grid-template-columns: 1fr; }
+            .stat-bar { grid-template-columns: 1fr; }
+            .flow-row { flex-wrap: wrap; gap: 8px; }
+        }
+
+        @media (max-width: 600px) {
+            .hero { padding-top: 40px; padding-bottom: 32px; }
+            footer { flex-direction: column; text-align: center; }
+            .footer-links { justify-content: center; }
+            .bottom-cta { padding: 32px 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="grain"></div>
+
+    <nav id="nav-root"></nav>
+
+    <!-- ── Hero ────────────────────────────────────────────────── -->
+    <div class="hero">
+        <div class="hero-eyebrow">&#x26A1; Technical Architecture</div>
+        <h1 id="live-monitor">How TuneVault sees your Oracle stack<br><em>with a 400 KB Python script and zero inbound ports.</em></h1>
+        <p>A security-first breakdown of the lightweight proxy model, the polling mechanism, and how 11 live status cards stay current in your browser — outbound-only HTTPS, no WebSockets, no inbound ports, and no Oracle binary access.</p>
+    </div>
+
+    <div class="arch-content">
+
+        <!-- ── 1. Data Flow ─────────────────────────────────────── -->
+        <div class="arch-section">
+            <div class="section-eyebrow">01 — Data Flow</div>
+            <div class="section-heading">End-to-end in one diagram.</div>
+            <div class="section-body">
+                Everything starts at the Oracle host. A Python proxy you control polls the OS and DB every 30 seconds, bundles the results into a small JSON payload, and pushes it outbound over HTTPS. TuneVault stores the latest payload and streams updates to your browser via SSE. No inbound ports. No Oracle listener exposure.
+            </div>
+
+            <div class="flow-diagram">
+                <div class="flow-row">
+                    <!-- Zone 1 -->
+                    <div class="flow-zone">
+                        <div class="flow-zone-label">Customer network</div>
+                        <div class="flow-box accent-border">
+                            Oracle DB / EBS host
+                            <span class="flow-sub">On-premises or cloud VM</span>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow">
+                        <div class="flow-arrow-line"></div>
+                        <div class="flow-arrow-label">OS + DB poll</div>
+                    </div>
+
+                    <!-- Zone 2 -->
+                    <div class="flow-zone">
+                        <div class="flow-zone-label">&nbsp;</div>
+                        <div class="flow-box">
+                            Python proxy
+                            <span class="flow-sub">Runs as oracle user, polls every 30s</span>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow">
+                        <div class="flow-arrow-line"></div>
+                        <div class="flow-arrow-label">HTTPS outbound</div>
+                    </div>
+
+                    <!-- Zone 3 -->
+                    <div class="flow-zone">
+                        <div class="flow-zone-label">TuneVault cloud</div>
+                        <div class="flow-box green-border">
+                            TuneVault API
+                            <span class="flow-sub">Node.js · stores latest payload</span>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow">
+                        <div class="flow-arrow-line"></div>
+                        <div class="flow-arrow-label">SSE stream</div>
+                    </div>
+
+                    <!-- Zone 4 -->
+                    <div class="flow-zone">
+                        <div class="flow-zone-label">Your browser</div>
+                        <div class="flow-box blue-border">
+                            Dashboard
+                            <span class="flow-sub">11 live status cards repaint on each payload</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stat bar -->
+            <div class="stat-bar">
+                <div class="stat-cell">
+                    <span class="num">30s</span>
+                    <span class="lbl">Poll interval on customer host</span>
+                </div>
+                <div class="stat-cell">
+                    <span class="num">~2 KB</span>
+                    <span class="lbl">JSON payload per cycle (outbound)</span>
+                </div>
+                <div class="stat-cell">
+                    <span class="num">~200ms</span>
+                    <span class="lbl">Total CPU time per poll cycle on host</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── 2. What the proxy does ──────────────────────────── -->
+        <div class="arch-section">
+            <div class="section-eyebrow">02 — What the Proxy Actually Does</div>
+            <div class="section-heading">Three probe types. One JSON bundle.</div>
+            <div class="section-body">
+                The proxy is a single Python script (~400 KB). It has no persistent state, no open sockets between polls, and no access to Oracle binaries. Every 30 seconds it runs three probe categories, bundles the results, and POSTs them to TuneVault over HTTPS with your connection's API key.
+            </div>
+
+            <div class="probe-grid">
+                <!-- OS-level probes -->
+                <div class="probe-card">
+                    <div class="probe-card-icon os">&#x1F4BB;</div>
+                    <h3>OS-Level Probes</h3>
+                    <p>Process and port state at the OS level. No Oracle credentials required for these — runs as the oracle OS user.</p>
+                    <ul class="probe-examples">
+                        <li><strong>ps -ef</strong> | grep NodeManager → WLS status + PID</li>
+                        <li><strong>netstat -tlnp</strong> → OPMN (7200), WLS Admin (7001), Forms, OACore port detection</li>
+                        <li><strong>ls -la</strong> $INST_TOP/logs/* → heartbeat mtime check</li>
+                        <li><strong>uptime</strong> → load average, uptime seconds</li>
+                    </ul>
+                </div>
+
+                <!-- DB-level probes -->
+                <div class="probe-card">
+                    <div class="probe-card-icon db">&#x1F5C4;</div>
+                    <h3>DB-Level Probes</h3>
+                    <p>SQL against EBS schema views. Read-only. <code style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent);">SELECT_CATALOG_ROLE</code> only. No DML, no DDL, no locks.</p>
+                    <ul class="probe-examples">
+                        <li><strong>FND_CONCURRENT_QUEUES</strong> → CM running_processes vs max</li>
+                        <li><strong>FND_SVC_COMPONENTS</strong> → Workflow Mailer component_status</li>
+                        <li><strong>FND_CONCURRENT_PROCESSES</strong> → OPP active process count</li>
+                        <li><strong>V$SESSION</strong> → DB health signal + active sessions</li>
+                    </ul>
+                </div>
+
+                <!-- Transport -->
+                <div class="probe-card">
+                    <div class="probe-card-icon net">&#x1F310;</div>
+                    <h3>Transport</h3>
+                    <p>All results from both probe categories are bundled into a single JSON payload and pushed outbound. One HTTPS POST per cycle. No persistent connection kept open.</p>
+                    <ul class="probe-examples">
+                        <li><strong>POST</strong> https://tunevault.app/api/proxy/ingest</li>
+                        <li><strong>Auth:</strong> per-connection API key (header)</li>
+                        <li><strong>Direction:</strong> outbound only — proxy initiates</li>
+                        <li><strong>Firewall change:</strong> none required</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── 3. Why Polling ──────────────────────────────────── -->
+        <div class="arch-section">
+            <div class="section-eyebrow">03 — Why Polling, Not Push from Oracle</div>
+            <div class="section-heading">Oracle EBS doesn't have webhooks.</div>
+            <div class="section-body">
+                The most common question from evaluators: "Why doesn't Oracle push events to you directly?" Short answer: it can't. Here's the full answer.
+            </div>
+
+            <div class="reason-grid">
+                <div class="reason-card">
+                    <h3>No native webhook surface <span class="badge">Why polling</span></h3>
+                    <p>Oracle EBS has no event stream for the 11 status surfaces we monitor — Concurrent Manager state, Workflow Mailer health, OPMN/WLS process counts, port liveness. These are operational metrics you can only observe by querying them. Polling is the only mechanism that works across every EBS version and configuration.</p>
+                </div>
+                <div class="reason-card">
+                    <h3>30s is the right tradeoff <span class="badge">Interval</span></h3>
+                    <p>Fast enough to catch a CM stall or Mailer flameout within one alerting window. Light enough to be invisible to the database — every query uses <code style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent);">SELECT_CATALOG_ROLE</code>, no DML, no locks. At 30s cadence, TuneVault occupies &lt;0.01% of typical EBS database I/O.</p>
+                </div>
+                <div class="reason-card">
+                    <h3>Predictable load <span class="badge">Performance</span></h3>
+                    <p>~200ms total CPU time per poll cycle on the customer host. ~2 KB JSON outbound per cycle. The proxy has no memory growth, no open socket held between polls, and no background threads. It runs, pushes, and exits. Zero persistent footprint between cycles.</p>
+                </div>
+                <div class="reason-card">
+                    <h3>Auditable and replaceable <span class="badge">Control</span></h3>
+                    <p>The proxy is a single Python script provided directly to you. You install it. You review it. You can <code style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent);">kill</code> it any time with no impact on your Oracle instance. It is not a daemon with persistent state — it's a cron job that runs a script.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── 4. How the dashboard stays live ────────────────── -->
+        <div class="arch-section">
+            <div class="section-eyebrow">04 — How the Dashboard Stays Live</div>
+            <div class="section-heading">SSE: one HTTP stream, no WebSocket overhead.</div>
+            <div class="section-body">
+                When you open the EBS Live Monitor tab, your browser opens a single long-lived HTTP connection to the TuneVault API. Every time a new proxy payload arrives, the API pushes it down that connection. The 11 status cards repaint in place. No polling from the browser. No WebSocket handshake. Works through corporate proxies.
+            </div>
+
+            <div class="sse-diagram">
+                <div class="sse-diagram-header">
+                    <div class="dot"></div>
+                    SSE stream — GET /api/live-status/:connectionId/stream
+                </div>
+                <div class="sse-steps">
+                    <div class="sse-step">
+                        <div class="sse-step-num">1</div>
+                        <div class="sse-step-text">
+                            <h4>Proxy POSTs payload to TuneVault API (every 30s)</h4>
+                            <p>The Python proxy on your Oracle host POSTs a JSON bundle: OS process state, port map, DB metrics. API stores latest payload per connection_id. Validates API key, logs receipt timestamp.</p>
+                        </div>
+                    </div>
+                    <div class="sse-step">
+                        <div class="sse-step-num">2</div>
+                        <div class="sse-step-text">
+                            <h4>Browser subscribes via Server-Sent Events</h4>
+                            <p>When you open the Live Monitor panel, your browser GETs a streaming endpoint. TuneVault keeps this connection open with a <code style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent);">Content-Type: text/event-stream</code> response. Standard HTTP — works through corporate proxies and load balancers, unlike WebSockets.</p>
+                        </div>
+                    </div>
+                    <div class="sse-step">
+                        <div class="sse-step-num">3</div>
+                        <div class="sse-step-text">
+                            <h4>API fans out on each new payload</h4>
+                            <p>When a new proxy payload lands, the API emits an <code style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent);">event: update</code> down every open SSE connection subscribed to that connection_id. Multiple browser tabs get the update simultaneously.</p>
+                        </div>
+                    </div>
+                    <div class="sse-step">
+                        <div class="sse-step-num">4</div>
+                        <div class="sse-step-text">
+                            <h4>11 status cards repaint in the browser</h4>
+                            <p>The dashboard parses the incoming JSON and updates each of the 11 status cards: Concurrent Manager (running / max), Workflow Mailer state, WLS AdminServer, OACore ports, Forms ports, OPMN, OPP, Apache/OHS, DB health signal, uptime, and last-seen timestamp. No full page reload required.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── 5. Security ────────────────────────────────────── -->
+        <div class="arch-section" id="security">
+            <div class="section-eyebrow">05 — Security</div>
+            <div class="section-heading">The question every infosec reviewer asks next.</div>
+            <div class="section-body">
+                Every enterprise evaluation includes: "What access does this have? What can it do? What if it gets compromised?" These are the right questions. Here are the exact answers.
+            </div>
+
+            <div class="security-grid">
+                <div class="security-item">
+                    <div class="security-icon">&#x1F512;</div>
+                    <div>
+                        <h3>Read-only Oracle role</h3>
+                        <p><code style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent);">SELECT_CATALOG_ROLE</code> only. No DDL (CREATE/ALTER/DROP). No DML (INSERT/UPDATE/DELETE). No data is exfiltrated — only aggregated metrics and counts. Full grant list at <a href="/trust" style="color:var(--accent);">tunevault.app/trust</a>.</p>
+                    </div>
+                </div>
+                <div class="security-item">
+                    <div class="security-icon">&#x1F4AC;</div>
+                    <div>
+                        <h3>No agent on Oracle binaries</h3>
+                        <p>The proxy is a standalone Python script that runs as the Oracle OS user. It does not modify, patch, inject into, or hook Oracle executables. It has no persistent daemon, no shared memory interface, and no kernel module.</p>
+                    </div>
+                </div>
+                <div class="security-item">
+                    <div class="security-icon">&#x1F510;</div>
+                    <div>
+                        <h3>AES-256-GCM credentials at rest</h3>
+                        <p>Oracle credentials stored in TuneVault's database are encrypted with AES-256-GCM before write. The proxy API key is also encrypted at rest. Keys are never logged or transmitted in plaintext.</p>
+                    </div>
+                </div>
+                <div class="security-item">
+                    <div class="security-icon">&#x2B06;</div>
+                    <div>
+                        <h3>Outbound HTTPS only</h3>
+                        <p>The proxy initiates all connections. TuneVault never connects inbound to your network. No firewall rules to open. No inbound ports required on the Oracle host. The proxy's only outbound destination is <code style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent);">tunevault.app</code> over port 443.</p>
+                    </div>
+                </div>
+                <div class="security-item">
+                    <div class="security-icon">&#x1F4C4;</div>
+                    <div>
+                        <h3>Proxy source is auditable</h3>
+                        <p>The Python proxy script is provided directly to you at installation. Your security team can review it line by line before it runs. No compiled binary, no obfuscation. What you see is what runs.</p>
+                    </div>
+                </div>
+                <div class="security-item">
+                    <div class="security-icon">&#x26D4;</div>
+                    <div>
+                        <h3>Kill switch is just kill</h3>
+                        <p>Stopping the proxy is <code style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent);">pkill -f oracle-proxy.py</code> or removing the cron entry. The Oracle instance is unaffected. TuneVault's dashboard shows "proxy offline" within one polling interval.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── CTA ──────────────────────────────────────────────── -->
+        <div class="bottom-cta">
+            <h2>See the Live Monitor in action.</h2>
+            <p>See an anonymized report from a representative Oracle EBS deployment. No sign-up required. Full setup guide walks through proxy installation in under 5 minutes.</p>
+            <div class="cta-group">
+                <a href="/sample-report" class="btn-primary">View Sample Report &rarr;</a>
+                <a href="/docs/oracle-setup" class="btn-secondary">Full Setup Guide &rarr;</a>
+            </div>
+        </div>
+
+    </div><!-- /arch-content -->
+
+    <footer>
+        <span><span style="color:var(--text);">TuneVault</span> &copy; 2026 &mdash; Oracle Operational Intelligence</span>
+        <div class="footer-links">
+            <a href="/about">About</a>
+            <a href="/pricing">Pricing</a>
+            <a href="/features">Features</a>
+            <a href="/trust">Trust Center</a>
+            <a href="/security">Security (CISO)</a>
+            <a href="/docs/oracle-setup">Setup Guide</a>
+            <a href="mailto:hello@tunevault.app">hello@tunevault.app</a>
+            <a href="mailto:support@tunevault.app">support@tunevault.app</a>
+        </div>
+    </footer>
+
+    <script src="/nav-component.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        window.tvNav.init('main');
+    });
+    </script>
+
+    <!-- Polsia Analytics -->
+    <script>
+    (function() {
+        var slug = 'tunevault';
+        if (!slug) return;
+        var vid = localStorage.getItem('polsia_vid');
+        if (!vid) {
+            vid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                var r = Math.random() * 16 | 0;
+                return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+            });
+            localStorage.setItem('polsia_vid', vid);
+        }
+        new Image().src = 'https://polsia.com/api/beacon/pixel?s=' + encodeURIComponent(slug) + '&v=' + encodeURIComponent(vid);
+    })();
+    </script>
+    <script src="/tv-tracker.js"></script>
+    <script src="/tunebot.js"></script>
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": "How TuneVault EBS Live Monitor Works — Polling, Proxy, and SSE",
+      "description": "Technical explainer: Python proxy, 30s poll interval, outbound-only HTTPS, Server-Sent Events dashboard. Read-only Oracle access. No inbound ports required.",
+      "url": "https://tunevault.app/architecture",
+      "publisher": {
+        "@type": "Organization",
+        "name": "TuneVault",
+        "url": "https://tunevault.app"
+      },
+      "about": {
+        "@type": "SoftwareApplication",
+        "name": "TuneVault",
+        "applicationCategory": "BusinessApplication",
+        "applicationSubCategory": "Database Management"
+      }
+    }
+    </script>
+</body>
+</html>

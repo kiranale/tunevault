@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clone Wizard — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    :root {
+      --bg:#0a0a0c; --surface:#111114; --surface-2:#1a1a1f; --surface-3:#22222a;
+      --border:#2a2a30; --text:#e8e8ed; --text-dim:#9898a8; --text-faint:#9898a8;
+      --accent:#f0a830; --accent-dim:rgba(240,168,48,.12); --accent-hover:rgba(240,168,48,.2);
+      --green:#34d399; --green-dim:rgba(52,211,153,.12);
+      --red:#f87171; --red-dim:rgba(248,113,113,.12);
+      --blue:#60a5fa; --blue-dim:rgba(96,165,250,.12);
+      --purple:#a78bfa; --purple-dim:rgba(167,139,250,.12);
+      --yellow:#fbbf24;
+    }
+    body { font-family:'Space Grotesk',-apple-system,sans-serif; background:var(--bg); color:var(--text); line-height:1.6; min-height:100vh; overflow-x:hidden; }
+    .grain { position:fixed; top:0; left:0; right:0; bottom:0; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"); pointer-events:none; z-index:999; }
+    nav { background:rgba(10,10,12,.95); border-bottom:1px solid var(--border); backdrop-filter:blur(12px); position:sticky; top:0; z-index:9999; }
+    .nav-inner { max-width:1140px; margin:0 auto; padding:0 24px; display:flex; align-items:center; justify-content:space-between; height:56px; }
+    .nav-brand { font-size:16px; font-weight:700; color:var(--accent); text-decoration:none; display:flex; align-items:center; gap:8px; }
+    .nav-links { display:flex; align-items:center; gap:6px; }
+    .nav-link { font-size:13px; font-weight:500; color:var(--text-dim); text-decoration:none; padding:5px 12px; border-radius:6px; transition:all .15s; }
+    .nav-link:hover { color:var(--text); background:var(--surface-2); }
+    .nav-link.active { color:var(--accent); background:var(--accent-dim); }
+    .page-wrap { max-width:1140px; margin:0 auto; padding:36px 24px 80px; }
+
+    /* ── Page header ── */
+    .page-header { margin-bottom:32px; }
+    .page-header h1 { font-size:24px; font-weight:700; display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+    .page-header p { font-size:13px; color:var(--text-dim); max-width:700px; }
+
+    /* ── View tabs ── */
+    .view-tabs { display:flex; gap:4px; margin-bottom:28px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:4px; width:fit-content; }
+    .view-tab { padding:8px 20px; border-radius:7px; font-size:13px; font-weight:600; border:none; background:transparent; color:var(--text-dim); cursor:pointer; transition:all .15s; }
+    .view-tab.active { background:var(--surface-3); color:var(--text); }
+    .view-panel { display:none; }
+    .view-panel.active { display:block; }
+
+    /* ── Buttons ── */
+    .btn { display:inline-flex; align-items:center; gap:6px; padding:9px 18px; border-radius:8px; font-size:13px; font-weight:600; border:none; cursor:pointer; transition:all .15s; font-family:inherit; }
+    .btn-primary { background:var(--accent); color:#111; }
+    .btn-primary:hover { filter:brightness(1.1); }
+    .btn-secondary { background:var(--surface-2); color:var(--text); border:1px solid var(--border); }
+    .btn-secondary:hover { border-color:var(--accent); color:var(--accent); }
+    .btn-ghost { background:transparent; color:var(--text-dim); border:1px solid var(--border); }
+    .btn-ghost:hover { color:var(--text); border-color:var(--text-dim); }
+    .btn-danger { background:var(--red-dim); color:var(--red); border:1px solid rgba(248,113,113,.3); }
+    .btn-danger:hover { background:rgba(248,113,113,.2); }
+    .btn-sm { padding:5px 12px; font-size:12px; }
+    .btn:disabled { opacity:.4; cursor:not-allowed; pointer-events:none; }
+
+    /* ── Clone type selection cards ── */
+    .type-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; max-width:800px; }
+    .type-card { background:var(--surface); border:2px solid var(--border); border-radius:16px; padding:28px; cursor:pointer; transition:all .2s; display:flex; flex-direction:column; gap:14px; position:relative; overflow:hidden; }
+    .type-card::before { content:''; position:absolute; inset:0; background:linear-gradient(135deg,transparent 60%,rgba(240,168,48,.04)); pointer-events:none; }
+    .type-card:hover { border-color:rgba(240,168,48,.5); transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.4); }
+    .type-card.selected { border-color:var(--accent); background:linear-gradient(135deg,var(--surface),var(--accent-dim)); }
+    .type-card-icon { font-size:36px; width:56px; height:56px; background:var(--surface-2); border-radius:14px; display:flex; align-items:center; justify-content:center; border:1px solid var(--border); }
+    .type-card.selected .type-card-icon { background:var(--accent-dim); border-color:rgba(240,168,48,.3); }
+    .type-card-label { font-size:18px; font-weight:700; }
+    .type-card.selected .type-card-label { color:var(--accent); }
+    .type-card-desc { font-size:13px; color:var(--text-dim); line-height:1.5; }
+    .type-card-features { display:flex; flex-direction:column; gap:5px; }
+    .type-feature { font-size:12px; color:var(--text-dim); display:flex; align-items:center; gap:7px; }
+    .type-feature::before { content:'›'; color:var(--accent); font-weight:700; }
+    .selected-check { position:absolute; top:14px; right:14px; width:22px; height:22px; border-radius:50%; background:var(--accent); color:#111; font-size:12px; display:none; align-items:center; justify-content:center; font-weight:700; }
+    .type-card.selected .selected-check { display:flex; }
+
+    /* ── Mode selection cards ── */
+    .mode-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; max-width:800px; }
+    .mode-card { background:var(--surface); border:2px solid var(--border); border-radius:16px; padding:24px; cursor:pointer; transition:all .2s; position:relative; }
+    .mode-card:hover { border-color:rgba(240,168,48,.5); transform:translateY(-2px); }
+    .mode-card.selected { border-color:var(--accent); background:var(--accent-dim); }
+    .mode-card-icon { font-size:28px; margin-bottom:10px; }
+    .mode-card-label { font-size:16px; font-weight:700; margin-bottom:6px; }
+    .mode-card.selected .mode-card-label { color:var(--accent); }
+    .mode-card-desc { font-size:13px; color:var(--text-dim); line-height:1.5; }
+    .mode-badge { display:inline-block; margin-top:10px; padding:3px 9px; border-radius:4px; font-size:10px; font-weight:700; }
+    .badge-guided { background:var(--green-dim); color:var(--green); }
+    .badge-auto { background:var(--blue-dim); color:var(--blue); }
+
+    /* ── Wizard breadcrumb ── */
+    .wizard-crumb { display:flex; align-items:center; gap:8px; margin-bottom:28px; font-size:13px; color:var(--text-dim); }
+    .crumb-sep { color:var(--text-faint); }
+    .crumb-item { cursor:pointer; padding:2px 8px; border-radius:5px; transition:color .15s; }
+    .crumb-item:hover { color:var(--text); background:var(--surface-2); }
+    .crumb-item.active { color:var(--accent); }
+    .crumb-item.done { color:var(--text); }
+
+    /* ── Step progress bar ── */
+    .wizard-steps-bar { display:flex; align-items:center; gap:0; margin-bottom:32px; }
+    .wsb-step { display:flex; align-items:center; gap:8px; }
+    .wsb-num { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; border:2px solid var(--border); background:var(--surface-2); color:var(--text-dim); flex-shrink:0; transition:all .2s; }
+    .wsb-num.active { border-color:var(--accent); background:var(--accent); color:#111; }
+    .wsb-num.done { border-color:rgba(52,211,153,.4); background:var(--green-dim); color:var(--green); }
+    .wsb-label { font-size:12px; font-weight:600; color:var(--text-dim); white-space:nowrap; }
+    .wsb-label.active { color:var(--accent); }
+    .wsb-label.done { color:var(--text-dim); }
+    .wsb-line { flex:1; height:2px; background:var(--border); margin:0 8px; min-width:20px; }
+    .wsb-line.done { background:rgba(52,211,153,.4); }
+
+    /* ── Section headers ── */
+    .section-heading { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--text-dim); margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+
+    /* ── Alerts ── */
+    .alert { padding:12px 16px; border-radius:8px; font-size:13px; margin-bottom:18px; display:flex; align-items:flex-start; gap:10px; }
+    .alert-info { background:var(--blue-dim); border:1px solid rgba(96,165,250,.25); color:var(--blue); }
+    .alert-warn { background:rgba(251,191,36,.08); border:1px solid rgba(251,191,36,.25); color:var(--yellow); }
+    .alert-success { background:var(--green-dim); border:1px solid rgba(52,211,153,.25); color:var(--green); }
+    .alert-error { background:var(--red-dim); border:1px solid rgba(248,113,113,.25); color:var(--red); }
+    .alert-icon { font-size:16px; flex-shrink:0; margin-top:1px; }
+
+    /* ── Role badge ── */
+    .role-banner { display:flex; align-items:center; gap:10px; padding:10px 16px; background:var(--surface); border:1px solid var(--border); border-radius:8px; margin-bottom:20px; font-size:13px; }
+    .role-badge { padding:2px 9px; border-radius:4px; font-size:11px; font-weight:700; }
+    .role-admin { background:var(--accent-dim); color:var(--accent); }
+    .role-senior { background:var(--blue-dim); color:var(--blue); }
+    .role-junior { background:var(--surface-3); color:var(--text-dim); }
+    .role-viewer { background:var(--surface-3); color:var(--text-faint); }
+
+    /* ── History table ── */
+    .history-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .history-table th { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-dim); text-align:left; padding:8px 14px; border-bottom:1px solid var(--border); }
+    .history-table td { padding:10px 14px; border-bottom:1px solid rgba(42,42,48,.5); }
+    .history-table tr:last-child td { border-bottom:none; }
+    .history-table tr:hover td { background:var(--surface-2); }
+    .status-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:5px; font-size:11px; font-weight:700; }
+    .status-success { background:var(--green-dim); color:var(--green); }
+    .status-failed  { background:var(--red-dim); color:var(--red); }
+    .status-running { background:var(--blue-dim); color:var(--blue); }
+    .status-aborted { background:var(--surface-3); color:var(--text-dim); }
+
+    /* ── Cards ── */
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; }
+
+    /* ── Empty state ── */
+    .empty { text-align:center; padding:56px 24px; color:var(--text-dim); }
+    .empty-icon { font-size:40px; margin-bottom:14px; }
+    .empty h3 { font-size:16px; color:var(--text); margin-bottom:6px; }
+    .empty p { font-size:13px; max-width:420px; margin:0 auto; }
+
+    /* ── Launch section (step 3) ── */
+    .launch-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:32px; max-width:680px; }
+    .launch-mode-badge { display:inline-flex; align-items:center; gap:7px; padding:5px 14px; border-radius:6px; font-size:13px; font-weight:700; margin-bottom:20px; }
+    .launch-mode-guided { background:var(--green-dim); color:var(--green); border:1px solid rgba(52,211,153,.25); }
+    .launch-mode-auto { background:var(--blue-dim); color:var(--blue); border:1px solid rgba(96,165,250,.25); }
+    .launch-title { font-size:20px; font-weight:700; margin-bottom:8px; }
+    .launch-desc { font-size:13px; color:var(--text-dim); line-height:1.6; margin-bottom:24px; }
+    .launch-features { display:flex; flex-direction:column; gap:8px; margin-bottom:28px; }
+    .launch-feature { display:flex; align-items:flex-start; gap:10px; font-size:13px; }
+    .launch-feature-icon { color:var(--green); font-size:14px; flex-shrink:0; margin-top:1px; }
+    .launch-actions { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+
+    /* ── Spinner ── */
+    .spin { display:inline-block; animation:spin 1s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* ── Tag ── */
+    .tag { display:inline-flex; align-items:center; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:700; }
+    .tag-ebs { background:var(--accent-dim); color:var(--accent); }
+    .tag-db { background:var(--blue-dim); color:var(--blue); }
+
+    /* ── Navigation actions ── */
+    .nav-actions { display:flex; gap:10px; margin-top:28px; align-items:center; }
+    .nav-back { color:var(--text-dim); font-size:13px; cursor:pointer; display:flex; align-items:center; gap:5px; }
+    .nav-back:hover { color:var(--text); }
+
+    /* ── Access denied ── */
+    .access-denied { text-align:center; padding:60px 24px; }
+    .access-denied-icon { font-size:48px; margin-bottom:16px; }
+    .access-denied h2 { font-size:20px; font-weight:700; margin-bottom:8px; }
+    .access-denied p { font-size:13px; color:var(--text-dim); max-width:480px; margin:0 auto 24px; }
+
+    /* ── Mobile ── */
+    @media(max-width:768px) {
+      .type-grid, .mode-grid { grid-template-columns:1fr; }
+      .wsb-label { display:none; }
+    }
+  </style>
+</head>
+<body>
+<div class="grain"></div>
+
+<nav>
+  <div class="nav-inner">
+    <a href="/dashboard" class="nav-brand">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      TuneVault
+    </a>
+    <div class="nav-links">
+      <a href="/dashboard" class="nav-link">Dashboard</a>
+      <a href="/db-ops" class="nav-link">DB Ops</a>
+      <a href="/ebs-ops" class="nav-link">EBS Ops</a>
+      <a href="/clone" class="nav-link active">Clone</a>
+      <a href="/fleet" class="nav-link">Fleet</a>
+    </div>
+  </div>
+</nav>
+
+<div class="page-wrap">
+
+  <!-- Header -->
+  <div class="page-header">
+    <h1>🧬 Clone Wizard</h1>
+    <p>Full-stack Oracle clone operations — RMAN database clones and EBS application tier clones. Guided or fully automated.</p>
+  </div>
+
+  <!-- View tabs -->
+  <div class="view-tabs">
+    <button class="view-tab active" onclick="showTab('wizard')">New Clone</button>
+    <button class="view-tab" onclick="showTab('history')">Clone History</button>
+  </div>
+
+  <!-- ══ WIZARD TAB ══ -->
+  <div id="tab-wizard" class="view-panel active">
+
+    <!-- Role banner -->
+    <div id="roleBanner" class="role-banner" style="display:none">
+      <span id="roleBadgeEl" class="role-badge"></span>
+      <span id="roleMsg" style="color:var(--text-dim);font-size:13px"></span>
+    </div>
+
+    <!-- Access denied state (junior_dba / viewer) -->
+    <div id="accessDenied" style="display:none">
+      <div class="access-denied">
+        <div class="access-denied-icon">🔒</div>
+        <h2>Clone Initiation Restricted</h2>
+        <p>Your role only has <strong>view access</strong> to clone history. To initiate a clone, ask your team's Senior DBA or Lead DBA.</p>
+        <button class="btn btn-ghost" onclick="showTab('history')">View Clone History</button>
+      </div>
+    </div>
+
+    <!-- ── Step progress bar ── -->
+    <div id="wizardStepsBar" class="wizard-steps-bar" style="display:none">
+      <div class="wsb-step">
+        <div class="wsb-num" id="wsb1">1</div>
+        <div class="wsb-label" id="wsbl1">Clone Type</div>
+      </div>
+      <div class="wsb-line" id="wsbLine1"></div>
+      <div class="wsb-step">
+        <div class="wsb-num" id="wsb2">2</div>
+        <div class="wsb-label" id="wsbl2">Mode</div>
+      </div>
+      <div class="wsb-line" id="wsbLine2"></div>
+      <div class="wsb-step">
+        <div class="wsb-num" id="wsb3">3</div>
+        <div class="wsb-label" id="wsbl3">Launch</div>
+      </div>
+    </div>
+
+    <!-- ── Step 1: Choose clone type ── -->
+    <div id="step1" class="wizard-step">
+      <div class="section-heading">What do you want to clone?</div>
+      <div class="type-grid">
+
+        <div class="type-card" id="typeCardDb" onclick="selectType('db')">
+          <div class="selected-check">✓</div>
+          <div class="type-card-icon">🗄️</div>
+          <div class="type-card-label">Oracle DB Clone</div>
+          <div class="type-card-desc">RMAN duplicate, Data Pump export/import, or standby-based clone of any Oracle database.</div>
+          <div class="type-card-features">
+            <div class="type-feature">RMAN active duplicate from source</div>
+            <div class="type-feature">RMAN duplicate from backup set</div>
+            <div class="type-feature">Standby/DR-based clone</div>
+            <div class="type-feature">PDB clone (multitenant)</div>
+            <div class="type-feature">Data Pump expdp → impdp</div>
+          </div>
+        </div>
+
+        <div class="type-card" id="typeCardEbs" onclick="selectType('ebs')">
+          <div class="selected-check">✓</div>
+          <div class="type-card-icon">🏗️</div>
+          <div class="type-card-label">Apps Clone (EBS)</div>
+          <div class="type-card-desc">Full EBS application tier clone using adcfgclone.pl, with autoconfig, relink, and post-clone automation.</div>
+          <div class="type-card-features">
+            <div class="type-feature">adcfgclone.pl for Apps tier</div>
+            <div class="type-feature">adcfgclone.pl for DB tier</div>
+            <div class="type-feature">Autoconfig + relink + recompile</div>
+            <div class="type-feature">Site-level profile updates</div>
+            <div class="type-feature">Data masking checklist (V1)</div>
+          </div>
+        </div>
+
+      </div>
+      <div class="nav-actions">
+        <button class="btn btn-primary" id="step1Next" onclick="goStep(2)" disabled>Next: Choose Mode →</button>
+      </div>
+    </div>
+
+    <!-- ── Step 2: Choose mode ── -->
+    <div id="step2" class="wizard-step" style="display:none">
+      <div id="step2Crumb" class="wizard-crumb">
+        <span class="crumb-item done" onclick="goStep(1)">Clone Type</span>
+        <span class="crumb-sep">›</span>
+        <span class="crumb-item active">Mode</span>
+      </div>
+      <div class="section-heading">How do you want to run it?</div>
+      <div class="mode-grid">
+
+        <div class="mode-card" id="modeCardGuided" onclick="selectMode('guided')">
+          <div class="selected-check">✓</div>
+          <div class="mode-card-icon">🧭</div>
+          <div class="mode-card-label">Guided Mode</div>
+          <div class="mode-card-desc">Step-by-step wizard. You review and confirm each phase before proceeding. Pre-flight checks run one at a time. Parameters are editable at every step.</div>
+          <div class="mode-badge badge-guided">Recommended for first runs</div>
+        </div>
+
+        <div class="mode-card" id="modeCardAuto" onclick="selectMode('auto')">
+          <div class="selected-check">✓</div>
+          <div class="mode-card-icon">⚡</div>
+          <div class="mode-card-label">Auto Mode</div>
+          <div class="mode-card-desc">Fill in config upfront, then the clone runs end-to-end with live progress streaming. Pause and abort available at any time.</div>
+          <div class="mode-badge badge-auto">Best for repeat runs</div>
+        </div>
+
+      </div>
+      <div class="nav-actions">
+        <span class="nav-back" onclick="goStep(1)">← Back</span>
+        <button class="btn btn-primary" id="step2Next" onclick="goStep(3)" disabled>Next: Launch →</button>
+      </div>
+    </div>
+
+    <!-- ── Step 3: Launch ── -->
+    <div id="step3" class="wizard-step" style="display:none">
+      <div id="step3Crumb" class="wizard-crumb">
+        <span class="crumb-item done" onclick="goStep(1)">Clone Type</span>
+        <span class="crumb-sep">›</span>
+        <span class="crumb-item done" onclick="goStep(2)">Mode</span>
+        <span class="crumb-sep">›</span>
+        <span class="crumb-item active">Launch</span>
+      </div>
+
+      <div class="launch-card" id="launchCard">
+        <!-- Filled by JS -->
+      </div>
+
+      <div class="nav-actions">
+        <span class="nav-back" onclick="goStep(2)">← Back</span>
+      </div>
+    </div>
+
+  </div><!-- /tab-wizard -->
+
+  <!-- ══ HISTORY TAB ══ -->
+  <div id="tab-history" class="view-panel">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:18px;">
+      <div class="section-heading" style="margin:0">All Clone Runs</div>
+      <button class="btn btn-ghost btn-sm" onclick="loadHistory()">↻ Refresh</button>
+    </div>
+    <div id="historyContainer">
+      <div class="empty"><div class="empty-icon">⏳</div><p>Loading history…</p></div>
+    </div>
+  </div>
+
+</div><!-- /page-wrap -->
+
+<script src="/connection-state.js"></script>
+<script>
+// ── State ───────────────────────────────────────────────────────────────────
+const state = {
+  cloneType: null,   // 'db' | 'ebs'
+  mode: null,        // 'guided' | 'auto'
+  step: 1,
+  role: null,
+  canInitiate: false,
+};
+
+// ── Tabs ─────────────────────────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.view-tab').forEach((t,i) => {
+    const names = ['wizard','history'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'history') loadHistory();
+}
+
+// ── Role check ───────────────────────────────────────────────────────────────
+async function checkRole() {
+  try {
+    const res = await fetch('/api/clone/role');
+    if (!res.ok) return;
+    const data = await res.json();
+    state.role = data.role;
+    state.canInitiate = data.canInitiate;
+
+    const banner = document.getElementById('roleBanner');
+    const badge  = document.getElementById('roleBadgeEl');
+    const msg    = document.getElementById('roleMsg');
+    const bar    = document.getElementById('wizardStepsBar');
+    const ad     = document.getElementById('accessDenied');
+
+    banner.style.display = 'flex';
+
+    const roleLabels = { admin:'Admin', senior_dba:'Senior DBA', junior_dba:'Junior DBA', viewer:'Viewer' };
+    badge.textContent = data.isIndividual ? 'Full Access' : (roleLabels[data.role] || data.role);
+
+    if (data.canInitiate) {
+      badge.className = 'role-badge ' + (data.role === 'admin' ? 'role-admin' : 'role-senior');
+      msg.textContent = 'You can initiate and manage clone operations.';
+      bar.style.display = 'flex';
+      // Show step 1
+      document.querySelectorAll('.wizard-step').forEach(s => s.style.display = 'none');
+      document.getElementById('step1').style.display = 'block';
+      updateStepsBar();
+    } else {
+      badge.className = 'role-badge role-junior';
+      msg.textContent = data.role === 'junior_dba'
+        ? 'Your role can view clone history but cannot initiate clones.'
+        : 'You have view-only access to clone history.';
+      ad.style.display = 'block';
+    }
+  } catch(e) {
+    console.error('role check failed:', e);
+    // Fail open — show wizard
+    state.canInitiate = true;
+    document.getElementById('wizardStepsBar').style.display = 'flex';
+    document.getElementById('step1').style.display = 'block';
+  }
+}
+
+// ── Step navigation ──────────────────────────────────────────────────────────
+function goStep(n) {
+  state.step = n;
+  document.querySelectorAll('.wizard-step').forEach(s => s.style.display = 'none');
+  document.getElementById('step' + n).style.display = 'block';
+  updateStepsBar();
+  if (n === 3) renderLaunchCard();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateStepsBar() {
+  const n = state.step;
+  for (let i = 1; i <= 3; i++) {
+    const num = document.getElementById('wsb' + i);
+    const lbl = document.getElementById('wsbl' + i);
+    if (!num) continue;
+    if (i < n) {
+      num.className = 'wsb-num done';
+      num.textContent = '✓';
+      lbl.className = 'wsb-label done';
+    } else if (i === n) {
+      num.className = 'wsb-num active';
+      num.textContent = String(i);
+      lbl.className = 'wsb-label active';
+    } else {
+      num.className = 'wsb-num';
+      num.textContent = String(i);
+      lbl.className = 'wsb-label';
+    }
+  }
+  // Lines
+  for (let i = 1; i <= 2; i++) {
+    const line = document.getElementById('wsbLine' + i);
+    if (line) line.className = 'wsb-line' + (i < n ? ' done' : '');
+  }
+}
+
+// ── Type selection ────────────────────────────────────────────────────────────
+function selectType(t) {
+  state.cloneType = t;
+  document.getElementById('typeCardDb').classList.toggle('selected', t === 'db');
+  document.getElementById('typeCardEbs').classList.toggle('selected', t === 'ebs');
+  document.getElementById('step1Next').disabled = false;
+}
+
+// ── Mode selection ────────────────────────────────────────────────────────────
+function selectMode(m) {
+  state.mode = m;
+  document.getElementById('modeCardGuided').classList.toggle('selected', m === 'guided');
+  document.getElementById('modeCardAuto').classList.toggle('selected', m === 'auto');
+  document.getElementById('step2Next').disabled = false;
+}
+
+// ── Launch card renderer ──────────────────────────────────────────────────────
+function renderLaunchCard() {
+  const isDb  = state.cloneType === 'db';
+  const isGuided = state.mode === 'guided';
+
+  const targetPage = isDb ? '/db-clone' : '/ebs-clone';
+  const targetUrl  = targetPage + '?mode=' + state.mode;
+
+  const typeLabel = isDb ? 'Oracle DB Clone' : 'EBS Apps Clone';
+  const typeIcon  = isDb ? '🗄️' : '🏗️';
+  const modeLabel = isGuided ? 'Guided Mode' : 'Auto Mode';
+  const modeClass = isGuided ? 'launch-mode-guided' : 'launch-mode-auto';
+  const modeIcon  = isGuided ? '🧭' : '⚡';
+
+  const guidedFeatures = isDb ? [
+    'Source & target connection picker',
+    'Pre-flight checks (disk space, RMAN config, archive log mode)',
+    'Clone method selector (Live, Standby, Backup, Data Pump)',
+    'Step-by-step execution with confirm gates',
+    'Post-clone checklist (passwords, DBNEWID, tnsnames, DB links)',
+    'Recipe saved for replay',
+  ] : [
+    'Source & target EBS connection picker',
+    'Pre-flight checks (disk space, context file, connectivity)',
+    'adcfgclone.pl Apps tier & DB tier wizard',
+    'Autoconfig + relink + recompile invalids',
+    'Site-level profile updates (s_webhost, s_webport, etc.)',
+    'Data masking checklist prompt',
+    'Concurrent Manager restart post-clone',
+  ];
+
+  const autoFeatures = isDb ? [
+    'Fill config upfront: source, target, method, SSH target',
+    'End-to-end automated execution with live terminal output',
+    'Pause or abort at any time',
+    'TuneOps ticket auto-created on start, closed on finish',
+    'Failure alert via configured channels',
+  ] : [
+    'Configure source, target, and post-clone options upfront',
+    'Automated adcfgclone.pl pipeline with streaming output',
+    'Pause or abort at any time',
+    'TuneOps ticket auto-created on start, closed on finish',
+    'Failure alert via configured channels',
+  ];
+
+  const features = isGuided ? guidedFeatures : autoFeatures;
+
+  document.getElementById('launchCard').innerHTML = `
+    <div class="launch-mode-badge ${modeClass}">${modeIcon} ${modeLabel}</div>
+    <div class="launch-title">${typeIcon} ${typeLabel} — ${modeLabel}</div>
+    <div class="launch-desc">${getLaunchDesc(isDb, isGuided)}</div>
+    <div class="launch-features">
+      ${features.map(f => `<div class="launch-feature"><span class="launch-feature-icon">✓</span>${esc(f)}</div>`).join('')}
+    </div>
+    <div class="launch-actions">
+      <button class="btn btn-primary" style="font-size:15px;padding:11px 24px" onclick="launchWizard('${esc(targetUrl)}')">
+        Launch ${modeLabel} →
+      </button>
+      <span style="font-size:12px;color:var(--text-faint)">Opens the ${typeLabel} wizard in ${isGuided ? 'guided' : 'auto'} mode</span>
+    </div>
+  `;
+}
+
+function getLaunchDesc(isDb, isGuided) {
+  if (isDb && isGuided) return 'Walk through each clone phase step by step. Every pre-flight check runs individually, you confirm each execution phase, and can edit parameters at any point. Best for first-time clones or unfamiliar environments.';
+  if (isDb && !isGuided) return 'Configure source, target, method, and SSH credentials once. The wizard runs all pre-flight checks, executes the clone, and runs post-clone steps automatically. Pause or abort via the controls in the progress panel.';
+  if (!isDb && isGuided) return 'Guided EBS clone via adcfgclone.pl. Walk through Apps tier clone, DB tier clone, autoconfig, and post-clone steps one at a time with confirmation at each phase. Site profiles and Concurrent Manager restart are included.';
+  return 'Configure the full EBS clone upfront — source, target, SSH credentials, and post-clone options. Runs adcfgclone.pl end-to-end with live streaming output. Pause or abort during execution.';
+}
+
+function launchWizard(url) {
+  window.location.href = url;
+}
+
+// ── History ──────────────────────────────────────────────────────────────────
+async function loadHistory() {
+  document.getElementById('historyContainer').innerHTML =
+    '<div class="empty"><div class="empty-icon"><span class="spin">⏳</span></div><p>Loading…</p></div>';
+  try {
+    const res = await fetch('/api/clone/history?limit=100');
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Failed');
+    const { history } = data;
+
+    if (!history.length) {
+      document.getElementById('historyContainer').innerHTML = `
+        <div class="empty">
+          <div class="empty-icon">📋</div>
+          <h3>No clone runs yet</h3>
+          <p>Start a new clone from the "New Clone" tab and runs will appear here.</p>
+        </div>`;
+      return;
+    }
+
+    document.getElementById('historyContainer').innerHTML = `
+      <div class="card" style="padding:0;overflow:hidden">
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th>Source → Target</th>
+              <th>Recipe</th>
+              <th>Status</th>
+              <th>Duration</th>
+              <th>Started By</th>
+              <th>Started At</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${history.map(h => renderHistoryRow(h)).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  } catch(e) {
+    document.getElementById('historyContainer').innerHTML =
+      `<div class="alert alert-error"><span class="alert-icon">⚠</span>${esc(e.message)}</div>`;
+  }
+}
+
+function renderHistoryRow(h) {
+  const src = esc(h.source_display_name || '—');
+  const tgt = esc(h.target_display_name || '—');
+  const recipe = h.recipe_name ? esc(h.recipe_name) : (h.recipe_id ? '#' + h.recipe_id : '—');
+  const dur = h.duration_ms ? (h.duration_ms < 60000
+    ? Math.round(h.duration_ms / 1000) + 's'
+    : Math.round(h.duration_ms / 60000) + 'm') : '—';
+  const date = h.started_at ? new Date(h.started_at).toLocaleString() : '—';
+  const badge = h.status
+    ? `<span class="status-badge status-${h.status.toLowerCase()}">${esc(h.status)}</span>`
+    : '<span class="status-badge status-aborted">—</span>';
+  return `<tr>
+    <td><span style="font-family:'JetBrains Mono',monospace;font-size:11px">${src} → ${tgt}</span></td>
+    <td style="font-size:12px;color:var(--text-dim)">${recipe}</td>
+    <td>${badge}</td>
+    <td style="font-size:12px;font-family:'JetBrains Mono',monospace">${dur}</td>
+    <td style="font-size:12px;color:var(--text-dim)">${esc(h.started_by_email || '—')}</td>
+    <td style="font-size:12px;color:var(--text-dim)">${date}</td>
+  </tr>`;
+}
+
+// ── Utility ──────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+checkRole();
+</script>
+</body>
+</html>

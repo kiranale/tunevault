@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Payment Test — TuneVault Admin</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0c;
+            --surface: #111114;
+            --surface-2: #1a1a1f;
+            --border: #2a2a30;
+            --text: #e8e8ed;
+            --text-dim: #9898a8;
+            --accent: #f0a830;
+            --accent-dim: rgba(240, 168, 48, 0.12);
+            --green: #34d399;
+            --green-dim: rgba(52, 211, 153, 0.12);
+            --red: #f87171;
+            --red-dim: rgba(248, 113, 113, 0.12);
+            --amber: #fbbf24;
+            --amber-dim: rgba(251, 191, 36, 0.12);
+            --blue: #60a5fa;
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 48px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: var(--text);
+        }
+
+        .logo-icon {
+            width: 26px; height: 26px;
+            background: var(--accent);
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px; font-weight: 700;
+            color: var(--bg);
+        }
+
+        .nav-links { display: flex; gap: 8px; }
+
+        .nav-link {
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            color: var(--text-dim);
+            transition: color 0.15s, background 0.15s;
+        }
+
+        .nav-link:hover { color: var(--text); background: var(--surface-2); }
+
+        .main {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 48px 24px 80px;
+        }
+
+        .page-header {
+            margin-bottom: 32px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            padding: 4px 10px;
+            border-radius: 6px;
+            background: var(--amber-dim);
+            color: var(--amber);
+            border: 1px solid rgba(251, 191, 36, 0.25);
+            margin-bottom: 14px;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            font-size: 15px;
+            color: var(--text-dim);
+        }
+
+        /* Amber warning banner */
+        .warning-banner {
+            background: var(--amber-dim);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: 12px;
+            padding: 20px 24px;
+            margin-bottom: 32px;
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+        }
+
+        .warning-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .warning-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--amber);
+            margin-bottom: 6px;
+        }
+
+        .warning-body {
+            font-size: 14px;
+            color: rgba(251, 191, 36, 0.85);
+            line-height: 1.6;
+        }
+
+        /* Main card */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 32px;
+            margin-bottom: 24px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+
+        .card-desc {
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 28px;
+            line-height: 1.6;
+        }
+
+        /* Action button */
+        .btn-run {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            padding: 16px 24px;
+            border-radius: 10px;
+            border: none;
+            background: var(--accent);
+            color: #000;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.15s, transform 0.1s;
+        }
+
+        .btn-run:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+        .btn-run:active:not(:disabled) { transform: translateY(0); }
+        .btn-run:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+        .btn-amount-badge {
+            background: rgba(0,0,0,0.2);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        /* Progress/step UI */
+        .steps {
+            display: none;
+            margin-top: 28px;
+            border-top: 1px solid var(--border);
+            padding-top: 24px;
+        }
+
+        .step {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            padding: 12px 0;
+        }
+
+        .step + .step {
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .step-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .step-icon.pending { background: var(--surface-2); color: var(--text-dim); }
+        .step-icon.running { background: rgba(96,165,250,0.15); color: var(--blue); }
+        .step-icon.done    { background: var(--green-dim); color: var(--green); }
+        .step-icon.error   { background: var(--red-dim); color: var(--red); }
+
+        .step-text {
+            flex: 1;
+        }
+
+        .step-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 2px;
+        }
+
+        .step-detail {
+            font-size: 13px;
+            color: var(--text-dim);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Result cards */
+        .result-card {
+            display: none;
+            border-radius: 12px;
+            padding: 24px;
+            margin-top: 0;
+        }
+
+        .result-card.success {
+            background: var(--green-dim);
+            border: 1px solid rgba(52, 211, 153, 0.25);
+        }
+
+        .result-card.error {
+            background: var(--red-dim);
+            border: 1px solid rgba(248, 113, 113, 0.25);
+        }
+
+        .result-card.warning {
+            background: var(--amber-dim);
+            border: 1px solid rgba(251, 191, 36, 0.25);
+        }
+
+        .result-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .result-card.success .result-title { color: var(--green); }
+        .result-card.error   .result-title { color: var(--red); }
+        .result-card.warning .result-title { color: var(--amber); }
+
+        .id-grid {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 6px 16px;
+            margin-bottom: 16px;
+        }
+
+        .id-label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-dim);
+            white-space: nowrap;
+            padding-top: 2px;
+        }
+
+        .id-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: var(--text);
+            word-break: break-all;
+        }
+
+        .id-value a {
+            color: var(--blue);
+            text-decoration: none;
+        }
+
+        .id-value a:hover { text-decoration: underline; }
+
+        .id-value .check { color: var(--green); margin-right: 4px; }
+
+        .result-note {
+            font-size: 12px;
+            color: var(--text-dim);
+            padding-top: 12px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            line-height: 1.6;
+        }
+
+        .result-action {
+            margin-top: 14px;
+        }
+
+        .btn-retry {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--surface-2);
+            color: var(--text);
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.15s;
+        }
+
+        .btn-retry:hover { background: #222228; }
+
+        /* Spinner */
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner {
+            width: 16px; height: 16px;
+            border: 2px solid rgba(0,0,0,0.2);
+            border-top-color: #000;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+        }
+
+        .spinner.light {
+            border: 2px solid rgba(255,255,255,0.15);
+            border-top-color: var(--blue);
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/" class="logo">
+            <div class="logo-icon">TV</div>
+            TuneVault
+        </a>
+        <div class="nav-links">
+            <a href="/admin/users" class="nav-link">Users</a>
+            <a href="/admin/payment-test" class="nav-link">Payment Tests</a>
+            <a href="/dashboard" class="nav-link">Dashboard</a>
+        </div>
+    </nav>
+
+    <div class="main">
+        <div class="page-header">
+            <div class="badge">⚡ Admin Only</div>
+            <h1>Live Payment Validation</h1>
+            <p class="subtitle">End-to-end validation of the live Razorpay integration — real card, real charge, automatic refund.</p>
+        </div>
+
+        <!-- Warning banner -->
+        <div class="warning-banner">
+            <div class="warning-icon">⚠️</div>
+            <div>
+                <div class="warning-title">This charges ₹1 to your real card</div>
+                <div class="warning-body">
+                    This will initiate a live ₹1 (100 paise) charge via the <strong>LIVE Razorpay key</strong> — not test mode.
+                    The payment is immediately refunded via the Razorpay Refunds API within ~5 seconds of capture.
+                    Use only for live integration validation. Check your Razorpay dashboard to confirm the refund was processed.
+                </div>
+            </div>
+        </div>
+
+        <!-- Main card -->
+        <div class="card">
+            <div class="card-title">Run Live Payment Test</div>
+            <div class="card-desc">
+                Clicking the button will create a ₹1 Razorpay order, open the checkout modal with your admin email pre-filled,
+                then automatically refund the captured payment. All four IDs (order, payment, signature, refund) will be displayed
+                on success.
+            </div>
+
+            <button class="btn-run" id="runBtn" onclick="runLiveTest()">
+                <span id="btnContent">
+                    Run Live Payment Test
+                    <span class="btn-amount-badge">₹1</span>
+                </span>
+            </button>
+
+            <!-- Step-by-step progress -->
+            <div class="steps" id="stepsContainer">
+                <div class="step" id="step-order">
+                    <div class="step-icon pending" id="step-order-icon">1</div>
+                    <div class="step-text">
+                        <div class="step-label">Creating ₹1 order</div>
+                        <div class="step-detail" id="step-order-detail">Waiting…</div>
+                    </div>
+                </div>
+                <div class="step" id="step-checkout">
+                    <div class="step-icon pending" id="step-checkout-icon">2</div>
+                    <div class="step-text">
+                        <div class="step-label">Razorpay checkout</div>
+                        <div class="step-detail" id="step-checkout-detail">Waiting for order…</div>
+                    </div>
+                </div>
+                <div class="step" id="step-verify">
+                    <div class="step-icon pending" id="step-verify-icon">3</div>
+                    <div class="step-text">
+                        <div class="step-label">Signature verify + refund</div>
+                        <div class="step-detail" id="step-verify-detail">Waiting for payment…</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Result: success -->
+        <div class="result-card success" id="resultSuccess">
+            <div class="result-title">✅ Live payment validated &amp; refunded</div>
+            <div class="id-grid" id="successIdGrid">
+                <!-- populated by JS -->
+            </div>
+            <div class="result-note" id="successNote"></div>
+            <div class="result-action">
+                <button class="btn-retry" onclick="resetTest()">↩ Run again</button>
+                <a class="btn-retry" href="https://dashboard.razorpay.com/app/payments" target="_blank" rel="noopener" style="margin-left:8px;">
+                    Open Razorpay Dashboard ↗
+                </a>
+            </div>
+        </div>
+
+        <!-- Result: error -->
+        <div class="result-card error" id="resultError">
+            <div class="result-title">❌ Test failed</div>
+            <div id="errorMessage" style="font-size:14px;color:var(--red);margin-bottom:12px;"></div>
+            <div id="errorStep" style="font-size:13px;color:var(--text-dim);margin-bottom:16px;"></div>
+            <div class="result-action">
+                <button class="btn-retry" onclick="resetTest()">↩ Try again</button>
+            </div>
+        </div>
+
+        <!-- Result: payment success but refund failed -->
+        <div class="result-card warning" id="resultRefundFailed">
+            <div class="result-title">⚠️ Payment captured — refund failed</div>
+            <div style="font-size:14px;color:var(--amber);margin-bottom:12px;" id="refundFailMsg"></div>
+            <div class="id-grid" id="refundFailGrid"></div>
+            <div class="result-note">
+                Action required: the payment was captured but the auto-refund failed.
+                Please manually refund ₹1 via your <a href="https://dashboard.razorpay.com/app/payments" target="_blank" rel="noopener" style="color:var(--blue);">Razorpay Dashboard</a>.
+            </div>
+            <div class="result-action">
+                <button class="btn-retry" onclick="resetTest()">↩ Try again</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // ── State ──────────────────────────────────────────────────────────────────
+    let currentOrderId = null;
+    let adminEmail     = null;
+
+    // ── DOM helpers ─────────────────────────────────────────────────────────────
+    function setStepState(stepId, state, detail) {
+        const icon   = document.getElementById(`step-${stepId}-icon`);
+        const detEl  = document.getElementById(`step-${stepId}-detail`);
+        icon.className = `step-icon ${state}`;
+
+        const icons = { pending: stepId === 'order' ? '1' : stepId === 'checkout' ? '2' : '3', running: '…', done: '✓', error: '✕' };
+        icon.textContent = icons[state] || icons.pending;
+        if (detail) detEl.textContent = detail;
+    }
+
+    function showResult(type) {
+        document.getElementById('resultSuccess').style.display     = type === 'success'      ? 'block' : 'none';
+        document.getElementById('resultError').style.display       = type === 'error'        ? 'block' : 'none';
+        document.getElementById('resultRefundFailed').style.display = type === 'refundFailed' ? 'block' : 'none';
+    }
+
+    function setIdGrid(gridId, rows) {
+        const grid = document.getElementById(gridId);
+        grid.innerHTML = rows.map(([label, value]) =>
+            `<div class="id-label">${label}</div><div class="id-value">${value}</div>`
+        ).join('');
+    }
+
+    function showError(message, stepLabel) {
+        document.getElementById('errorMessage').textContent = message;
+        document.getElementById('errorStep').textContent   = stepLabel ? `Failed at: ${stepLabel}` : '';
+        showResult('error');
+    }
+
+    // ── Fetch helpers ───────────────────────────────────────────────────────────
+    async function apiPost(path, body) {
+        const res = await fetch(path, {
+            method : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body   : JSON.stringify(body),
+        });
+        const data = await res.json();
+        return { ok: res.ok, status: res.status, data };
+    }
+
+    // ── Get admin email for pre-filling checkout ────────────────────────────────
+    async function getAdminEmail() {
+        try {
+            const res  = await fetch('/api/user-credits');
+            if (!res.ok) return null;
+            // Email not in user-credits; try a simple profile endpoint
+            const res2 = await fetch('/api/auth/me');
+            if (!res2.ok) return null;
+            const d    = await res2.json();
+            return d.email || null;
+        } catch { return null; }
+    }
+
+    // ── Main flow ─────────────────────────────────────────────────────────────────
+    async function runLiveTest() {
+        const btn = document.getElementById('runBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Starting…';
+
+        // Reset results
+        showResult(null);
+        document.getElementById('stepsContainer').style.display = 'block';
+        setStepState('order',    'running', 'Calling create-order…');
+        setStepState('checkout', 'pending', 'Waiting for order…');
+        setStepState('verify',   'pending', 'Waiting for payment…');
+
+        // ── Step 1: Create order ─────────────────────────────────────────────────
+        let orderData;
+        try {
+            const { ok, data } = await apiPost('/api/admin/live-test/create-order', {});
+            if (!ok) {
+                setStepState('order', 'error', data.error || 'Order creation failed');
+                showError(data.error || 'Order creation failed', 'Create ₹1 order');
+                btn.disabled = false;
+                btn.innerHTML = 'Run Live Payment Test <span class="btn-amount-badge">₹1</span>';
+                return;
+            }
+            orderData = data;
+            currentOrderId = data.order_id;
+            setStepState('order', 'done', `Order: ${data.order_id}`);
+        } catch (err) {
+            setStepState('order', 'error', err.message);
+            showError(`Network error creating order: ${err.message}`, 'Create ₹1 order');
+            btn.disabled = false;
+            btn.innerHTML = 'Run Live Payment Test <span class="btn-amount-badge">₹1</span>';
+            return;
+        }
+
+        // ── Step 2: Open Razorpay checkout modal ─────────────────────────────────
+        if (!adminEmail) {
+            adminEmail = await getAdminEmail();
+        }
+
+        setStepState('checkout', 'running', 'Razorpay modal open — complete payment on your card');
+        btn.innerHTML = '<span class="spinner"></span> Checkout open…';
+
+        await new Promise((resolve, reject) => {
+            const options = {
+                key          : orderData.key_id,
+                amount       : orderData.amount,
+                currency     : orderData.currency,
+                name         : 'TuneVault',
+                description  : 'Live integration validation (₹1 auto-refund)',
+                order_id     : orderData.order_id,
+                prefill      : {
+                    email: adminEmail || '',
+                    name : 'TuneVault Admin',
+                },
+                theme        : { color: '#f0a830' },
+
+                handler: async function(response) {
+                    setStepState('checkout', 'done', `Payment: ${response.razorpay_payment_id}`);
+                    setStepState('verify', 'running', 'Verifying signature and initiating refund…');
+                    btn.innerHTML = '<span class="spinner"></span> Refunding…';
+
+                    // ── Step 3: Verify + refund ──────────────────────────────────────────
+                    try {
+                        const { ok, status, data } = await apiPost('/api/admin/live-test/verify-and-refund', {
+                            razorpay_payment_id : response.razorpay_payment_id,
+                            razorpay_order_id   : response.razorpay_order_id,
+                            razorpay_signature  : response.razorpay_signature,
+                        });
+
+                        if (status === 207) {
+                            // Payment OK, refund failed
+                            setStepState('verify', 'error', `Refund failed: ${data.refund_error}`);
+                            document.getElementById('refundFailMsg').textContent = data.refund_error || 'Refund API returned an error';
+                            setIdGrid('refundFailGrid', [
+                                ['Order ID',    data.order_id   || orderData.order_id],
+                                ['Payment ID',  data.payment_id || response.razorpay_payment_id],
+                                ['Sig Verified', '✓ Yes'],
+                            ]);
+                            showResult('refundFailed');
+                        } else if (!ok) {
+                            setStepState('verify', 'error', data.error || 'Verify/refund failed');
+                            showError(data.error || 'Verification failed', 'Verify + refund');
+                        } else {
+                            // Full success
+                            setStepState('verify', 'done', `Refund ${data.refund_id} — status: ${data.refund_status}`);
+                            setIdGrid('successIdGrid', [
+                                ['Order ID',   `<a href="https://dashboard.razorpay.com/app/orders/${data.order_id}" target="_blank" rel="noopener">${data.order_id}</a>`],
+                                ['Payment ID', `<a href="https://dashboard.razorpay.com/app/payments/${data.payment_id}" target="_blank" rel="noopener">${data.payment_id}</a>`],
+                                ['Signature',  '<span class="check">✓</span>Verified'],
+                                ['Refund ID',  `<a href="https://dashboard.razorpay.com/app/refunds" target="_blank" rel="noopener">${data.refund_id}</a>`],
+                                ['Refund',     `₹${(data.refund_amount / 100).toFixed(2)} — <em>${data.refund_status}</em>`],
+                            ]);
+                            document.getElementById('successNote').textContent = data.note || '';
+                            showResult('success');
+                        }
+                    } catch (err) {
+                        setStepState('verify', 'error', err.message);
+                        showError(`Network error during verify/refund: ${err.message}`, 'Verify + refund');
+                    }
+
+                    resolve();
+                },
+
+                modal: {
+                    ondismiss: function() {
+                        setStepState('checkout', 'error', 'Modal dismissed — no payment made');
+                        showError('Checkout was dismissed before payment. No charge was made.', 'Razorpay checkout');
+                        resolve();
+                    }
+                },
+            };
+
+            const rzp = new window.Razorpay(options);
+
+            rzp.on('payment.failed', function(response) {
+                const desc = response?.error?.description || response?.error?.reason || 'Payment failed';
+                setStepState('checkout', 'error', desc);
+                showError(`Payment failed: ${desc}`, 'Razorpay checkout');
+                resolve();
+            });
+
+            rzp.open();
+        });
+
+        btn.disabled = false;
+        btn.innerHTML = 'Run Live Payment Test <span class="btn-amount-badge">₹1</span>';
+    }
+
+    function resetTest() {
+        currentOrderId = null;
+        showResult(null);
+        document.getElementById('stepsContainer').style.display = 'none';
+        setStepState('order',    'pending', 'Waiting…');
+        setStepState('checkout', 'pending', 'Waiting for order…');
+        setStepState('verify',   'pending', 'Waiting for payment…');
+        const btn = document.getElementById('runBtn');
+        btn.disabled = false;
+        btn.innerHTML = 'Run Live Payment Test <span class="btn-amount-badge">₹1</span>';
+    }
+    </script>
+</body>
+</html>

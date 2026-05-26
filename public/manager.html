@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Manager Dashboard — TuneVault</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <script src="/nav-component.js"></script>
+  <style>
+    :root {
+      --bg:       #0a0a0c;
+      --surface:  #111114;
+      --surface2: #17171b;
+      --border:   rgba(255,255,255,0.08);
+      --text:     #e8e8ed;
+      --text-dim: #b8b8c8;
+      --accent:   #f0a830;
+      --green:    #10b981;
+      --amber:    #f59e0b;
+      --red:      #ef4444;
+      --blue:     #3b82f6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, sans-serif; min-height: 100vh; }
+    /* Container only — padding, flex, and height set by nav-component.js inline styles */
+    nav { background: rgba(17,17,20,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 9999; }
+
+    /* Page layout */
+    .page-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .page-title { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+    .page-title .badge { font-size: 11px; background: rgba(240,168,48,0.15); color: var(--accent); border: 1px solid rgba(240,168,48,0.3); border-radius: 4px; padding: 2px 8px; font-weight: 500; }
+    .page-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    .main { max-width: 1400px; margin: 0 auto; padding: 24px 32px; display: flex; flex-direction: column; gap: 24px; }
+
+    /* Section */
+    .section-label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-dim); margin-bottom: 12px; font-weight: 600; }
+
+    /* Grid */
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    @media(max-width:1100px) { .grid-4 { grid-template-columns: repeat(2,1fr); } }
+    @media(max-width:760px) { .grid-4, .grid-2, .grid-3 { grid-template-columns: 1fr; } .main { padding: 16px; } }
+
+    /* Cards */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+    .card-sm { padding: 16px; }
+
+    /* KPI tile */
+    .kpi-tile { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 16px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: border-color .2s; }
+    .kpi-tile:hover { border-color: rgba(240,168,48,0.4); }
+    .kpi-value { font-size: 36px; font-weight: 800; line-height: 1; }
+    .kpi-label { font-size: 12px; color: var(--text-dim); }
+    .kpi-sub   { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+    .score-green  { color: var(--green); }
+    .score-amber  { color: var(--amber); }
+    .score-red    { color: var(--red); }
+    .score-gray   { color: var(--text-dim); }
+
+    /* Chart container */
+    .chart-wrap { position: relative; height: 200px; }
+    canvas { max-width: 100%; }
+
+    /* Incident severity pills */
+    .sev-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+    .sev-pill { border-radius: 8px; padding: 12px 8px; text-align: center; }
+    .sev-pill .count { font-size: 28px; font-weight: 800; }
+    .sev-pill .name  { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; margin-top: 2px; }
+    .sev-critical { background: rgba(239,68,68,.12); color: #ef4444; }
+    .sev-high     { background: rgba(245,158,11,.12); color: #f59e0b; }
+    .sev-medium   { background: rgba(59,130,246,.12); color: #60a5fa; }
+    .sev-low      { background: rgba(16,185,129,.12); color: #10b981; }
+
+    /* Calendar */
+    .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; }
+    .cal-header { font-size: 10px; text-align: center; color: var(--text-dim); padding: 4px 0; font-weight: 600; text-transform: uppercase; }
+    .cal-day { min-height: 72px; border: 1px solid var(--border); border-radius: 6px; padding: 4px; font-size: 10px; background: var(--surface2); }
+    .cal-day.today { border-color: rgba(240,168,48,0.4); }
+    .cal-day.other-month { opacity: 0.35; }
+    .cal-day-num { font-weight: 600; color: var(--text-dim); margin-bottom: 3px; }
+    .cal-event { border-radius: 3px; padding: 1px 4px; margin-bottom: 2px; font-size: 9px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default; }
+    .cal-event-clone    { background: rgba(59,130,246,.25); color: #93c5fd; }
+    .cal-event-hc       { background: rgba(16,185,129,.2);  color: #6ee7b7; }
+    .cal-event-scheduled { background: rgba(240,168,48,.15); color: var(--accent); }
+    .cal-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .cal-nav button { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 5px 12px; cursor: pointer; font-size: 13px; transition: border-color .2s; }
+    .cal-nav button:hover { border-color: var(--accent); }
+    .cal-month-label { font-size: 14px; font-weight: 700; flex: 1; }
+
+    /* Audit table */
+    .audit-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .audit-table th { padding: 8px 10px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); border-bottom: 1px solid var(--border); font-weight: 600; }
+    .audit-table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
+    .audit-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .audit-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .audit-filters input, .audit-filters select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 5px 10px; font-size: 12px; }
+
+    /* Instance strip */
+    .strip-scroll { overflow-x: auto; padding-bottom: 4px; }
+    .strip { display: flex; gap: 12px; min-width: max-content; }
+    .instance-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; width: 180px; flex-shrink: 0; cursor: pointer; transition: border-color .2s, transform .2s; text-decoration: none; color: var(--text); }
+    .instance-card:hover { border-color: rgba(240,168,48,0.4); transform: translateY(-2px); }
+    .instance-card .inst-name { font-size: 13px; font-weight: 700; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .instance-card .inst-score { font-size: 28px; font-weight: 800; }
+    .instance-card .inst-meta  { font-size: 10px; color: var(--text-dim); margin-top: 4px; }
+    .inst-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+    .dot-ok    { background: var(--green); }
+    .dot-amber { background: var(--amber); }
+    .dot-red   { background: var(--red); }
+    .dot-stale { background: #888; }
+    .dot-never { background: #555; }
+
+    /* Buttons */
+    .btn { padding: 8px 18px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 7px; transition: opacity .2s, transform .2s; }
+    .btn:hover { opacity: .88; transform: translateY(-1px); }
+    .btn-gold { background: var(--accent); color: #0a0a0c; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-sm { padding: 5px 12px; font-size: 12px; }
+
+    /* MTTR callout */
+    .mttr-callout { background: rgba(59,130,246,.08); border: 1px solid rgba(59,130,246,.2); border-radius: 8px; padding: 14px 18px; font-size: 13px; color: #93c5fd; margin-bottom: 12px; }
+
+    /* Loading / error */
+    .loading { color: var(--text-dim); font-size: 13px; padding: 16px 0; }
+    .error-msg { color: var(--red); font-size: 12px; padding: 8px 0; }
+
+    /* Pagination */
+    .pagination { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 12px; color: var(--text-dim); }
+    .pagination button { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 5px; padding: 3px 10px; cursor: pointer; font-size: 12px; }
+    .pagination button:disabled { opacity: .4; cursor: default; }
+
+    /* Result badges */
+    .badge-success { background: rgba(16,185,129,.15); color: var(--green); border-radius: 4px; padding: 1px 7px; font-size: 10px; font-weight: 600; }
+    .badge-failed  { background: rgba(239,68,68,.15);  color: var(--red);   border-radius: 4px; padding: 1px 7px; font-size: 10px; font-weight: 600; }
+    .badge-pending { background: rgba(245,158,11,.12); color: var(--amber); border-radius: 4px; padding: 1px 7px; font-size: 10px; font-weight: 600; }
+
+    /* PDF button hover */
+    #pdf-btn { font-size: 14px; padding: 10px 22px; }
+
+    /* Stale warning */
+    .stale-warn { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #fca5a5; margin-bottom: 16px; display: none; }
+
+    /* Access denied */
+    #access-denied { display: none; }
+  </style>
+</head>
+<body>
+  <nav id="nav-root"></nav>
+
+  <div id="access-denied" style="max-width:480px;margin:80px auto;text-align:center;padding:32px;">
+    <div style="font-size:40px;margin-bottom:16px;">🔒</div>
+    <div style="font-size:18px;font-weight:700;margin-bottom:8px;">Manager Access Required</div>
+    <div style="font-size:14px;color:var(--text-dim);margin-bottom:20px;">This dashboard is for users with role <strong>manager</strong>, <strong>sdm</strong>, or <strong>admin</strong>. Contact your system administrator to request access.</div>
+    <a href="/dashboard" class="btn btn-gold">Back to Dashboard</a>
+  </div>
+
+  <div id="manager-app" style="display:none;">
+    <div class="page-header">
+      <div class="page-title">
+        <span>📊</span>
+        <span>Manager Dashboard</span>
+        <span class="badge">Executive View</span>
+      </div>
+      <div class="page-actions">
+        <button class="btn btn-outline btn-sm" onclick="refreshAll()">↻ Refresh</button>
+        <button id="pdf-btn" class="btn btn-gold" onclick="generatePdf()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Generate Weekly PDF
+        </button>
+      </div>
+    </div>
+
+    <div class="main">
+      <!-- Row 1: Fleet Score + Incident Counts -->
+      <div>
+        <div class="section-label">Fleet Health</div>
+        <div class="grid-4">
+          <div class="kpi-tile" id="tile-score" onclick="scrollToInstances()">
+            <div class="kpi-value score-gray" id="fleet-score">—</div>
+            <div class="kpi-label">Fleet Health Score</div>
+            <div class="kpi-sub" id="fleet-score-sub">Loading…</div>
+          </div>
+          <div class="kpi-tile" onclick="filterAuditBySeverity('critical')">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;" id="incident-tiles">
+              <div class="sev-pill sev-critical">
+                <div class="count" id="cnt-critical">—</div>
+                <div class="name">Critical</div>
+              </div>
+              <div class="sev-pill sev-high">
+                <div class="count" id="cnt-high">—</div>
+                <div class="name">High</div>
+              </div>
+            </div>
+            <div class="kpi-label" style="margin-top:8px;">Open Incidents</div>
+          </div>
+          <div class="kpi-tile">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <div class="sev-pill sev-medium">
+                <div class="count" id="cnt-medium">—</div>
+                <div class="name">Medium</div>
+              </div>
+              <div class="sev-pill sev-low">
+                <div class="count" id="cnt-low">—</div>
+                <div class="name">Low</div>
+              </div>
+            </div>
+            <div class="kpi-label" style="margin-top:8px;">Other Findings</div>
+          </div>
+          <div class="kpi-tile">
+            <div class="kpi-value" id="cnt-instances" style="color:var(--blue);">—</div>
+            <div class="kpi-label">Instances Monitored</div>
+            <div class="kpi-sub" id="stale-sub">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2: MTTR chart + Change Calendar -->
+      <div class="grid-2">
+        <!-- MTTR Trend -->
+        <div class="card">
+          <div class="section-label">MTTR Trend (Mean Time To Resolution)</div>
+          <div class="mttr-callout" id="mttr-callout" style="display:none;"></div>
+          <div class="loading" id="mttr-loading">Loading chart…</div>
+          <div class="chart-wrap" id="mttr-chart-wrap" style="display:none;">
+            <canvas id="mttr-canvas"></canvas>
+          </div>
+          <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
+            <span style="font-size:11px;color:var(--text-dim);">Period:</span>
+            <select id="mttr-days" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:3px 8px;font-size:11px;" onchange="loadMttr()">
+              <option value="7">7 days</option>
+              <option value="30" selected>30 days</option>
+              <option value="60">60 days</option>
+              <option value="90">90 days</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Change Calendar -->
+        <div class="card">
+          <div class="cal-nav">
+            <button onclick="calNav(-1)">&#8592;</button>
+            <span class="cal-month-label" id="cal-month-label">—</span>
+            <button onclick="calNav(1)">&#8594;</button>
+          </div>
+          <div class="loading" id="cal-loading">Loading calendar…</div>
+          <div id="cal-container" style="display:none;"></div>
+          <div style="margin-top:10px;display:flex;gap:12px;flex-wrap:wrap;font-size:10px;color:var(--text-dim);">
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(59,130,246,.25);margin-right:4px;"></span>Clone</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(16,185,129,.2);margin-right:4px;"></span>Health Check</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(240,168,48,.15);margin-right:4px;"></span>Scheduled</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 3: Audit Trail -->
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+          <div class="section-label" style="margin-bottom:0;">Audit Trail</div>
+          <a href="/api/manager/audit/export/csv" class="btn btn-outline btn-sm">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export CSV
+          </a>
+        </div>
+        <div class="audit-filters">
+          <input type="text" id="audit-search" placeholder="Search…" style="min-width:180px;" oninput="debouncedAuditLoad()">
+          <select id="audit-action" onchange="loadAudit()">
+            <option value="">All actions</option>
+            <option value="health_check">Health Check</option>
+            <option value="sql_execution">SQL Execution</option>
+            <option value="ssh_execution">SSH Execution</option>
+            <option value="db_op">DB Op</option>
+            <option value="ebs_op">EBS Op</option>
+            <option value="tuneops">TuneOps</option>
+            <option value="approval">Approval</option>
+            <option value="login">Login</option>
+          </select>
+          <select id="audit-result" onchange="loadAudit()">
+            <option value="">All results</option>
+            <option value="success">Success</option>
+            <option value="failed">Failed</option>
+            <option value="pending">Pending</option>
+          </select>
+        </div>
+        <div class="loading" id="audit-loading">Loading audit log…</div>
+        <div id="audit-table-wrap" style="display:none;">
+          <div style="overflow-x:auto;">
+            <table class="audit-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>User</th>
+                  <th>Action</th>
+                  <th>Target</th>
+                  <th>Result</th>
+                  <th>Duration</th>
+                </tr>
+              </thead>
+              <tbody id="audit-tbody"></tbody>
+            </table>
+          </div>
+          <div class="pagination" id="audit-pagination"></div>
+        </div>
+      </div>
+
+      <!-- Row 4: Per-Instance Summary Strip -->
+      <div id="instances-section">
+        <div class="section-label">Per-Instance Summary</div>
+        <div class="stale-warn" id="stale-warn"></div>
+        <div class="loading" id="instances-loading">Loading instances…</div>
+        <div class="strip-scroll" id="strip-scroll" style="display:none;">
+          <div class="strip" id="instances-strip"></div>
+        </div>
+      </div>
+
+      <!-- Row 5: ServiceNow placeholder -->
+      <div class="card" style="border-style:dashed;opacity:.7;">
+        <div class="section-label">Ticketing Integration</div>
+        <div style="font-size:13px;color:var(--text-dim);display:flex;align-items:center;gap:10px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span><strong>ServiceNow integration</strong> — bi-directional incident sync, ticket creation from health findings. <em style="color:var(--accent);">Coming Q3 2026.</em></span>
+        </div>
+      </div>
+
+    </div><!-- /main -->
+  </div><!-- /manager-app -->
+
+  <!-- Minimal Chart.js via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script>
+    // ── Auth & init ───────────────────────────────────────────────────────────
+    let _mttrChart = null;
+    let _auditOffset = 0;
+    let _auditTotal  = 0;
+    let _calMonth    = new Date().toISOString().slice(0, 7);
+    let _calEvents   = [];
+    let _auditDebounce = null;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Nav
+      window.tvNav && tvNav.init('manager');
+
+      // Auth check
+      try {
+        const r = await fetch('/api/auth/me', { credentials: 'same-origin' });
+        if (!r.ok) { window.location.href = '/signin?redirect=/manager'; return; }
+        const me = await r.json();
+        if (!me?.user) { window.location.href = '/signin?redirect=/manager'; return; }
+        // Show app
+        document.getElementById('manager-app').style.display = '';
+        // Load all sections
+        refreshAll();
+      } catch (e) {
+        window.location.href = '/signin?redirect=/manager';
+      }
+    });
+
+    async function refreshAll() {
+      loadFleetSummary();
+      loadMttr();
+      loadCalendar();
+      loadAudit();
+    }
+
+    // ── Fleet Summary ─────────────────────────────────────────────────────────
+    async function loadFleetSummary() {
+      try {
+        const r = await fetch('/api/manager/fleet-summary', { credentials: 'same-origin' });
+        if (r.status === 403) { showAccessDenied(); return; }
+        const d = await r.json();
+        if (d.error) { console.error('fleet-summary:', d.error); return; }
+
+        // Score KPI
+        const scoreEl = document.getElementById('fleet-score');
+        const subEl   = document.getElementById('fleet-score-sub');
+        if (d.fleet_score != null) {
+          scoreEl.textContent = d.fleet_score;
+          scoreEl.className   = 'kpi-value ' + (d.fleet_score >= 85 ? 'score-green' : d.fleet_score >= 70 ? 'score-amber' : 'score-red');
+          subEl.textContent   = d.fleet_score >= 85 ? 'Healthy' : d.fleet_score >= 70 ? 'Needs attention' : 'Action required';
+        } else {
+          scoreEl.textContent = 'N/A';
+          scoreEl.className   = 'kpi-value score-gray';
+          subEl.textContent   = 'No completed checks yet';
+        }
+
+        // Incident counts
+        document.getElementById('cnt-critical').textContent = d.critical_count ?? '—';
+        document.getElementById('cnt-high').textContent     = d.high_count     ?? '—';
+        document.getElementById('cnt-medium').textContent   = d.medium_count   ?? '—';
+        document.getElementById('cnt-low').textContent      = d.low_count      ?? '—';
+
+        // Instance counts
+        document.getElementById('cnt-instances').textContent = d.total_instances ?? '—';
+        document.getElementById('stale-sub').textContent     = `${d.stale_count ?? 0} stale (>24h)`;
+
+        // Stale warning
+        if (d.stale_count > 0) {
+          const w = document.getElementById('stale-warn');
+          w.textContent = `⚠ ${d.stale_count} instance${d.stale_count > 1 ? 's are' : ' is'} stale — last health check was more than 24 hours ago.`;
+          w.style.display = '';
+        }
+
+        // Instance strip
+        renderInstanceStrip(d.per_instance || []);
+      } catch (e) {
+        console.error('loadFleetSummary:', e);
+      }
+    }
+
+    function showAccessDenied() {
+      document.getElementById('manager-app').style.display   = 'none';
+      document.getElementById('access-denied').style.display = '';
+    }
+
+    function renderInstanceStrip(instances) {
+      const strip = document.getElementById('instances-strip');
+      strip.innerHTML = '';
+      document.getElementById('instances-loading').style.display = 'none';
+      document.getElementById('strip-scroll').style.display = '';
+
+      if (!instances.length) {
+        strip.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:16px 0;">No instances found.</div>';
+        return;
+      }
+
+      for (const inst of instances) {
+        const dotClass = { ok: 'dot-ok', amber: 'dot-amber', red: 'dot-red', stale: 'dot-stale', never_run: 'dot-never' }[inst.status] || 'dot-stale';
+        const scoreColor = inst.score == null ? 'color:var(--text-dim)' : inst.score >= 85 ? 'color:var(--green)' : inst.score >= 70 ? 'color:var(--amber)' : 'color:var(--red)';
+        const card = document.createElement('a');
+        card.href = `/dashboard?connection=${inst.connection_id}`;
+        card.className = 'instance-card';
+        card.innerHTML = `
+          <div class="inst-name" title="${inst.name}"><span class="inst-dot ${dotClass}"></span>${inst.name}</div>
+          <div class="inst-score" style="${scoreColor}">${inst.score ?? '—'}</div>
+          <div class="inst-meta">
+            ${inst.critical_count > 0 ? `<span style="color:var(--red);">${inst.critical_count} critical</span> · ` : ''}
+            ${inst.last_check_at ? 'Last: ' + new Date(inst.last_check_at).toLocaleDateString() : 'Never run'}
+          </div>`;
+        strip.appendChild(card);
+      }
+    }
+
+    function scrollToInstances() {
+      document.getElementById('instances-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // ── MTTR Chart ────────────────────────────────────────────────────────────
+    async function loadMttr() {
+      const days = document.getElementById('mttr-days').value;
+      document.getElementById('mttr-loading').style.display    = '';
+      document.getElementById('mttr-chart-wrap').style.display = 'none';
+      document.getElementById('mttr-callout').style.display    = 'none';
+
+      try {
+        const r = await fetch(`/api/manager/mttr?days=${days}`, { credentials: 'same-origin' });
+        const d = await r.json();
+
+        document.getElementById('mttr-loading').style.display = 'none';
+
+        if (!d.series || d.series.length < 7) {
+          const callout = document.getElementById('mttr-callout');
+          const since   = d.tracking_since ? new Date(d.tracking_since).toLocaleDateString() : 'today';
+          callout.textContent = d.series && d.series.length > 0
+            ? `Insufficient data — tracking started ${since}. MTTR will populate as incidents resolve.`
+            : `MTTR tracking started ${since}. Data will appear as incidents are opened and resolved.`;
+          callout.style.display = '';
+          if (!d.series || d.series.length === 0) return;
+        }
+
+        document.getElementById('mttr-chart-wrap').style.display = '';
+        renderMttrChart(d.series);
+      } catch (e) {
+        document.getElementById('mttr-loading').textContent = 'Failed to load MTTR data.';
+      }
+    }
+
+    function renderMttrChart(series) {
+      const ctx = document.getElementById('mttr-canvas').getContext('2d');
+      const labels = series.map(s => new Date(s.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+      const values = series.map(s => parseFloat(s.mttr_hours));
+
+      if (_mttrChart) _mttrChart.destroy();
+      _mttrChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'MTTR (hours)',
+            data: values,
+            borderColor: '#f0a830',
+            backgroundColor: 'rgba(240,168,48,0.1)',
+            tension: 0.3,
+            fill: true,
+            pointBackgroundColor: '#f0a830',
+            pointRadius: 3,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#9898a8', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+            y: { ticks: { color: '#9898a8', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.05)' }, beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    // ── Change Calendar ───────────────────────────────────────────────────────
+    function calNav(delta) {
+      const [y, m] = _calMonth.split('-').map(Number);
+      const d = new Date(y, m - 1 + delta, 1);
+      _calMonth = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+      loadCalendar();
+    }
+
+    async function loadCalendar() {
+      document.getElementById('cal-loading').style.display    = '';
+      document.getElementById('cal-container').style.display  = 'none';
+
+      const [y, m] = _calMonth.split('-').map(Number);
+      const label  = new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      document.getElementById('cal-month-label').textContent = label;
+
+      try {
+        const r = await fetch(`/api/manager/change-calendar?month=${_calMonth}`, { credentials: 'same-origin' });
+        const d = await r.json();
+        _calEvents = d.events || [];
+
+        document.getElementById('cal-loading').style.display = 'none';
+        renderCalendar(y, m, _calEvents);
+        document.getElementById('cal-container').style.display = '';
+      } catch (e) {
+        document.getElementById('cal-loading').textContent = 'Failed to load calendar.';
+      }
+    }
+
+    function renderCalendar(year, month, events) {
+      const container = document.getElementById('cal-container');
+      const daysInMonth  = new Date(year, month, 0).getDate();
+      const firstDow     = new Date(year, month - 1, 1).getDay(); // 0=Sun
+      const today        = new Date();
+      const todayStr     = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+      // Group events by date
+      const byDate = {};
+      for (const ev of events) {
+        const dateStr = new Date(ev.date).toISOString().slice(0, 10);
+        if (!byDate[dateStr]) byDate[dateStr] = [];
+        byDate[dateStr].push(ev);
+      }
+
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      let html = '<div class="cal-grid">';
+      for (const d of dayNames) html += `<div class="cal-header">${d}</div>`;
+
+      // Leading empty cells
+      for (let i = 0; i < firstDow; i++) html += '<div class="cal-day other-month"></div>';
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        const isToday = dateStr === todayStr;
+        const dayEvents = byDate[dateStr] || [];
+
+        html += `<div class="cal-day${isToday ? ' today' : ''}">`;
+        html += `<div class="cal-day-num">${day}</div>`;
+        for (const ev of dayEvents.slice(0, 3)) {
+          const cls = ev.type === 'clone' ? 'cal-event-clone' : ev.type === 'scheduled_check' ? 'cal-event-scheduled' : 'cal-event-hc';
+          const lbl = ev.type === 'clone' ? '📦 ' + (ev.title || 'Clone') : ev.type === 'scheduled_check' ? '🕐 Scheduled HC' : '✓ HC ' + (ev.title.match(/score (\d+)/) ? ev.title.match(/score (\d+)/)[1] : '');
+          html += `<div class="cal-event ${cls}" title="${ev.title} — ${ev.instance}">${lbl}</div>`;
+        }
+        if (dayEvents.length > 3) html += `<div style="font-size:9px;color:var(--text-dim);">+${dayEvents.length - 3} more</div>`;
+        html += '</div>';
+      }
+
+      // Trailing cells
+      const totalCells = firstDow + daysInMonth;
+      const remainder  = totalCells % 7;
+      if (remainder > 0) for (let i = 0; i < 7 - remainder; i++) html += '<div class="cal-day other-month"></div>';
+
+      html += '</div>';
+      container.innerHTML = html;
+    }
+
+    // ── Audit Log ─────────────────────────────────────────────────────────────
+    function debouncedAuditLoad() {
+      clearTimeout(_auditDebounce);
+      _auditDebounce = setTimeout(loadAudit, 400);
+    }
+
+    function filterAuditBySeverity(sev) {
+      // Scroll to audit section and filter by action
+      document.getElementById('audit-table-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    async function loadAudit(resetOffset) {
+      if (resetOffset) _auditOffset = 0;
+      const search  = document.getElementById('audit-search').value;
+      const action  = document.getElementById('audit-action').value;
+      const result  = document.getElementById('audit-result').value;
+
+      document.getElementById('audit-loading').style.display    = '';
+      document.getElementById('audit-table-wrap').style.display = 'none';
+
+      const params = new URLSearchParams({ limit: 50, offset: _auditOffset });
+      if (search) params.set('search', search);
+      if (action) params.set('action_types', action);
+      if (result) params.set('result', result);
+
+      try {
+        const r = await fetch(`/api/manager/audit?${params}`, { credentials: 'same-origin' });
+        const d = await r.json();
+
+        document.getElementById('audit-loading').style.display    = 'none';
+        document.getElementById('audit-table-wrap').style.display = '';
+
+        _auditTotal = d.total || 0;
+        renderAuditTable(d.rows || []);
+        renderAuditPagination();
+      } catch (e) {
+        document.getElementById('audit-loading').textContent = 'Failed to load audit log.';
+      }
+    }
+
+    function renderAuditTable(rows) {
+      const tbody = document.getElementById('audit-tbody');
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="color:var(--text-dim);text-align:center;padding:24px;">No audit events found.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rows.map(r => {
+        const ts  = new Date(r.created_at).toLocaleString();
+        const who = r.user_email || r.user_name || `User #${r.user_id}`;
+        const resultBadge = r.result === 'success' ? '<span class="badge-success">success</span>'
+                          : r.result === 'failed'  ? '<span class="badge-failed">failed</span>'
+                          : r.result === 'pending' ? '<span class="badge-pending">pending</span>'
+                          : (r.result || '—');
+        const dur = r.duration_ms != null ? `${r.duration_ms}ms` : '—';
+        return `<tr>
+          <td style="white-space:nowrap;color:var(--text-dim);font-size:11px;">${ts}</td>
+          <td>${escHtml(who)}</td>
+          <td><code style="font-size:11px;background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;">${escHtml(r.action_type)}</code></td>
+          <td style="color:var(--text-dim);">${escHtml(r.connection_name || '—')}</td>
+          <td>${resultBadge}</td>
+          <td style="color:var(--text-dim);">${dur}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    function renderAuditPagination() {
+      const pg = document.getElementById('audit-pagination');
+      const page = Math.floor(_auditOffset / 50) + 1;
+      const pages = Math.ceil(_auditTotal / 50);
+      pg.innerHTML = `
+        <button onclick="auditPage(-1)" ${_auditOffset === 0 ? 'disabled' : ''}>← Prev</button>
+        <span>Page ${page} of ${pages || 1} · ${_auditTotal} total</span>
+        <button onclick="auditPage(1)" ${_auditOffset + 50 >= _auditTotal ? 'disabled' : ''}>Next →</button>`;
+    }
+
+    function auditPage(dir) {
+      _auditOffset = Math.max(0, _auditOffset + dir * 50);
+      loadAudit();
+    }
+
+    // ── Weekly PDF ────────────────────────────────────────────────────────────
+    async function generatePdf() {
+      const btn = document.getElementById('pdf-btn');
+      btn.textContent = '⏳ Generating…';
+      btn.disabled = true;
+
+      try {
+        const r = await fetch('/api/manager/weekly-pdf', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        if (!r.ok) { alert('PDF generation failed. Please try again.'); return; }
+        const blob = await r.blob();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = `tunevault-weekly-${new Date().toISOString().slice(0,10)}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        alert('PDF generation failed: ' + e.message);
+      } finally {
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Generate Weekly PDF';
+        btn.disabled = false;
+      }
+    }
+
+    // ── Utilities ─────────────────────────────────────────────────────────────
+    function escHtml(str) {
+      if (str == null) return '';
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // Initial audit load on filter change
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('audit-search').addEventListener('input', debouncedAuditLoad);
+    });
+  </script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

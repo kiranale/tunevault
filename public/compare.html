@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TuneVault vs Datadog, Grafana, Zabbix, OEM, ManageEngine — Oracle Monitoring Comparison</title>
+    <meta name="description" content="Honest comparison of Oracle monitoring tools. TuneVault vs Datadog, Grafana+Prometheus, Zabbix, Oracle OEM, and ManageEngine Applications Manager — depth vs breadth, pricing, and time-to-value for Oracle DBA teams.">
+    <meta name="application-name" content="TuneVault">
+    <meta name="author" content="TuneVault">
+    <!-- Open Graph -->
+    <meta property="og:title" content="TuneVault vs Datadog, Grafana, Zabbix, OEM, ManageEngine — Oracle Monitoring Compared">
+    <meta property="og:description" content="Generic APMs treat Oracle as one of 600 integrations. TuneVault treats it as the only thing that matters. Honest feature matrix + pricing breakdown for Oracle DBA teams.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://tunevault.app/compare">
+    <meta property="og:image" content="https://tunevault.app/og/compare.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="TuneVault vs Datadog, Grafana, Oracle EM comparison">
+    <meta property="og:site_name" content="TuneVault">
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="TuneVault vs Datadog, Grafana, Zabbix, OEM, ManageEngine">
+    <meta name="twitter:description" content="200+ Oracle-native checks vs ~20-40 generic metrics. EBS detection. AI remediation. No agent install. Compare what matters to Oracle DBA teams.">
+    <meta name="twitter:image" content="https://tunevault.app/og/compare.png">
+    <link rel="canonical" href="https://tunevault.app/compare">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <!-- JSON-LD: Organization + WebSite + FAQPage -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://tunevault.app/#organization",
+          "name": "TuneVault",
+          "alternateName": "TuneVault.app",
+          "url": "https://tunevault.app",
+          "logo": { "@type": "ImageObject", "url": "https://tunevault.app/logo.png", "width": 512, "height": 512 },
+          "description": "AI agent that autonomously manages Oracle database operations.",
+          "foundingDate": "2026",
+          "founder": {
+            "@type": "Person",
+            "name": "Kiran Kumar Ale",
+            "url": "https://tunevault.app/about",
+            "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"]
+          },
+          "contactPoint": { "@type": "ContactPoint", "email": "hello@tunevault.app", "contactType": "customer support" },
+          "sameAs": ["https://www.linkedin.com/in/kirankumarale/", "https://linuxappsdba.blogspot.com"]
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://tunevault.app/#website",
+          "name": "TuneVault",
+          "url": "https://tunevault.app",
+          "publisher": { "@id": "https://tunevault.app/#organization" }
+        },
+        {
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Can I use Datadog and TuneVault together?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes — and for many Oracle shops, that's the right call. Datadog is excellent for your application stack: APM traces, infrastructure metrics, log pipelines, dashboards-as-code. TuneVault covers the database layer Datadog can't see: 200+ Oracle-native health checks, EBS Concurrent Manager / ADOP / Workflow analysis, SQL tuning with AI-generated fix commands, tablespace fragmentation, RMAN validation, and patch gap analysis. They complement each other without overlap."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Why not just build Oracle monitoring in Grafana?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "You can — and you'll spend 2-3 weeks doing it. Grafana + Prometheus requires an Oracle exporter, metric cardinality tuning, dashboard templating, alert rule authoring, and ongoing maintenance when Oracle versions change. TuneVault ships 200+ checks out of the box, with EBS detection, AI remediation text, and PDF export on day one. Grafana shows you the symptom. TuneVault tells you the fix."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Does Zabbix monitor Oracle EBS?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Zabbix has community templates for Oracle Database metrics, but it has no native Oracle E-Business Suite (EBS) support. EBS-specific checks — Concurrent Manager health, OPP status, Workflow Mailer queue depth, ADOP patch session state, Apps tier middleware — require custom scripting. TuneVault detects EBS automatically via the APPS schema probe and runs 100+ EBS-specific checks without any configuration."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How is TuneVault different from Oracle Cloud Control (OEM)?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Oracle Enterprise Manager is a full lifecycle management platform — provisioning, patching, RMAN, change management. It's powerful and free with your Oracle license. The cost is setup time (days to weeks), an OMS server to maintain, and agents on every monitored host. TuneVault connects in under 5 minutes, requires no agents, and focuses on operational intelligence: health diagnostics, SQL tuning, EBS ops, and incident management. OEM is free if your DBA's time is free."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What about ManageEngine Applications Manager?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "ManageEngine Applications Manager monitors Oracle Database instances alongside 100+ other technologies — JVM, WebLogic, MySQL, AWS, etc. It provides good broad coverage for IT ops teams. TuneVault is purpose-built for Oracle DBA teams: deeper Oracle-specific checks, EBS operations (Concurrent Manager, ADOP, Workflow), SQL tuning with AI-generated index and rewrite recommendations, and a DBA-oriented workflow with TuneOps ticketing and approval gates."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Does TuneVault support non-Oracle databases?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "No. TuneVault is Oracle-only: Oracle Database 12c, 19c, 21c, 23ai (23c), and Oracle E-Business Suite 12.2. We don't support MySQL, PostgreSQL, SQL Server, or MongoDB. If you need multi-database monitoring, tools like Datadog DBM or ManageEngine AM are better fits. We focus exclusively on Oracle so we can go 10× deeper than any general-purpose tool."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0c;
+            --surface: #111114;
+            --surface-2: #1a1a1f;
+            --border: #2a2a30;
+            --text: #e8e8ed;
+            --text-dim: #b8b8c8;
+            --text-muted: #9898a8;
+            --accent: #f0a830;
+            --accent-dim: rgba(240, 168, 48, 0.10);
+            --green: #34d399;
+            --green-dim: rgba(52, 211, 153, 0.10);
+            --red: #f87171;
+            --red-dim: rgba(248, 113, 113, 0.10);
+            --blue: #60a5fa;
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .grain {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        .page-wrap {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 40px 100px;
+        }
+
+        /* ─── Hero ─── */
+        .hero {
+            padding: 72px 0 56px;
+            max-width: 780px;
+        }
+        .hero-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--accent);
+            margin-bottom: 20px;
+        }
+        .hero-eyebrow::before {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 1px;
+            background: var(--accent);
+        }
+        .hero h1 {
+            font-size: clamp(34px, 4.5vw, 58px);
+            font-weight: 700;
+            letter-spacing: -2px;
+            line-height: 1.08;
+            margin-bottom: 24px;
+        }
+        .hero h1 em {
+            font-style: normal;
+            color: var(--accent);
+        }
+        .hero-sub {
+            font-size: 18px;
+            color: var(--text-dim);
+            line-height: 1.7;
+            max-width: 620px;
+            margin-bottom: 36px;
+        }
+        .hero-ctas {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 12px 24px;
+            background: var(--accent);
+            color: #0a0a0c;
+            border-radius: 7px;
+            font-size: 14px;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .btn-primary:hover { background: #e09820; transform: translateY(-1px); }
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 12px 24px;
+            background: transparent;
+            color: var(--text-dim);
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .btn-secondary:hover { border-color: var(--text-dim); color: var(--text); }
+
+        /* ─── Divider ─── */
+        .divider {
+            border: none;
+            border-top: 1px solid rgba(42,42,48,0.4);
+            margin: 56px 0;
+        }
+
+        /* ─── Section headers ─── */
+        .section-eyebrow {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .section-h2 {
+            font-size: clamp(20px, 2.8vw, 30px);
+            font-weight: 700;
+            letter-spacing: -0.8px;
+            line-height: 1.25;
+            margin-bottom: 10px;
+        }
+        .section-sub {
+            font-size: 15px;
+            color: var(--text-dim);
+            line-height: 1.65;
+            max-width: 580px;
+            margin-bottom: 40px;
+        }
+
+        /* ─── Matrix table ─── */
+        .matrix-wrap {
+            overflow-x: auto;
+            margin-bottom: 64px;
+        }
+        .matrix-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 900px;
+        }
+        .matrix-table th {
+            padding: 14px 14px 12px;
+            text-align: center;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+        .matrix-table th:first-child {
+            text-align: left;
+            width: 28%;
+            color: var(--text-dim);
+        }
+        .matrix-table th.tv-col {
+            color: var(--accent);
+        }
+        .matrix-table td {
+            padding: 13px 14px;
+            font-size: 13px;
+            border-bottom: 1px solid rgba(42, 42, 48, 0.45);
+            text-align: center;
+            vertical-align: middle;
+            color: var(--text-dim);
+        }
+        .matrix-table td:first-child {
+            text-align: left;
+            font-weight: 500;
+            color: var(--text);
+            font-size: 13.5px;
+        }
+        .matrix-table td:first-child small {
+            display: block;
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 400;
+            margin-top: 3px;
+            line-height: 1.5;
+        }
+        .matrix-table td.tv-col {
+            background: rgba(240, 168, 48, 0.03);
+        }
+        .matrix-table tr:hover td { background: rgba(255,255,255,0.015); }
+        .matrix-table tr:hover td.tv-col { background: rgba(240, 168, 48, 0.05); }
+
+        /* Row category dividers */
+        .matrix-table tr.cat-row td {
+            padding: 18px 14px 6px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-muted);
+            background: transparent;
+            border-bottom: none;
+        }
+        .matrix-table tr.cat-row:hover td { background: transparent; }
+
+        /* Cell states */
+        .c-yes {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            color: var(--green);
+            font-weight: 600;
+            font-size: 13px;
+        }
+        .c-no {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+        .c-partial {
+            color: var(--accent);
+            font-size: 12.5px;
+            line-height: 1.4;
+        }
+        .c-win {
+            color: var(--blue);
+            font-size: 12.5px;
+            line-height: 1.4;
+        }
+        .row-highlight td { background: rgba(240, 168, 48, 0.025); }
+        .row-highlight td.tv-col { background: rgba(240, 168, 48, 0.06); }
+        .row-highlight:hover td { background: rgba(240, 168, 48, 0.04); }
+        .row-highlight:hover td.tv-col { background: rgba(240, 168, 48, 0.08); }
+
+        /* ─── Positioning quote blocks ─── */
+        .quote-blocks {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 64px;
+        }
+        .quote-block {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 28px;
+            position: relative;
+        }
+        .quote-block::before {
+            content: '"';
+            position: absolute;
+            top: 16px;
+            left: 20px;
+            font-size: 48px;
+            color: var(--accent);
+            opacity: 0.25;
+            font-family: Georgia, serif;
+            line-height: 1;
+        }
+        .quote-block p {
+            font-size: 15px;
+            line-height: 1.65;
+            color: var(--text);
+            padding-top: 16px;
+        }
+        .quote-block .quote-tag {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            margin-top: 16px;
+        }
+
+        /* ─── Pricing callout ─── */
+        .pricing-callout {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 40px;
+            margin-bottom: 64px;
+        }
+        .pricing-callout-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+        .pricing-callout-icon {
+            font-size: 28px;
+            flex-shrink: 0;
+            margin-top: 4px;
+        }
+        .pricing-callout h3 {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.4px;
+            margin-bottom: 8px;
+        }
+        .pricing-callout h3 em {
+            font-style: normal;
+            color: var(--accent);
+        }
+        .pricing-callout .callout-sub {
+            font-size: 14px;
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+        .pricing-row-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+        .pricing-row {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 24px;
+        }
+        .pricing-row-label {
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+        .pricing-row.tv .pricing-row-label { color: var(--accent); }
+        .pricing-row h4 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: -0.3px;
+        }
+        .pricing-row h4 .big-num {
+            font-size: 28px;
+            color: var(--accent);
+        }
+        .pricing-row.tv h4 .big-num { color: var(--green); }
+        .pricing-line {
+            font-size: 13px;
+            color: var(--text-dim);
+            line-height: 1.7;
+        }
+        .pricing-line span {
+            color: var(--text);
+            font-weight: 600;
+        }
+        .pricing-note {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 12px;
+            line-height: 1.5;
+        }
+        .pricing-note a {
+            color: var(--text-muted);
+            text-decoration: underline;
+            text-decoration-color: rgba(85, 85, 102, 0.5);
+        }
+        .pricing-note a:hover { color: var(--accent); }
+
+        /* ─── Honest section ─── */
+        .honest-block {
+            background: linear-gradient(135deg, rgba(96, 165, 250, 0.05), rgba(96, 165, 250, 0.02));
+            border: 1px solid rgba(96, 165, 250, 0.2);
+            border-radius: 12px;
+            padding: 32px 36px;
+            margin-bottom: 64px;
+        }
+        .honest-block h3 {
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--blue);
+            margin-bottom: 14px;
+        }
+        .honest-block p {
+            font-size: 14px;
+            line-height: 1.7;
+            color: var(--text-dim);
+            max-width: 720px;
+        }
+        .honest-block p + p { margin-top: 12px; }
+        .honest-block strong { color: var(--text); }
+
+        /* ─── FAQ ─── */
+        .faq-section { margin-bottom: 64px; }
+        .faq-item { border-bottom: 1px solid var(--border); }
+        .faq-question {
+            width: 100%;
+            background: none;
+            border: none;
+            color: var(--text);
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            text-align: left;
+            padding: 20px 0;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            transition: color 0.15s;
+        }
+        .faq-question:hover { color: var(--accent); }
+        .faq-arrow {
+            font-size: 18px;
+            color: var(--text-muted);
+            transition: transform 0.25s;
+            flex-shrink: 0;
+        }
+        .faq-item.open .faq-arrow { transform: rotate(45deg); }
+        .faq-answer {
+            font-size: 14px;
+            color: var(--text-dim);
+            line-height: 1.75;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s;
+        }
+        .faq-item.open .faq-answer {
+            max-height: 300px;
+            padding-bottom: 20px;
+        }
+
+        /* ─── CTA ─── */
+        .cta-section {
+            text-align: center;
+            padding: 56px 0 0;
+        }
+        .cta-section h2 {
+            font-size: clamp(24px, 3vw, 36px);
+            font-weight: 700;
+            letter-spacing: -1px;
+            line-height: 1.2;
+            margin-bottom: 16px;
+        }
+        .cta-section p {
+            font-size: 16px;
+            color: var(--text-dim);
+            margin-bottom: 32px;
+            max-width: 480px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .cta-section .cta-row {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        /* ─── Responsive ─── */
+        @media (max-width: 900px) {
+            .page-wrap { padding: 0 24px 80px; }
+            .quote-blocks { grid-template-columns: 1fr; }
+            .pricing-row-grid { grid-template-columns: 1fr; }
+            .honest-block { padding: 24px; }
+        }
+        @media (max-width: 640px) {
+            .matrix-table th, .matrix-table td { padding: 11px 10px; font-size: 12px; }
+            .matrix-table th:first-child, .matrix-table td:first-child { font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="grain"></div>
+    <nav id="nav-root"></nav>
+
+    <div class="page-wrap">
+
+        <!-- ════ HERO ════ -->
+        <div class="hero">
+            <div class="hero-eyebrow">Oracle Monitoring Compared</div>
+            <h1>Datadog graphs your database.<br><em>TuneVault operates it.</em></h1>
+            <p class="hero-sub">Generic APMs treat Oracle as one of 600 integrations. We treat it as the only thing that matters. Honest feature matrix — including the rows where they win.</p>
+            <div class="hero-ctas">
+                <a href="/signup" class="btn-primary" data-cta-id="compare_run_free">Run on your DB free →</a>
+                <a href="/sample-report" class="btn-secondary" data-cta-id="compare_demo">See sample report</a>
+            </div>
+        </div>
+
+        <!-- ════ HONEST CALLOUT ════ -->
+        <div class="honest-block">
+            <h3>🔷 Where they win — and why it doesn't matter for Oracle shops</h3>
+            <p><strong>Datadog and Grafana win on multi-platform coverage, dashboards-as-code, and ecosystem breadth.</strong> If you're monitoring Kubernetes, Redis, Postgres, MySQL, and your Oracle DB in the same tool — they're the right choice for that layer. Same for Zabbix on heterogeneous infrastructure. We don't do any of that.</p>
+            <p>But for an Oracle shop with 20–200 databases where Oracle is the business-critical system? <strong>Depth beats breadth.</strong> A Grafana Oracle dashboard can show you that tablespace usage is at 87%. TuneVault shows you which objects are growing fastest, what SQL is bloating TEMP, and gives you the exact <code>ALTER TABLESPACE</code> command to run — before the pager goes off.</p>
+        </div>
+
+        <!-- ════ FEATURE MATRIX ════ -->
+        <div class="section-eyebrow">Feature Matrix</div>
+        <h2 class="section-h2">Concrete capabilities — no marketing fluff</h2>
+        <p class="section-sub">Checked against each tool's public documentation. Oracle checks = dedicated, Oracle-specific out-of-the-box coverage (not exporters or plugins you build yourself).</p>
+
+        <div class="matrix-wrap">
+            <table class="matrix-table">
+                <thead>
+                    <tr>
+                        <th>Capability</th>
+                        <th class="tv-col">TuneVault</th>
+                        <th>Datadog DBM</th>
+                        <th>Grafana + Prometheus</th>
+                        <th>Zabbix</th>
+                        <th>Oracle OEM</th>
+                        <th>ManageEngine AM</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                    <!-- ORACLE DEPTH -->
+                    <tr class="cat-row">
+                        <td colspan="7">Oracle Depth</td>
+                    </tr>
+                    <tr class="row-highlight">
+                        <td>Oracle-native checks out of the box<small>Dedicated Oracle diagnostics, not generic DB metrics</small></td>
+                        <td class="tv-col"><span class="c-yes">✓ 200+ checks & ops</span></td>
+                        <td><span class="c-partial">~30 metrics<br>(wait events, top SQL)</span></td>
+                        <td><span class="c-partial">~20 metrics<br>(exporter-dependent)</span></td>
+                        <td><span class="c-partial">~25 metrics<br>(community template)</span></td>
+                        <td><span class="c-partial">Deep (UI+scripts)</span></td>
+                        <td><span class="c-partial">~40 metrics</span></td>
+                    </tr>
+                    <tr class="row-highlight">
+                        <td>EBS detection + Concurrent Manager analysis<small>CM load, backlog, inactive status, long-running requests</small></td>
+                        <td class="tv-col"><span class="c-yes">✓ 100+ EBS checks</span></td>
+                        <td><span class="c-no">✕</span></td>
+                        <td><span class="c-no">✕</span></td>
+                        <td><span class="c-no">✕</span></td>
+                        <td><span class="c-partial">Plugin (OEM for EBS)</span></td>
+                        <td><span class="c-no">✕</span></td>
+                    </tr>
+                    <tr class="row-highlight">
+                        <td>OPP / OACore / ADOP / Workflow analyzers<small>EBS application-tier health, patch session state, WF Mailer queue</small></td>
+                        <td class="tv-col"><span class="c-yes">✓ Native</span></td>
+                        <td><span class="c-no">✕</span></td>
+                        <td><span class="c-no">✕</span></td>
+                        <td><span class="c-no">✕</span></td>
+                        <td><span class="c-partial">Partial (scripts)</span></td>
+                        <td><span class="c-no">✕</span></td>
+                    </tr>
+                    <tr>
+                        <td>Tablespace fragmentation + segment-level growth forecast<small>Largest objects, growth rate, days-to-full estimate</small></td>
+                        <td class="tv-col"><span class="c-yes">✓</span></td>
+                        <td><span class="c-no">✕</span></td>
+                        <td><span class="c-no">✕</span></td>
+                        <td><span class="c-no">✕</span></td>
+                        <td><span class="c-partial">Basic</span></td>
+                        <td><span class="c-partial">Basic</span></td>
+                    </tr>
+                    <tr>
+                        <td>SQL Tuning Advisor wrapper + outline/profile recommendations<small>AI-generated index, rewrite, and hint recommendations per statement</small></td>
+                        <td class="tv-col"><span class="c-yes">✓ AI-powered</span></td>
+                        <td><span class="c-partial">Top SQL (no fix text)</span></td>
+                        <td><span class="c-no">✕</span></td>
+                        <td><span class="c-no">✕</span></td>
+                        <td><span class="c-partial">SQL Advisor (AWR)</span></td>
+                        <td><span class="c-no">✕</span></td>
+                    </tr>
+                    <tr>
+                        <td>AI-generated remediation commands<small>Exact SQL/shell commands to fix each finding, not just descriptions</small></td>
+                        <td class="tv-col"><span class="c-yes">✓ Only TuneVault</span></td>
+                        <td><span class="c-no">✕</span></td>
+                        <td><span class="c-no">✕</span></td>
+                        <td><span class="c-no">✕</span></td>
+                        <td><span class="c-no">✕</span></td>
+                        <td><span class="c-no">✕</span></td>
+                    </tr>
+                    <tr>
+                        <td>Locked rows + library cache miss + redo contention root-cause<small>Blocking session chains, parse/execute ratios, redo log contention</small></td>
+                        <td class="tv-col"><span class="c-yes">✓</span></td>
+                        <td><span class="c-partial">Wait events only</span></td>
+                        <td><span class="c-partial">Wait events only</span></td>
+                        <td><span class="c-partial">Wait events only</span></td>
+                        <td><span class="c-yes">✓</span></td>
+                        <td><span class="c-partial">Basic sessions</span></td>
+                    </tr>
+                    <tr>
+                        <td>RMAN backup validation + retention policy audit<small>Last backup status, gap detection, retention violations</small></td>
+                        <td class="tv-col"><span class="c-yes">✓</span></td>
+                        <td><span class="c-no">✕</span></td>
+                        <td><span class="c-no">✕</span></td>
+                        <td><span class="c-partial">Basic (community)</span></td>
+                        <td><span class="c-yes">✓</span></td>
+                        <td><span class="c-partial">Basic</span></td>
+                    </tr>
+                    <tr>
+                        <td>Listener + TNS + ASM diskgroup health<small>Listener status, TNS resolution, ASM free space, rebalance status</small></td>
+                        <td class="tv-col"><span class="c-yes">✓</span></td>
+                        <td><span class="c-no">✕</span></td>
+                        <td><span class="c-partial">Exporter-dependent</span></td>
+                        <td><span class="c-partial">Basic</span></td>
+                        <td><span class="c-yes">✓</span></td>
+                        <td><span class="c-partial">Basic</span></td>
+                    </tr>
+                    <tr>
+                        <td>Patch advisory (CPU/PSU gap analysis)<small>19c, 21c, 23ai, 12.2 DB + EBS 12.2 patch gap detection</small></td>
+                        <td class="tv-col"><span class="c-yes">✓ Quarterly-refreshed</span></td>
+                        <td><span class="c-no">✕</span></td>
+                        <td><span class="c-no">✕</span></td>
+                        <td><span class="c-no">✕</span></td>
+                        <td><span class="c-partial">Basic</span></td>
+                        <td><span class="c-no">✕</span></td>
+                    </tr>
+
+                    <!-- OPERATIONS & DBA WORKFLOW -->
+                    <tr class="cat-row">
+                        <td colspan="7">Operations & DBA Workflow</td>
+                    </tr>
+                    <tr>
+                        <td>Agent install required on DB host<small>Is any software required on the monitored server?</small></td>
+                        <td class="tv-col"><span class="c-yes">✓ No agent needed</span></td>
+                        <td><span class="c-no">✕ Agent required</span></td>
+                        <td><span class="c-no">✕ Exporter required</span></td>
+                        <td><span class="c-no">✕ Agent required</span></td>
+                        <td><span class="c-no">✕ OMS + agent</span></td>
+                        <td><span class="c-no">✕ Agent required</span></td>
+                    </tr>
+                    <tr class="row-highlight">
+                        <td>Time to first finding<small>From "I have a DB connection string" to seeing diagnostic results</small></td>
+                        <td class="tv-col"><span class="c-yes">✓ &lt; 5 minutes</span></td>
+                        <td><span class="c-partial">Hours<br>(dashboard build)</span></td>
+                        <td><span class="c-partial">Days<br>(exporter + dashboards)</span></td>
+                        <td><span class="c-partial">Hours<br>(template + config)</span></td>
+                        <td><span class="c-partial">Days<br>(OMS deploy)</span></td>
+                        <td><span class="c-partial">Hours<br>(install + config)</span></td>
+                    </tr>
+                    <tr>
+                        <td>PDF + XLSX stakeholder report export<small>One-click audit-ready reports with findings, scores, recommendations</small></td>
+                        <td class="tv-col"><span class="c-yes">✓ Included</span></td>
+                        <td><span class="c-partial">PDF dashboards only</span></td>
+                        <td><span class="c-partial">PDF dashboards only</span></td>
+                        <td><span class="c-no">✕</span></td>
+                        <td><span class="c-partial">Basic reports</span></td>
+                        <td><span class="c-partial">Basic reports</span></td>
+                    </tr>
+                    <tr>
+                        <td>TuneOps incident ticketing + approval gates<small>DB-native incident workflow: create, assign, approve, execute</small></td>
+                        <td class="tv-col"><span class="c-yes">✓ Built-in</span></td>
+                        <td><span class="c-no">✕ (integrates to PD)</span></td>
+                        <td><span class="c-no">✕ (integrates to AM)</span></td>
+                        <td><span class="c-partial">Basic alerting</span></td>
+                        <td><span class="c-partial">Incident manager</span></td>
+                        <td><span class="c-partial">Basic alerting</span></td>
+                    </tr>
+                    <tr>
+                        <td>Autonomous monitoring + delta alerting<small>Scheduled runs, only alerts on new/changed findings (no alert storms)</small></td>
+                        <td class="tv-col"><span class="c-yes">✓</span></td>
+                        <td><span class="c-yes">✓</span></td>
+                        <td><span class="c-yes">✓</span></td>
+                        <td><span class="c-yes">✓</span></td>
+                        <td><span class="c-yes">✓</span></td>
+                        <td><span class="c-yes">✓</span></td>
+                    </tr>
+
+                    <!-- PLATFORM & PRICING -->
+                    <tr class="cat-row">
+                        <td colspan="7">Platform & Pricing</td>
+                    </tr>
+                    <tr class="row-highlight">
+                        <td>Pricing model<small>How you get charged</small></td>
+                        <td class="tv-col"><span class="c-yes">Per-connection flat<br>From $49/conn/mo</span></td>
+                        <td><span class="c-partial">Per host + custom<br>metrics + APM seat</span></td>
+                        <td><span class="c-partial">Open source<br>(infra cost + time)</span></td>
+                        <td><span class="c-partial">Open source<br>(infra cost + time)</span></td>
+                        <td><span class="c-partial">Free (with Oracle<br>license) + OMS cost</span></td>
+                        <td><span class="c-partial">Per instance/yr<br>or subscription</span></td>
+                    </tr>
+                    <tr>
+                        <td>Multi-database platform support<small>MySQL, Postgres, SQL Server, MongoDB, etc.</small></td>
+                        <td class="tv-col"><span class="c-no">Oracle only</span></td>
+                        <td><span class="c-win">✓ 15+ databases</span></td>
+                        <td><span class="c-win">✓ 100+ exporters</span></td>
+                        <td><span class="c-win">✓ Many DB types</span></td>
+                        <td><span class="c-no">Oracle only</span></td>
+                        <td><span class="c-win">✓ 150+ technologies</span></td>
+                    </tr>
+                    <tr>
+                        <td>Dashboards-as-code / GitOps monitoring<small>Version-controlled dashboards, infra-as-code workflow</small></td>
+                        <td class="tv-col"><span class="c-no">✕ Not the use case</span></td>
+                        <td><span class="c-win">✓ Terraform provider</span></td>
+                        <td><span class="c-win">✓ Grafana SDK</span></td>
+                        <td><span class="c-partial">Partial</span></td>
+                        <td><span class="c-no">✕</span></td>
+                        <td><span class="c-no">✕</span></td>
+                    </tr>
+                    <tr>
+                        <td>REST API for programmatic access<small>Pull check results, query findings, integrate with CI/CD</small></td>
+                        <td class="tv-col"><span class="c-yes">✓ v1 API included</span></td>
+                        <td><span class="c-yes">✓</span></td>
+                        <td><span class="c-yes">✓ HTTP API</span></td>
+                        <td><span class="c-yes">✓</span></td>
+                        <td><span class="c-yes">✓</span></td>
+                        <td><span class="c-yes">✓</span></td>
+                    </tr>
+
+                </tbody>
+            </table>
+        </div>
+
+        <hr class="divider">
+
+        <!-- ════ PRICING CALLOUT ════ -->
+        <div class="section-eyebrow">Cost Reality Check</div>
+        <h2 class="section-h2">What a 20-DB Oracle shop actually pays</h2>
+        <p class="section-sub">Numbers based on public pricing pages as of 2026. Datadog DBM pricing referenced from their published per-host rates.</p>
+
+        <div class="pricing-callout">
+            <div class="pricing-callout-header">
+                <div class="pricing-callout-icon">💰</div>
+                <div>
+                    <h3>Datadog DBM for 20 Oracle databases costs ~<em>$6,000/month</em></h3>
+                    <p class="callout-sub">Database Monitoring is $70/host/month at public list price for DBM Pro. For 20 Oracle instances that's $1,400/month — before APM seats, log ingestion, infrastructure hosts, or custom metrics. Full-stack Datadog for an Oracle shop runs $5,000–$10,000+/month. That's the honest number.</p>
+                </div>
+            </div>
+            <div class="pricing-row-grid">
+                <div class="pricing-row">
+                    <div class="pricing-row-label">Datadog — 20 Oracle DBs</div>
+                    <h4><span class="big-num">~$6,000</span> /month</h4>
+                    <div class="pricing-line">
+                        DBM Pro: <span>$70 × 20 hosts = $1,400</span><br>
+                        Infrastructure: <span>$18 × 20 hosts = $360</span><br>
+                        APM (3 DBA seats): <span>~$150/seat = $450</span><br>
+                        Log ingestion (moderate): <span>~$800/month</span><br>
+                        Custom metrics overhead: <span>~$600/month</span><br>
+                        APM hosts (app servers): <span>scales separately</span>
+                    </div>
+                    <div class="pricing-note">Based on <a href="https://www.datadoghq.com/pricing/" target="_blank" rel="noopener">Datadog public pricing</a> (May 2026). Annual commit may reduce by 15-20%.</div>
+                </div>
+                <div class="pricing-row tv">
+                    <div class="pricing-row-label">TuneVault — 20 Oracle DBs</div>
+                    <h4><span class="big-num">~$580</span> /month</h4>
+                    <div class="pricing-line">
+                        Business tier: <span>$29/conn/month × 20 = $580</span><br>
+                        Oracle-native checks: <span>200+ included</span><br>
+                        EBS operations: <span>included</span><br>
+                        AI remediation: <span>included</span><br>
+                        Team seats: <span>included (Business tier)</span><br>
+                        Reports + API: <span>included</span>
+                    </div>
+                    <div class="pricing-note">All checks included at every tier. No per-metric or per-seat charges. Annual billing saves 20%.</div>
+                </div>
+            </div>
+        </div>
+
+        <hr class="divider">
+
+        <!-- ════ POSITIONING QUOTES ════ -->
+        <div class="section-eyebrow">How to think about it</div>
+        <h2 class="section-h2">Three positions worth keeping</h2>
+        <p class="section-sub" style="margin-bottom:32px;">These aren't marketing lines. They're the mental model DBAs use when they end up using both.</p>
+
+        <div class="quote-blocks">
+            <div class="quote-block">
+                <p>If you already have Datadog for your app stack — keep it. Add TuneVault for the database layer it can't see.</p>
+                <div class="quote-tag">On Datadog + TuneVault</div>
+            </div>
+            <div class="quote-block">
+                <p>Grafana shows you the symptom. TuneVault tells you the fix.</p>
+                <div class="quote-tag">On Grafana vs TuneVault</div>
+            </div>
+            <div class="quote-block">
+                <p>OEM is free if your DBA's time is free.</p>
+                <div class="quote-tag">On Oracle OEM vs TuneVault</div>
+            </div>
+        </div>
+
+        <hr class="divider">
+
+        <!-- ════ FAQ ════ -->
+        <div class="section-eyebrow">FAQ</div>
+        <h2 class="section-h2">Questions about this comparison</h2>
+        <p class="section-sub" style="margin-bottom:32px;"></p>
+
+        <div class="faq-section">
+
+            <div class="faq-item">
+                <button class="faq-question">
+                    Can I use Datadog and TuneVault together?
+                    <span class="faq-arrow">+</span>
+                </button>
+                <div class="faq-answer">
+                    Yes — and for many Oracle shops, that's the right call. Datadog is excellent for your application stack: APM traces, infrastructure metrics, log pipelines, dashboards-as-code. TuneVault covers the database layer Datadog can't see: 200+ Oracle-native health checks, EBS Concurrent Manager / ADOP / Workflow analysis, SQL tuning with AI-generated fix commands, tablespace fragmentation, RMAN validation, and patch gap analysis. They complement each other without overlap.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <button class="faq-question">
+                    Why not just build Oracle monitoring in Grafana?
+                    <span class="faq-arrow">+</span>
+                </button>
+                <div class="faq-answer">
+                    You can — and you'll spend 2–3 weeks doing it. Grafana + Prometheus requires an Oracle exporter, metric cardinality tuning, dashboard templating, alert rule authoring, and ongoing maintenance when Oracle versions change. TuneVault ships 200+ checks out of the box, with EBS detection, AI remediation text, and PDF export on day one. Grafana shows you the symptom. TuneVault tells you the fix.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <button class="faq-question">
+                    Does Zabbix monitor Oracle EBS?
+                    <span class="faq-arrow">+</span>
+                </button>
+                <div class="faq-answer">
+                    Zabbix has community templates for Oracle Database metrics, but it has no native Oracle E-Business Suite (EBS) support. EBS-specific checks — Concurrent Manager health, OPP status, Workflow Mailer queue depth, ADOP patch session state, Apps tier middleware — require custom scripting. TuneVault detects EBS automatically via the APPS schema probe and runs 100+ EBS-specific checks without any configuration.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <button class="faq-question">
+                    How is TuneVault different from Oracle Cloud Control (OEM)?
+                    <span class="faq-arrow">+</span>
+                </button>
+                <div class="faq-answer">
+                    Oracle Enterprise Manager is a full lifecycle management platform — provisioning, patching, RMAN, change management. It's powerful and free with your Oracle license. The cost is setup time (days to weeks), an OMS server to maintain, and agents on every monitored host. TuneVault connects in under 5 minutes, requires no agents, and focuses on operational intelligence: health diagnostics, SQL tuning, EBS ops, and incident management. OEM is free if your DBA's time is free.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <button class="faq-question">
+                    What about ManageEngine Applications Manager?
+                    <span class="faq-arrow">+</span>
+                </button>
+                <div class="faq-answer">
+                    ManageEngine Applications Manager monitors Oracle Database instances alongside 100+ other technologies — JVM, WebLogic, MySQL, AWS, etc. It provides good broad coverage for IT ops teams. TuneVault is purpose-built for Oracle DBA teams: deeper Oracle-specific checks, EBS operations (Concurrent Manager, ADOP, Workflow), SQL tuning with AI-generated index and rewrite recommendations, and a DBA-oriented workflow with TuneOps ticketing and approval gates.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <button class="faq-question">
+                    Does TuneVault support non-Oracle databases?
+                    <span class="faq-arrow">+</span>
+                </button>
+                <div class="faq-answer">
+                    No. TuneVault is Oracle-only: Oracle Database 12c, 19c, 21c, 23ai (23c), and Oracle E-Business Suite 12.2. We don't support MySQL, PostgreSQL, SQL Server, or MongoDB. If you need multi-database monitoring, tools like Datadog DBM or ManageEngine AM are better fits. We focus exclusively on Oracle so we can go 10× deeper than any general-purpose tool.
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ════ CTA ════ -->
+        <div class="cta-section">
+            <h2>Five free checks. No credit card.</h2>
+            <p>Connect your Oracle DB in under 5 minutes and see exactly what TuneVault finds that your current tool misses.</p>
+            <div class="cta-row">
+                <a href="/signup" class="btn-primary" data-cta-id="compare_run_free">Run on your DB free →</a>
+                <a href="/sample-report" class="btn-secondary" data-cta-id="compare_demo">See sample report</a>
+            </div>
+            <p style="margin-top:20px;font-size:13px;color:#9898a8;">Questions about the comparison? <a href="mailto:hello@tunevault.app" style="color:#f0a830;text-decoration:none;">hello@tunevault.app</a></p>
+        </div>
+
+    </div><!-- /page-wrap -->
+
+    <footer style="text-align:center;padding:32px 24px;border-top:1px solid rgba(255,255,255,0.06);margin-top:0;font-size:13px;color:#9898a8;display:flex;justify-content:center;align-items:center;gap:24px;flex-wrap:wrap;">
+        <span>TuneVault &copy; 2026</span>
+        <a href="/about" style="color:#9898a8;text-decoration:none;" onmouseover="this.style.color='#f0a830'" onmouseout="this.style.color='#9898a8'">About</a>
+        <a href="/blog" style="color:#9898a8;text-decoration:none;" onmouseover="this.style.color='#f0a830'" onmouseout="this.style.color='#9898a8'">Blog</a>
+        <a href="/pricing" style="color:#9898a8;text-decoration:none;" onmouseover="this.style.color='#f0a830'" onmouseout="this.style.color='#9898a8'">Pricing</a>
+        <a href="/features" style="color:#9898a8;text-decoration:none;" onmouseover="this.style.color='#f0a830'" onmouseout="this.style.color='#9898a8'">Features</a>
+        <a href="/vs-oem" style="color:#9898a8;text-decoration:none;" onmouseover="this.style.color='#f0a830'" onmouseout="this.style.color='#9898a8'">vs OEM</a>
+        <a href="/trust" style="color:#9898a8;text-decoration:none;" onmouseover="this.style.color='#f0a830'" onmouseout="this.style.color='#9898a8'">Trust Center</a>
+        <a href="mailto:support@tunevault.app" style="color:#9898a8;text-decoration:none;" onmouseover="this.style.color='#f0a830'" onmouseout="this.style.color='#9898a8'">support@tunevault.app</a>
+    </footer>
+
+    <script src="/nav-component.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        window.tvNav.init('main');
+
+        // FAQ accordion
+        document.querySelectorAll('.faq-question').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var item = btn.closest('.faq-item');
+                var isOpen = item.classList.contains('open');
+                document.querySelectorAll('.faq-item').forEach(function(i) { i.classList.remove('open'); });
+                if (!isOpen) item.classList.add('open');
+            });
+        });
+    });
+    </script>
+    <script src="/tv-tracker.js"></script>
+    <script src="/tunebot.js"></script>
+</body>
+</html>

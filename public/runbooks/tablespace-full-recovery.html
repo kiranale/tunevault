@@ -1,0 +1,473 @@
+<\!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oracle Tablespace Full Recovery Runbook — ORA-01653, ORA-01688 | TuneVault</title>
+    <meta name="description" content="Step-by-step Oracle tablespace full recovery runbook. Fix ORA-01653 and ORA-01688 errors fast: identify the full tablespace, add datafiles, enable AUTOEXTEND, and verify recovery. Covers SYSTEM, SYSAUX, UNDO, TEMP, and user tablespaces.">
+    <meta name="author" content="TuneVault">
+    <link rel="canonical" href="https://tunevault.app/resources/runbooks/tablespace-full-recovery">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <meta property="og:title" content="Oracle Tablespace Full Recovery Runbook — TuneVault">
+    <meta property="og:description" content="ORA-01653 or ORA-01688 bringing down your DB? Production-tested recovery steps for all tablespace types.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://tunevault.app/resources/runbooks/tablespace-full-recovery">
+    <meta property="og:site_name" content="TuneVault">
+    <meta property="og:image" content="https://tunevault.app/og/runbook.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="Oracle DBA Runbook — TuneVault production-tested recovery guide">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://tunevault.app/og/runbook.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://tunevault.app/#organization",
+          "name": "TuneVault",
+          "url": "https://tunevault.app",
+          "logo": { "@type": "ImageObject", "url": "https://tunevault.app/logo.png", "width": 512, "height": 512 },
+          "description": "AI agent that autonomously manages Oracle database operations.",
+          "foundingDate": "2026",
+          "founder": { "@type": "Person", "name": "Kiran Kumar Ale", "url": "https://tunevault.app/about" },
+          "contactPoint": { "@type": "ContactPoint", "email": "hello@tunevault.app", "contactType": "customer support" }
+        },
+        {
+          "@type": "TechArticle",
+          "@id": "https://tunevault.app/resources/runbooks/tablespace-full-recovery#article",
+          "headline": "Oracle Tablespace Full Recovery Runbook",
+          "description": "Step-by-step recovery runbook for ORA-01653 and ORA-01688 tablespace full errors. Covers all tablespace types: SYSTEM, SYSAUX, UNDO, TEMP, and user tablespaces.",
+          "url": "https://tunevault.app/resources/runbooks/tablespace-full-recovery",
+          "datePublished": "2026-05-15",
+          "dateModified": "2026-05-15",
+          "author": { "@type": "Person", "name": "Kiran Kumar Ale", "url": "https://tunevault.app/about" },
+          "publisher": { "@id": "https://tunevault.app/#organization" },
+          "about": [
+            { "@type": "Thing", "name": "Oracle Database" },
+            { "@type": "Thing", "name": "Tablespace Management" },
+            { "@type": "Thing", "name": "ORA-01653" }
+          ]
+        }
+      ]
+    }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+    <style>
+        :root {
+            --bg: #0a0a0c;
+            --surface: #111114;
+            --surface2: #18181c;
+            --border: #2a2a30;
+            --text: #e8e8ed;
+            --text-dim: #9898a8;
+            --accent: #f0a830;
+            --accent-dim: rgba(240,168,48,0.12);
+            --red: #f87171;
+            --red-dim: rgba(248,113,113,0.1);
+            --green: #4ade80;
+            --green-dim: rgba(74,222,128,0.1);
+            --blue: #60a5fa;
+            --blue-dim: rgba(96,165,250,0.1);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg); color: var(--text); font-family: 'Space Grotesk', sans-serif; line-height: 1.7; }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+        .nav-logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; color: var(--text); text-decoration: none; }
+        .nav-logo-icon { width: 28px; height: 28px; background: var(--accent); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #0a0a0c; font-weight: 700; }
+        .nav-links { display: flex; align-items: center; gap: 20px; }
+        .nav-links a { font-size: 13px; color: var(--text-dim); transition: color 0.15s; }
+        .nav-links a:hover { color: var(--text); text-decoration: none; }
+        .nav-cta { background: var(--accent); color: #0a0a0c \!important; padding: 6px 16px; border-radius: 6px; font-weight: 600; font-size: 13px \!important; }
+        .nav-cta:hover { background: #e09820 \!important; }
+
+        .page-wrap { max-width: 820px; margin: 0 auto; padding: 48px 24px 80px; }
+
+        .breadcrumb { font-size: 13px; color: var(--text-dim); margin-bottom: 32px; }
+        .breadcrumb a { color: var(--text-dim); }
+        .breadcrumb a:hover { color: var(--accent); }
+        .breadcrumb span { margin: 0 6px; }
+
+        .article-header { margin-bottom: 40px; }
+        .article-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 10px; border-radius: 20px; background: var(--red-dim); color: var(--red); margin-bottom: 16px; }
+        .article-header h1 { font-size: clamp(26px, 4vw, 40px); font-weight: 700; line-height: 1.2; margin-bottom: 16px; }
+        .article-meta { display: flex; gap: 20px; flex-wrap: wrap; font-size: 13px; color: var(--text-dim); }
+
+        .toc { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 40px; }
+        .toc-title { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 12px; }
+        .toc ol { padding-left: 20px; }
+        .toc li { margin-bottom: 6px; }
+        .toc a { font-size: 14px; color: var(--text-dim); }
+        .toc a:hover { color: var(--accent); }
+
+        h2 { font-size: 22px; font-weight: 700; margin: 40px 0 16px; padding-top: 8px; color: var(--text); border-top: 1px solid var(--border); padding-top: 32px; margin-top: 48px; }
+        h2:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+        h3 { font-size: 17px; font-weight: 600; margin: 28px 0 12px; color: var(--text); }
+        p { margin-bottom: 16px; color: var(--text); font-size: 15px; }
+        ul, ol { padding-left: 22px; margin-bottom: 16px; }
+        li { margin-bottom: 8px; font-size: 15px; }
+
+        pre { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 18px 20px; overflow-x: auto; margin: 16px 0 24px; position: relative; }
+        code { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #93c5fd; line-height: 1.6; }
+        p code, li code { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-size: 12.5px; color: #93c5fd; }
+        .comment { color: #6b7280; }
+        .keyword { color: #f0a830; }
+        .string { color: #4ade80; }
+
+        .callout { border-radius: 10px; padding: 18px 20px; margin: 20px 0; font-size: 14px; }
+        .callout-critical { background: var(--red-dim); border: 1px solid rgba(248,113,113,0.3); }
+        .callout-warning { background: var(--accent-dim); border: 1px solid rgba(240,168,48,0.3); }
+        .callout-info { background: var(--blue-dim); border: 1px solid rgba(96,165,250,0.3); }
+        .callout-success { background: var(--green-dim); border: 1px solid rgba(74,222,128,0.3); }
+        .callout-title { font-weight: 700; margin-bottom: 6px; }
+        .callout-critical .callout-title { color: var(--red); }
+        .callout-warning .callout-title { color: var(--accent); }
+        .callout-info .callout-title { color: var(--blue); }
+        .callout-success .callout-title { color: var(--green); }
+
+        .step-list { counter-reset: step; list-style: none; padding: 0; }
+        .step-list li { counter-increment: step; display: flex; gap: 16px; margin-bottom: 24px; align-items: flex-start; }
+        .step-num { flex-shrink: 0; width: 30px; height: 30px; background: var(--accent-dim); border: 1px solid rgba(240,168,48,0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--accent); margin-top: 2px; }
+        .step-content { flex: 1; }
+        .step-content p { margin-bottom: 10px; }
+
+        .cta-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 32px; text-align: center; margin: 48px 0; }
+        .cta-box h3 { font-size: 20px; margin-bottom: 8px; }
+        .cta-box p { color: var(--text-dim); margin-bottom: 20px; font-size: 14px; }
+        .cta-btn { display: inline-flex; align-items: center; gap: 8px; background: var(--accent); color: #0a0a0c; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; transition: background 0.15s; }
+        .cta-btn:hover { background: #e09820; text-decoration: none; }
+
+        .nav-footer { display: flex; justify-content: space-between; gap: 16px; margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+        .nav-footer a { font-size: 14px; font-weight: 500; color: var(--text-dim); display: flex; align-items: center; gap: 6px; }
+        .nav-footer a:hover { color: var(--accent); text-decoration: none; }
+
+        footer { border-top: 1px solid var(--border); padding: 32px 24px; text-align: center; font-size: 13px; color: var(--text-dim); }
+        .footer-links { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin-bottom: 12px; }
+        .footer-links a { color: var(--text-dim); }
+        .footer-links a:hover { color: var(--text); }
+
+        @media (max-width: 600px) { .page-wrap { padding: 32px 16px 60px; } }
+    </style>
+</head>
+<body>
+
+<nav>
+    <a href="/" class="nav-logo">
+        <div class="nav-logo-icon">TV</div>
+        TuneVault
+    </a>
+    <div class="nav-links">
+        <a href="/resources/runbooks">Runbooks</a>
+        <a href="/blog">Blog</a>
+        <a href="/signup?path=health-check&redirect=/dashboard" class="nav-cta">Start Free</a>
+    </div>
+</nav>
+
+<div class="page-wrap">
+
+    <div class="breadcrumb">
+        <a href="/">TuneVault</a>
+        <span>›</span>
+        <a href="/resources/runbooks">Runbooks</a>
+        <span>›</span>
+        Tablespace Full Recovery
+    </div>
+
+    <div class="article-header">
+        <div class="article-tag">🗄️ Storage Emergency</div>
+        <h1>Oracle Tablespace Full Recovery Runbook</h1>
+        <div class="article-meta">
+            <span>⏱ 10–30 min recovery</span>
+            <span>Oracle 12c / 19c / EBS 12.2</span>
+            <span>Updated 2026-05-15</span>
+        </div>
+    </div>
+
+    <div class="callout callout-critical">
+        <div class="callout-title">🔴 Production emergency?</div>
+        If ORA-01653 or ORA-01688 is actively blocking transactions, jump directly to <strong>Step 3: Emergency Space Relief</strong>. Run diagnostics after you've bought breathing room.
+    </div>
+
+    <div class="toc">
+        <div class="toc-title">In this runbook</div>
+        <ol>
+            <li><a href="#symptoms">Recognising the symptoms</a></li>
+            <li><a href="#diagnose">Diagnose: which tablespace is full</a></li>
+            <li><a href="#immediate">Immediate space relief</a></li>
+            <li><a href="#permanent-fix">Permanent fix: add datafiles or resize</a></li>
+            <li><a href="#special-cases">Special cases: UNDO, TEMP, SYSTEM</a></li>
+            <li><a href="#verify">Verify and monitor</a></li>
+            <li><a href="#root-cause">Root cause and prevention</a></li>
+        </ol>
+    </div>
+
+    <h2 id="symptoms">1. Recognising the Symptoms</h2>
+
+    <p>Oracle raises one of two errors when a tablespace cannot allocate a new extent:</p>
+
+    <div class="callout callout-critical">
+        <div class="callout-title">ORA-01653</div>
+        <code>ORA-01653: unable to extend table OWNER.TABLE_NAME by 128 in tablespace TBS_NAME</code><br>
+        Standard data tablespace is full. The number after "by" is the number of Oracle blocks the segment needed.
+    </div>
+
+    <div class="callout callout-critical" style="margin-top:12px;">
+        <div class="callout-title">ORA-01688</div>
+        <code>ORA-01688: unable to extend table OWNER.TABLE_NAME partition PART by 128 in tablespace TBS_NAME</code><br>
+        Same error for partitioned tables. Same fix.
+    </div>
+
+    <p>Other signs a tablespace emergency is developing:</p>
+    <ul>
+        <li>Alert log entries: <code>Errors in file ... ORA-01653</code> or <code>Checkpoint not complete</code></li>
+        <li>Application errors: "Cannot insert row", "Transaction failed", "ORA-01652" (temp)</li>
+        <li>TuneVault health check shows tablespace &gt; 85% or &gt; 90% used</li>
+        <li>Concurrent Manager requests stuck in "Running" with no progress (EBS)</li>
+    </ul>
+
+    <h2 id="diagnose">2. Diagnose: Which Tablespace is Full</h2>
+
+    <h3>2a. Check all tablespace utilisation</h3>
+
+    <pre><code><span class="comment">-- Current tablespace usage (all types)</span>
+SELECT
+  df.tablespace_name                                    AS tablespace,
+  df.total_mb,
+  (df.total_mb - NVL(fs.free_mb, 0))                  AS used_mb,
+  NVL(fs.free_mb, 0)                                   AS free_mb,
+  ROUND((df.total_mb - NVL(fs.free_mb, 0)) / df.total_mb * 100, 1) AS pct_used,
+  df.autoextend_max_mb
+FROM (
+  SELECT tablespace_name,
+    ROUND(SUM(bytes)/1048576, 1)     AS total_mb,
+    ROUND(SUM(DECODE(autoextensible,'YES',maxbytes,bytes))/1048576,1) AS autoextend_max_mb
+  FROM dba_data_files GROUP BY tablespace_name
+) df
+LEFT JOIN (
+  SELECT tablespace_name, ROUND(SUM(bytes)/1048576, 1) AS free_mb
+  FROM dba_free_space GROUP BY tablespace_name
+) fs ON df.tablespace_name = fs.tablespace_name
+ORDER BY pct_used DESC NULLS LAST;</code></pre>
+
+    <h3>2b. Check temp tablespace separately</h3>
+    <pre><code><span class="comment">-- Temp tablespace (uses dba_temp_files, not dba_data_files)</span>
+SELECT
+  tablespace_name,
+  ROUND(SUM(bytes)/1048576, 1)       AS total_mb,
+  ROUND(SUM(bytes - user_bytes)/1048576, 1) AS used_mb,
+  ROUND(SUM(user_bytes)/1048576, 1)  AS free_mb,
+  ROUND((SUM(bytes - user_bytes) / SUM(bytes)) * 100, 1) AS pct_used
+FROM dba_temp_files
+GROUP BY tablespace_name;</code></pre>
+
+    <h3>2c. Find which segments are consuming the space</h3>
+    <pre><code><span class="comment">-- Top 10 space consumers in the problem tablespace</span>
+SELECT owner, segment_name, segment_type,
+  ROUND(SUM(bytes)/1048576, 1) AS size_mb
+FROM dba_segments
+WHERE tablespace_name = '&TABLESPACE_NAME'
+GROUP BY owner, segment_name, segment_type
+ORDER BY size_mb DESC
+FETCH FIRST 10 ROWS ONLY;</code></pre>
+
+    <h3>2d. Check datafile AUTOEXTEND status</h3>
+    <pre><code><span class="comment">-- Which datafiles can autoextend and how much room is left</span>
+SELECT
+  file_name,
+  ROUND(bytes/1048576, 1)    AS current_mb,
+  autoextensible,
+  ROUND(maxbytes/1048576, 1) AS max_mb,
+  ROUND((maxbytes - bytes)/1048576, 1) AS headroom_mb
+FROM dba_data_files
+WHERE tablespace_name = '&TABLESPACE_NAME'
+ORDER BY file_name;</code></pre>
+
+    <h2 id="immediate">3. Immediate Space Relief</h2>
+
+    <p>If you need to unblock transactions immediately without waiting for a datafile add, these steps buy time:</p>
+
+    <h3>3a. Enable AUTOEXTEND on an existing datafile</h3>
+    <pre><code><span class="comment">-- If a datafile exists but AUTOEXTEND is OFF, this is the fastest fix</span>
+<span class="keyword">ALTER DATABASE</span> DATAFILE '/u01/app/oracle/oradata/ORCL/users01.dbf'
+  AUTOEXTEND <span class="keyword">ON</span> NEXT 512M MAXSIZE UNLIMITED;
+
+<span class="comment">-- For ASM diskgroups:</span>
+<span class="keyword">ALTER DATABASE</span> DATAFILE '+DATA/ORCL/DATAFILE/users.256.987654321'
+  AUTOEXTEND <span class="keyword">ON</span> NEXT 512M MAXSIZE UNLIMITED;</code></pre>
+
+    <div class="callout callout-warning">
+        <div class="callout-title">⚠️ MAXSIZE UNLIMITED warning</div>
+        Setting MAXSIZE UNLIMITED means Oracle can grow the datafile until the filesystem/diskgroup is full. Use a specific max if you need to protect other components sharing the same filesystem.
+    </div>
+
+    <h3>3b. Add a new datafile (preferred for large spaces)</h3>
+    <pre><code><span class="comment">-- Add a 2GB datafile with autoextend to an existing tablespace</span>
+<span class="keyword">ALTER TABLESPACE</span> USERS <span class="keyword">ADD DATAFILE</span>
+  '/u01/app/oracle/oradata/ORCL/users02.dbf'
+  SIZE 2G AUTOEXTEND <span class="keyword">ON</span> NEXT 512M MAXSIZE UNLIMITED;
+
+<span class="comment">-- For Oracle Managed Files (OMF) — Oracle chooses the path:</span>
+<span class="keyword">ALTER TABLESPACE</span> USERS <span class="keyword">ADD DATAFILE</span>
+  SIZE 2G AUTOEXTEND <span class="keyword">ON</span> NEXT 512M MAXSIZE UNLIMITED;</code></pre>
+
+    <h2 id="permanent-fix">4. Permanent Fix: Add Datafiles or Resize</h2>
+
+    <h3>4a. Best practice: size new datafiles correctly</h3>
+    <p>Adding many small datafiles is worse than a few large ones. Oracle limits datafiles per tablespace (default 1023 with SMALLFILE tablespace; BIGFILE tablespaces have no per-datafile limit). Target 3–6 datafiles per tablespace, sized to last 6–12 months.</p>
+
+    <pre><code><span class="comment">-- Calculate current monthly growth rate</span>
+<span class="keyword">SELECT</span>
+  segment_name,
+  ROUND(SUM(bytes)/1048576, 1) AS current_size_mb
+<span class="keyword">FROM</span> dba_segments
+<span class="keyword">WHERE</span> tablespace_name = '&TABLESPACE_NAME'
+  AND owner = '&OWNER'
+<span class="keyword">GROUP BY</span> segment_name
+<span class="keyword">ORDER BY</span> current_size_mb <span class="keyword">DESC</span>;</code></pre>
+
+    <h3>4b. Resize an existing datafile (if you prefer fewer files)</h3>
+    <pre><code><span class="comment">-- Resize datafile to 10GB (must be larger than current HWM)</span>
+<span class="keyword">ALTER DATABASE</span> DATAFILE '/u01/app/oracle/oradata/ORCL/users01.dbf'
+  RESIZE 10G;</code></pre>
+
+    <h3>4c. Convert to BIGFILE tablespace for simplicity</h3>
+    <p>BIGFILE tablespaces have a single datafile that can grow up to 128TB (32TB on standard block size). Ideal for large tables. Note: you cannot add additional datafiles to a BIGFILE tablespace.</p>
+    <pre><code><span class="comment">-- Create a new bigfile tablespace (cannot convert existing)</span>
+<span class="keyword">CREATE BIGFILE TABLESPACE</span> TBS_DATA_BIG
+  DATAFILE '/u01/app/oracle/oradata/ORCL/tbs_data_big.dbf'
+  SIZE 10G AUTOEXTEND <span class="keyword">ON</span> NEXT 1G MAXSIZE 100G;</code></pre>
+
+    <h2 id="special-cases">5. Special Cases: UNDO, TEMP, SYSTEM</h2>
+
+    <h3>5a. UNDO tablespace full</h3>
+    <p>UNDO tablespace full usually means long-running transactions or an oversized UNDO_RETENTION setting holding space longer than needed.</p>
+    <pre><code><span class="comment">-- Check active transactions holding undo</span>
+<span class="keyword">SELECT</span> s.sid, s.serial#, s.username, s.status,
+  ROUND(t.used_ublks * 8192/1048576, 2) AS undo_mb,
+  t.start_time
+<span class="keyword">FROM</span> v$transaction t
+<span class="keyword">JOIN</span> v$session s ON s.taddr = t.addr
+<span class="keyword">ORDER BY</span> undo_mb <span class="keyword">DESC</span>;
+
+<span class="comment">-- Add a datafile to the UNDO tablespace</span>
+<span class="keyword">ALTER TABLESPACE</span> UNDOTBS1 <span class="keyword">ADD DATAFILE</span>
+  '/u01/app/oracle/oradata/ORCL/undotbs02.dbf'
+  SIZE 5G AUTOEXTEND <span class="keyword">ON</span> NEXT 1G MAXSIZE UNLIMITED;
+
+<span class="comment">-- Reduce UNDO_RETENTION if it's holding too much (in seconds)</span>
+<span class="comment">-- Default is 900 (15 min). Check current value:</span>
+<span class="keyword">SHOW PARAMETER</span> undo_retention;
+<span class="comment">-- Set to 600 seconds (10 min) if not needed longer:</span>
+<span class="keyword">ALTER SYSTEM SET</span> undo_retention = 600 <span class="keyword">SCOPE</span>=BOTH;</code></pre>
+
+    <h3>5b. TEMP tablespace full</h3>
+    <p>TEMP full is usually a large sort, hash join, or parallel query. It recovers automatically when the operation completes, but you can add space immediately:</p>
+    <pre><code><span class="comment">-- Find sessions using the most temp space</span>
+<span class="keyword">SELECT</span> s.sid, s.serial#, s.username, s.sql_id,
+  ROUND(u.blocks * 8192/1048576, 1) AS temp_mb
+<span class="keyword">FROM</span> v$sort_usage u
+<span class="keyword">JOIN</span> v$session s ON s.saddr = u.session_addr
+<span class="keyword">ORDER BY</span> temp_mb <span class="keyword">DESC</span>;
+
+<span class="comment">-- Add a tempfile</span>
+<span class="keyword">ALTER TABLESPACE</span> TEMP <span class="keyword">ADD TEMPFILE</span>
+  '/u01/app/oracle/oradata/ORCL/temp02.dbf'
+  SIZE 4G AUTOEXTEND <span class="keyword">ON</span> NEXT 1G MAXSIZE UNLIMITED;
+
+<span class="comment">-- Shrink temp (reclaim after large sorts complete)</span>
+<span class="keyword">ALTER TABLESPACE</span> TEMP SHRINK SPACE KEEP 2G;</code></pre>
+
+    <h3>5c. SYSTEM or SYSAUX tablespace full</h3>
+    <div class="callout callout-critical">
+        <div class="callout-title">🔴 SYSTEM tablespace full = database is down</div>
+        Oracle cannot allocate space for internal operations. This is a P1 incident. Add a datafile immediately.
+    </div>
+    <pre><code><span class="comment">-- Immediate: add a datafile to SYSTEM</span>
+<span class="keyword">ALTER TABLESPACE</span> SYSTEM <span class="keyword">ADD DATAFILE</span>
+  '/u01/app/oracle/oradata/ORCL/system02.dbf'
+  SIZE 1G AUTOEXTEND <span class="keyword">ON</span> NEXT 512M MAXSIZE UNLIMITED;
+
+<span class="comment">-- SYSAUX: check top consumers (AWR, Statspack, etc.)</span>
+<span class="keyword">SELECT</span> occupant_name, schema_name,
+  ROUND(space_usage_kbytes/1024, 1) AS space_mb,
+  move_procedure
+<span class="keyword">FROM</span> v$sysaux_occupants
+<span class="keyword">ORDER BY</span> space_usage_kbytes <span class="keyword">DESC</span>;</code></pre>
+
+    <h2 id="verify">6. Verify and Monitor</h2>
+
+    <pre><code><span class="comment">-- Confirm free space after fix</span>
+<span class="keyword">SELECT</span>
+  tablespace_name,
+  ROUND(SUM(bytes)/1048576, 1) AS free_mb
+<span class="keyword">FROM</span> dba_free_space
+<span class="keyword">WHERE</span> tablespace_name = '&TABLESPACE_NAME'
+<span class="keyword">GROUP BY</span> tablespace_name;
+
+<span class="comment">-- Confirm alert log is clear</span>
+<span class="comment">-- Look for: no new ORA-01653 entries after your fix</span>
+<span class="keyword">SELECT</span> originating_timestamp, message_text
+<span class="keyword">FROM</span> v$diag_alert_ext
+<span class="keyword">WHERE</span> message_text <span class="keyword">LIKE</span> <span class="string">'%ORA-01653%'</span>
+<span class="keyword">ORDER BY</span> originating_timestamp <span class="keyword">DESC</span>;
+
+<span class="comment">-- Set up automated alert: create a TuneVault health check</span>
+<span class="comment">-- to notify when any tablespace exceeds 80%</span></code></pre>
+
+    <h2 id="root-cause">7. Root Cause and Prevention</h2>
+
+    <p>Tablespace emergencies are almost always preventable. The root causes in order of frequency:</p>
+
+    <ol>
+        <li><strong>No AUTOEXTEND:</strong> Datafiles created without AUTOEXTEND are a disaster waiting to happen. Set AUTOEXTEND ON for all non-SYSTEM datafiles.</li>
+        <li><strong>AUTOEXTEND hits MAXSIZE:</strong> MAXSIZE was set too conservatively. Review and increase max on all datafiles.</li>
+        <li><strong>Filesystem / diskgroup full:</strong> AUTOEXTEND cannot extend when the OS filesystem is full. Monitor OS-level disk utilisation alongside Oracle tablespace utilisation.</li>
+        <li><strong>Unexpected data growth:</strong> A batch job, a runaway audit trail, or a log table growing without bound. Identify top-growing segments and add retention/purge logic.</li>
+        <li><strong>Missing monitoring:</strong> A &gt;85% threshold alert catches this before it becomes an emergency.</li>
+    </ol>
+
+    <div class="callout callout-success">
+        <div class="callout-title">✅ Prevention checklist</div>
+        <ul style="margin:8px 0 0 20px;">
+            <li>AUTOEXTEND ON with a realistic MAXSIZE on all datafiles</li>
+            <li>Alert on tablespace &gt; 80% (warning) and &gt; 90% (critical)</li>
+            <li>Automated weekly space trend reports</li>
+            <li>Purge policy on audit trail, log, and staging tables</li>
+            <li>AWR retention review: default 8 days of AWR in SYSAUX adds up</li>
+        </ul>
+    </div>
+
+    <div class="cta-box">
+        <h3>Catch this before it pages you</h3>
+        <p>TuneVault monitors all tablespace utilisation continuously, alerts at 80%/90% thresholds, and shows the exact datafiles and top segments in your health check report.</p>
+        <a href="/signup?path=health-check&redirect=/dashboard" class="cta-btn">Run a Free Health Check →</a>
+    </div>
+
+    <div class="nav-footer">
+        <a href="/resources/runbooks">← All Runbooks</a>
+        <a href="/resources/runbooks/archive-log-destination-full">Archive Log Destination Full →</a>
+    </div>
+
+</div>
+
+<footer>
+    <div class="footer-links">
+        <a href="/">TuneVault</a>
+        <a href="/resources/runbooks">Runbooks</a>
+        <a href="/blog">Blog</a>
+        <a href="/compare">Compare Tools</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/about">About</a>
+        <a href="/privacy">Privacy</a>
+    </div>
+    <p style="margin-top:12px;">© 2026 TuneVault · <a href="mailto:hello@tunevault.app">hello@tunevault.app</a></p>
+</footer>
+
+</body>
+</html>

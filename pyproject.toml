@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "tunevault-agent"
+version = "6.0.0"
+description = "TuneVault Agent — pure-Python Oracle health monitoring, zero Oracle client deps"
+readme = "agent/README.md"
+requires-python = ">=3.8"
+license = { text = "Proprietary" }
+authors = [{ name = "TuneVault" }]
+
+# All pure-Python wheels — no Oracle Instant Client, no libclntsh.so, no ORACLE_HOME
+dependencies = [
+    "python-oracledb>=2.3.0",   # thin mode TCP driver — no Oracle client required
+    "paramiko>=3.4.0",          # pure-Python SSH (Ansible/Fabric lineage)
+    "requests>=2.31.0",         # HTTP for health check polling
+    "pyyaml>=6.0",              # agent.yaml config parsing
+    "cryptography>=42.0",       # key material handling (paramiko dep, pinned for security)
+]
+
+[project.scripts]
+tunevault-agent = "agent.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["agent*"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov",
+]
+
+# ── Dependency rationale ──────────────────────────────────────────────────────
+# python-oracledb: THIN mode only — this is the entire architectural purpose of v6.
+#   Do NOT call oracledb.init_oracle_client() anywhere. Thin mode requires:
+#   - Python 3.8+
+#   - No Oracle Instant Client
+#   - No ORACLE_HOME, no LD_LIBRARY_PATH, no libclntsh.so
+#   - Connects directly to TNS listener via TCP (host:port/service_name)
+#
+# paramiko: Pure-Python SSH2 implementation used by Ansible and Fabric.
+#   Eliminates subprocess/shell-out for SSH operations.
+#   Supports RSA/Ed25519/ECDSA keys, ProxyJump for bastion hosts.
+#
+# pyyaml: /etc/tunevault/agent.yaml config parsing.
+#
+# cryptography: Pinned for security — paramiko pulls this in anyway.

@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Setup Migration (FNDLOAD) — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c; --surface: #111114; --surface-2: #1a1a1f; --surface-3: #222228;
+      --border: #2a2a30; --border-2: #3a3a42;
+      --text: #e8e8ed; --text-dim: #b8b8c8; --text-muted: #9898a8;
+      --accent: #f0a830; --accent-dim: rgba(240,168,48,0.12); --accent-hover: rgba(240,168,48,0.2);
+      --green: #34d399; --green-dim: rgba(52,211,153,0.12);
+      --red: #f87171; --red-dim: rgba(248,113,113,0.12);
+      --blue: #60a5fa; --blue-dim: rgba(96,165,250,0.12);
+      --purple: #a78bfa; --purple-dim: rgba(167,139,250,0.12);
+      --amber: #fbbf24;
+    }
+    body { font-family: 'Space Grotesk', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; overflow-x: hidden; }
+    .grain { position: fixed; top:0; left:0; right:0; bottom:0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"); pointer-events: none; z-index: 999; }
+    nav { background: rgba(10,10,12,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 9999; }
+    .page-wrap { max-width: 860px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    /* ── Header ── */
+    .page-header { margin-bottom: 36px; }
+    .page-header h1 { font-size: 24px; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 10px; }
+    .page-header p { font-size: 13px; color: var(--text-dim); max-width: 600px; }
+    .back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-dim); text-decoration: none; margin-bottom: 20px; transition: color 0.15s; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── Progress stepper ── */
+    .stepper { display: flex; gap: 0; margin-bottom: 40px; }
+    .step-item { flex: 1; display: flex; flex-direction: column; align-items: center; position: relative; }
+    .step-item:not(:last-child)::after {
+      content: ''; position: absolute; top: 16px; left: 50%; width: 100%; height: 2px;
+      background: var(--border); z-index: 0;
+    }
+    .step-item.done:not(:last-child)::after { background: var(--accent); }
+    .step-circle {
+      width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--border);
+      background: var(--surface); display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: var(--text-dim); z-index: 1; transition: all 0.2s;
+    }
+    .step-item.active .step-circle { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+    .step-item.done .step-circle { border-color: var(--accent); background: var(--accent); color: #000; }
+    .step-label { font-size: 10px; color: var(--text-dim); text-align: center; margin-top: 6px; font-weight: 600; }
+    .step-item.active .step-label { color: var(--accent); }
+
+    /* ── Step panels ── */
+    .step-panel { display: none; }
+    .step-panel.active { display: block; }
+
+    /* ── Card ── */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+    .card-title { font-size: 14px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .card-title .icon { font-size: 18px; }
+
+    /* ── Form ── */
+    label { display: block; font-size: 12px; font-weight: 600; color: var(--text-dim); margin-bottom: 6px; }
+    .field { margin-bottom: 16px; }
+    select, input[type=text], input[type=password], textarea {
+      width: 100%; background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+      font-family: inherit; font-size: 14px; padding: 10px 14px; border-radius: 8px; transition: border-color 0.15s;
+    }
+    select:focus, input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+    textarea { font-family: 'JetBrains Mono', monospace; font-size: 12px; resize: vertical; min-height: 80px; }
+    .hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+    .warn-hint { color: var(--amber); }
+
+    /* ── Two-col grid ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media(max-width:600px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    /* ── Object type radio grid ── */
+    .otype-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+    .otype-card {
+      border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px;
+      cursor: pointer; transition: all 0.15s; display: flex; align-items: flex-start; gap: 10px;
+    }
+    .otype-card:hover { border-color: var(--border-2); }
+    .otype-card.selected { border-color: var(--accent); background: var(--accent-dim); }
+    .otype-card.stub { opacity: 0.5; cursor: not-allowed; }
+    .otype-radio { width: 14px; height: 14px; border: 2px solid var(--border); border-radius: 50%; flex-shrink: 0; margin-top: 2px; transition: all 0.15s; }
+    .otype-card.selected .otype-radio { border-color: var(--accent); background: var(--accent); }
+    .otype-name { font-size: 13px; font-weight: 600; }
+    .otype-lct { font-size: 10px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+    .otype-badge { font-size: 9px; padding: 1px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase; }
+    .badge-soon { background: var(--surface-3); color: var(--text-muted); }
+    .badge-full { background: var(--green-dim); color: var(--green); }
+
+    /* ── Object name input ── */
+    .name-input-wrap { display: flex; gap: 8px; }
+    .name-input-wrap input { flex: 1; }
+    .name-input-wrap button { flex-shrink: 0; }
+
+    /* ── Validation chips ── */
+    .validation-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+    .chip {
+      padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .chip-ok { background: var(--green-dim); color: var(--green); }
+    .chip-err { background: var(--red-dim); color: var(--red); }
+    .chip-pending { background: var(--surface-3); color: var(--text-dim); }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      border: none; cursor: pointer; font-family: inherit; transition: all 0.15s;
+    }
+    .btn-primary { background: var(--accent); color: #000; }
+    .btn-primary:hover { background: #fbbf24; }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-ghost { background: var(--surface-2); border: 1px solid var(--border); color: var(--text-dim); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-danger { background: var(--red-dim); border: 1px solid var(--red); color: var(--red); }
+    .btn-danger:hover { background: var(--red); color: #fff; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+    /* ── Nav row ── */
+    .nav-row { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; }
+    .nav-row .nav-left { display: flex; gap: 8px; }
+
+    /* ── Terminal output ── */
+    .terminal {
+      background: #000; border: 1px solid var(--border); border-radius: 8px;
+      padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px;
+      color: #e0e0e0; max-height: 320px; overflow-y: auto; white-space: pre-wrap;
+      word-break: break-all; margin-top: 12px;
+    }
+    .terminal .ok-line { color: var(--green); }
+    .terminal .err-line { color: var(--red); }
+
+    /* ── Diff panel ── */
+    .diff-panel { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-top: 12px; font-size: 13px; line-height: 1.7; white-space: pre-wrap; }
+
+    /* ── Status alert ── */
+    .alert { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 10px; }
+    .alert-warn { background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); color: var(--amber); }
+    .alert-err  { background: var(--red-dim); border: 1px solid rgba(248,113,113,0.3); color: var(--red); }
+    .alert-ok   { background: var(--green-dim); border: 1px solid rgba(52,211,153,0.3); color: var(--green); }
+    .alert-info { background: var(--blue-dim); border: 1px solid rgba(96,165,250,0.3); color: var(--blue); }
+
+    /* ── Spinner ── */
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: currentColor; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── History table ── */
+    .hist-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .hist-table th { text-align: left; padding: 8px 12px; color: var(--text-dim); font-weight: 600; border-bottom: 1px solid var(--border); }
+    .hist-table td { padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: top; }
+    .hist-badge-ok { color: var(--green); } .hist-badge-fail { color: var(--red); }
+
+    /* ── Confirm input ── */
+    .confirm-box { background: rgba(248,113,113,0.06); border: 1px solid rgba(248,113,113,0.25); border-radius: 8px; padding: 16px; margin-top: 12px; }
+    .confirm-box label { color: var(--red); margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+<div class="grain"></div>
+<nav><div id="nav-root"></div></nav>
+
+<div class="page-wrap">
+  <a href="/ebs-ops" class="back-link">← EBS Ops</a>
+
+  <div class="page-header">
+    <h1><span>📦</span> Setup Migration (FNDLOAD)</h1>
+    <p>Migrate Oracle EBS setup objects between instances using FNDLOAD. Compare source and target, review diff, then promote with full audit trail.</p>
+  </div>
+
+  <!-- ── Stepper ── -->
+  <div class="stepper" id="stepper">
+    <div class="step-item active" data-step="1"><div class="step-circle">1</div><div class="step-label">Instances</div></div>
+    <div class="step-item" data-step="2"><div class="step-circle">2</div><div class="step-label">Object Type</div></div>
+    <div class="step-item" data-step="3"><div class="step-circle">3</div><div class="step-label">Pick Objects</div></div>
+    <div class="step-item" data-step="4"><div class="step-circle">4</div><div class="step-label">Diff</div></div>
+    <div class="step-item" data-step="5"><div class="step-circle">5</div><div class="step-label">Execute</div></div>
+  </div>
+
+  <!-- ══════════════════════ STEP 1: INSTANCES ══════════════════════ -->
+  <div class="step-panel active" id="step-1">
+    <div class="card">
+      <div class="card-title"><span class="icon">🔗</span> Step 1 — Pick Source and Target Instances</div>
+
+      <div id="alert-step1"></div>
+
+      <div class="grid-2">
+        <div class="field">
+          <label>Source instance <span style="color:var(--text-muted)">(migrate FROM)</span></label>
+          <select id="src-conn"></select>
+          <div class="hint" id="src-meta"></div>
+        </div>
+        <div class="field">
+          <label>Target instance <span style="color:var(--text-muted)">(migrate TO)</span></label>
+          <select id="tgt-conn"></select>
+          <div class="hint" id="tgt-meta"></div>
+        </div>
+      </div>
+
+      <div id="version-warn" style="display:none">
+        <div class="alert alert-warn">⚠️ The two instances have different EBS versions. Migration may still work, but verify compatibility.</div>
+      </div>
+
+      <div class="field">
+        <label>APPS schema password <span style="color:var(--red)">*</span></label>
+        <input type="password" id="apps-password" placeholder="Required for FNDLOAD execution — not stored" autocomplete="off">
+        <div class="hint">Used only for this session. Never written to disk or logged.</div>
+      </div>
+
+      <div class="nav-row">
+        <div></div>
+        <button class="btn btn-primary" onclick="goStep2()">Next → Object Type</button>
+      </div>
+    </div>
+
+    <!-- History panel -->
+    <div class="card" style="margin-top:24px;">
+      <div class="card-title"><span class="icon">📋</span> Recent Migrations</div>
+      <div id="hist-content"><div style="color:var(--text-dim);font-size:13px;">Loading history…</div></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ STEP 2: OBJECT TYPE ══════════════════════ -->
+  <div class="step-panel" id="step-2">
+    <div class="card">
+      <div class="card-title"><span class="icon">🗂️</span> Step 2 — Pick Object Type</div>
+      <div class="otype-grid" id="otype-grid"></div>
+      <div class="nav-row">
+        <div class="nav-left"><button class="btn btn-ghost" onclick="goStep(1)">← Back</button></div>
+        <button class="btn btn-primary" onclick="goStep3()">Next → Pick Objects</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ STEP 3: PICK OBJECTS ══════════════════════ -->
+  <div class="step-panel" id="step-3">
+    <div class="card">
+      <div class="card-title"><span class="icon">🔍</span> Step 3 — Pick Objects to Migrate</div>
+      <div class="field">
+        <label>Object short names (comma-separated or one per line, wildcards like XX% supported)</label>
+        <textarea id="object-names-input" rows="4" placeholder="XXHR_IMPORT_EMP&#10;XXPAY_PAYROLL_RPT&#10;or: XX%"></textarea>
+        <div class="hint">Separate multiple names with commas or new lines. Wildcards: <code>XX%</code> finds all starting with XX.</div>
+      </div>
+      <div class="nav-row">
+        <div class="nav-left"><button class="btn btn-ghost" onclick="goStep(2)">← Back</button></div>
+        <button class="btn btn-primary" id="btn-validate" onclick="validateObjects()">Validate on Source →</button>
+      </div>
+      <div id="validate-result" style="margin-top:16px;"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ STEP 4: DIFF ══════════════════════ -->
+  <div class="step-panel" id="step-4">
+    <div class="card">
+      <div class="card-title"><span class="icon">🔀</span> Step 4 — Preview Diff</div>
+      <div class="alert alert-info" style="margin-bottom:12px;">
+        📡 Downloading .ldt from source and target, then running AI comparison…
+      </div>
+      <div id="diff-status"></div>
+      <div id="diff-content" style="display:none">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">AI analysis of changes that will be applied:</div>
+        <div class="diff-panel" id="diff-text"></div>
+        <details style="margin-top:12px;">
+          <summary style="font-size:12px;color:var(--text-dim);cursor:pointer;">Show raw source .ldt</summary>
+          <div class="terminal" id="src-ldt-raw" style="max-height:200px;"></div>
+        </details>
+        <details style="margin-top:8px;">
+          <summary style="font-size:12px;color:var(--text-dim);cursor:pointer;">Show raw target .ldt (current state)</summary>
+          <div class="terminal" id="tgt-ldt-raw" style="max-height:200px;"></div>
+        </details>
+      </div>
+      <div class="nav-row">
+        <div class="nav-left"><button class="btn btn-ghost" onclick="goStep(3)">← Back</button></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" onclick="goStep(3)">Cancel</button>
+          <button class="btn btn-primary" id="btn-approve-diff" onclick="goStep5()" disabled>Approve &amp; Continue →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ STEP 5: EXECUTE ══════════════════════ -->
+  <div class="step-panel" id="step-5">
+    <div class="card">
+      <div class="card-title"><span class="icon">🚀</span> Step 5 — Execute Migration</div>
+
+      <div id="exec-summary" style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.8;"></div>
+
+      <!-- Safety confirmation -->
+      <div class="confirm-box" id="confirm-box">
+        <label>Type the target instance name to confirm — <span id="confirm-expected" style="font-family:monospace;"></span></label>
+        <input type="text" id="confirm-input" placeholder="Type exact name here" autocomplete="off" oninput="checkConfirm()">
+        <div class="hint warn-hint" style="margin-top:6px;">This is a real migration. FNDLOAD UPLOAD will overwrite the target. The pre-state .ldt backup is captured automatically.</div>
+      </div>
+
+      <div id="exec-alert" style="margin-top:16px;"></div>
+
+      <div class="nav-row">
+        <div class="nav-left"><button class="btn btn-ghost" onclick="goStep(4)">← Back to Diff</button></div>
+        <button class="btn btn-danger" id="btn-execute" onclick="executeUpload()" disabled>Execute FNDLOAD UPLOAD</button>
+      </div>
+
+      <!-- Output terminal -->
+      <div id="exec-output" style="display:none;margin-top:20px;">
+        <div class="card-title" style="margin-bottom:8px;"><span class="icon">💻</span> FNDLOAD Output</div>
+        <div class="terminal" id="exec-terminal"></div>
+        <div id="exec-result-msg" style="margin-top:12px;font-size:14px;font-weight:700;"></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- .page-wrap -->
+
+<script src="/nav-component.js"></script>
+<script>
+  window.tvNav.init('ebs-ops');
+
+  // ── State ────────────────────────────────────────────────────────────────────
+  var state = {
+    connections: [],
+    step: 1,
+    srcConnId: null, tgtConnId: null, appsPassword: '',
+    objectType: null, lctFile: null,
+    validatedNames: [],
+    sourceLdt: '', targetLdt: '',
+    diffSummary: '',
+    preStateLdt: '',
+  };
+
+  // ── Boot ─────────────────────────────────────────────────────────────────────
+  (async function init() {
+    await loadConnections();
+    await loadObjectTypes();
+    loadHistory();
+  })();
+
+  async function loadConnections() {
+    const el = setAlert('step1', 'info', '<span class="spinner"></span> Loading connections…');
+    try {
+      const r = await api('GET', '/api/connections');
+      state.connections = (r.connections || []).filter(c => c.connection_type === 'proxy');
+      if (state.connections.length === 0) {
+        setAlert('step1', 'warn', '⚠️ No proxy connections found. FNDLOAD requires proxy connections. <a href="/settings" style="color:var(--accent)">Add one in Settings →</a>');
+        return;
+      }
+      el.remove();
+      buildConnSelects();
+    } catch(e) {
+      setAlert('step1', 'err', 'Failed to load connections: ' + e.message);
+    }
+  }
+
+  function buildConnSelects() {
+    const opts = state.connections.map(c =>
+      `<option value="${c.id}" data-name="${escHtml(c.name)}">${escHtml(c.name)}</option>`
+    ).join('');
+    document.getElementById('src-conn').innerHTML = '<option value="">— Select source —</option>' + opts;
+    document.getElementById('tgt-conn').innerHTML = '<option value="">— Select target —</option>' + opts;
+    document.getElementById('src-conn').onchange = updateConnMeta;
+    document.getElementById('tgt-conn').onchange = updateConnMeta;
+  }
+
+  function updateConnMeta() {
+    const srcId = document.getElementById('src-conn').value;
+    const tgtId = document.getElementById('tgt-conn').value;
+    const src = state.connections.find(c => String(c.id) === srcId);
+    const tgt = state.connections.find(c => String(c.id) === tgtId);
+
+    document.getElementById('src-meta').textContent = src ? (src.service_name || '') : '';
+    document.getElementById('tgt-meta').textContent = tgt ? (tgt.service_name || '') : '';
+
+    // Version mismatch warning (best-effort from ebs_version field if present)
+    const srcVer = src?.ebs_version, tgtVer = tgt?.ebs_version;
+    const warnEl = document.getElementById('version-warn');
+    warnEl.style.display = (srcVer && tgtVer && srcVer !== tgtVer) ? 'block' : 'none';
+  }
+
+  async function loadObjectTypes() {
+    try {
+      const r = await api('GET', '/api/ebs/fndload/object-types');
+      renderObjectTypes(r.types || []);
+    } catch(e) { /* non-critical */ }
+  }
+
+  function renderObjectTypes(types) {
+    const grid = document.getElementById('otype-grid');
+    grid.innerHTML = types.map(t => `
+      <div class="otype-card ${!t.fullySupported ? 'stub' : ''}" onclick="${t.fullySupported ? `selectOtype(${JSON.stringify(t.label)}, ${JSON.stringify(t.lct)}, this)` : ''}">
+        <div class="otype-radio"></div>
+        <div>
+          <div class="otype-name">${escHtml(t.label)}</div>
+          <div class="otype-lct">${escHtml(t.lct)}</div>
+          <div style="margin-top:4px;">
+            <span class="otype-badge ${t.fullySupported ? 'badge-full' : 'badge-soon'}">${t.fullySupported ? 'Supported' : 'Coming soon'}</span>
+          </div>
+        </div>
+      </div>`).join('');
+  }
+
+  function selectOtype(label, lct, el) {
+    document.querySelectorAll('.otype-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    state.objectType = label;
+    state.lctFile    = lct;
+  }
+
+  async function loadHistory() {
+    try {
+      const r = await api('GET', '/api/ebs/fndload/history');
+      const rows = r.history || [];
+      const el = document.getElementById('hist-content');
+      if (!rows.length) { el.innerHTML = '<div style="font-size:13px;color:var(--text-dim);">No migration history yet.</div>'; return; }
+      el.innerHTML = `<table class="hist-table">
+        <thead><tr><th>When</th><th>Action</th><th>Type</th><th>Objects</th><th>Source → Target</th><th>Result</th></tr></thead>
+        <tbody>${rows.map(r => `<tr>
+          <td>${fmtDate(r.executed_at)}</td>
+          <td>${escHtml(r.action)}</td>
+          <td>${escHtml(r.object_type)}</td>
+          <td>${escHtml((r.object_names || []).join(', ').slice(0,40))}</td>
+          <td>${escHtml(r.source_conn_name||'')}&nbsp;→&nbsp;${escHtml(r.target_conn_name||'')}</td>
+          <td class="${r.success ? 'hist-badge-ok' : 'hist-badge-fail'}">${r.success ? '✅' : '❌'}</td>
+        </tr>`).join('')}</tbody>
+      </table>`;
+    } catch(e) { /* non-critical */ }
+  }
+
+  // ── Step navigation ───────────────────────────────────────────────────────────
+  function goStep(n) {
+    state.step = n;
+    document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('step-' + n).classList.add('active');
+    document.querySelectorAll('.step-item').forEach(el => {
+      const s = parseInt(el.dataset.step);
+      el.classList.remove('active', 'done');
+      if (s === n) el.classList.add('active');
+      else if (s < n) el.classList.add('done');
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function goStep2() {
+    const srcId = document.getElementById('src-conn').value;
+    const tgtId = document.getElementById('tgt-conn').value;
+    const pw    = document.getElementById('apps-password').value.trim();
+    const alerts = document.getElementById('alert-step1');
+
+    if (!srcId || !tgtId) { showAlert(alerts, 'warn', 'Select both source and target instances.'); return; }
+    if (srcId === tgtId)  { showAlert(alerts, 'warn', 'Source and target must be different instances.'); return; }
+    if (!pw)              { showAlert(alerts, 'warn', 'APPS password is required.'); return; }
+
+    alerts.innerHTML = '';
+    state.srcConnId     = parseInt(srcId, 10);
+    state.tgtConnId     = parseInt(tgtId, 10);
+    state.appsPassword  = pw;
+    const tgt = state.connections.find(c => c.id === state.tgtConnId);
+    state.tgtConnName   = tgt?.name || '';
+    goStep(2);
+  }
+
+  function goStep3() {
+    if (!state.objectType) { alert('Select an object type.'); return; }
+    goStep(3);
+  }
+
+  // ── Step 3: Validate objects ──────────────────────────────────────────────────
+  async function validateObjects() {
+    const raw = document.getElementById('object-names-input').value;
+    const names = raw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+    if (!names.length) { alert('Enter at least one object name.'); return; }
+
+    const btn = document.getElementById('btn-validate');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Validating…';
+
+    const resultEl = document.getElementById('validate-result');
+    resultEl.innerHTML = '';
+
+    try {
+      const r = await api('POST', '/api/ebs/fndload/validate', {
+        source_conn_id: state.srcConnId,
+        apps_password:  state.appsPassword,
+        object_type:    state.objectType,
+        object_names:   names,
+      });
+
+      const found    = r.found    || [];
+      const notFound = r.not_found || [];
+
+      let html = '<div class="validation-chips">';
+      found.forEach(n    => { html += `<span class="chip chip-ok">✓ ${escHtml(n)}</span>`; });
+      notFound.forEach(n => { html += `<span class="chip chip-err">✗ ${escHtml(n)}</span>`; });
+      html += '</div>';
+
+      if (found.length === 0) {
+        html += '<div class="alert alert-err" style="margin-top:12px;">None of the specified objects were found on the source instance. Check the names and object type.</div>';
+      } else {
+        state.validatedNames = found;
+        if (notFound.length) {
+          html += `<div class="alert alert-warn" style="margin-top:12px;">${notFound.length} name(s) not found on source. Only validated objects will be migrated.</div>`;
+        }
+        html += `<div class="nav-row" style="margin-top:16px;"><div></div>
+          <button class="btn btn-primary" onclick="startDiff()">Next → Preview Diff (${found.length} objects)</button>
+        </div>`;
+      }
+      resultEl.innerHTML = html;
+    } catch(e) {
+      resultEl.innerHTML = `<div class="alert alert-err">Validation failed: ${escHtml(e.message)}</div>`;
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = 'Validate on Source →';
+    }
+  }
+
+  // ── Step 4: Diff ──────────────────────────────────────────────────────────────
+  async function startDiff() {
+    goStep(4);
+    const statusEl   = document.getElementById('diff-status');
+    const contentEl  = document.getElementById('diff-content');
+    const approveBtn = document.getElementById('btn-approve-diff');
+    contentEl.style.display = 'none';
+    approveBtn.disabled = true;
+
+    // 1. Download source .ldt
+    statusEl.innerHTML = `<div class="alert alert-info"><span class="spinner"></span> Downloading from source instance…</div>`;
+    try {
+      const srcR = await api('POST', '/api/ebs/fndload/download', {
+        conn_id: state.srcConnId, apps_password: state.appsPassword,
+        object_type: state.objectType, object_names: state.validatedNames,
+      });
+      state.sourceLdt = srcR.ldt_text || '';
+    } catch(e) {
+      statusEl.innerHTML = `<div class="alert alert-err">Source download failed: ${escHtml(e.message)}</div>`; return;
+    }
+
+    // 2. Download target .ldt (may not exist — that's OK)
+    statusEl.innerHTML = `<div class="alert alert-info"><span class="spinner"></span> Downloading from target instance (may show warning if object doesn't exist yet)…</div>`;
+    try {
+      const tgtR = await api('POST', '/api/ebs/fndload/download', {
+        conn_id: state.tgtConnId, apps_password: state.appsPassword,
+        object_type: state.objectType, object_names: state.validatedNames,
+        is_target: true,
+      });
+      state.targetLdt  = tgtR.ldt_text || '';
+      state.preStateLdt = tgtR.ldt_text || '';
+    } catch(e) {
+      // Target might not have the object — OK, proceed with empty target
+      state.targetLdt = ''; state.preStateLdt = '';
+    }
+
+    // 3. AI diff
+    statusEl.innerHTML = `<div class="alert alert-info"><span class="spinner"></span> Running AI diff analysis…</div>`;
+    try {
+      const diffR = await api('POST', '/api/ebs/fndload/diff', {
+        source_ldt: state.sourceLdt, target_ldt: state.targetLdt, object_type: state.objectType,
+      });
+      state.diffSummary = diffR.diff || '';
+    } catch(e) {
+      state.diffSummary = 'AI diff unavailable — review raw .ldt files below.';
+    }
+
+    // Render diff
+    statusEl.innerHTML = '';
+    document.getElementById('diff-text').textContent = state.diffSummary;
+    document.getElementById('src-ldt-raw').textContent = state.sourceLdt || '(empty)';
+    document.getElementById('tgt-ldt-raw').textContent = state.targetLdt || '(object does not exist on target — will be created)';
+    contentEl.style.display = 'block';
+    approveBtn.disabled = false;
+  }
+
+  function goStep5() {
+    goStep(5);
+    const src = state.connections.find(c => c.id === state.srcConnId);
+    const tgt = state.connections.find(c => c.id === state.tgtConnId);
+    document.getElementById('exec-summary').innerHTML = [
+      `<strong>Object type:</strong> ${escHtml(state.objectType)} (${escHtml(state.lctFile)})`,
+      `<strong>Objects:</strong> ${escHtml(state.validatedNames.join(', '))}`,
+      `<strong>Source:</strong> ${escHtml(src?.name || '')}`,
+      `<strong>Target:</strong> ${escHtml(tgt?.name || '')}`,
+      `<strong>Pre-state backup:</strong> ${state.preStateLdt ? 'Captured ✅' : 'Object not found on target (new creation)'}`,
+    ].join('<br>');
+    document.getElementById('confirm-expected').textContent = tgt?.name || '';
+    document.getElementById('confirm-input').value = '';
+    document.getElementById('btn-execute').disabled = true;
+    document.getElementById('exec-output').style.display = 'none';
+  }
+
+  function checkConfirm() {
+    const val  = document.getElementById('confirm-input').value;
+    const tgt  = state.connections.find(c => c.id === state.tgtConnId);
+    const ok   = val === (tgt?.name || '');
+    document.getElementById('btn-execute').disabled = !ok;
+  }
+
+  // ── Step 5: Execute ───────────────────────────────────────────────────────────
+  async function executeUpload() {
+    const btn = document.getElementById('btn-execute');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Uploading…';
+    document.getElementById('exec-alert').innerHTML = '';
+    const outputEl  = document.getElementById('exec-output');
+    const termEl    = document.getElementById('exec-terminal');
+    const resultMsg = document.getElementById('exec-result-msg');
+    outputEl.style.display = 'block';
+    termEl.textContent = 'Running FNDLOAD UPLOAD…\n';
+
+    try {
+      const r = await api('POST', '/api/ebs/fndload/upload', {
+        source_conn_id:     state.srcConnId,
+        target_conn_id:     state.tgtConnId,
+        apps_password:      state.appsPassword,
+        object_type:        state.objectType,
+        object_names:       state.validatedNames,
+        source_ldt:         state.sourceLdt,
+        pre_state_ldt:      state.preStateLdt,
+        target_name_confirm: document.getElementById('confirm-input').value,
+        diff_summary:       state.diffSummary,
+      });
+
+      const out = r.output || {};
+      let lines = '';
+      if (out.stdout) lines += out.stdout + '\n';
+      if (out.stderr) lines += '[STDERR]\n' + out.stderr + '\n';
+      if (out.return_code !== null) lines += `\n[Exit code: ${out.return_code}]\n`;
+      termEl.textContent = lines || '(no output)';
+
+      if (r.success) {
+        resultMsg.innerHTML = `<span style="color:var(--green)">✅ ${escHtml(r.message)}</span>`;
+        document.getElementById('exec-alert').innerHTML = `<div class="alert alert-ok">Migration complete. Audit log row written.</div>`;
+        loadHistory();
+      } else {
+        resultMsg.innerHTML = `<span style="color:var(--red)">❌ ${escHtml(r.message)}</span>`;
+        document.getElementById('exec-alert').innerHTML = `<div class="alert alert-err">Upload failed. Audit row written. Review FNDLOAD output above.</div>`;
+        btn.disabled = false;
+        btn.innerHTML = 'Retry FNDLOAD UPLOAD';
+      }
+    } catch(e) {
+      document.getElementById('exec-alert').innerHTML = `<div class="alert alert-err">Upload failed: ${escHtml(e.message)}</div>`;
+      btn.disabled = false;
+      btn.innerHTML = 'Retry FNDLOAD UPLOAD';
+    }
+  }
+
+  // ── Utilities ─────────────────────────────────────────────────────────────────
+  async function api(method, path, body) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const r = await fetch(path, opts);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+    return data;
+  }
+
+  function setAlert(zone, type, msg) {
+    const el = document.createElement('div');
+    el.className = `alert alert-${type}`;
+    el.innerHTML = msg;
+    document.getElementById('alert-' + zone).appendChild(el);
+    return el;
+  }
+
+  function showAlert(container, type, msg) {
+    container.innerHTML = `<div class="alert alert-${type}">${escHtml(msg)}</div>`;
+  }
+
+  function escHtml(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function fmtDate(s) {
+    if (!s) return '—';
+    const d = new Date(s);
+    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+</script>
+<div style="text-align:center;padding:24px 16px 16px;border-top:1px solid rgba(255,255,255,0.05);margin-top:32px;">
+  <span style="font-size:12px;color:#9898a8;">Need help? <a href="mailto:support@tunevault.app" style="color:#f0a830;text-decoration:none;">support@tunevault.app</a></span>
+</div>
+<script src="/tunebot.js"></script>
+</body>
+</html>

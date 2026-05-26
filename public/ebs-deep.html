@@ -1,0 +1,3205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deep EBS Mode — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://tunevault.app/ebs-deep">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c;
+      --surface: #111114;
+      --surface-2: #1a1a1f;
+      --border: #2a2a30;
+      --text: #e8e8ed;
+      --text-dim: #b8b8c8;
+      --accent: #f0a830;
+      --accent-dim: rgba(240, 168, 48, 0.12);
+      --green: #34d399;
+      --green-dim: rgba(52, 211, 153, 0.12);
+      --red: #f87171;
+      --red-dim: rgba(248, 113, 113, 0.12);
+      --yellow: #fbbf24;
+      --yellow-dim: rgba(251, 191, 36, 0.12);
+      --blue: #60a5fa;
+      --blue-dim: rgba(96, 165, 250, 0.12);
+      --orange: #fb923c;
+      --orange-dim: rgba(251, 146, 60, 0.12);
+    }
+    body {
+      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    .grain {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    /* ── Nav ── */
+    .nav-wrapper {
+      border-bottom: 1px solid var(--border);
+      background: rgba(10, 10, 12, 0.95);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 9999;
+    }
+    nav#nav-root {
+      max-width: 1300px;
+      margin: 0 auto;
+    }
+
+    /* ── Layout ── */
+    .page-wrapper {
+      max-width: 1300px;
+      margin: 0 auto;
+      padding: 48px 48px 80px;
+    }
+
+    /* ── Page header ── */
+    .page-header {
+      padding: 36px 0 0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    .page-header-left h1 {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .page-header-left h1 .badge {
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--orange-dim);
+      color: var(--orange);
+      border: 1px solid rgba(251, 146, 60, 0.25);
+      padding: 2px 8px;
+      border-radius: 100px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .page-header-left p {
+      margin-top: 6px;
+      color: var(--text-dim);
+      font-size: 14px;
+      max-width: 560px;
+    }
+
+    /* ── Tab bar ── */
+    .tab-bar {
+      display: flex;
+      gap: 4px;
+      margin-top: 28px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0;
+    }
+    .tab-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 14px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      padding: 10px 16px;
+      border-radius: 8px 8px 0 0;
+      border: 1px solid transparent;
+      border-bottom: none;
+      position: relative;
+      bottom: -1px;
+      transition: color 0.18s, background 0.18s;
+      letter-spacing: -0.1px;
+    }
+    .tab-btn .tab-icon {
+      font-size: 15px;
+      line-height: 1;
+    }
+    .tab-btn:hover {
+      color: var(--text);
+      background: var(--surface-2);
+    }
+    .tab-btn.active {
+      color: var(--text);
+      background: var(--surface);
+      border-color: var(--border);
+      font-weight: 600;
+    }
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--accent);
+      border-radius: 2px 2px 0 0;
+    }
+
+    /* ── Tab panels ── */
+    .tab-panel {
+      display: none;
+      padding-top: 32px;
+    }
+    .tab-panel.active {
+      display: block;
+    }
+
+    /* ── Dry-run banner ── */
+    .dryrun-banner {
+      background: var(--orange-dim);
+      border: 1px solid rgba(251, 146, 60, 0.3);
+      border-radius: 10px;
+      padding: 12px 18px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .dryrun-banner .icon {
+      font-size: 18px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .dryrun-banner-text strong {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--orange);
+      margin-bottom: 2px;
+    }
+    .dryrun-banner-text p {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    /* ── Control warning banner ── */
+    .control-warning {
+      background: rgba(248, 113, 113, 0.06);
+      border: 1px solid rgba(248, 113, 113, 0.25);
+      border-radius: 10px;
+      padding: 14px 20px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .control-warning .icon {
+      font-size: 18px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .control-warning-text strong {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--red);
+      margin-bottom: 2px;
+    }
+    .control-warning-text p {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    /* ── Connection selector ── */
+    .conn-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+    }
+    .conn-bar label {
+      font-size: 13px;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+    .conn-select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-family: inherit;
+      min-width: 240px;
+      cursor: pointer;
+      outline: none;
+    }
+    .conn-select:focus {
+      border-color: var(--accent);
+    }
+    .btn-refresh {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-refresh:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .btn-refresh:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .btn-run-deep {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--accent);
+      border: none;
+      color: #0a0a0c;
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-left: 8px;
+    }
+    .btn-run-deep:hover { opacity: 0.88; }
+    .btn-run-deep:disabled { opacity: 0.5; cursor: not-allowed; }
+    .auto-refresh-pill {
+      font-size: 11px;
+      color: var(--text-dim);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 100px;
+    }
+    .auto-refresh-pill.active {
+      color: var(--green);
+      background: var(--green-dim);
+      border-color: rgba(52, 211, 153, 0.25);
+    }
+
+    /* ── Section titles ── */
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text);
+    }
+    .section-title .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    /* ── Status grid ── */
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+    .status-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      transition: border-color 0.2s;
+    }
+    .status-card:hover { border-color: rgba(255,255,255,0.12); }
+    .status-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .status-card-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+    .status-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 100px;
+      font-family: 'JetBrains Mono', monospace;
+      text-transform: uppercase;
+    }
+    .status-badge.up, .status-badge.running {
+      background: var(--green-dim);
+      color: var(--green);
+      border: 1px solid rgba(52,211,153,0.25);
+    }
+    .status-badge.down {
+      background: var(--red-dim);
+      color: var(--red);
+      border: 1px solid rgba(248,113,113,0.25);
+    }
+    .status-badge.unknown {
+      background: var(--surface-2);
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+    }
+    .status-badge.not_applicable {
+      background: rgba(136, 136, 160, 0.08);
+      color: var(--text-dim);
+      border: 1px solid rgba(136, 136, 160, 0.2);
+      font-style: italic;
+    }
+    /* Source label chip on each status card */
+    .source-chip {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-top: 8px;
+      color: var(--text-dim);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+    }
+    .source-chip.db_only    { color: var(--blue);   background: var(--blue-dim);   border-color: rgba(96,165,250,0.2); }
+    .source-chip.tcp_probe  { color: var(--green);  background: var(--green-dim);  border-color: rgba(52,211,153,0.2); }
+    .source-chip.db_plus_tcp { color: var(--accent); background: var(--accent-dim); border-color: rgba(240,168,48,0.2); }
+    .source-chip.shell_required { color: var(--orange); background: var(--orange-dim); border-color: rgba(251,146,60,0.2); }
+    /* EBS-only badge on Workflow Mailer + OPP cards */
+    .ebs-only-tag {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      text-transform: uppercase;
+      padding: 2px 5px;
+      border-radius: 3px;
+      margin-left: 4px;
+      color: var(--orange);
+      background: var(--orange-dim);
+      border: 1px solid rgba(251,146,60,0.2);
+      vertical-align: middle;
+    }
+    /* WLS Admin tooltip note */
+    .wls-note {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-style: italic;
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+    /* Help link in Monitor header */
+    .monitor-help-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--text-dim);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 6px;
+      margin-left: auto;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .monitor-help-link:hover { color: var(--text); border-color: rgba(255,255,255,0.15); }
+    .status-card-body {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+    .status-metric {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 3px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .status-metric:last-child { border-bottom: none; }
+    .status-metric .val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text);
+    }
+    .status-metric .val.warn { color: var(--yellow); }
+    .status-metric .val.err  { color: var(--red); }
+
+    /* ── Managed servers row ── */
+    .managed-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 40px;
+    }
+    .managed-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      min-width: 160px;
+      transition: border-color 0.2s;
+    }
+    .managed-chip:hover { border-color: rgba(255,255,255,0.12); }
+    .managed-chip .chip-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    .managed-chip .chip-dot.running { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .managed-chip .chip-dot.down    { background: var(--red);   box-shadow: 0 0 6px var(--red); }
+    .managed-chip .chip-dot.unknown { background: var(--text-dim); }
+    .managed-chip .chip-name { font-weight: 500; color: var(--text); }
+    .managed-chip .chip-status { font-size: 11px; color: var(--text-dim); margin-left: auto; }
+
+    /* ── Command cards ── */
+    .cmd-category { margin-bottom: 32px; }
+    .cmd-category-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+    .cmd-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 12px;
+    }
+    .cmd-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+      transition: border-color 0.2s;
+    }
+    .cmd-card:hover { border-color: rgba(255,255,255,0.14); }
+    .cmd-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .cmd-card-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .cmd-action-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+    .cmd-action-badge.status { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(96,165,250,0.25); }
+    .cmd-action-badge.start  { background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,0.25); }
+    .cmd-action-badge.stop   { background: var(--red-dim); color: var(--red); border: 1px solid rgba(248,113,113,0.25); }
+    /* Risk badges for Control catalog */
+    .risk-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+    .risk-badge.low    { background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,0.25); }
+    .risk-badge.medium { background: var(--yellow-dim); color: var(--yellow); border: 1px solid rgba(251,191,36,0.25); }
+    .risk-badge.high   { background: var(--red-dim); color: var(--red); border: 1px solid rgba(248,113,113,0.25); }
+    /* Control catalog footer */
+    .control-catalog-footer {
+      margin-top: 36px;
+      padding: 16px 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .control-catalog-footer p {
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+    .control-catalog-footer a {
+      font-size: 12px;
+      color: var(--accent);
+      text-decoration: none;
+      white-space: nowrap;
+      font-weight: 600;
+    }
+    .control-catalog-footer a:hover { text-decoration: underline; }
+    /* Modal section headings */
+    .modal-section-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .modal-effect-block, .modal-rollback-block {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+    .cmd-card-desc {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+    .cmd-preview-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .cmd-preview-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ── Sanity tab ── */
+    .sanity-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+    }
+    .sanity-header-left p {
+      font-size: 14px;
+      color: var(--text-dim);
+      margin-top: 4px;
+      max-width: 520px;
+    }
+    .btn-run-sanity {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 10px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-run-sanity:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .btn-run-sanity:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .sanity-coming-soon {
+      background: rgba(96,165,250,0.05);
+      border: 1px solid rgba(96,165,250,0.15);
+      border-radius: 10px;
+      padding: 12px 18px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+    .sanity-coming-soon .icon { font-size: 16px; flex-shrink: 0; margin-top: 2px; }
+    .sanity-coming-soon p {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+    .sanity-coming-soon strong { color: var(--blue); }
+    .sanity-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+    }
+    .sanity-category-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      opacity: 0.7;
+      transition: opacity 0.2s, border-color 0.2s;
+    }
+    .sanity-category-card:hover {
+      opacity: 1;
+      border-color: rgba(255,255,255,0.12);
+    }
+    .sanity-cat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .sanity-cat-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .sanity-status-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 100px;
+      font-family: 'JetBrains Mono', monospace;
+      text-transform: uppercase;
+      background: var(--surface-2);
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+    }
+    .sanity-cat-desc {
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+
+    /* ── Command modal ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px 32px;
+      max-width: 600px;
+      width: 100%;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+    }
+    .modal-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .modal-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 20px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 2px;
+      flex-shrink: 0;
+    }
+    .modal-close:hover { color: var(--text); }
+    .modal-body p {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 16px;
+      line-height: 1.6;
+    }
+    .modal-dryrun-note {
+      font-size: 12px;
+      color: var(--orange);
+      background: var(--orange-dim);
+      border: 1px solid rgba(251,146,60,0.25);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      font-weight: 500;
+    }
+    .modal-shell-block {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--green);
+      word-break: break-all;
+      position: relative;
+      margin-bottom: 20px;
+    }
+    .modal-shell-block .shell-prefix {
+      color: var(--text-dim);
+      user-select: none;
+    }
+    .modal-copy-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .modal-copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .modal-copy-btn.copied { color: var(--green); border-color: rgba(52,211,153,0.4); }
+    .modal-loading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-dim);
+      font-size: 13px;
+      padding: 20px 0;
+    }
+    .modal-error {
+      color: var(--red);
+      font-size: 13px;
+      padding: 8px 0;
+    }
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Empty state ── */
+    .empty-state {
+      text-align: center;
+      padding: 80px 24px;
+      color: var(--text-dim);
+    }
+    .empty-state .icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      display: block;
+    }
+    .empty-state h3 {
+      font-size: 18px;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+    .empty-state p {
+      font-size: 14px;
+      max-width: 420px;
+      margin: 0 auto 24px;
+      line-height: 1.6;
+    }
+    .empty-state a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--accent);
+      color: var(--bg);
+      text-decoration: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+    .empty-state a:hover { background: #e09820; }
+
+    /* ── Loading skeleton ── */
+    .skeleton {
+      background: linear-gradient(90deg, var(--surface) 25%, var(--surface-2) 50%, var(--surface) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 6px;
+    }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+
+    /* ── Last refreshed ── */
+    .last-refreshed {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-left: auto;
+    }
+
+    @media (max-width: 600px) {
+      .page-wrapper { padding: 48px 20px 60px; }
+      .status-grid { grid-template-columns: 1fr 1fr; }
+      .cmd-grid { grid-template-columns: 1fr; }
+      .sanity-grid { grid-template-columns: 1fr; }
+      .tab-bar {
+        flex-direction: column;
+        gap: 2px;
+        border-bottom: none;
+        padding-bottom: 0;
+        margin-top: 20px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .tab-btn {
+        border-radius: 0;
+        border: none;
+        border-bottom: 1px solid var(--border);
+        position: static;
+      }
+      .tab-btn:last-child { border-bottom: none; }
+      .tab-btn.active::after { display: none; }
+      .tab-btn.active {
+        border-left: 3px solid var(--accent);
+        padding-left: 13px;
+      }
+    }
+    @media (max-width: 768px) {
+      .page-wrapper { padding: 0 20px 60px; }
+    }
+    /* ── Sanity check cards (live engine) ── */
+    .sanity-run-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .sanity-last-run {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+    .sanity-overall-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 100px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .sanity-overall-badge.pass { background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,0.25); }
+    .sanity-overall-badge.warn { background: var(--yellow-dim); color: var(--yellow); border: 1px solid rgba(251,191,36,0.25); }
+    .sanity-overall-badge.fail { background: var(--red-dim); color: var(--red); border: 1px solid rgba(248,113,113,0.25); }
+    .sanity-overall-badge.unknown { background: var(--surface-2); color: var(--text-dim); border: 1px solid var(--border); }
+    .sanity-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .sanity-card:hover { border-color: rgba(255,255,255,0.12); }
+    .sanity-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      cursor: pointer;
+      user-select: none;
+      gap: 12px;
+    }
+    .sanity-card-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+    }
+    .sanity-card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .sanity-status-pill {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 100px;
+      font-family: 'JetBrains Mono', monospace;
+      text-transform: uppercase;
+    }
+    .sanity-status-pill.pass { background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,0.25); }
+    .sanity-status-pill.warn { background: var(--yellow-dim); color: var(--yellow); border: 1px solid rgba(251,191,36,0.25); }
+    .sanity-status-pill.fail { background: var(--red-dim); color: var(--red); border: 1px solid rgba(248,113,113,0.25); }
+    .sanity-status-pill.unknown, .sanity-status-pill.pending { background: var(--surface-2); color: var(--text-dim); border: 1px solid var(--border); }
+    .sanity-chevron {
+      color: var(--text-dim);
+      font-size: 12px;
+      transition: transform 0.2s;
+      flex-shrink: 0;
+    }
+    .sanity-card.open .sanity-chevron { transform: rotate(90deg); }
+    .sanity-card-body {
+      display: none;
+      padding: 0 18px 14px;
+      border-top: 1px solid var(--border);
+    }
+    .sanity-card.open .sanity-card-body { display: block; }
+    .sanity-finding {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      font-size: 13px;
+    }
+    .sanity-finding:last-child { border-bottom: none; }
+    .sanity-finding-icon {
+      font-size: 13px;
+      flex-shrink: 0;
+      margin-top: 1px;
+      width: 16px;
+      text-align: center;
+    }
+    .sanity-finding-text { flex: 1; }
+    .sanity-finding-msg { color: var(--text); line-height: 1.5; }
+    .sanity-finding-hint {
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--surface-2);
+      border-radius: 6px;
+      padding: 6px 10px;
+      line-height: 1.5;
+    }
+    .sanity-empty-run {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--text-dim);
+    }
+    .sanity-empty-run p { font-size: 14px; margin-top: 8px; max-width: 380px; margin-left: auto; margin-right: auto; }
+    .sanity-running-indicator {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-dim);
+      font-size: 13px;
+      padding: 32px 0;
+    }
+    /* Phase 2 badge */
+    .sanity-phase2-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 100px;
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(96,165,250,0.08);
+      color: var(--blue);
+      border: 1px solid rgba(96,165,250,0.2);
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+    /* SQL detail panel */
+    .sanity-sql-section {
+      margin-top: 12px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      padding-top: 10px;
+    }
+    .sanity-sql-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-dim);
+      cursor: pointer;
+      user-select: none;
+      padding: 4px 0;
+      font-family: 'JetBrains Mono', monospace;
+      background: none;
+      border: none;
+      text-decoration: underline;
+      text-decoration-color: transparent;
+    }
+    .sanity-sql-toggle:hover { color: var(--accent); text-decoration-color: var(--accent); }
+    .sanity-sql-detail { display: none; margin-top: 8px; }
+    .sanity-sql-detail.open { display: block; }
+    .sanity-sql-block {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 8px;
+    }
+    .sanity-sql-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .sanity-sql-code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--accent);
+      white-space: pre-wrap;
+      word-break: break-all;
+      line-height: 1.6;
+    }
+    .sanity-sql-rows {
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .sanity-sql-rows-count { color: var(--text-dim); font-style: italic; margin-top: 4px; }
+    /* Cache indicator */
+    .sanity-cache-tag {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+      display: none;
+    }
+    .btn-sanity-refresh {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      border-radius: 6px;
+      padding: 3px 10px;
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      cursor: pointer;
+      display: none;
+    }
+    .btn-sanity-refresh:hover { border-color: var(--accent); color: var(--accent); }
+    /* Per-card loading skeleton */
+    .sanity-card-loading {
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-dim);
+      font-size: 13px;
+    }
+
+    /* ── Runbook generator ── */
+    .runbook-section {
+      margin-top: 40px;
+      border-top: 1px solid var(--border);
+      padding-top: 32px;
+    }
+    .runbook-section-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.2px;
+    }
+    .runbook-section-subtitle {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 24px;
+      max-width: 600px;
+      line-height: 1.5;
+    }
+    .runbook-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .runbook-scenario-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: border-color 0.2s;
+    }
+    .runbook-scenario-card:hover { border-color: rgba(255,255,255,0.12); }
+    .runbook-scenario-card.active { border-color: var(--accent); background: rgba(240,168,48,0.04); }
+    .runbook-scenario-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .runbook-scenario-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.3;
+    }
+    .runbook-scenario-pill {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 100px;
+      font-family: 'JetBrains Mono', monospace;
+      text-transform: uppercase;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .runbook-scenario-pill.cm    { background: rgba(248,113,113,0.1); color: var(--red);    border: 1px solid rgba(248,113,113,0.25); }
+    .runbook-scenario-pill.opp   { background: rgba(251,191,36,0.1);  color: var(--yellow); border: 1px solid rgba(251,191,36,0.25); }
+    .runbook-scenario-pill.wf    { background: rgba(96,165,250,0.1);  color: var(--blue);   border: 1px solid rgba(96,165,250,0.25); }
+    .runbook-scenario-pill.adop  { background: rgba(251,146,60,0.1);  color: var(--orange); border: 1px solid rgba(251,146,60,0.25); }
+    .runbook-scenario-desc {
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+    .btn-generate-runbook {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      border-radius: 6px;
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+      align-self: flex-start;
+    }
+    .btn-generate-runbook:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-generate-runbook:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-generate-runbook.loading { color: var(--text-dim); }
+
+    /* Runbook output panel */
+    .runbook-output {
+      display: none;
+      margin-top: 28px;
+    }
+    .runbook-output.visible { display: block; }
+    .runbook-output-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .runbook-output-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .runbook-disclaimer {
+      font-size: 11px;
+      color: var(--orange);
+      background: var(--orange-dim);
+      border: 1px solid rgba(251,146,60,0.25);
+      border-radius: 6px;
+      padding: 8px 12px;
+      margin-bottom: 20px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .runbook-detected-summary {
+      font-size: 12px;
+      color: var(--text-dim);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 20px;
+      font-family: 'JetBrains Mono', monospace;
+      white-space: pre-wrap;
+      line-height: 1.5;
+    }
+    .runbook-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .runbook-step {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .runbook-step.verify { border-color: rgba(52,211,153,0.25); }
+    .runbook-step-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      background: var(--surface-2);
+    }
+    .runbook-step-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 10px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--text-dim);
+    }
+    .runbook-step.verify .runbook-step-num { border-color: rgba(52,211,153,0.4); color: var(--green); }
+    .runbook-step-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      flex: 1;
+    }
+    .runbook-step-type {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 100px;
+      font-family: 'JetBrains Mono', monospace;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .runbook-step-type.shell  { background: rgba(251,146,60,0.1); color: var(--orange); border: 1px solid rgba(251,146,60,0.25); }
+    .runbook-step-type.sql    { background: rgba(96,165,250,0.1); color: var(--blue);   border: 1px solid rgba(96,165,250,0.25); }
+    .runbook-step-type.verify { background: rgba(52,211,153,0.1); color: var(--green);  border: 1px solid rgba(52,211,153,0.25); }
+    .runbook-step-type.wait   { background: var(--surface);       color: var(--text-dim); border: 1px solid var(--border); }
+    .runbook-step-body {
+      padding: 14px 16px;
+    }
+    .runbook-cmd-block {
+      position: relative;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px 12px 14px;
+      margin-bottom: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--green);
+      white-space: pre-wrap;
+      word-break: break-all;
+      line-height: 1.6;
+    }
+    .runbook-step.verify .runbook-cmd-block { color: var(--blue); }
+    .runbook-cmd-copy {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      border-radius: 4px;
+      padding: 3px 8px;
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .runbook-cmd-copy:hover { border-color: var(--accent); color: var(--accent); }
+    .runbook-cmd-copy.copied { color: var(--green); border-color: rgba(52,211,153,0.4); }
+    .runbook-step-notes {
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.6;
+      margin-top: 8px;
+      white-space: pre-wrap;
+    }
+    .runbook-demo-badge {
+      font-size: 11px;
+      color: var(--accent);
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--accent-dim);
+      border: 1px solid rgba(240,168,48,0.25);
+      border-radius: 4px;
+      padding: 2px 8px;
+    }
+    .runbook-close-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-size: 12px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .runbook-close-btn:hover { border-color: var(--red); color: var(--red); }
+    @media (max-width: 600px) {
+      .runbook-cards { grid-template-columns: 1fr; }
+    }
+
+    /* ── SSH Checks tab ── */
+    .ssh-tab-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 18px;
+      font-size: 10px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      border-radius: 100px;
+      padding: 0 5px;
+      background: var(--red-dim);
+      color: var(--red);
+      border: 1px solid rgba(248,113,113,0.25);
+    }
+    .ssh-checks-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+    }
+    .ssh-checks-header-left p {
+      font-size: 14px;
+      color: var(--text-dim);
+      margin-top: 4px;
+      max-width: 560px;
+    }
+    .ssh-no-target-cta {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 40px 32px;
+      text-align: center;
+      max-width: 520px;
+      margin: 40px auto 0;
+    }
+    .ssh-no-target-cta .cta-icon { font-size: 40px; margin-bottom: 16px; }
+    .ssh-no-target-cta h3 { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 10px; }
+    .ssh-no-target-cta p { font-size: 14px; color: var(--text-dim); margin-bottom: 24px; line-height: 1.6; }
+    .ssh-no-target-cta a {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent);
+      color: #0a0a0c;
+      font-weight: 700;
+      font-size: 13px;
+      border-radius: 8px;
+      padding: 10px 20px;
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+    .ssh-no-target-cta a:hover { opacity: 0.85; }
+    .ssh-checks-conn-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+    }
+    .ssh-target-select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-family: inherit;
+      min-width: 220px;
+      cursor: pointer;
+      outline: none;
+    }
+    .ssh-target-select:focus { border-color: var(--accent); }
+    .btn-run-ssh-checks {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-run-ssh-checks:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-run-ssh-checks:disabled { opacity: 0.45; cursor: not-allowed; }
+    .ssh-checks-loading {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 28px 0;
+      color: var(--text-dim);
+      font-size: 14px;
+    }
+    .ssh-checks-loading .spin {
+      width: 18px; height: 18px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+    /* Category groups */
+    .ssh-category-group {
+      margin-bottom: 32px;
+    }
+    .ssh-category-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-dim);
+      margin-bottom: 12px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .ssh-category-title .cat-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+    }
+    .ssh-checks-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 10px;
+    }
+    .ssh-check-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      transition: border-color 0.18s;
+    }
+    .ssh-check-card:hover { border-color: rgba(255,255,255,0.1); }
+    .ssh-check-card.status-crit { border-color: rgba(248,113,113,0.35); }
+    .ssh-check-card.status-warn { border-color: rgba(251,191,36,0.3); }
+    .ssh-check-card.status-ok   { border-color: rgba(52,211,153,0.2); }
+    .ssh-check-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .ssh-check-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.3;
+      flex: 1;
+    }
+    .ssh-check-badge {
+      font-size: 10px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 100px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .ssh-check-badge.ok   { background: var(--green-dim);  color: var(--green);  border: 1px solid rgba(52,211,153,0.25); }
+    .ssh-check-badge.warn { background: var(--yellow-dim); color: var(--yellow); border: 1px solid rgba(251,191,36,0.25); }
+    .ssh-check-badge.crit { background: var(--red-dim);    color: var(--red);    border: 1px solid rgba(248,113,113,0.25); }
+    .ssh-check-badge.info { background: var(--blue-dim);   color: var(--blue);   border: 1px solid rgba(96,165,250,0.2); }
+    .ssh-check-badge.error{ background: rgba(255,255,255,0.04); color: var(--text-dim); border: 1px solid var(--border); }
+    .ssh-check-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      margin-bottom: 4px;
+    }
+    .ssh-check-evidence {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+      word-break: break-all;
+      line-height: 1.4;
+    }
+    .ssh-check-rec {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--yellow);
+      background: var(--yellow-dim);
+      border-left: 2px solid var(--yellow);
+      border-radius: 0 4px 4px 0;
+      padding: 5px 8px;
+      line-height: 1.4;
+    }
+    .ssh-check-rec.crit { color: var(--red); background: var(--red-dim); border-left-color: var(--red); }
+    .ssh-checks-summary {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      padding: 14px 18px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 28px;
+      font-size: 13px;
+    }
+    .ssh-summary-item { display: flex; align-items: center; gap: 6px; }
+    .ssh-summary-item .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .ssh-summary-ran-at { margin-left: auto; font-size: 11px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
+    @media (max-width: 600px) {
+      .ssh-checks-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="grain"></div>
+
+<div class="nav-wrapper">
+  <nav id="nav-root"></nav>
+</div>
+<script src="/adop-banner.js"></script>
+
+<div class="page-wrapper">
+
+  <!-- ADOP patch-cycle banner — updates when connection selector changes -->
+  <div id="adopBannerRoot" style="display:none;"></div>
+
+  <!-- Page header -->
+  <div class="page-header">
+    <div class="page-header-left">
+      <h1>
+        Deep EBS Mode
+        <span class="badge">Phase 1 &bull; Dry-run</span>
+      </h1>
+      <p>Monitor, diagnose, and control your Oracle E-Business Suite 12.2.x environment.</p>
+    </div>
+  </div>
+
+  <!-- ── Tab bar ── -->
+  <div class="tab-bar" id="tabBar" role="tablist">
+    <button class="tab-btn" id="tab-monitor" role="tab" aria-selected="false" aria-controls="panel-monitor" onclick="switchTab('monitor')">
+      <span class="tab-icon">&#128248;</span> Monitor
+    </button>
+    <button class="tab-btn" id="tab-sanity" role="tab" aria-selected="false" aria-controls="panel-sanity" onclick="switchTab('sanity')">
+      <span class="tab-icon">&#10003;</span> Sanity
+    </button>
+    <button class="tab-btn" id="tab-control" role="tab" aria-selected="false" aria-controls="panel-control" onclick="switchTab('control')">
+      <span class="tab-icon">&#9881;</span> Control
+    </button>
+    <button class="tab-btn" id="tab-ssh-checks" role="tab" aria-selected="false" aria-controls="panel-ssh-checks" onclick="switchTab('ssh-checks')">
+      <span class="tab-icon">&#128274;</span> SSH Checks
+      <span class="ssh-tab-badge" id="sshTabBadge" style="display:none;"></span>
+    </button>
+  </div>
+
+  <!-- Main content area — hidden until auth resolves -->
+  <div id="mainContent" style="display:none;">
+
+    <!-- ──────────────────────────────────────────────────── -->
+    <!-- Tab 1: Monitor                                        -->
+    <!-- ──────────────────────────────────────────────────── -->
+    <div id="panel-monitor" class="tab-panel" role="tabpanel" aria-labelledby="tab-monitor">
+
+      <!-- Dry-run banner -->
+      <div class="dryrun-banner">
+        <span class="icon">&#9888;</span>
+        <div class="dryrun-banner-text">
+          <strong>Dry-run mode &mdash; commands display only. SSH execution not active.</strong>
+          <p>Phase 1 shows the exact shell command that <em>would</em> run. Live SSH execution arrives in Phase 3, after the customer-run lockdown script has been verified on your application tier.</p>
+        </div>
+      </div>
+
+      <!-- Connection selector -->
+      <div class="conn-bar">
+        <label for="connSelect">EBS Connection:</label>
+        <select id="connSelect" class="conn-select">
+          <option value="">Loading connections...</option>
+        </select>
+        <button id="btnRefresh" class="btn-refresh" title="Refresh status now">
+          <span id="refreshIcon">&#10227;</span>
+          Refresh
+        </button>
+        <span id="autoRefreshPill" class="auto-refresh-pill">Auto-refresh: off</span>
+        <span id="lastRefreshed" class="last-refreshed"></span>
+        <button id="btnRunDeepCheck" class="btn-run-deep" onclick="runDeepEbsCheck()" title="Run Deep EBS Check and generate a full diagnostic report">
+          <span id="runDeepIcon">&#9654;</span>
+          Run Deep EBS Check
+        </button>
+      </div>
+      <div id="runDeepMsg" style="display:none;margin-bottom:16px;padding:10px 16px;border-radius:8px;font-size:13px;"></div>
+
+      <!-- EBS Live Status section -->
+      <div class="section-title" style="justify-content:flex-start;gap:10px;">
+        <span class="dot"></span>
+        EBS Live Status
+        <a href="/ebs-status-sources" target="_blank" class="monitor-help-link" title="How each status is sourced">&#9432; How each status is sourced</a>
+      </div>
+
+      <div id="statusGrid" class="status-grid">
+        <div class="status-card skeleton" style="height:100px;"></div>
+        <div class="status-card skeleton" style="height:100px;"></div>
+        <div class="status-card skeleton" style="height:100px;"></div>
+        <div class="status-card skeleton" style="height:100px;"></div>
+        <div class="status-card skeleton" style="height:100px;"></div>
+        <div class="status-card skeleton" style="height:100px;"></div>
+        <div class="status-card skeleton" style="height:100px;"></div>
+        <div class="status-card skeleton" style="height:100px;"></div>
+        <div class="status-card skeleton" style="height:100px;"></div>
+        <div class="status-card skeleton" style="height:100px;"></div>
+        <div class="status-card skeleton" style="height:100px;"></div>
+      </div>
+
+      <div id="managedRow"></div>
+
+    </div>
+
+    <!-- ──────────────────────────────────────────────────── -->
+    <!-- Tab 2: Sanity                                         -->
+    <!-- ──────────────────────────────────────────────────── -->
+    <div id="panel-sanity" class="tab-panel" role="tabpanel" aria-labelledby="tab-sanity">
+
+      <div class="sanity-header">
+        <div class="sanity-header-left">
+          <div class="section-title" style="margin-bottom:0;">
+            <span class="dot" style="background:var(--blue);"></span>
+            Sanity Checks
+          </div>
+          <p>Validate your EBS configuration across 5 categories. FND_NODES consistency and 10 critical profile options run live against your Oracle DB. Each card includes the exact SQL used so your DBAs can re-run independently.</p>
+        </div>
+        <button class="btn-run-sanity" id="btnRunSanity" onclick="runSanityChecks()">
+          <span id="sanityRunIcon">&#9654;</span> Run Sanity Checks
+        </button>
+      </div>
+
+      <!-- Run bar: last run timestamp + overall status badge + cache/refresh -->
+      <div class="sanity-run-bar" id="sanityRunBar" style="display:none;">
+        <span class="sanity-last-run" id="sanityLastRun"></span>
+        <span class="sanity-overall-badge" id="sanityOverallBadge"></span>
+        <span id="sanityDemoTag" style="display:none;font-size:11px;color:var(--accent);font-family:'JetBrains Mono',monospace;">DEMO</span>
+        <span class="sanity-cache-tag" id="sanityCacheTag">cached</span>
+        <button class="btn-sanity-refresh" id="btnSanityRefresh" onclick="runSanityChecks(true)">&#8635; refresh</button>
+      </div>
+
+      <!-- Check results container -->
+      <div id="sanityResults">
+        <div class="sanity-empty-run" id="sanityEmptyState">
+          <span style="font-size:32px;">&#9745;</span>
+          <p>No sanity run yet. Click <strong>Run Sanity Checks</strong> to validate your EBS configuration across 5 categories.</p>
+        </div>
+        <div class="sanity-running-indicator" id="sanityRunningState" style="display:none;">
+          <span class="spinner"></span> Running live checks&#8230;
+        </div>
+        <div id="sanityCategoryCards"></div>
+      </div>
+
+    </div>
+
+    <!-- ──────────────────────────────────────────────────── -->
+    <!-- Tab 3: Control                                        -->
+    <!-- ──────────────────────────────────────────────────── -->
+    <div id="panel-control" class="tab-panel" role="tabpanel" aria-labelledby="tab-control">
+
+      <!-- Control warning banner -->
+      <div class="control-warning">
+        <span class="icon">&#9888;</span>
+        <div class="control-warning-text">
+          <strong>Phase 1: Dry-run preview only &mdash; no commands are executed.</strong>
+          <p>Each card shows the exact shell command that <em>would</em> run on your EBS app tier. Live SSH execution arrives in Phase 3, after the customer-run lockdown agent has been installed and verified. Risk badges indicate blast radius if run without care.</p>
+        </div>
+      </div>
+
+      <!-- Control catalog section -->
+      <div class="section-title">
+        <span class="dot" style="background:var(--orange);"></span>
+        EBS Control Catalog
+        <span style="font-size:12px;font-weight:400;color:var(--text-dim);margin-left:4px;">5 whitelisted operations &mdash; EBS 12.2.x</span>
+      </div>
+
+      <div id="controlCatalogContainer">
+        <!-- Filled by renderControlCatalog() -->
+        <div class="cmd-category">
+          <div class="cmd-grid">
+            <div class="cmd-card skeleton" style="height:130px;"></div>
+            <div class="cmd-card skeleton" style="height:130px;"></div>
+            <div class="cmd-card skeleton" style="height:130px;"></div>
+            <div class="cmd-card skeleton" style="height:130px;"></div>
+            <div class="cmd-card skeleton" style="height:130px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lockdown footer -->
+      <div class="control-catalog-footer">
+        <p>&#128274; <strong>Live execution requires the customer-installed lockdown agent.</strong> The agent creates a restricted shell wrapper on your EBS app tier that only accepts commands matching the published whitelist SHA-256 hashes.</p>
+        <a href="/api/ebs-control/lockdown.sh" download>&#11015; Download lockdown script</a>
+        <a href="/api/ebs-control/whitelist-hashes.txt" download style="margin-left:12px;">&#11015; Whitelist hashes (SHA-256)</a>
+      </div>
+
+      <!-- ── Recovery Runbook Generator ── -->
+      <div class="runbook-section">
+
+        <div class="runbook-section-title">
+          <span style="font-size:16px;">&#128221;</span>
+          Generate Recovery Runbook
+        </div>
+        <p class="runbook-section-subtitle">
+          Select a scenario to generate a step-by-step recovery runbook with real values substituted in from your live instance.
+          Commands are deterministic &mdash; no AI involved &mdash; and validated against a server-side safety whitelist before delivery.
+        </p>
+
+        <div class="runbook-cards">
+
+          <div class="runbook-scenario-card" id="rbcard-cm-stuck">
+            <div class="runbook-scenario-header">
+              <span class="runbook-scenario-label">CM Stuck / Dead-locked</span>
+              <span class="runbook-scenario-pill cm">CM</span>
+            </div>
+            <p class="runbook-scenario-desc">
+              Queues below target or with stuck control code. Emits stop &rarr; kill stragglers by live OS PID &rarr; start &rarr; verify.
+            </p>
+            <button class="btn-generate-runbook" id="rbbtn-cm-stuck" onclick="generateRunbook('cm-stuck')">
+              &#9654; Generate runbook
+            </button>
+          </div>
+
+          <div class="runbook-scenario-card" id="rbcard-opp-zero">
+            <div class="runbook-scenario-header">
+              <span class="runbook-scenario-label">OPP Zero Throughput</span>
+              <span class="runbook-scenario-pill opp">OPP</span>
+            </div>
+            <p class="runbook-scenario-desc">
+              OPP process active but backlog not draining. Emits graceful shutdown &rarr; flush pending cache &rarr; restart &rarr; verify.
+            </p>
+            <button class="btn-generate-runbook" id="rbbtn-opp-zero" onclick="generateRunbook('opp-zero')">
+              &#9654; Generate runbook
+            </button>
+          </div>
+
+          <div class="runbook-scenario-card" id="rbcard-wfmailer-stall">
+            <div class="runbook-scenario-header">
+              <span class="runbook-scenario-label">WF Mailer Outbound Stall</span>
+              <span class="runbook-scenario-pill wf">WF</span>
+            </div>
+            <p class="runbook-scenario-desc">
+              WF_NOTIFICATIONS stuck with mail_status=MAIL &gt;1h. Emits stop &rarr; re-queue FAILED rows &rarr; restart &rarr; verify drain.
+            </p>
+            <button class="btn-generate-runbook" id="rbbtn-wfmailer-stall" onclick="generateRunbook('wfmailer-stall')">
+              &#9654; Generate runbook
+            </button>
+          </div>
+
+          <div class="runbook-scenario-card" id="rbcard-adop-cleanup">
+            <div class="runbook-scenario-header">
+              <span class="runbook-scenario-label">ADOP Failed Cutover</span>
+              <span class="runbook-scenario-pill adop">ADOP</span>
+            </div>
+            <p class="runbook-scenario-desc">
+              AD_ADOP_SESSIONS has FAILED sessions with incomplete cleanup. Emits abort &rarr; cleanup full &rarr; verify patch FS cleared.
+            </p>
+            <button class="btn-generate-runbook" id="rbbtn-adop-cleanup" onclick="generateRunbook('adop-cleanup')">
+              &#9654; Generate runbook
+            </button>
+          </div>
+
+        </div><!-- .runbook-cards -->
+
+        <!-- Runbook output area — filled by generateRunbook() -->
+        <div id="runbookOutput" class="runbook-output">
+          <!-- populated by renderRunbook() -->
+        </div>
+
+      </div><!-- .runbook-section -->
+
+    </div>
+
+  <!-- ──────────────────────────────────────────────────── -->
+  <!-- Tab 4: SSH Checks                                    -->
+  <!-- ──────────────────────────────────────────────────── -->
+  <div id="panel-ssh-checks" class="tab-panel" role="tabpanel" aria-labelledby="tab-ssh-checks">
+
+    <div class="ssh-checks-header">
+      <div class="ssh-checks-header-left">
+        <div class="section-title" style="margin-bottom:0;">
+          <span class="dot" style="background:var(--accent);"></span>
+          SSH Checks
+          <span style="font-size:11px;font-weight:600;font-family:'JetBrains Mono',monospace;background:var(--accent-dim);color:var(--accent);border:1px solid rgba(240,168,48,0.2);padding:1px 7px;border-radius:100px;text-transform:uppercase;letter-spacing:0.5px;">&#128274; SSH</span>
+        </div>
+        <p>Filesystem health, ADOP state, Concurrent Manager processes, WebLogic server status, and alert log errors &mdash; checks that require direct OS access to the EBS application or DB tier.</p>
+      </div>
+      <button class="btn-run-ssh-checks" id="btnRunSshChecks" onclick="runSshChecks()" disabled>
+        <span id="sshRunIcon">&#9654;</span> Run SSH Checks
+      </button>
+    </div>
+
+    <!-- Connection + target selector -->
+    <div class="ssh-checks-conn-bar" id="sshConnBar">
+      <label for="sshConnSelect" style="font-size:13px;color:var(--text-dim);white-space:nowrap;">EBS Connection:</label>
+      <select id="sshConnSelect" class="conn-select" onchange="onSshConnChange()">
+        <option value="">Loading...</option>
+      </select>
+      <label for="sshTargetSelect" style="font-size:13px;color:var(--text-dim);white-space:nowrap;">SSH Target:</label>
+      <select id="sshTargetSelect" class="ssh-target-select" onchange="onSshTargetChange()">
+        <option value="">Select connection first</option>
+      </select>
+    </div>
+
+    <!-- No-SSH CTA (shown when connection has no linked SSH targets) -->
+    <div id="sshNoTargetCta" style="display:none;">
+      <div class="ssh-no-target-cta">
+        <div class="cta-icon">&#128274;</div>
+        <h3>SSH Access Not Configured</h3>
+        <p>SSH checks unlock 27 additional diagnostics: filesystem usage, ADOP patch state, Concurrent Manager process counts, WebLogic server status, and alert log error scanning.</p>
+        <a href="/admin/ssh-targets">Configure SSH Access &#8594;</a>
+      </div>
+    </div>
+
+    <!-- Loading state -->
+    <div id="sshChecksLoading" style="display:none;">
+      <div class="ssh-checks-loading">
+        <span class="spin"></span>
+        Running SSH checks&hellip; this takes 15&ndash;30 seconds
+      </div>
+    </div>
+
+    <!-- Results area -->
+    <div id="sshChecksResults" style="display:none;"></div>
+
+  </div>
+
+  </div>
+
+  <!-- Empty state: no EBS connections -->
+  <div id="emptyState" style="display:none;">
+    <div class="empty-state">
+      <span class="icon">&#128421;</span>
+      <h3>No EBS Connections Found</h3>
+      <p>Deep EBS Mode is available once you have a saved connection with an Oracle E-Business Suite environment. Run a health check first &mdash; TuneVault auto-detects EBS via the APPS.DUAL probe.</p>
+      <a href="/dashboard">Run a Health Check &#8594;</a>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Command Confirm / Dry-run Modal ── -->
+<div id="cmdModal" class="modal-overlay" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modalTitle">Command Preview</div>
+      </div>
+      <button class="modal-close" onclick="closeModal()" title="Close">&times;</button>
+    </div>
+    <div class="modal-body" id="modalBody">
+      <!-- Filled by openModal() -->
+    </div>
+  </div>
+</div>
+
+<!-- nav + page scripts -->
+<script src="/connection-state.js"></script>
+<script src="/nav-component.js"></script>
+<script>
+(function() {
+
+  // ── Tab routing ────────────────────────────────────────────────────────────
+  var VALID_TABS = ['monitor', 'sanity', 'control', 'ssh-checks'];
+
+  window.switchTab = function(tabId) {
+    if (VALID_TABS.indexOf(tabId) === -1) tabId = 'monitor';
+
+    VALID_TABS.forEach(function(t) {
+      var btn   = document.getElementById('tab-' + t);
+      var panel = document.getElementById('panel-' + t);
+      if (!btn || !panel) return;
+      var isActive = t === tabId;
+      btn.classList.toggle('active', isActive);
+      btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      panel.classList.toggle('active', isActive);
+    });
+
+    // Auto-refresh only when Monitor tab visible
+    if (tabId === 'monitor') {
+      startAutoRefresh();
+    } else {
+      stopAutoRefresh();
+    }
+
+    // Sync SSH checks selector when tab becomes active
+    if (tabId === 'ssh-checks') {
+      syncSshConnSelector();
+    }
+
+    // Persist in URL hash without adding browser history entries
+    history.replaceState(null, '', '#' + tabId);
+  };
+
+  function getActiveTab() {
+    var hash = (window.location.hash || '').replace('#', '');
+    return VALID_TABS.indexOf(hash) !== -1 ? hash : 'monitor';
+  }
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  var _connections = [];
+  var _commands    = [];
+  var _statusData  = null;
+  var _refreshTimer = null;
+  var _refreshInterval = 30000; // 30s
+  var _autoRefresh = false;
+  var _loading = false;
+
+  // ── Nav ────────────────────────────────────────────────────────────────────
+  tvNav.init('ebs-deep');
+
+  // ── On auth ready ──────────────────────────────────────────────────────────
+  tvNav.onReady(function() {
+    // Activate tab from hash before loading data so UI is already in right state
+    switchTab(getActiveTab());
+    init();
+  });
+
+  // Handle hash changes from back/forward navigation
+  window.addEventListener('hashchange', function() {
+    switchTab(getActiveTab());
+  });
+
+  function init() {
+    loadConnections();
+    loadCommands();
+    setupEventListeners();
+    setupVisibilityAutoRefresh();
+  }
+
+  // ── Load EBS connections ───────────────────────────────────────────────────
+  function loadConnections() {
+    fetch('/api/ebs-deep/connections', { credentials: 'include' })
+      .then(function(r) { return r.ok ? r.json() : Promise.reject(r); })
+      .then(function(data) {
+        _connections = tvConn.parseList(data);
+        renderConnectionSelector();
+        // Restore persisted connection selection and wire save-on-change
+        var sel = document.getElementById('connSelect');
+        if (sel && _connections.length > 0) {
+          tvConn.bind(sel, _connections);
+        }
+        if (_connections.length > 0) {
+          showMain();
+          // Only fetch status if Monitor tab is active
+          if (getActiveTab() === 'monitor') fetchStatus();
+        } else {
+          showEmpty();
+        }
+      })
+      .catch(function(err) {
+        if (err && err.status === 401) {
+          window.location.href = '/signin?redirect=/ebs-deep';
+          return;
+        }
+        // Fallback: show demo data
+        showMain();
+        if (getActiveTab() === 'monitor') fetchStatus();
+      });
+  }
+
+  function renderConnectionSelector() {
+    var sel = document.getElementById('connSelect');
+    if (!sel) return;
+    sel.innerHTML = '';
+    if (_connections.length === 0) {
+      var opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = 'Demo data (no EBS connections)';
+      sel.appendChild(opt);
+      return;
+    }
+    _connections.forEach(function(c) {
+      var opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name + (c.host ? ' (' + c.host + ')' : '');
+      sel.appendChild(opt);
+    });
+  }
+
+  function showMain() {
+    document.getElementById('mainContent').style.display = '';
+    document.getElementById('emptyState').style.display = 'none';
+  }
+  function showEmpty() {
+    document.getElementById('mainContent').style.display = 'none';
+    document.getElementById('emptyState').style.display = '';
+    // On empty, still show tab bar but disable monitor/control
+    switchTab('sanity');
+  }
+
+  // ── Status fetch ───────────────────────────────────────────────────────────
+  function fetchStatus() {
+    if (_loading) return;
+    _loading = true;
+    setRefreshLoading(true);
+
+    var sel = document.getElementById('connSelect');
+    var connId = sel ? (sel.value || null) : null;
+
+    fetch('/api/ebs-deep/status', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ connection_id: connId ? Number(connId) : null })
+    })
+      .then(function(r) { return r.ok ? r.json() : Promise.reject(r); })
+      .then(function(data) {
+        _statusData = data;
+        renderStatus(data);
+        setLastRefreshed(data.fetched_at);
+      })
+      .catch(function() {
+        renderStatusError();
+      })
+      .finally(function() {
+        _loading = false;
+        setRefreshLoading(false);
+      });
+  }
+
+  function setRefreshLoading(loading) {
+    var btn = document.getElementById('btnRefresh');
+    var icon = document.getElementById('refreshIcon');
+    if (!btn) return;
+    btn.disabled = loading;
+    if (icon) icon.style.animation = loading ? 'spin 0.8s linear infinite' : '';
+  }
+
+  function setLastRefreshed(isoString) {
+    var el = document.getElementById('lastRefreshed');
+    if (!el) return;
+    var d = isoString ? new Date(isoString) : new Date();
+    el.textContent = 'Last refreshed: ' + d.toLocaleTimeString();
+  }
+
+  // ── Render status panels ───────────────────────────────────────────────────
+  function renderStatus(data) {
+    renderServiceCards(data);
+    // Legacy managed-row cleared (services now in main grid)
+    var row = document.getElementById('managedRow');
+    if (row) row.innerHTML = '';
+  }
+
+  function badgeHtml(statusStr) {
+    var s = (statusStr || 'UNKNOWN').toUpperCase();
+    var cls;
+    if (s === 'UP' || s === 'RUNNING') cls = 'up';
+    else if (s === 'DOWN') cls = 'down';
+    else if (s === 'NOT_APPLICABLE') cls = 'not_applicable';
+    else cls = 'unknown';
+    var label = s === 'RUNNING' ? 'UP' : s === 'NOT_APPLICABLE' ? 'N/A' : s;
+    return '<span class="status-badge ' + cls + '">' + label + '</span>';
+  }
+
+  // Source label chip — maps source key to display label
+  var SOURCE_LABELS = {
+    db_only:     'DB only',
+    tcp_probe:   'TCP probe',
+    db_plus_tcp: 'DB + TCP',
+    shell_required: 'Shell (Phase 3)'
+  };
+  function sourceChipHtml(source) {
+    if (!source) return '';
+    var label = SOURCE_LABELS[source] || source;
+    return '<span class="source-chip ' + escHtml(source) + '" title="Status source: ' + escHtml(label) + '">' + escHtml(label) + '</span>';
+  }
+
+  function metricRow(label, val, warnIf) {
+    var cls = '';
+    if (warnIf === 'nonzero' && val > 0) cls = ' err';
+    if (warnIf === 'warn-nonzero' && val > 0) cls = ' warn';
+    return '<div class="status-metric"><span>' + escHtml(label) + '</span><span class="val' + cls + '">' + escHtml(String(val)) + '</span></div>';
+  }
+
+  // Extra detail metrics for services that have them (CM, WF, OPP)
+  function serviceDetailRows(data, serviceKey) {
+    if (serviceKey === 'cm') {
+      var cm = data.concurrent_manager || {};
+      return metricRow('Running / Target', (cm.running_processes || 0) + ' / ' + (cm.target_processes || 0)) +
+             metricRow('Pending', cm.pending_requests || 0, 'warn-nonzero') +
+             metricRow('Errors (24h)', cm.error_requests_24h || 0, 'nonzero');
+    }
+    if (serviceKey === 'wf_mailer') {
+      var wf = data.workflow_mailer || {};
+      return metricRow('Stuck', wf.stuck_count || 0, 'nonzero') +
+             metricRow('WF errors', wf.error_count || 0, 'nonzero') +
+             metricRow('Pending > 2h', wf.pending_over_2h || 0, 'warn-nonzero');
+    }
+    if (serviceKey === 'opp') {
+      var opp = data.opp || {};
+      return metricRow('Queue depth', opp.queue_depth || 0, 'warn-nonzero');
+    }
+    return '';
+  }
+
+  function renderServiceCards(data) {
+    var grid = document.getElementById('statusGrid');
+    if (!grid) return;
+
+    var allServices = data.services || [];
+    var ebsDetected = !!data.ebs_detected;
+
+    // Filter: hide ebs_only cards when not on an EBS connection
+    var services = allServices.filter(function(svc) {
+      return !svc.ebs_only || ebsDetected;
+    });
+
+    var demoTag = data.is_demo
+      ? '<span style="font-size:10px;color:var(--accent);margin-left:6px;font-family:\'JetBrains Mono\',monospace;">DEMO</span>'
+      : '';
+
+    if (services.length === 0) {
+      grid.innerHTML = '<div style="grid-column:1/-1;color:var(--text-dim);font-size:13px;">No service data available.</div>';
+      return;
+    }
+
+    grid.innerHTML = services.map(function(svc, idx) {
+      var extraRows = serviceDetailRows(data, svc.key);
+      var titleSuffix = idx === 0 ? demoTag : '';
+      var ebsOnlyTag = svc.ebs_only ? '<span class="ebs-only-tag" title="Queried from EBS application DB — does not require app tier">EBS</span>' : '';
+      // WLS Admin: add advisory note explaining no shell
+      var wlsNote = svc.key === 'wls_admin'
+        ? '<div class="wls-note">DB metadata + TCP probe &mdash; not shell-verified. Phase 3 SSH control will add <code>adadminsrvctl.sh status</code> once secrets vault ships.</div>'
+        : '';
+      return '<div class="status-card">' +
+        '<div class="status-card-header">' +
+          '<span class="status-card-title">' + escHtml(svc.label) + ebsOnlyTag + titleSuffix + '</span>' +
+          badgeHtml(svc.status) +
+        '</div>' +
+        '<div class="status-card-body">' +
+          (svc.detail ? '<div class="status-metric"><span>' + escHtml(svc.detail) + '</span></div>' : '') +
+          extraRows +
+          wlsNote +
+          sourceChipHtml(svc.source) +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  function renderStatusError() {
+    var grid = document.getElementById('statusGrid');
+    if (grid) {
+      grid.innerHTML = '<div style="grid-column:1/-1;color:var(--red);font-size:13px;padding:16px 0;">Failed to fetch EBS status. Check your connection and try again.</div>';
+    }
+  }
+
+  // ── Load and render control catalog (new DB-backed whitelist) ─────────────
+  // Replaces legacy /api/ebs-deep/commands. Fetches from /api/ebs-control/catalog
+  // which reads ebs_control_commands table seeded in migration.
+  var _catalog = [];
+
+  function loadCommands() {
+    fetch('/api/ebs-control/catalog', { credentials: 'include' })
+      .then(function(r) { return r.ok ? r.json() : Promise.reject(r); })
+      .then(function(data) {
+        _catalog = data.commands || [];
+        renderControlCatalog(_catalog);
+      })
+      .catch(function() {
+        var c = document.getElementById('controlCatalogContainer');
+        if (c) c.innerHTML = '<p style="color:var(--red);font-size:13px;">Failed to load control catalog.</p>';
+      });
+  }
+
+  function renderControlCatalog(commands) {
+    var container = document.getElementById('controlCatalogContainer');
+    if (!container) return;
+    if (!commands || commands.length === 0) {
+      container.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">No commands available.</p>';
+      return;
+    }
+
+    // Group by category preserving insertion order
+    var catOrder = [];
+    var cats = {};
+    commands.forEach(function(cmd) {
+      if (!cats[cmd.category]) { cats[cmd.category] = []; catOrder.push(cmd.category); }
+      cats[cmd.category].push(cmd);
+    });
+
+    var html = '';
+    catOrder.forEach(function(cat) {
+      html += '<div class="cmd-category">';
+      html += '<div class="cmd-category-title">' + escHtml(cat) + '</div>';
+      html += '<div class="cmd-grid">';
+      cats[cat].forEach(function(cmd) {
+        var riskBadge = '<span class="risk-badge ' + escHtml(cmd.risk_level) + '">' +
+          (cmd.risk_level === 'low' ? '&#9679; Low' : cmd.risk_level === 'medium' ? '&#9650; Medium' : '&#9888; High') +
+          '</span>';
+        // Encode slug safely for onclick attribute
+        var slugEscaped = cmd.slug.replace(/'/g, "\\'");
+        html += '<div class="cmd-card">' +
+          '<div class="cmd-card-header">' +
+            '<span class="cmd-card-label">' + escHtml(cmd.label) + '</span>' +
+            riskBadge +
+          '</div>' +
+          '<p class="cmd-card-desc">' + escHtml(cmd.description) + '</p>' +
+          '<button class="cmd-preview-btn" onclick="openControlModal(\'' + slugEscaped + '\')" title="Preview command">' +
+            '&#10095;&#95; Preview command' +
+          '</button>' +
+        '</div>';
+      });
+      html += '</div></div>';
+    });
+
+    container.innerHTML = html;
+  }
+
+  // ── Control Modal (uses /api/ebs-control/preview, shows effect + rollback) ─
+  window.openControlModal = function(slug) {
+    var overlay = document.getElementById('cmdModal');
+    var title   = document.getElementById('modalTitle');
+    var body    = document.getElementById('modalBody');
+    if (!overlay || !title || !body) return;
+
+    // Find local catalog entry for initial render
+    var cmd = null;
+    for (var i = 0; i < _catalog.length; i++) {
+      if (_catalog[i].slug === slug) { cmd = _catalog[i]; break; }
+    }
+    if (!cmd) return;
+
+    title.textContent = cmd.label;
+    body.innerHTML =
+      '<p>' + escHtml(cmd.description) + '</p>' +
+      '<div class="modal-dryrun-note">' +
+        'Phase 1 &mdash; dry-run preview only. The exact command that WOULD run is shown below. No SSH execution occurs.' +
+      '</div>' +
+      '<div id="modalLoadingBlock" class="modal-loading"><span class="spinner"></span>Loading command preview...</div>' +
+      '<div id="modalShellBlock" style="display:none;">' +
+        '<div class="modal-section-label">Shell command</div>' +
+        '<div class="modal-shell-block">' +
+          '<span class="shell-prefix">$ </span><span id="shellText"></span>' +
+        '</div>' +
+        '<div class="modal-section-label">Expected effect</div>' +
+        '<div class="modal-effect-block" id="modalEffectBlock"></div>' +
+        '<div class="modal-section-label">Rollback steps</div>' +
+        '<div class="modal-rollback-block" id="modalRollbackBlock"></div>' +
+        '<button class="modal-copy-btn" id="modalCopyBtn" onclick="copyShellCommand()">&#128203; Copy command</button>' +
+      '</div>' +
+      '<div id="modalErrorBlock" class="modal-error" style="display:none;"></div>';
+
+    overlay.classList.add('open');
+
+    fetch('/api/ebs-control/preview', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug: slug })
+    })
+      .then(function(r) { return r.ok ? r.json() : Promise.reject(r); })
+      .then(function(data) {
+        var loadEl    = document.getElementById('modalLoadingBlock');
+        var shellEl   = document.getElementById('modalShellBlock');
+        var textEl    = document.getElementById('shellText');
+        var effectEl  = document.getElementById('modalEffectBlock');
+        var rollbackEl = document.getElementById('modalRollbackBlock');
+        if (loadEl) loadEl.style.display = 'none';
+        if (shellEl) shellEl.style.display = '';
+        if (textEl) textEl.textContent = data.shell;
+        if (shellEl) shellEl.setAttribute('data-shell', data.shell);
+        if (effectEl)  effectEl.textContent  = data.expected_effect  || '';
+        if (rollbackEl) rollbackEl.textContent = data.rollback_steps || '';
+      })
+      .catch(function() {
+        var loadEl = document.getElementById('modalLoadingBlock');
+        var errEl  = document.getElementById('modalErrorBlock');
+        if (loadEl) loadEl.style.display = 'none';
+        if (errEl) {
+          errEl.textContent = 'Failed to load command preview. Please try again.';
+          errEl.style.display = '';
+        }
+      });
+  };
+
+  window.closeModal = function() {
+    var overlay = document.getElementById('cmdModal');
+    if (overlay) overlay.classList.remove('open');
+  };
+
+  document.getElementById('cmdModal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeModal();
+  });
+
+  window.copyShellCommand = function() {
+    var shellEl = document.getElementById('shellText');
+    var copyBtn = document.getElementById('modalCopyBtn');
+    if (!shellEl) return;
+    navigator.clipboard.writeText(shellEl.textContent).then(function() {
+      if (copyBtn) {
+        copyBtn.textContent = '&#10003; Copied!';
+        copyBtn.classList.add('copied');
+        setTimeout(function() {
+          copyBtn.innerHTML = '&#128203; Copy command';
+          copyBtn.classList.remove('copied');
+        }, 2000);
+      }
+    });
+  };
+
+  // ── Recovery Runbook Generator ────────────────────────────────────────────
+  //
+  // generateRunbook(scenario) — calls POST /api/control/runbook/:scenario with
+  // the currently selected connection_id. Falls back to demo data if no connection.
+  // renderRunbook(data) — builds the step-by-step output block and injects it.
+
+  window.generateRunbook = function(scenario) {
+    var btn = document.getElementById('rbbtn-' + scenario);
+    var card = document.getElementById('rbcard-' + scenario);
+    var output = document.getElementById('runbookOutput');
+    if (!btn || !output) return;
+
+    // Loading state
+    btn.disabled = true;
+    btn.classList.add('loading');
+    btn.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px;"></span> Generating&hellip;';
+
+    // Highlight active card
+    document.querySelectorAll('.runbook-scenario-card').forEach(function(c) {
+      c.classList.remove('active');
+    });
+    if (card) card.classList.add('active');
+
+    var sel = document.getElementById('connSelect');
+    var connId = sel ? (parseInt(sel.value, 10) || null) : null;
+    var body = connId ? JSON.stringify({ connection_id: connId }) : '{}';
+
+    fetch('/api/control/runbook/' + encodeURIComponent(scenario), {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: body
+    })
+      .then(function(r) { return r.ok ? r.json() : r.json().then(function(e) { throw e; }); })
+      .then(function(data) {
+        renderRunbook(data);
+      })
+      .catch(function(err) {
+        output.innerHTML =
+          '<div style="color:var(--red);font-size:13px;padding:16px 0;">' +
+            '&#9888; Failed to generate runbook: ' + escHtml((err && err.error) || 'Unknown error') +
+          '</div>';
+        output.classList.add('visible');
+      })
+      .finally(function() {
+        btn.disabled = false;
+        btn.classList.remove('loading');
+        btn.innerHTML = '&#9654; Generate runbook';
+      });
+  };
+
+  function renderRunbook(data) {
+    var output = document.getElementById('runbookOutput');
+    if (!output) return;
+
+    // Type labels for step badges
+    var typeLabel = { shell: 'SHELL', sql: 'SQL', verify: 'VERIFY', wait: 'WAIT' };
+    var typeClass  = { shell: 'shell', sql: 'sql', verify: 'verify', wait: 'wait' };
+
+    var demoTag = data.is_demo
+      ? '<span class="runbook-demo-badge">DEMO DATA</span>'
+      : (data.is_proxy_fallback ? '<span class="runbook-demo-badge">PROXY: DEMO FALLBACK</span>' : '');
+
+    var stepsHtml = '';
+    (data.steps || []).forEach(function(step, idx) {
+      var stepType = typeClass[step.type] || 'shell';
+      var cmdsHtml = '';
+      (step.commands || []).forEach(function(cmd, ci) {
+        var cmdId = 'rbcmd-' + idx + '-' + ci;
+        cmdsHtml +=
+          '<div class="runbook-cmd-block" id="' + cmdId + '">' +
+            escHtml(cmd) +
+            '<button class="runbook-cmd-copy" onclick="copyRunbookCmd(\'' + cmdId + '\', this)">copy</button>' +
+          '</div>';
+      });
+
+      stepsHtml +=
+        '<div class="runbook-step ' + stepType + '">' +
+          '<div class="runbook-step-header">' +
+            '<span class="runbook-step-num">' + (idx + 1) + '</span>' +
+            '<span class="runbook-step-label">' + escHtml(step.label) + '</span>' +
+            '<span class="runbook-step-type ' + stepType + '">' + (typeLabel[step.type] || 'STEP') + '</span>' +
+          '</div>' +
+          '<div class="runbook-step-body">' +
+            cmdsHtml +
+            (step.notes ? '<div class="runbook-step-notes">' + escHtml(step.notes) + '</div>' : '') +
+          '</div>' +
+        '</div>';
+    });
+
+    output.innerHTML =
+      '<div class="runbook-output-header">' +
+        '<div>' +
+          '<div class="runbook-output-title">' + escHtml(data.title || '') + ' ' + demoTag + '</div>' +
+        '</div>' +
+        '<button class="runbook-close-btn" onclick="closeRunbook()">&#10005; Close</button>' +
+      '</div>' +
+      '<div class="runbook-disclaimer">&#9888; ' + escHtml(data.disclaimer || '') + '</div>' +
+      (data.detectedSummary
+        ? '<div class="runbook-detected-summary">Detection: ' + escHtml(data.detectedSummary) + '</div>'
+        : '') +
+      '<div class="runbook-steps">' + stepsHtml + '</div>';
+
+    output.classList.add('visible');
+    // Smooth scroll to the output
+    output.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  window.copyRunbookCmd = function(cmdId, btn) {
+    var el = document.getElementById(cmdId);
+    if (!el) return;
+    // Get text content excluding the copy button text
+    var clone = el.cloneNode(true);
+    var copyBtn = clone.querySelector('.runbook-cmd-copy');
+    if (copyBtn) copyBtn.remove();
+    var text = clone.textContent || '';
+    navigator.clipboard.writeText(text.trim()).then(function() {
+      btn.textContent = '✓ copied';
+      btn.classList.add('copied');
+      setTimeout(function() {
+        btn.textContent = 'copy';
+        btn.classList.remove('copied');
+      }, 2000);
+    });
+  };
+
+  window.closeRunbook = function() {
+    var output = document.getElementById('runbookOutput');
+    if (output) {
+      output.classList.remove('visible');
+      output.innerHTML = '';
+    }
+    document.querySelectorAll('.runbook-scenario-card').forEach(function(c) {
+      c.classList.remove('active');
+    });
+  };
+
+  // ── Auto-refresh (Monitor tab only) ───────────────────────────────────────
+  function setupVisibilityAutoRefresh() {
+    document.addEventListener('visibilitychange', function() {
+      if (document.hidden) {
+        stopAutoRefresh();
+      } else {
+        // Only restart if we're on Monitor tab
+        if (getActiveTab() === 'monitor') startAutoRefresh();
+      }
+    });
+  }
+
+  function startAutoRefresh() {
+    if (_refreshTimer) return;
+    _refreshTimer = setInterval(function() {
+      if (!document.hidden && !_loading && getActiveTab() === 'monitor') {
+        fetchStatus();
+      }
+    }, _refreshInterval);
+    _autoRefresh = true;
+    updateAutoRefreshPill();
+  }
+
+  function stopAutoRefresh() {
+    if (_refreshTimer) {
+      clearInterval(_refreshTimer);
+      _refreshTimer = null;
+    }
+    _autoRefresh = false;
+    updateAutoRefreshPill();
+  }
+
+  function updateAutoRefreshPill() {
+    var pill = document.getElementById('autoRefreshPill');
+    if (!pill) return;
+    pill.textContent = _autoRefresh ? 'Auto-refresh: 30s' : 'Auto-refresh: off';
+    pill.className = 'auto-refresh-pill' + (_autoRefresh ? ' active' : '');
+  }
+
+  // ── Event listeners ────────────────────────────────────────────────────────
+  function setupEventListeners() {
+    var sel = document.getElementById('connSelect');
+    if (sel) {
+      sel.addEventListener('change', function() {
+        tvConn.save(sel.value);
+        if (getActiveTab() === 'monitor') fetchStatus();
+      });
+    }
+    var btn = document.getElementById('btnRefresh');
+    if (btn) {
+      btn.addEventListener('click', function() {
+        fetchStatus();
+      });
+    }
+  }
+
+  // ── Utils ──────────────────────────────────────────────────────────────────
+  function escHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+})();
+
+// ── Run Deep EBS Check ────────────────────────────────────────────────────
+window.runDeepEbsCheck = function() {
+  var connId = document.getElementById('connSelect') ? document.getElementById('connSelect').value : '';
+  if (!connId) {
+    showRunMsg('Please select an EBS connection first.', 'warn');
+    return;
+  }
+  var btn = document.getElementById('btnRunDeepCheck');
+  var icon = document.getElementById('runDeepIcon');
+  btn.disabled = true;
+  icon.textContent = '⏳';
+  showRunMsg('Running Deep EBS Check… this may take up to 30 seconds.', 'info');
+
+  fetch('/api/ebs-deep/run', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ connection_id: Number(connId) }),
+  })
+    .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+    .then(function(res) {
+      if (!res.ok) {
+        showRunMsg('Error: ' + (res.data.error || 'Check failed'), 'error');
+        btn.disabled = false;
+        icon.textContent = '▶';
+        return;
+      }
+      showRunMsg('Check complete! Redirecting to report…', 'ok');
+      setTimeout(function() {
+        window.location.href = res.data.redirect || ('/report/ebs/' + res.data.report_id);
+      }, 600);
+    })
+    .catch(function(e) {
+      showRunMsg('Network error: ' + e.message, 'error');
+      btn.disabled = false;
+      icon.textContent = '▶';
+    });
+};
+
+function showRunMsg(msg, type) {
+  var el = document.getElementById('runDeepMsg');
+  if (!el) return;
+  var styles = {
+    info:  'background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.2);color:#60a5fa',
+    warn:  'background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);color:#fbbf24',
+    error: 'background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);color:#f87171',
+    ok:    'background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);color:#34d399',
+  };
+  el.style.cssText = styles[type] || styles.info;
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+// ── Sanity Check Engine UI ────────────────────────────────────────────────────
+
+(function() {
+  var _sanityRunning = false;
+  var _sanityConnId  = null;
+
+  // Run sanity checks — called by the "Run Sanity Checks" button.
+  // forceRefresh=true bypasses the 5-min server-side cache.
+  window.runSanityChecks = function(forceRefresh) {
+    if (_sanityRunning) return;
+    var sel = document.getElementById('connSelect');
+    _sanityConnId = sel ? (sel.value || null) : null;
+
+    _sanityRunning = true;
+    var btn  = document.getElementById('btnRunSanity');
+    var icon = document.getElementById('sanityRunIcon');
+    if (btn)  btn.disabled = true;
+    if (icon) icon.textContent = '⏳';
+
+    document.getElementById('sanityEmptyState').style.display   = 'none';
+    document.getElementById('sanityRunBar').style.display       = 'none';
+    document.getElementById('sanityCategoryCards').innerHTML    = '';
+
+    // Show per-card loading skeletons for live categories only
+    showCardSkeletons();
+
+    var url  = '/api/ebs-deep/sanity/run';
+    var body = _sanityConnId ? { connection_id: Number(_sanityConnId) } : {};
+    if (!_sanityConnId) url += '?demo=1';
+    else if (forceRefresh) url += '?refresh=1';
+
+    fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+      .then(function(r) { return r.ok ? r.json() : r.json().then(function(d) { throw new Error(d.error || 'Request failed'); }); })
+      .then(function(data) {
+        renderSanityResults(data);
+      })
+      .catch(function(err) {
+        document.getElementById('sanityRunningState').style.display = 'none';
+        document.getElementById('sanityCategoryCards').innerHTML =
+          '<p style="color:var(--red);font-size:13px;padding:16px 0;">Sanity check failed: ' + escSanityHtml(err.message) + '</p>';
+        document.getElementById('sanityEmptyState').style.display = 'none';
+      })
+      .finally(function() {
+        _sanityRunning = false;
+        var btn2  = document.getElementById('btnRunSanity');
+        var icon2 = document.getElementById('sanityRunIcon');
+        if (btn2)  btn2.disabled = false;
+        if (icon2) icon2.textContent = '▶';
+      });
+  };
+
+  // Show 5 loading skeletons (all categories now run live queries).
+  function showCardSkeletons() {
+    var container = document.getElementById('sanityCategoryCards');
+    var liveCategories = [
+      'FND_NODES Consistency',
+      'Profile Options',
+      'ADOP Filesystem Sanity',
+      'Concurrent Manager Config',
+      'Workflow Mailer Config'
+    ];
+    var html = '';
+    liveCategories.forEach(function(title) {
+      html += '<div class="sanity-card">';
+      html += '<div class="sanity-card-loading"><span class="spinner"></span> Running ' + escSanityHtml(title) + '&hellip;</div>';
+      html += '</div>';
+    });
+    container.innerHTML = html;
+  }
+
+  // Load the most recent saved run when the Sanity tab is first opened
+  window._sanityLoaded = false;
+  var _origSwitchTab = window.switchTab;
+  window.switchTab = function(tabId) {
+    _origSwitchTab(tabId);
+    if (tabId === 'sanity' && !window._sanityLoaded) {
+      window._sanityLoaded = true;
+      loadLatestSanityRun();
+    }
+  };
+
+  function loadLatestSanityRun() {
+    var sel    = document.getElementById('connSelect');
+    var connId = sel ? (sel.value || null) : null;
+    if (!connId || connId === '') return; // no connection, leave empty state
+
+    fetch('/api/ebs-deep/sanity/latest/' + Number(connId), { credentials: 'include' })
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(data) {
+        if (!data || data.no_run) return; // leave empty state
+        renderSanityResults(data);
+      })
+      .catch(function() { /* silent — empty state is fine */ });
+  }
+
+  function renderSanityResults(data) {
+    document.getElementById('sanityRunningState').style.display = 'none';
+    document.getElementById('sanityEmptyState').style.display   = 'none';
+
+    // Run bar
+    var runBar = document.getElementById('sanityRunBar');
+    runBar.style.display = 'flex';
+    var lastRunEl = document.getElementById('sanityLastRun');
+    if (lastRunEl && data.run_at) {
+      var d = new Date(data.run_at);
+      var mins = Math.round((Date.now() - d.getTime()) / 60000);
+      lastRunEl.textContent = 'Last run: ' + (mins < 1 ? 'just now' : (mins + ' minute' + (mins === 1 ? '' : 's') + ' ago'));
+    }
+    var badge = document.getElementById('sanityOverallBadge');
+    if (badge) {
+      var overallStatus = data.overall_status || 'unknown';
+      var icons = { pass: '✓', warn: '⚠', fail: '✗', unknown: '?' };
+      badge.className = 'sanity-overall-badge ' + overallStatus;
+      badge.textContent = (icons[overallStatus] || '?') + ' ' + overallStatus.toUpperCase();
+    }
+    var demoTag = document.getElementById('sanityDemoTag');
+    if (demoTag) demoTag.style.display = data.is_demo ? '' : 'none';
+
+    // Cache indicator + refresh button
+    var cacheTag = document.getElementById('sanityCacheTag');
+    var refreshBtn = document.getElementById('btnSanityRefresh');
+    if (cacheTag)   cacheTag.style.display   = data.from_cache ? '' : 'none';
+    if (refreshBtn) refreshBtn.style.display  = data.from_cache ? '' : 'none';
+
+    // Category cards
+    var container = document.getElementById('sanityCategoryCards');
+    if (!container) return;
+    var findings = data.findings || [];
+    if (findings.length === 0) {
+      container.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">No findings returned.</p>';
+      return;
+    }
+
+    var html = '';
+    findings.forEach(function(cat, idx) {
+      var isPhase2   = cat.phase === 'phase2';
+      var statusCls  = isPhase2 ? 'pending' : (cat.status || 'unknown');
+      var icon       = statusCls === 'pass' ? '✓' : statusCls === 'warn' ? '⚠' : statusCls === 'fail' ? '✗' : '—';
+
+      html += '<div class="sanity-card' + (isPhase2 ? ' sanity-card-phase2' : '') + '" id="sanity-cat-' + idx + '" style="' + (isPhase2 ? 'opacity:0.55;' : '') + '">';
+
+      // Card header — Phase 2 cards are not interactive
+      if (isPhase2) {
+        html += '<div class="sanity-card-header" style="cursor:default;">';
+      } else {
+        html += '<div class="sanity-card-header" onclick="toggleSanityCard(' + idx + ')" role="button" tabindex="0">';
+      }
+      html += '<div class="sanity-card-header-left">';
+      html += '<span class="sanity-status-pill ' + escSanityHtml(statusCls) + '">' + icon + ' ' + escSanityHtml(statusCls) + '</span>';
+      html += '<span class="sanity-card-title">' + escSanityHtml(cat.title || cat.id) + '</span>';
+      if (isPhase2) {
+        html += '<span class="sanity-phase2-badge">Phase 2 &mdash; wiring next</span>';
+      }
+      html += '</div>';
+      if (!isPhase2) {
+        html += '<span class="sanity-chevron">&#9654;</span>';
+      }
+      html += '</div>'; // card-header
+
+      // Card body (live categories only)
+      if (!isPhase2) {
+        html += '<div class="sanity-card-body">';
+        var catFindings = cat.findings || [];
+        if (catFindings.length === 0) {
+          html += '<p style="color:var(--text-dim);font-size:13px;padding:10px 0;">No findings for this category.</p>';
+        } else {
+          catFindings.forEach(function(f) {
+            var lvl = f.level || 'pass';
+            var findIcon = lvl === 'pass' ? '<span style="color:var(--green)">&#10003;</span>'
+                         : lvl === 'warn' ? '<span style="color:var(--yellow)">&#9888;</span>'
+                         : lvl === 'fail' ? '<span style="color:var(--red)">&#10007;</span>'
+                         : '<span style="color:var(--text-dim)">&#9711;</span>';
+            html += '<div class="sanity-finding">';
+            html += '<span class="sanity-finding-icon">' + findIcon + '</span>';
+            html += '<div class="sanity-finding-text">';
+            html += '<div class="sanity-finding-msg">' + escSanityHtml(f.message || '') + '</div>';
+            if (f.hint) {
+              html += '<div class="sanity-finding-hint">' + escSanityHtml(f.hint) + '</div>';
+            }
+            html += '</div>';
+            html += '</div>';
+          });
+        }
+
+        // SQL detail expandable panel — only for live categories that have sql_detail
+        var sqlDetail = cat.sql_detail || [];
+        if (sqlDetail.length > 0) {
+          var sqlId = 'sanity-sql-' + idx;
+          html += '<div class="sanity-sql-section">';
+          html += '<button class="sanity-sql-toggle" onclick="toggleSanitySql(\'' + sqlId + '\', this)" type="button">&#128196; Show SQL used (' + sqlDetail.length + ' quer' + (sqlDetail.length === 1 ? 'y' : 'ies') + ')</button>';
+          html += '<div class="sanity-sql-detail" id="' + sqlId + '">';
+          sqlDetail.forEach(function(sq) {
+            html += '<div class="sanity-sql-block">';
+            html += '<div class="sanity-sql-label">' + escSanityHtml(sq.label || 'Query') + '</div>';
+            html += '<div class="sanity-sql-code">' + escSanityHtml(sq.sql || '') + '</div>';
+            var rows = sq.rows || [];
+            if (rows.length > 0) {
+              html += '<div class="sanity-sql-rows">';
+              html += '<div class="sanity-sql-rows-count">' + rows.length + ' row' + (rows.length === 1 ? '' : 's') + ' returned</div>';
+              // Render first 5 rows as compact JSON
+              var preview = rows.slice(0, 5);
+              preview.forEach(function(row) {
+                html += '<div style="margin-top:4px;word-break:break-all;">' + escSanityHtml(JSON.stringify(row)) + '</div>';
+              });
+              if (rows.length > 5) {
+                html += '<div style="margin-top:4px;color:var(--text-dim);">… and ' + (rows.length - 5) + ' more</div>';
+              }
+              html += '</div>';
+            } else {
+              html += '<div class="sanity-sql-rows"><div class="sanity-sql-rows-count">0 rows returned</div></div>';
+            }
+            html += '</div>'; // sanity-sql-block
+          });
+          html += '</div>'; // sanity-sql-detail
+          html += '</div>'; // sanity-sql-section
+        }
+
+        html += '</div>'; // sanity-card-body
+      }
+
+      html += '</div>'; // sanity-card
+    });
+
+    container.innerHTML = html;
+
+    // Auto-open live cards with warn or fail
+    findings.forEach(function(cat, idx) {
+      if (cat.phase !== 'phase2' && (cat.status === 'warn' || cat.status === 'fail')) {
+        var card = document.getElementById('sanity-cat-' + idx);
+        if (card) card.classList.add('open');
+      }
+    });
+  }
+
+  window.toggleSanityCard = function(idx) {
+    var card = document.getElementById('sanity-cat-' + idx);
+    if (card) card.classList.toggle('open');
+  };
+
+  window.toggleSanitySql = function(panelId, btn) {
+    var panel = document.getElementById(panelId);
+    if (!panel) return;
+    var isOpen = panel.classList.toggle('open');
+    if (btn) btn.textContent = isOpen
+      ? btn.textContent.replace('Show SQL', 'Hide SQL')
+      : btn.textContent.replace('Hide SQL', 'Show SQL');
+  };
+
+  function escSanityHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // ── SSH Checks tab ─────────────────────────────────────────────────────────
+
+  var _sshTargets = {};   // connection_id → array of targets
+  var _sshRunning = false;
+
+  // Sync the SSH connection selector from the already-loaded _connections list
+  function syncSshConnSelector() {
+    var sel = document.getElementById('sshConnSelect');
+    if (!sel) return;
+    var current = sel.value;
+    sel.innerHTML = '';
+    if (_connections.length === 0) {
+      var o = document.createElement('option');
+      o.value = ''; o.textContent = 'No EBS connections'; sel.appendChild(o);
+      return;
+    }
+    _connections.forEach(function(c) {
+      var o = document.createElement('option');
+      o.value = c.id;
+      o.textContent = c.name + (c.host ? ' (' + c.host + ')' : '');
+      if (String(c.id) === String(current)) o.selected = true;
+      sel.appendChild(o);
+    });
+    // If nothing was pre-selected, mirror Monitor tab selection
+    if (!sel.value && _connections.length > 0) {
+      var monSel = document.getElementById('connSelect');
+      sel.value = monSel ? (monSel.value || _connections[0].id) : _connections[0].id;
+    }
+    loadSshTargetsForConn(sel.value);
+  }
+
+  // Fetch SSH targets linked to this oracle connection
+  function loadSshTargetsForConn(connId) {
+    var targetSel = document.getElementById('sshTargetSelect');
+    var btn       = document.getElementById('btnRunSshChecks');
+    var ctaEl     = document.getElementById('sshNoTargetCta');
+    if (!connId) {
+      if (targetSel) targetSel.innerHTML = '<option value="">Select connection first</option>';
+      if (btn) btn.disabled = true;
+      if (ctaEl) ctaEl.style.display = 'none';
+      return;
+    }
+
+    if (targetSel) targetSel.innerHTML = '<option value="">Loading targets…</option>';
+
+    fetch('/api/ebs-ssh-checks/target/' + connId, { credentials: 'include' })
+      .then(function(r) { return r.ok ? r.json() : Promise.reject(r); })
+      .then(function(data) {
+        _sshTargets[connId] = data.targets || [];
+        renderSshTargetSelector(connId);
+      })
+      .catch(function() {
+        if (targetSel) targetSel.innerHTML = '<option value="">Error loading targets</option>';
+        if (btn) btn.disabled = true;
+      });
+  }
+
+  function renderSshTargetSelector(connId) {
+    var targets   = _sshTargets[connId] || [];
+    var targetSel = document.getElementById('sshTargetSelect');
+    var btn       = document.getElementById('btnRunSshChecks');
+    var ctaEl     = document.getElementById('sshNoTargetCta');
+    var resultsEl = document.getElementById('sshChecksResults');
+
+    if (!targetSel) return;
+
+    if (targets.length === 0) {
+      targetSel.innerHTML = '<option value="">No SSH targets linked</option>';
+      if (btn) btn.disabled = true;
+      if (ctaEl) ctaEl.style.display = '';
+      if (resultsEl) resultsEl.style.display = 'none';
+      return;
+    }
+
+    if (ctaEl) ctaEl.style.display = 'none';
+    targetSel.innerHTML = '';
+    targets.forEach(function(t) {
+      var o = document.createElement('option');
+      o.value = t.id;
+      o.textContent = t.label + ' (' + t.host + ':' + t.port + ' — ' + t.role.replace('_', ' ') + ')';
+      targetSel.appendChild(o);
+    });
+    if (btn) btn.disabled = false;
+  }
+
+  window.onSshConnChange = function() {
+    var sel = document.getElementById('sshConnSelect');
+    if (sel && sel.value) loadSshTargetsForConn(sel.value);
+  };
+
+  window.onSshTargetChange = function() {
+    var btn = document.getElementById('btnRunSshChecks');
+    var sel = document.getElementById('sshTargetSelect');
+    if (btn) btn.disabled = !sel || !sel.value;
+  };
+
+  window.runSshChecks = function() {
+    if (_sshRunning) return;
+    var connSel   = document.getElementById('sshConnSelect');
+    var targetSel = document.getElementById('sshTargetSelect');
+    if (!connSel || !connSel.value || !targetSel || !targetSel.value) return;
+
+    _sshRunning = true;
+    var btn = document.getElementById('btnRunSshChecks');
+    var icon = document.getElementById('sshRunIcon');
+    var loadEl = document.getElementById('sshChecksLoading');
+    var resultsEl = document.getElementById('sshChecksResults');
+
+    if (btn) btn.disabled = true;
+    if (icon) icon.style.animation = 'spin 0.8s linear infinite';
+    if (loadEl) loadEl.style.display = '';
+    if (resultsEl) resultsEl.style.display = 'none';
+
+    fetch('/api/ebs-ssh-checks/run', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        connection_id: Number(connSel.value),
+        target_id:     Number(targetSel.value),
+      }),
+    })
+      .then(function(r) { return r.ok ? r.json() : r.json().then(function(e) { throw new Error(e.error || 'SSH check failed'); }); })
+      .then(function(data) {
+        if (loadEl) loadEl.style.display = 'none';
+        renderSshCheckResults(data);
+        if (resultsEl) resultsEl.style.display = '';
+        updateSshTabBadge(data.summary);
+      })
+      .catch(function(err) {
+        if (loadEl) loadEl.style.display = 'none';
+        if (resultsEl) {
+          resultsEl.style.display = '';
+          resultsEl.innerHTML = '<p style="color:var(--red);font-size:13px;padding:16px 0;">Error: ' + escSanityHtml(err.message) + '</p>';
+        }
+      })
+      .finally(function() {
+        _sshRunning = false;
+        if (btn) btn.disabled = false;
+        if (icon) icon.style.animation = '';
+      });
+  };
+
+  function updateSshTabBadge(summary) {
+    var badge = document.getElementById('sshTabBadge');
+    if (!badge) return;
+    var critCount = summary.crit || 0;
+    var warnCount = summary.warn || 0;
+    if (critCount > 0) {
+      badge.textContent = critCount;
+      badge.style.background = 'var(--red-dim)';
+      badge.style.color = 'var(--red)';
+      badge.style.display = '';
+    } else if (warnCount > 0) {
+      badge.textContent = warnCount;
+      badge.style.background = 'var(--yellow-dim)';
+      badge.style.color = 'var(--yellow)';
+      badge.style.borderColor = 'rgba(251,191,36,0.3)';
+      badge.style.display = '';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  function renderSshCheckResults(data) {
+    var container = document.getElementById('sshChecksResults');
+    if (!container) return;
+
+    var summary = data.summary || {};
+    var checks  = data.checks  || [];
+
+    // Summary bar
+    var summaryHtml = '<div class="ssh-checks-summary">';
+    var summaryItems = [
+      { key: 'crit', label: 'Critical', color: 'var(--red)' },
+      { key: 'warn', label: 'Warning',  color: 'var(--yellow)' },
+      { key: 'ok',   label: 'Healthy',  color: 'var(--green)' },
+      { key: 'info', label: 'Info',     color: 'var(--blue)' },
+    ];
+    summaryItems.forEach(function(s) {
+      var count = summary[s.key] || 0;
+      summaryHtml += '<div class="ssh-summary-item">';
+      summaryHtml += '<span class="dot" style="background:' + s.color + ';"></span>';
+      summaryHtml += '<span style="color:' + s.color + ';font-weight:600;">' + count + '</span>';
+      summaryHtml += ' <span style="color:var(--text-dim);">' + s.label + '</span>';
+      summaryHtml += '</div>';
+    });
+    if (data.ranAt) {
+      var d = new Date(data.ranAt);
+      summaryHtml += '<span class="ssh-summary-ran-at">ran ' + d.toLocaleTimeString() + '</span>';
+    }
+    summaryHtml += '</div>';
+
+    // Group checks by category
+    var CATEGORY_ORDER = ['filesystem', 'adop', 'concurrent_managers', 'weblogic', 'logs'];
+    var CATEGORY_LABELS = {
+      filesystem: 'Filesystem',
+      adop: 'ADOP / Patching',
+      concurrent_managers: 'Concurrent Managers',
+      weblogic: 'WebLogic / Middle Tier',
+      logs: 'Alert Log & Listener',
+    };
+    var byCategory = {};
+    checks.forEach(function(c) {
+      var cat = c.category || 'other';
+      if (!byCategory[cat]) byCategory[cat] = [];
+      byCategory[cat].push(c);
+    });
+
+    var groupsHtml = '';
+    CATEGORY_ORDER.forEach(function(cat) {
+      var catChecks = byCategory[cat];
+      if (!catChecks || catChecks.length === 0) return;
+      var label = CATEGORY_LABELS[cat] || cat;
+      groupsHtml += '<div class="ssh-category-group">';
+      groupsHtml += '<div class="ssh-category-title"><span class="cat-dot"></span>' + escSanityHtml(label) + '</div>';
+      groupsHtml += '<div class="ssh-checks-grid">';
+      catChecks.forEach(function(check) {
+        groupsHtml += renderSshCheckCard(check);
+      });
+      groupsHtml += '</div></div>';
+    });
+
+    // Any remaining uncategorized
+    Object.keys(byCategory).forEach(function(cat) {
+      if (CATEGORY_ORDER.indexOf(cat) !== -1) return;
+      var catChecks = byCategory[cat];
+      groupsHtml += '<div class="ssh-category-group">';
+      groupsHtml += '<div class="ssh-category-title"><span class="cat-dot"></span>' + escSanityHtml(cat) + '</div>';
+      groupsHtml += '<div class="ssh-checks-grid">';
+      catChecks.forEach(function(check) {
+        groupsHtml += renderSshCheckCard(check);
+      });
+      groupsHtml += '</div></div>';
+    });
+
+    container.innerHTML = summaryHtml + groupsHtml;
+  }
+
+  function renderSshCheckCard(check) {
+    var status = check.status || 'info';
+    var html = '<div class="ssh-check-card status-' + escSanityHtml(status) + '">';
+    html += '<div class="ssh-check-top">';
+    html += '<span class="ssh-check-label">' + escSanityHtml(check.label) + '</span>';
+    html += '<span class="ssh-check-badge ' + escSanityHtml(status) + '">' + escSanityHtml(status.toUpperCase()) + '</span>';
+    html += '</div>';
+    if (check.value) {
+      html += '<div class="ssh-check-value">' + escSanityHtml(check.value) + '</div>';
+    }
+    if (check.evidence) {
+      html += '<div class="ssh-check-evidence">' + escSanityHtml(check.evidence) + '</div>';
+    }
+    if (check.recommendation) {
+      var recCls = status === 'crit' ? 'crit' : '';
+      html += '<div class="ssh-check-rec ' + recCls + '">' + escSanityHtml(check.recommendation) + '</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+})();
+</script>
+<script>
+  // ADOP banner — poll per selected connection; re-init when connection changes
+  (function() {
+    function getConnId() {
+      var sel = document.getElementById('connSelect');
+      return sel && sel.value ? parseInt(sel.value, 10) : null;
+    }
+    function initAdopForConn() {
+      var id = getConnId();
+      AdopBanner.destroy();
+      if (id) AdopBanner.init({ connectionId: id });
+    }
+    // Init on load (after connections are loaded)
+    document.addEventListener('DOMContentLoaded', function() {
+      setTimeout(initAdopForConn, 1500); // wait for connSelect to populate
+      // Re-init on connection change
+      var sel = document.getElementById('connSelect');
+      if (sel) sel.addEventListener('change', initAdopForConn);
+    });
+  })();
+</script>
+<div style="text-align:center;padding:24px 16px 16px;border-top:1px solid rgba(255,255,255,0.05);margin-top:32px;">
+  <span style="font-size:12px;color:#9898a8;">Need help? <a href="mailto:support@tunevault.app" style="color:#f0a830;text-decoration:none;">support@tunevault.app</a></span>
+</div>
+<script src="/tunebot.js"></script>
+</body>
+</html>

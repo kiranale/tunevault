@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DB Clone &amp; Scale — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    :root {
+      --bg:#0a0a0c; --surface:#111114; --surface-2:#1a1a1f; --surface-3:#22222a;
+      --border:#2a2a30; --text:#e8e8ed; --text-dim:#9898a8; --text-faint:#9898a8;
+      --accent:#f0a830; --accent-dim:rgba(240,168,48,.12); --accent-hover:rgba(240,168,48,.2);
+      --green:#34d399; --green-dim:rgba(52,211,153,.12);
+      --red:#f87171; --red-dim:rgba(248,113,113,.12);
+      --blue:#60a5fa; --blue-dim:rgba(96,165,250,.12);
+      --purple:#a78bfa; --purple-dim:rgba(167,139,250,.12);
+      --yellow:#fbbf24;
+    }
+    body { font-family:'Space Grotesk',-apple-system,sans-serif; background:var(--bg); color:var(--text); line-height:1.6; min-height:100vh; overflow-x:hidden; }
+    .grain { position:fixed; top:0; left:0; right:0; bottom:0; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"); pointer-events:none; z-index:999; }
+    nav { background:rgba(10,10,12,.95); border-bottom:1px solid var(--border); backdrop-filter:blur(12px); position:sticky; top:0; z-index:9999; }
+    .page-wrap { max-width:1140px; margin:0 auto; padding:36px 24px 80px; }
+
+    /* ── Header ── */
+    .page-header { margin-bottom:28px; }
+    .page-header h1 { font-size:24px; font-weight:700; display:flex; align-items:center; gap:10px; margin-bottom:5px; }
+    .page-header p { font-size:13px; color:var(--text-dim); max-width:700px; }
+    .header-actions { display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; align-items:center; }
+
+    /* ── View tabs ── */
+    .view-tabs { display:flex; gap:4px; margin-bottom:24px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:4px; width:fit-content; }
+    .view-tab { padding:8px 18px; border-radius:7px; font-size:13px; font-weight:600; border:none; background:transparent; color:var(--text-dim); cursor:pointer; transition:all .15s; }
+    .view-tab.active { background:var(--surface-3); color:var(--text); }
+
+    /* ── Buttons ── */
+    .btn { display:inline-flex; align-items:center; gap:6px; padding:9px 18px; border-radius:8px; font-size:13px; font-weight:600; border:none; cursor:pointer; transition:all .15s; font-family:inherit; }
+    .btn-primary { background:var(--accent); color:#111; }
+    .btn-primary:hover { filter:brightness(1.1); }
+    .btn-secondary { background:var(--surface-2); color:var(--text); border:1px solid var(--border); }
+    .btn-secondary:hover { border-color:var(--accent); color:var(--accent); }
+    .btn-danger { background:var(--red-dim); color:var(--red); border:1px solid rgba(248,113,113,.3); }
+    .btn-danger:hover { background:rgba(248,113,113,.2); }
+    .btn-ghost { background:transparent; color:var(--text-dim); border:1px solid var(--border); }
+    .btn-ghost:hover { color:var(--text); border-color:var(--text-dim); }
+    .btn-sm { padding:5px 12px; font-size:12px; }
+    .btn:disabled { opacity:.4; cursor:not-allowed; }
+    .btn-icon { width:32px; height:32px; padding:0; display:inline-flex; align-items:center; justify-content:center; border-radius:7px; }
+
+    /* ── Cards ── */
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; }
+    .card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+    .card-title { font-size:15px; font-weight:700; }
+    .card-subtitle { font-size:12px; color:var(--text-dim); margin-top:2px; }
+
+    /* ── Wizard layout ── */
+    .wizard-layout { display:grid; grid-template-columns:200px 1fr; gap:24px; }
+    .wizard-nav { position:sticky; top:80px; align-self:start; }
+    .step-item { display:flex; align-items:flex-start; gap:10px; padding:9px 12px; border-radius:8px; cursor:pointer; transition:background .15s; position:relative; }
+    .step-item:hover { background:var(--surface-2); }
+    .step-item.active { background:var(--accent-dim); }
+    .step-num { width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex-shrink:0; background:var(--surface-2); color:var(--text-dim); border:1px solid var(--border); }
+    .step-item.active .step-num { background:var(--accent); color:#111; border-color:var(--accent); }
+    .step-item.done .step-num { background:var(--green-dim); color:var(--green); border-color:rgba(52,211,153,.3); font-size:13px; }
+    .step-item.done .step-num::before { content:'✓'; }
+    .step-label { font-size:13px; font-weight:600; line-height:1.3; }
+    .step-item.active .step-label { color:var(--accent); }
+    .step-item.done .step-label { color:var(--text-dim); }
+    .step-connector { width:2px; height:14px; background:var(--border); margin:2px 0 2px 23px; }
+
+    .panel { display:none; }
+    .panel.active { display:block; }
+
+    /* ── Form controls ── */
+    label { font-size:12px; font-weight:600; color:var(--text-dim); display:block; margin-bottom:5px; text-transform:uppercase; letter-spacing:.05em; }
+    input, select, textarea { background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-family:inherit; font-size:13px; padding:9px 12px; border-radius:8px; width:100%; transition:border-color .15s; }
+    input:focus, select:focus, textarea:focus { outline:none; border-color:var(--accent); }
+    input::placeholder, textarea::placeholder { color:var(--text-faint); }
+    .field { margin-bottom:16px; }
+    .field-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .help-text { font-size:11px; color:var(--text-faint); margin-top:4px; }
+
+    /* ── Connection picker cards ── */
+    .conn-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .conn-card { background:var(--surface-2); border:2px solid var(--border); border-radius:10px; padding:14px 16px; cursor:pointer; transition:all .15s; }
+    .conn-card:hover { border-color:rgba(240,168,48,.4); }
+    .conn-card.selected { border-color:var(--accent); background:var(--accent-dim); }
+    .conn-card.selected .conn-name { color:var(--accent); }
+    .conn-name { font-size:14px; font-weight:700; margin-bottom:3px; }
+    .conn-host { font-size:11px; color:var(--text-dim); font-family:'JetBrains Mono',monospace; }
+    .conn-tags { display:flex; gap:5px; margin-top:6px; flex-wrap:wrap; }
+    .tag { display:inline-flex; align-items:center; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:700; }
+    .tag-blue { background:var(--blue-dim); color:var(--blue); }
+    .tag-amber { background:var(--accent-dim); color:var(--accent); }
+    .tag-green { background:var(--green-dim); color:var(--green); }
+    .tag-purple { background:var(--purple-dim); color:var(--purple); }
+
+    .arrow-divider { text-align:center; padding:8px 0; font-size:20px; color:var(--accent); font-weight:700; grid-column:1/-1; }
+
+    /* ── Source type selector ── */
+    .source-opts { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .source-opt { background:var(--surface-2); border:2px solid var(--border); border-radius:10px; padding:14px 16px; cursor:pointer; transition:all .15s; }
+    .source-opt:hover { border-color:rgba(240,168,48,.3); }
+    .source-opt.selected { border-color:var(--accent); background:var(--accent-dim); }
+    .source-opt-icon { font-size:22px; margin-bottom:6px; }
+    .source-opt-label { font-size:13px; font-weight:700; margin-bottom:3px; }
+    .source-opt-desc { font-size:11px; color:var(--text-dim); line-height:1.4; }
+    .source-opt.selected .source-opt-label { color:var(--accent); }
+
+    /* ── Pre-flight checks ── */
+    .check-list { display:flex; flex-direction:column; gap:10px; }
+    .check-row { background:var(--surface-2); border:1px solid var(--border); border-radius:9px; padding:14px 16px; display:flex; align-items:center; gap:14px; }
+    .check-icon { font-size:20px; flex-shrink:0; width:24px; text-align:center; }
+    .check-info { flex:1; min-width:0; }
+    .check-label { font-size:13px; font-weight:600; margin-bottom:2px; }
+    .check-detail { font-size:11px; color:var(--text-dim); font-family:'JetBrains Mono',monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .check-actions { display:flex; gap:7px; flex-shrink:0; }
+    .check-row.ok { border-color:rgba(52,211,153,.25); }
+    .check-row.fail { border-color:rgba(248,113,113,.25); }
+    .check-row.running { border-color:rgba(240,168,48,.25); }
+    .check-row.skip { opacity:.6; }
+
+    /* ── Clone steps ── */
+    .steps-list { display:flex; flex-direction:column; gap:10px; }
+    .step-card { background:var(--surface-2); border:1px solid var(--border); border-radius:9px; padding:14px 16px; }
+    .step-card-header { display:flex; align-items:center; gap:12px; }
+    .step-card-num { width:26px; height:26px; border-radius:50%; background:var(--surface-3); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:var(--text-dim); flex-shrink:0; }
+    .step-card.done .step-card-num { background:var(--green-dim); color:var(--green); }
+    .step-card.running .step-card-num { background:rgba(240,168,48,.15); color:var(--accent); }
+    .step-card.fail .step-card-num { background:var(--red-dim); color:var(--red); }
+    .step-card-title { font-size:13px; font-weight:700; flex:1; }
+    .step-card-sub { font-size:11px; color:var(--text-dim); margin-top:2px; }
+    .step-output { margin-top:10px; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:10px 12px; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--green); white-space:pre-wrap; overflow-x:auto; max-height:200px; overflow-y:auto; line-height:1.5; }
+    .step-output.error { color:var(--red); }
+    .step-gate { margin-top:8px; padding:8px 12px; border-radius:6px; font-size:12px; font-weight:600; }
+    .step-gate.success { background:var(--green-dim); color:var(--green); }
+    .step-gate.error { background:var(--red-dim); color:var(--red); }
+
+    /* ── Post-clone steps (drag) ── */
+    .post-steps-list { display:flex; flex-direction:column; gap:8px; }
+    .post-step { background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:11px 14px; display:flex; align-items:center; gap:10px; cursor:grab; transition:border-color .15s; }
+    .post-step:hover { border-color:rgba(240,168,48,.3); }
+    .post-step-drag { color:var(--text-faint); font-size:16px; cursor:grab; }
+    .post-step-label { font-size:13px; flex:1; font-weight:600; }
+    .post-step-type { font-size:10px; font-weight:700; padding:2px 7px; border-radius:4px; }
+    .type-sql { background:var(--blue-dim); color:var(--blue); }
+    .type-ssh { background:var(--purple-dim); color:var(--purple); }
+    .type-note { background:var(--surface-3); color:var(--text-dim); }
+    .post-step-toggle { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-dim); }
+    .post-step-actions { display:flex; gap:5px; }
+    .add-step-row { background:var(--surface-3); border:1px dashed var(--border); border-radius:8px; padding:10px 14px; display:flex; align-items:center; gap:8px; cursor:pointer; transition:all .15s; }
+    .add-step-row:hover { border-color:var(--accent); color:var(--accent); }
+
+    /* ── Recipe saved panel ── */
+    .recipe-saved { text-align:center; padding:40px 20px; }
+    .recipe-saved-icon { font-size:56px; margin-bottom:16px; }
+    .recipe-saved h2 { font-size:20px; font-weight:700; margin-bottom:8px; }
+    .recipe-saved p { font-size:13px; color:var(--text-dim); max-width:480px; margin:0 auto; }
+    .recipe-meta { background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:16px; margin:20px auto; max-width:500px; text-align:left; }
+    .meta-row { display:flex; justify-content:space-between; padding:5px 0; font-size:12px; border-bottom:1px solid var(--border); }
+    .meta-row:last-child { border-bottom:none; }
+    .meta-label { color:var(--text-dim); }
+    .meta-val { font-weight:600; font-family:'JetBrains Mono',monospace; max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+    /* ── History table ── */
+    .history-table { width:100%; border-collapse:collapse; }
+    .history-table th { font-size:11px; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:.05em; padding:8px 12px; text-align:left; border-bottom:1px solid var(--border); }
+    .history-table td { font-size:12px; padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:middle; }
+    .history-table tr:last-child td { border-bottom:none; }
+    .history-table tr:hover td { background:var(--surface-2); }
+    .status-badge { display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:4px; font-size:11px; font-weight:700; }
+    .status-success { background:var(--green-dim); color:var(--green); }
+    .status-running { background:rgba(240,168,48,.15); color:var(--accent); }
+    .status-failed { background:var(--red-dim); color:var(--red); }
+    .status-aborted { background:var(--surface-3); color:var(--text-dim); }
+
+    /* ── Recipes list ── */
+    .recipes-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .recipe-card { background:var(--surface); border:1px solid var(--border); border-radius:11px; padding:18px; transition:border-color .15s; }
+    .recipe-card:hover { border-color:rgba(240,168,48,.3); }
+    .recipe-card-name { font-size:15px; font-weight:700; margin-bottom:5px; }
+    .recipe-card-pair { font-size:12px; color:var(--text-dim); font-family:'JetBrains Mono',monospace; margin-bottom:8px; }
+    .recipe-card-meta { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .recipe-card-actions { display:flex; gap:6px; margin-top:12px; }
+
+    /* ── Alerts / banners ── */
+    .alert { padding:12px 16px; border-radius:8px; font-size:13px; margin-bottom:16px; display:flex; align-items:flex-start; gap:10px; }
+    .alert-info { background:var(--blue-dim); border:1px solid rgba(96,165,250,.25); color:var(--blue); }
+    .alert-warn { background:rgba(251,191,36,.08); border:1px solid rgba(251,191,36,.25); color:var(--yellow); }
+    .alert-success { background:var(--green-dim); border:1px solid rgba(52,211,153,.25); color:var(--green); }
+    .alert-error { background:var(--red-dim); border:1px solid rgba(248,113,113,.25); color:var(--red); }
+
+    /* ── Section subheader ── */
+    .section-heading { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--text-dim); margin-bottom:10px; margin-top:24px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+    .section-heading:first-child { margin-top:0; }
+
+    /* ── Loading spinner ── */
+    .spin { display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,.2); border-top-color:currentColor; border-radius:50%; animation:spin .6s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* ── Empty state ── */
+    .empty-state { text-align:center; padding:48px 24px; color:var(--text-dim); }
+    .empty-state-icon { font-size:40px; margin-bottom:12px; opacity:.5; }
+    .empty-state p { font-size:13px; }
+
+    /* ── Modal ── */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:200; display:none; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
+    .modal-overlay.open { display:flex; }
+    .modal { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:28px; width:560px; max-width:94vw; max-height:90vh; overflow-y:auto; }
+    .modal-title { font-size:17px; font-weight:700; margin-bottom:18px; }
+    .modal-footer { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; padding-top:16px; border-top:1px solid var(--border); }
+
+    /* ── Copy-to-console output ── */
+    .copy-box { background:var(--bg); border:1px solid var(--border); border-radius:7px; padding:12px 14px; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-dim); white-space:pre-wrap; overflow-x:auto; position:relative; }
+    .copy-box-label { font-size:10px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:.05em; margin-bottom:5px; }
+    .copy-btn-wrap { position:absolute; top:8px; right:8px; }
+
+    @media (max-width:768px) {
+      .wizard-layout { grid-template-columns:1fr; }
+      .wizard-nav { position:static; display:flex; gap:4px; overflow-x:auto; }
+      .step-connector { display:none; }
+      .conn-grid, .source-opts, .recipes-grid, .field-row { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="grain"></div>
+
+<!-- Nav -->
+<nav id="mainNav"></nav>
+<script src="/connection-state.js"></script>
+<script src="/nav-component.js"></script>
+
+<div class="page-wrap">
+  <!-- Header -->
+  <div class="page-header">
+    <h1>🗄️ DB Clone &amp; Scale</h1>
+    <p>Guided Oracle database cloning via RMAN active duplicate, backup-based restore, or Data Pump. Records steps as a recipe for automated replay. Includes Data Pump (expdp/impdp) and RAC node management.</p>
+    <div class="header-actions">
+      <div class="view-tabs">
+        <button class="view-tab active" onclick="switchView('wizard')">New Wizard</button>
+        <button class="view-tab" onclick="switchView('recipes')">Saved Recipes</button>
+        <button class="view-tab" onclick="switchView('history')">Clone History</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ WIZARD VIEW ═══════════════════════════════════════════════════════ -->
+  <div id="view-wizard">
+    <div class="wizard-layout">
+      <!-- Sidebar nav -->
+      <div class="wizard-nav">
+        <div class="step-item active" id="nav-1" onclick="goStep(1)">
+          <div class="step-num" id="num-1">1</div>
+          <div>
+            <div class="step-label">Source &amp; Target</div>
+          </div>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step-item" id="nav-2" onclick="goStep(2)">
+          <div class="step-num" id="num-2">2</div>
+          <div>
+            <div class="step-label">Pre-Clone Checks</div>
+          </div>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step-item" id="nav-3" onclick="goStep(3)">
+          <div class="step-num" id="num-3">3</div>
+          <div>
+            <div class="step-label">Clone Execution</div>
+          </div>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step-item" id="nav-4" onclick="goStep(4)">
+          <div class="step-num" id="num-4">4</div>
+          <div>
+            <div class="step-label">Post-Clone Steps</div>
+          </div>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step-item" id="nav-5" onclick="goStep(5)">
+          <div class="step-num" id="num-5">5</div>
+          <div>
+            <div class="step-label">Recipe Saved</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panels -->
+      <div id="panels">
+
+        <!-- ── STEP 1: Source & Target ── -->
+        <div class="panel active card" id="panel-1">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Step 1 — Select Source &amp; Target</div>
+              <div class="card-subtitle">Pick your Oracle connections. Display names come from your saved connections — no environment labels.</div>
+            </div>
+          </div>
+
+          <div class="section-heading">Clone Method</div>
+          <div class="source-opts" id="sourceOpts">
+            <div class="source-opt selected" data-method="live" onclick="selectMethod(this)">
+              <div class="source-opt-icon">🔴</div>
+              <div class="source-opt-label">Live Database</div>
+              <div class="source-opt-desc">Direct RMAN duplication from running source. Active Data Guard capable.</div>
+            </div>
+            <div class="source-opt" data-method="standby" onclick="selectMethod(this)">
+              <div class="source-opt-icon">🔄</div>
+              <div class="source-opt-label">Standby / DR Database</div>
+              <div class="source-opt-desc">Use any standby as source — physical, ADG, or otherwise. TuneVault doesn't assume primary vs standby.</div>
+            </div>
+            <div class="source-opt" data-method="backup" onclick="selectMethod(this)">
+              <div class="source-opt-icon">📦</div>
+              <div class="source-opt-label">From Backup</div>
+              <div class="source-opt-desc">RMAN backup set restore. No live source connection needed — source DB can be offline.</div>
+            </div>
+            <div class="source-opt" data-method="datapump" onclick="selectMethod(this)">
+              <div class="source-opt-icon">🚿</div>
+              <div class="source-opt-label">Data Pump (expdp/impdp)</div>
+              <div class="source-opt-desc">Schema/full export + import. Ideal for selective clones, cross-version migrations, or tablespace remaps.</div>
+            </div>
+          </div>
+
+          <div id="backupPathField" class="field" style="display:none;margin-top:14px;">
+            <label>Backup Location Path</label>
+            <input type="text" id="backupPath" placeholder="/u01/backup or /mnt/nas/rman/ORCL" />
+            <div class="help-text">NFS mount path or local filesystem path accessible from the target server.</div>
+          </div>
+
+          <div class="section-heading" style="margin-top:20px;">Source Connection</div>
+          <div class="conn-grid" id="sourceConnGrid">
+            <div class="empty-state" style="grid-column:1/-1;padding:20px">
+              <div class="spin" style="color:var(--accent)"></div>
+              <p style="margin-top:8px">Loading connections…</p>
+            </div>
+          </div>
+
+          <div class="section-heading" style="margin-top:16px;">Target Connection</div>
+          <div class="conn-grid" id="targetConnGrid">
+            <div class="empty-state" style="grid-column:1/-1;padding:20px">
+              <div class="spin" style="color:var(--accent)"></div>
+              <p style="margin-top:8px">Loading connections…</p>
+            </div>
+          </div>
+
+          <div class="field" style="margin-top:18px;">
+            <label>SSH Target for Step Execution</label>
+            <select id="sshTargetSelect">
+              <option value="">Select SSH target (db_tier recommended)…</option>
+            </select>
+            <div class="help-text">SSH target with db_tier role on the target server. Used to run pre-checks and clone steps.</div>
+          </div>
+
+          <div style="display:flex;justify-content:flex-end;margin-top:16px;">
+            <button class="btn btn-primary" onclick="completeStep1()">Next: Pre-Clone Checks →</button>
+          </div>
+        </div>
+
+        <!-- ── STEP 2: Pre-Clone Checks ── -->
+        <div class="panel card" id="panel-2">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Step 2 — Pre-Clone Checks</div>
+              <div class="card-subtitle">Automated verification before cloning. All checks must pass (or be acknowledged) to proceed.</div>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="runAllPreChecks()">
+              <span id="allChecksSpin" class="spin" style="display:none;color:var(--accent)"></span>
+              Run All
+            </button>
+          </div>
+
+          <div class="check-list" id="preCheckList">
+            <!-- Populated by JS -->
+          </div>
+
+          <div style="display:flex;justify-content:space-between;margin-top:20px;">
+            <button class="btn btn-ghost btn-sm" onclick="goStep(1)">← Back</button>
+            <button class="btn btn-primary" id="toStep3Btn" onclick="goStep(3)" disabled>Next: Clone Execution →</button>
+          </div>
+        </div>
+
+        <!-- ── STEP 3: Clone Execution ── -->
+        <div class="panel card" id="panel-3">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Step 3 — Clone Execution</div>
+              <div class="card-subtitle">Run each step in order. Green gate required to proceed. Steps vary by clone method selected.</div>
+            </div>
+          </div>
+
+          <div id="execStepsList" class="steps-list">
+            <!-- Populated by JS -->
+          </div>
+
+          <div style="display:flex;justify-content:space-between;margin-top:20px;">
+            <button class="btn btn-ghost btn-sm" onclick="goStep(2)">← Back</button>
+            <button class="btn btn-primary" id="toStep4Btn" onclick="goStep(4)" disabled>Next: Post-Clone Steps →</button>
+          </div>
+        </div>
+
+        <!-- ── STEP 4: Post-Clone Steps ── -->
+        <div class="panel card" id="panel-4">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Step 4 — Post-Clone Steps</div>
+              <div class="card-subtitle">Suggested and custom steps. Drag to reorder. Each step is recorded in the recipe.</div>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="openAddStepModal()">+ Add Step</button>
+          </div>
+
+          <div id="postStepsList" class="post-steps-list">
+            <!-- Populated by JS -->
+          </div>
+
+          <div style="display:flex;justify-content:space-between;margin-top:20px;">
+            <button class="btn btn-ghost btn-sm" onclick="goStep(3)">← Back</button>
+            <button class="btn btn-primary" onclick="saveRecipe()">Save Recipe &amp; Finish →</button>
+          </div>
+        </div>
+
+        <!-- ── STEP 5: Recipe Saved ── -->
+        <div class="panel card" id="panel-5">
+          <div class="recipe-saved">
+            <div class="recipe-saved-icon">📋</div>
+            <h2>Recipe Saved</h2>
+            <p>Your clone recipe has been recorded. Review it before running again — it's never a black box.</p>
+            <div class="recipe-meta" id="savedRecipeMeta"></div>
+            <div style="display:flex;gap:10px;justify-content:center;margin-top:20px;">
+              <button class="btn btn-secondary" onclick="switchView('recipes')">View All Recipes</button>
+              <button class="btn btn-primary" onclick="resetWizard()">New Clone</button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /panels -->
+    </div><!-- /wizard-layout -->
+  </div><!-- /view-wizard -->
+
+  <!-- ═══ RECIPES VIEW ══════════════════════════════════════════════════════ -->
+  <div id="view-recipes" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="font-size:15px;font-weight:700;">Saved Recipes</div>
+      <button class="btn btn-primary btn-sm" onclick="switchView('wizard')">+ New Wizard</button>
+    </div>
+    <div id="recipesGrid" class="recipes-grid">
+      <div class="empty-state" style="grid-column:1/-1">
+        <div class="spin" style="color:var(--accent)"></div>
+        <p style="margin-top:8px">Loading…</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ HISTORY VIEW ══════════════════════════════════════════════════════ -->
+  <div id="view-history" style="display:none;">
+    <div style="font-size:15px;font-weight:700;margin-bottom:16px;">Clone History</div>
+    <div class="card" style="overflow:hidden;">
+      <table class="history-table" id="historyTable">
+        <thead>
+          <tr>
+            <th>Source → Target</th>
+            <th>Recipe</th>
+            <th>Status</th>
+            <th>Duration</th>
+            <th>Started By</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody">
+          <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-dim)">
+            <span class="spin" style="color:var(--accent)"></span>
+            <span style="margin-left:8px">Loading history…</span>
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /page-wrap -->
+
+<!-- ── Add Step Modal ── -->
+<div class="modal-overlay" id="addStepModal">
+  <div class="modal">
+    <div class="modal-title">Add Post-Clone Step</div>
+    <div class="field">
+      <label>Step Type</label>
+      <select id="newStepType" onchange="updateStepTypeHint()">
+        <option value="sql">SQL Statement</option>
+        <option value="ssh">SSH Command</option>
+        <option value="note">Manual Note / Reminder</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Label</label>
+      <input type="text" id="newStepLabel" placeholder="e.g. Reset SYS password, Update tnsnames.ora…" />
+    </div>
+    <div class="field">
+      <label>Content / Command</label>
+      <textarea id="newStepContent" rows="5" placeholder="SQL, shell command, or note text…"></textarea>
+    </div>
+    <div class="field">
+      <label>Run Mode</label>
+      <select id="newStepOptional">
+        <option value="always">Always run automatically</option>
+        <option value="ask">Optional — ask me each time</option>
+      </select>
+    </div>
+    <div id="stepTypeHint" class="help-text" style="margin-bottom:12px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeAddStepModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="addPostStep()">Add Step</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Recipe Name Modal ── -->
+<div class="modal-overlay" id="recipeNameModal">
+  <div class="modal">
+    <div class="modal-title">Name this Recipe</div>
+    <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;">Give your clone recipe a descriptive name. You'll see this when re-running later.</p>
+    <div class="field">
+      <label>Recipe Name</label>
+      <input type="text" id="recipeNameInput" placeholder="e.g. Monthly refresh to reporting DB, Year-end test clone…" />
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeRecipeNameModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmSaveRecipe()">Save Recipe →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ── State ──────────────────────────────────────────────────────────────────────
+const state = {
+  step: 1,
+  connections: [],
+  sourceId: null,
+  targetId: null,
+  sshTargetId: null,
+  cloneMethod: 'live',
+  backupPath: '',
+  preChecks: [],  // { key, label, status, detail, commandKey }
+  execSteps: [],  // { label, commandKey, status, output, note }
+  postSteps: [],  // { label, type, content, optional }
+  runId: null,
+  savedRecipe: null,
+};
+
+// ── Nav ────────────────────────────────────────────────────────────────────────
+function switchView(v) {
+  document.querySelectorAll('.view-tab').forEach((t, i) => {
+    t.classList.toggle('active', ['wizard','recipes','history'][i] === v);
+  });
+  document.getElementById('view-wizard').style.display = v === 'wizard' ? '' : 'none';
+  document.getElementById('view-recipes').style.display = v === 'recipes' ? '' : 'none';
+  document.getElementById('view-history').style.display = v === 'history' ? '' : 'none';
+  if (v === 'recipes') loadRecipes();
+  if (v === 'history') loadHistory();
+}
+
+// ── Step navigation ───────────────────────────────────────────────────────────
+function goStep(n) {
+  if (n > state.step + 1) return; // can't skip ahead
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + n).classList.add('active');
+  document.querySelectorAll('.step-item').forEach((item, i) => {
+    item.classList.remove('active');
+    if (i + 1 < n) item.classList.add('done');
+    else item.classList.remove('done');
+  });
+  document.getElementById('nav-' + n).classList.add('active');
+  state.step = n;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── API helpers ───────────────────────────────────────────────────────────────
+async function apiFetch(url, opts) {
+  const r = await fetch(url, { ...opts, headers: { 'Content-Type': 'application/json', ...(opts?.headers||{}) } });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || r.statusText);
+  return data;
+}
+
+// ── Load connections ───────────────────────────────────────────────────────────
+async function loadConnections() {
+  try {
+    const { connections } = await apiFetch('/api/db-clone/connections');
+    state.connections = connections;
+    // Pre-select source from global connection state
+    var saved = tvConn.load();
+    if (saved && connections.some(c => c.id === parseInt(saved, 10))) {
+      state.sourceId = parseInt(saved, 10);
+    }
+    renderConnGrids();
+  } catch(e) {
+    document.getElementById('sourceConnGrid').innerHTML = `<div class="alert alert-error">Failed to load connections: ${e.message}</div>`;
+    document.getElementById('targetConnGrid').innerHTML = '';
+  }
+}
+
+function renderConnGrids() {
+  const conns = state.connections;
+  if (!conns.length) {
+    const msg = '<div class="empty-state" style="grid-column:1/-1;padding:16px"><p>No saved connections. <a href="/dashboard" style="color:var(--accent)">Add a connection first →</a></p></div>';
+    document.getElementById('sourceConnGrid').innerHTML = msg;
+    document.getElementById('targetConnGrid').innerHTML = msg;
+    return;
+  }
+  document.getElementById('sourceConnGrid').innerHTML = conns.map(c => connCardHtml(c, 'source')).join('');
+  document.getElementById('targetConnGrid').innerHTML = conns.map(c => connCardHtml(c, 'target')).join('');
+}
+
+function connCardHtml(c, role) {
+  const sel = role === 'source' ? state.sourceId === c.id : state.targetId === c.id;
+  const tags = [
+    c.connection_type === 'proxy' ? '<span class="tag tag-blue">PROXY</span>' : '<span class="tag tag-amber">DIRECT</span>',
+    c.ebs_detected ? '<span class="tag tag-amber">EBS</span>' : '',
+    c.is_demo ? '<span class="tag tag-green">DEMO</span>' : '',
+  ].filter(Boolean).join('');
+  return `<div class="conn-card${sel ? ' selected' : ''}" onclick="selectConn('${role}', ${c.id})">
+    <div class="conn-name">${esc(c.display_name)}</div>
+    <div class="conn-host">${esc(c.host)}:${c.port}/${esc(c.service_name || '—')}</div>
+    <div class="conn-tags">${tags}</div>
+  </div>`;
+}
+
+function selectConn(role, id) {
+  if (role === 'source') {
+    state.sourceId = state.sourceId === id ? null : id;
+    if (state.sourceId) { tvConn.save(state.sourceId); loadSshTargets(state.sourceId); }
+  } else {
+    state.targetId = state.targetId === id ? null : id;
+    if (state.targetId) loadSshTargets(state.targetId);
+  }
+  renderConnGrids();
+}
+
+async function loadSshTargets(connId) {
+  try {
+    const { targets } = await apiFetch(`/api/db-clone/ssh-targets/${connId}`);
+    const sel = document.getElementById('sshTargetSelect');
+    sel.innerHTML = '<option value="">Select SSH target…</option>' +
+      targets.map(t => `<option value="${t.id}" ${t.role === 'db_tier' ? '★ ' : ''}>${esc(t.display_label)}</option>`).join('');
+  } catch(e) { /* silent */ }
+}
+
+// ── Method selection ──────────────────────────────────────────────────────────
+function selectMethod(el) {
+  document.querySelectorAll('.source-opt').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  state.cloneMethod = el.dataset.method;
+  document.getElementById('backupPathField').style.display = state.cloneMethod === 'backup' ? '' : 'none';
+}
+
+// ── Step 1 complete ───────────────────────────────────────────────────────────
+function completeStep1() {
+  if (!state.sourceId && state.cloneMethod !== 'backup') {
+    alert('Please select a source connection.');
+    return;
+  }
+  if (!state.targetId) {
+    alert('Please select a target connection.');
+    return;
+  }
+  state.sshTargetId = parseInt(document.getElementById('sshTargetSelect').value) || null;
+  state.backupPath = document.getElementById('backupPath').value.trim();
+  buildPreChecks();
+  goStep(2);
+}
+
+// ── Pre-Clone Checks ──────────────────────────────────────────────────────────
+function buildPreChecks() {
+  const base = [
+    { key: 'preflight_instance', label: 'Target instances / listeners', commandKey: 'db.clone.preflight.instance_check', status: 'idle', detail: 'Check for running Oracle instances on target' },
+    { key: 'preflight_disk_data', label: 'Target disk space (datafiles)', commandKey: 'db.clone.disk.datafiles', status: 'idle', detail: 'Datafile filesystem usage' },
+    { key: 'preflight_disk_fra', label: 'Target disk space (FRA)', commandKey: 'db.clone.disk.fra', status: 'idle', detail: 'Fast Recovery Area filesystem' },
+    { key: 'preflight_sqlplus', label: 'Target SQLPLUS connectivity', commandKey: 'db.clone.preflight.sqlplus_test', status: 'idle', detail: 'Test / as sysdba on target' },
+    { key: 'preflight_listener', label: 'Target listener status', commandKey: 'db.clone.listener.check', status: 'idle', detail: 'lsnrctl status on target' },
+  ];
+  if (state.cloneMethod === 'live' || state.cloneMethod === 'standby') {
+    base.push({ key: 'rman_backup', label: 'Source RMAN backup status', commandKey: 'db.clone.rman.backup_status', status: 'idle', detail: 'Last successful RMAN backup' });
+  }
+  if (state.cloneMethod === 'backup') {
+    base.push({ key: 'disk_backup_path', label: 'Backup path accessible', commandKey: 'disk.usage', status: 'idle', detail: `Path: ${state.backupPath || '(not set)'}` });
+  }
+  state.preChecks = base;
+  renderPreChecks();
+}
+
+function renderPreChecks() {
+  document.getElementById('preCheckList').innerHTML = state.preChecks.map((c, i) => {
+    const icon = { idle: '⬜', running: '⏳', ok: '✅', fail: '❌', skip: '⏭️' }[c.status] || '⬜';
+    const rowClass = { ok: 'ok', fail: 'fail', running: 'running', skip: 'skip' }[c.status] || '';
+    return `<div class="check-row ${rowClass}" id="chk-${i}">
+      <div class="check-icon">${icon}</div>
+      <div class="check-info">
+        <div class="check-label">${esc(c.label)}</div>
+        <div class="check-detail">${esc(c.detail)}</div>
+        ${c.output ? `<details style="margin-top:5px;"><summary style="font-size:11px;color:var(--text-dim);cursor:pointer">View output</summary><div class="step-output" style="margin-top:5px;">${esc(c.output)}</div></details>` : ''}
+      </div>
+      <div class="check-actions">
+        <button class="btn btn-secondary btn-sm" onclick="runCheck(${i})" ${c.status === 'running' ? 'disabled' : ''}>
+          ${c.status === 'running' ? '<span class="spin"></span>' : 'Run'}
+        </button>
+        ${c.status === 'fail' ? `<button class="btn btn-ghost btn-sm" onclick="skipCheck(${i})">Skip</button>` : ''}
+        ${c.status !== 'idle' && c.status !== 'running' ? `<button class="btn btn-ghost btn-sm" onclick="runCheck(${i})">Re-check</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+  updateStep3Gate();
+}
+
+async function runCheck(i) {
+  if (!state.sshTargetId) { alert('Set an SSH target in Step 1 first.'); return; }
+  const chk = state.preChecks[i];
+  chk.status = 'running';
+  renderPreChecks();
+  try {
+    const { result } = await apiFetch('/api/db-clone/execute-step', {
+      method: 'POST',
+      body: JSON.stringify({ target_id: state.sshTargetId, command_key: chk.commandKey }),
+    });
+    chk.status = result.success ? 'ok' : 'fail';
+    chk.output = (result.stdout || '') + (result.stderr ? '\n[stderr] ' + result.stderr : '');
+    chk.detail = result.success ? `✓ OK (${result.duration_ms}ms)` : `✗ Exit code ${result.exit_code}`;
+  } catch(e) {
+    chk.status = 'fail';
+    chk.detail = e.message;
+    chk.output = e.message;
+  }
+  renderPreChecks();
+}
+
+async function runAllPreChecks() {
+  if (!state.sshTargetId) { alert('Set an SSH target in Step 1 first.'); return; }
+  document.getElementById('allChecksSpin').style.display = '';
+  for (let i = 0; i < state.preChecks.length; i++) {
+    await runCheck(i);
+  }
+  document.getElementById('allChecksSpin').style.display = 'none';
+}
+
+function skipCheck(i) {
+  state.preChecks[i].status = 'skip';
+  renderPreChecks();
+}
+
+function updateStep3Gate() {
+  const allDone = state.preChecks.every(c => c.status === 'ok' || c.status === 'skip');
+  document.getElementById('toStep3Btn').disabled = !allDone;
+  if (allDone && state.preChecks.length) buildExecSteps();
+}
+
+// ── Clone Execution Steps ─────────────────────────────────────────────────────
+function buildExecSteps() {
+  const method = state.cloneMethod;
+  const steps = {
+    live: [
+      { label: 'Verify target listener is running', commandKey: 'db.clone.listener.check', note: 'Target auxiliary listener must be up before RMAN duplicate.' },
+      { label: 'Generate RMAN active duplicate script', commandKey: 'db.clone.rman.active_dup_script', note: 'Review script carefully. Edit target DBNAME and file paths.' },
+      { label: 'Verify target disk space (post-RMAN estimate)', commandKey: 'db.clone.disk.datafiles', note: 'Ensure enough space for duplicate.' },
+    ],
+    standby: [
+      { label: 'List RMAN backups available on standby', commandKey: 'db.clone.rman.list_backupsets', note: 'Confirm catalog / nocatalog before proceeding.' },
+      { label: 'Generate RMAN active duplicate script (from standby)', commandKey: 'db.clone.rman.active_dup_script', note: 'Use standby connection as TARGET in RMAN.' },
+      { label: 'Check target disk space', commandKey: 'db.clone.disk.datafiles', note: '' },
+    ],
+    backup: [
+      { label: 'List backup sets available', commandKey: 'db.clone.rman.list_backupsets', note: `Backup path: ${state.backupPath || '(check Step 1)'}` },
+      { label: 'Check target disk space', commandKey: 'db.clone.disk.datafiles', note: 'Source backup + datafiles + redo must fit.' },
+      { label: 'Verify target listener', commandKey: 'db.clone.listener.check', note: '' },
+    ],
+    datapump: [
+      { label: 'Generate expdp schema export script', commandKey: 'db.clone.expdp.schema_script', note: 'Copy script, parameterize, run on source.' },
+      { label: 'Generate expdp full DB export script', commandKey: 'db.clone.expdp.full_script', note: 'For full-database exports.' },
+      { label: 'Generate impdp import + remap script', commandKey: 'db.clone.impdp.schema_remap_script', note: 'Edit schema/tablespace remap parameters.' },
+      { label: 'Check target disk space', commandKey: 'db.clone.disk.datafiles', note: '' },
+    ],
+  };
+  state.execSteps = (steps[method] || steps.live).map(s => ({ ...s, status: 'idle', output: '' }));
+  renderExecSteps();
+}
+
+function renderExecSteps() {
+  const el = document.getElementById('execStepsList');
+  if (!state.execSteps.length) { el.innerHTML = '<p style="color:var(--text-dim);font-size:13px">Complete pre-checks first.</p>'; return; }
+  el.innerHTML = state.execSteps.map((s, i) => {
+    const numEl = s.status === 'done' ? '✓' : s.status === 'fail' ? '✗' : i + 1;
+    const cardCls = { done: 'done', running: 'running', fail: 'fail', idle: '' }[s.status] || '';
+    return `<div class="step-card ${cardCls}" id="exec-${i}">
+      <div class="step-card-header">
+        <div class="step-card-num">${numEl}</div>
+        <div style="flex:1;">
+          <div class="step-card-title">${esc(s.label)}</div>
+          ${s.note ? `<div class="step-card-sub">${esc(s.note)}</div>` : ''}
+        </div>
+        <div style="display:flex;gap:7px;flex-shrink:0;">
+          ${s.status !== 'running' ? `<button class="btn btn-secondary btn-sm" onclick="runExecStep(${i})" ${i > 0 && state.execSteps[i-1].status !== 'done' && state.execSteps[i-1].status !== 'skip' && i > 0 ? 'title="Complete previous step first"' : ''}>
+            ${s.status === 'done' ? 'Re-run' : 'Run Step →'}
+          </button>` : `<button class="btn btn-secondary btn-sm" disabled><span class="spin"></span> Running…</button>`}
+          ${s.status === 'fail' ? `<button class="btn btn-ghost btn-sm" onclick="skipExecStep(${i})">Skip</button>` : ''}
+        </div>
+      </div>
+      ${s.output ? `<div class="step-output ${s.status === 'fail' ? 'error' : ''}">${esc(s.output)}</div>` : ''}
+      ${s.status === 'done' ? `<div class="step-gate success">✓ Step complete</div>` : ''}
+      ${s.status === 'fail' ? `<div class="step-gate error">✗ Step failed — review output above, then re-run or skip.</div>` : ''}
+    </div>`;
+  }).join('');
+  updateStep4Gate();
+}
+
+async function runExecStep(i) {
+  if (!state.sshTargetId) { alert('No SSH target selected. Go back to Step 1.'); return; }
+  const step = state.execSteps[i];
+  step.status = 'running';
+  renderExecSteps();
+  try {
+    const body = { target_id: state.sshTargetId, command_key: step.commandKey };
+    if (state.runId) { body.run_id = state.runId; body.step_index = i; }
+    const { result } = await apiFetch('/api/db-clone/execute-step', { method: 'POST', body: JSON.stringify(body) });
+    step.status = result.success ? 'done' : 'fail';
+    step.output = (result.stdout || '') + (result.stderr ? '\n[stderr] ' + result.stderr : '');
+  } catch(e) {
+    step.status = 'fail';
+    step.output = e.message;
+  }
+  renderExecSteps();
+}
+
+function skipExecStep(i) {
+  state.execSteps[i].status = 'skip';
+  renderExecSteps();
+}
+
+function updateStep4Gate() {
+  const allDone = state.execSteps.every(s => s.status === 'done' || s.status === 'skip');
+  document.getElementById('toStep4Btn').disabled = !allDone;
+  if (allDone && !state.postSteps.length) buildDefaultPostSteps();
+}
+
+// ── Post-Clone Steps ───────────────────────────────────────────────────────────
+function buildDefaultPostSteps() {
+  state.postSteps = [
+    { label: 'Reset SYS/SYSTEM passwords', type: 'ssh', content: 'db.clone.post.reset_passwd_script', optional: false },
+    { label: 'Check DBID and DB name', type: 'ssh', content: 'db.clone.post.dbnewid_check', optional: false },
+    { label: 'Update tnsnames.ora entries', type: 'ssh', content: 'db.clone.post.tns_show', optional: true },
+    { label: 'Remove source-only scheduled jobs (DBMS_SCHEDULER)', type: 'note', content: 'Review and disable any jobs that should not run on clone.', optional: true },
+    { label: 'Update DB links pointing to source', type: 'note', content: 'Run: SELECT * FROM DBA_DB_LINKS; update or drop as needed.', optional: true },
+  ];
+  renderPostSteps();
+}
+
+function renderPostSteps() {
+  const el = document.getElementById('postStepsList');
+  if (!state.postSteps.length) {
+    el.innerHTML = `<div class="add-step-row" onclick="openAddStepModal()">+ Add post-clone step</div>`;
+    return;
+  }
+  el.innerHTML = state.postSteps.map((s, i) => {
+    const typeLabel = { sql: 'SQL', ssh: 'SSH', note: 'NOTE' }[s.type] || 'NOTE';
+    const typeCls = { sql: 'type-sql', ssh: 'type-ssh', note: 'type-note' }[s.type] || 'type-note';
+    return `<div class="post-step" draggable="true" ondragstart="dragStart(${i})" ondragover="dragOver(event,${i})" ondrop="drop(${i})">
+      <span class="post-step-drag">⠿</span>
+      <div class="post-step-label">${esc(s.label)}</div>
+      <span class="post-step-type ${typeCls}">${typeLabel}</span>
+      <div class="post-step-toggle">
+        <input type="checkbox" id="opt-${i}" ${s.optional ? 'checked' : ''} onchange="toggleOptional(${i})">
+        <label for="opt-${i}" style="font-size:11px;color:var(--text-dim);text-transform:none;letter-spacing:0;">optional</label>
+      </div>
+      <div class="post-step-actions">
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="removePostStep(${i})" title="Remove">✕</button>
+      </div>
+    </div>`;
+  }).join('') +
+  `<div class="add-step-row" onclick="openAddStepModal()">+ Add another step</div>`;
+}
+
+// Drag-to-reorder
+let dragIdx = null;
+function dragStart(i) { dragIdx = i; }
+function dragOver(e, i) { e.preventDefault(); }
+function drop(i) {
+  if (dragIdx === null || dragIdx === i) return;
+  const item = state.postSteps.splice(dragIdx, 1)[0];
+  state.postSteps.splice(i, 0, item);
+  dragIdx = null;
+  renderPostSteps();
+}
+
+function toggleOptional(i) { state.postSteps[i].optional = document.getElementById('opt-' + i).checked; }
+function removePostStep(i) { state.postSteps.splice(i, 1); renderPostSteps(); }
+
+// ── Add Step Modal ─────────────────────────────────────────────────────────────
+function openAddStepModal() { document.getElementById('addStepModal').classList.add('open'); updateStepTypeHint(); }
+function closeAddStepModal() { document.getElementById('addStepModal').classList.remove('open'); }
+
+function updateStepTypeHint() {
+  const t = document.getElementById('newStepType').value;
+  const hints = {
+    sql: 'SQL statements executed via the SQL Execution engine (whitelisted SELECT/DDL).',
+    ssh: 'Shell command run via SSH against the selected target.',
+    note: 'Manual reminder — displayed during replay but not auto-executed.',
+  };
+  document.getElementById('stepTypeHint').textContent = hints[t] || '';
+}
+
+function addPostStep() {
+  const label = document.getElementById('newStepLabel').value.trim();
+  const content = document.getElementById('newStepContent').value.trim();
+  const type = document.getElementById('newStepType').value;
+  const optional = document.getElementById('newStepOptional').value === 'ask';
+  if (!label) { alert('Step label required.'); return; }
+  state.postSteps.push({ label, type, content, optional });
+  renderPostSteps();
+  closeAddStepModal();
+  document.getElementById('newStepLabel').value = '';
+  document.getElementById('newStepContent').value = '';
+}
+
+// ── Save Recipe ────────────────────────────────────────────────────────────────
+function saveRecipe() { document.getElementById('recipeNameModal').classList.add('open'); }
+function closeRecipeNameModal() { document.getElementById('recipeNameModal').classList.remove('open'); }
+
+async function confirmSaveRecipe() {
+  const name = document.getElementById('recipeNameInput').value.trim();
+  if (!name) { alert('Recipe name required.'); return; }
+  closeRecipeNameModal();
+
+  const sourceName = state.connections.find(c => c.id === state.sourceId)?.display_name || '(backup)';
+  const targetName = state.connections.find(c => c.id === state.targetId)?.display_name || '—';
+
+  try {
+    const { recipe } = await apiFetch('/api/db-clone/recipes', {
+      method: 'POST',
+      body: JSON.stringify({
+        recipe_name: name,
+        source_connection_id: state.sourceId,
+        target_connection_id: state.targetId,
+        pre_checks_config: { checks: state.preChecks.map(c => ({ key: c.key, status: c.status })), method: state.cloneMethod, backup_path: state.backupPath },
+        clone_steps: state.execSteps.map(s => ({ label: s.label, commandKey: s.commandKey, status: s.status })),
+        post_steps: state.postSteps,
+      }),
+    });
+    state.savedRecipe = { ...recipe, sourceName, targetName };
+    renderSavedRecipe(name, sourceName, targetName);
+    goStep(5);
+  } catch(e) {
+    alert('Failed to save recipe: ' + e.message);
+  }
+}
+
+function renderSavedRecipe(name, src, tgt) {
+  document.getElementById('savedRecipeMeta').innerHTML = `
+    <div class="meta-row"><span class="meta-label">Recipe Name</span><span class="meta-val">${esc(name)}</span></div>
+    <div class="meta-row"><span class="meta-label">Source</span><span class="meta-val">${esc(src)}</span></div>
+    <div class="meta-row"><span class="meta-label">Target</span><span class="meta-val">${esc(tgt)}</span></div>
+    <div class="meta-row"><span class="meta-label">Clone Method</span><span class="meta-val">${esc(state.cloneMethod)}</span></div>
+    <div class="meta-row"><span class="meta-label">Execution Steps</span><span class="meta-val">${state.execSteps.length}</span></div>
+    <div class="meta-row"><span class="meta-label">Post-Clone Steps</span><span class="meta-val">${state.postSteps.length}</span></div>
+  `;
+}
+
+function resetWizard() {
+  state.step = 1;
+  state.sourceId = null;
+  state.targetId = null;
+  state.sshTargetId = null;
+  state.cloneMethod = 'live';
+  state.preChecks = [];
+  state.execSteps = [];
+  state.postSteps = [];
+  state.runId = null;
+  state.savedRecipe = null;
+  document.getElementById('recipeNameInput').value = '';
+  selectMethod(document.querySelector('[data-method="live"]'));
+  renderConnGrids();
+  goStep(1);
+}
+
+// ── Recipes view ───────────────────────────────────────────────────────────────
+async function loadRecipes() {
+  document.getElementById('recipesGrid').innerHTML = '<div class="empty-state" style="grid-column:1/-1"><span class="spin" style="color:var(--accent)"></span><p style="margin-top:8px">Loading…</p></div>';
+  try {
+    const { recipes } = await apiFetch('/api/db-clone/recipes');
+    if (!recipes.length) {
+      document.getElementById('recipesGrid').innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="empty-state-icon">📋</div><p>No saved recipes yet. Run a wizard to create one.</p></div>';
+      return;
+    }
+    document.getElementById('recipesGrid').innerHTML = recipes.map(r => recipeCardHtml(r)).join('');
+  } catch(e) {
+    document.getElementById('recipesGrid').innerHTML = `<div class="alert alert-error" style="grid-column:1/-1">${esc(e.message)}</div>`;
+  }
+}
+
+function recipeCardHtml(r) {
+  const src = esc(r.source_display_name || '(backup)');
+  const tgt = esc(r.target_display_name || '—');
+  const lastRun = r.last_run_at ? new Date(r.last_run_at).toLocaleDateString() : 'Never run';
+  const statusBadge = r.last_run_status
+    ? `<span class="status-badge status-${r.last_run_status}">${r.last_run_status}</span>` : '';
+  return `<div class="recipe-card">
+    <div class="recipe-card-name">${esc(r.recipe_name)}</div>
+    <div class="recipe-card-pair">${src} → ${tgt}</div>
+    <div class="recipe-card-meta">
+      ${statusBadge}
+      <span class="tag tag-blue" style="font-size:10px">${esc(r.pre_checks_config?.method || 'live')}</span>
+      <span style="font-size:11px;color:var(--text-dim)">Last: ${lastRun}</span>
+    </div>
+    <div class="recipe-card-actions">
+      <button class="btn btn-primary btn-sm" onclick="replayRecipe(${r.id})">▶ Replay</button>
+      <button class="btn btn-ghost btn-sm" onclick="deleteRecipe(${r.id})">Delete</button>
+    </div>
+  </div>`;
+}
+
+async function replayRecipe(id) {
+  alert('Recipe replay: loads pre-flight checks and steps from saved recipe. Coming in next release — run the wizard for now.');
+}
+
+async function deleteRecipe(id) {
+  if (!confirm('Delete this recipe? This cannot be undone.')) return;
+  try {
+    await apiFetch('/api/db-clone/recipes/' + id, { method: 'DELETE' });
+    loadRecipes();
+  } catch(e) {
+    alert('Delete failed: ' + e.message);
+  }
+}
+
+// ── History view ───────────────────────────────────────────────────────────────
+async function loadHistory() {
+  document.getElementById('historyBody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:28px;color:var(--text-dim)"><span class="spin" style="color:var(--accent)"></span></td></tr>';
+  try {
+    const { history } = await apiFetch('/api/db-clone/history?limit=50');
+    if (!history.length) {
+      document.getElementById('historyBody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:28px;color:var(--text-dim)">No clone runs yet.</td></tr>';
+      return;
+    }
+    document.getElementById('historyBody').innerHTML = history.map(h => {
+      const src = esc(h.source_display_name || '—');
+      const tgt = esc(h.target_display_name || '—');
+      const dur = h.duration_ms ? Math.round(h.duration_ms / 1000) + 's' : '—';
+      const date = new Date(h.started_at).toLocaleString();
+      const badge = `<span class="status-badge status-${h.status}">${h.status}</span>`;
+      return `<tr>
+        <td><span style="font-family:'JetBrains Mono',monospace;font-size:11px">${src} → ${tgt}</span></td>
+        <td>${h.recipe_id ? '#' + h.recipe_id : '—'}</td>
+        <td>${badge}</td>
+        <td>${dur}</td>
+        <td style="font-size:11px;color:var(--text-dim)">${esc(h.started_by_email || '—')}</td>
+        <td style="font-size:11px;color:var(--text-dim)">${date}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    document.getElementById('historyBody').innerHTML = `<tr><td colspan="6" style="color:var(--red);padding:16px">${esc(e.message)}</td></tr>`;
+  }
+}
+
+// ── Utility ────────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+loadConnections();
+</script>
+</body>
+</html>

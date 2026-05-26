@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EBS Concurrent Requests — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://tunevault.app/ebs-concurrent">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c;
+      --surface: #111114;
+      --surface-2: #1a1a1f;
+      --border: #2a2a30;
+      --text: #e8e8ed;
+      --text-dim: #b8b8c8;
+      --accent: #f0a830;
+      --accent-dim: rgba(240,168,48,0.12);
+      --green: #34d399;
+      --green-dim: rgba(52,211,153,0.12);
+      --red: #f87171;
+      --red-dim: rgba(248,113,113,0.12);
+      --yellow: #fbbf24;
+      --yellow-dim: rgba(251,191,36,0.12);
+      --blue: #60a5fa;
+      --blue-dim: rgba(96,165,250,0.12);
+    }
+    body {
+      font-family: 'Space Grotesk', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    .grain {
+      position: fixed; top:0; left:0; right:0; bottom:0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 999;
+    }
+    nav { background: rgba(10,10,12,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 9999; }
+    .page-wrap { max-width: 1200px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    /* ── Toolbar ── */
+    .toolbar { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
+    .toolbar-title { flex: 1; }
+    .toolbar-title h1 { font-size: 22px; font-weight: 700; }
+    .toolbar-title p { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+    .conn-select {
+      background: var(--surface); border: 1px solid var(--border); color: var(--text);
+      font-family: inherit; font-size: 13px; padding: 8px 12px; border-radius: 8px;
+      min-width: 240px; cursor: pointer;
+    }
+    .conn-select:focus { outline: none; border-color: var(--accent); }
+
+    /* ── Banners ── */
+    .banner {
+      border-radius: 10px; padding: 16px 20px; margin-bottom: 28px;
+      display: none; align-items: center; gap: 14px;
+    }
+    .banner.visible { display: flex; }
+    .banner .icon { font-size: 20px; flex-shrink: 0; }
+    .banner .msg  { font-size: 13px; color: var(--text-dim); }
+    .banner a { color: var(--blue); text-decoration: none; }
+    .banner a:hover { text-decoration: underline; }
+    .banner-ebs  { background: var(--surface); border: 1px solid rgba(167,139,250,0.3); }
+    .banner-ssh  { background: var(--surface); border: 1px solid rgba(96,165,250,0.3); }
+
+    /* ── Section header ── */
+    .section-header {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 16px; margin-top: 36px; padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-header:first-of-type { margin-top: 0; }
+    .section-icon { font-size: 22px; }
+    .section-title { font-size: 15px; font-weight: 700; }
+    .section-sub { font-size: 12px; color: var(--text-dim); margin-left: 4px; }
+    .risk-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 10px; border-radius: 4px; font-size: 10px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .04em; margin-left: auto;
+    }
+    .risk-high { background: var(--red-dim); color: var(--red); }
+
+    /* ── Buttons ── */
+    .btn {
+      padding: 7px 14px; border-radius: 7px; font-size: 12px; font-weight: 600;
+      border: none; cursor: pointer; transition: all 0.15s; font-family: inherit;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-run { background: var(--accent); color: #0a0a0c; }
+    .btn-run:hover { background: #e09820; }
+    .btn-run:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-outline { background: none; border: 1px solid var(--border); color: var(--text-dim); }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-danger { background: var(--red-dim); color: var(--red); border: 1px solid transparent; }
+    .btn-danger:hover { border-color: var(--red); }
+
+    /* ── Running requests table ── */
+    .req-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .req-count { font-size: 12px; color: var(--text-dim); }
+    .req-table-wrap {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: auto;
+    }
+    .req-table {
+      width: 100%; border-collapse: collapse; font-size: 12px;
+    }
+    .req-table th {
+      padding: 10px 14px; text-align: left; font-size: 10px; font-weight: 700;
+      color: var(--text-dim); text-transform: uppercase; letter-spacing: .06em;
+      border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    .req-table td {
+      padding: 10px 14px; border-bottom: 1px solid rgba(42,42,48,0.6);
+      vertical-align: middle; white-space: nowrap;
+    }
+    .req-table tr:last-child td { border-bottom: none; }
+    .req-table tr:hover td { background: rgba(240,168,48,0.04); }
+    .phase-R { color: var(--yellow); font-weight: 600; }
+    .phase-C { color: var(--green); }
+    .req-id  { font-family: 'JetBrains Mono', monospace; color: var(--text-dim); }
+    .long-run { color: var(--yellow); font-weight: 600; }
+    .runtime-cell { font-family: 'JetBrains Mono', monospace; }
+    .empty-req { text-align: center; padding: 40px 20px; color: var(--text-dim); font-size: 13px; }
+    .empty-req .icon { font-size: 32px; display: block; margin-bottom: 8px; }
+
+    /* ── Op cards (allnodes) ── */
+    .ops-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px,1fr)); gap: 14px; }
+    .op-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 18px; transition: border-color 0.15s;
+    }
+    .op-card:hover { border-color: rgba(240,168,48,0.3); }
+    .op-card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+    .op-icon {
+      width: 34px; height: 34px; border-radius: 8px; background: var(--surface-2);
+      display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0;
+    }
+    .op-title { font-size: 13px; font-weight: 600; }
+    .op-meta  { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+    .op-badge {
+      display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px;
+      font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+    }
+    .badge-destructive { background: var(--red-dim); color: var(--red); }
+    .op-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+
+    /* ── Result panel ── */
+    .result-panel { margin-top: 12px; display: none; border-top: 1px solid var(--border); padding-top: 12px; }
+    .result-panel.visible { display: block; }
+    .result-status { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+    .status-ok  { color: var(--green); }
+    .status-err { color: var(--red); }
+    .result-text {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text);
+      background: #0d0d10; border: 1px solid var(--border); border-radius: 6px;
+      padding: 12px; white-space: pre-wrap; word-break: break-all; max-height: 280px; overflow-y: auto;
+    }
+
+    /* ── Confirmation modal ── */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 500;
+      display: none; align-items: center; justify-content: center;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      padding: 28px; max-width: 560px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    }
+    .modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .modal p  { font-size: 13px; color: var(--text-dim); margin-bottom: 16px; }
+    .modal-cmd {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      background: #0d0d10; border: 1px solid var(--border); border-radius: 8px;
+      padding: 14px; margin-bottom: 20px; white-space: pre-wrap; word-break: break-all; color: var(--red);
+    }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+    /* ── Spinner ── */
+    .spinner {
+      display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty-state { text-align: center; padding: 60px 0; color: var(--text-dim); }
+    .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+    .empty-state h3 { font-size: 16px; color: var(--text); margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+<div class="grain"></div>
+<nav>
+  <div id="nav-root"></div>
+</nav>
+
+<div class="page-wrap">
+  <!-- ── Toolbar ── -->
+  <div class="toolbar">
+    <div class="toolbar-title">
+      <h1>📋 Concurrent Requests</h1>
+      <p>Running requests · All-nodes start/stop — EBS application tier</p>
+    </div>
+    <select class="conn-select" id="conn-select" onchange="onConnChange()">
+      <option value="">— Select connection —</option>
+    </select>
+    <div id="conn-status" style="font-size:12px;color:var(--text-dim);"></div>
+  </div>
+
+  <!-- ── No-EBS banner ── -->
+  <div class="banner banner-ebs" id="no-ebs-banner">
+    <span class="icon">🔎</span>
+    <span class="msg">EBS not detected on this connection. These operations are only available for Oracle EBS instances.</span>
+  </div>
+
+  <!-- ── No-SSH banner (for allnodes ops) ── -->
+  <div class="banner banner-ssh" id="no-ssh-banner">
+    <span class="icon">🔒</span>
+    <span class="msg">
+      An Apps-tier SSH target is required for Start/Stop All Nodes operations.
+      <a href="/admin/ssh-targets">Configure SSH Access →</a>
+    </span>
+  </div>
+
+  <!-- ── Content ── -->
+  <div id="content"></div>
+</div>
+
+<!-- ── Confirmation modal ── -->
+<div class="modal-backdrop" id="modal-backdrop" onclick="closeModal(event)">
+  <div class="modal" id="confirm-modal">
+    <h3>⚠️ Confirm Destructive Operation</h3>
+    <p>This will execute the following command across <strong>all nodes</strong> of your EBS environment. Review carefully before confirming.</p>
+    <div class="modal-cmd" id="modal-cmd"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" id="modal-confirm-btn" onclick="executeConfirmed()">Execute</button>
+    </div>
+  </div>
+</div>
+
+<script src="/connection-state.js"></script>
+<script src="/nav-component.js"></script>
+<script>
+  window.tvNav.init('ebs-concurrent');
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  let connections = [];
+  let sshTargets  = [];
+  let selectedConn = null;
+  let pendingConfirm = null;
+
+  // ── Bootstrap ──────────────────────────────────────────────────────────────
+  (async function init() {
+    await loadConnections();
+  })();
+
+  async function loadConnections() {
+    const r = await fetch('/api/connections', { credentials: 'include' });
+    if (!r.ok) return;
+    connections = tvConn.parseList(await r.json());
+    const sel = document.getElementById('conn-select');
+    connections.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = (c.name || c.host + ':' + c.port) + (c.is_ebs ? ' · EBS' : '');
+      sel.appendChild(opt);
+    });
+    // Restore saved connection from global state + wire persistence
+    tvConn.bind(sel, connections);
+    if (sel.value) {
+      await onConnChange();
+    } else if (connections.length === 1) {
+      sel.value = connections[0].id;
+      tvConn.save(connections[0].id);
+      await onConnChange();
+    }
+  }
+
+  async function onConnChange() {
+    const connId = document.getElementById('conn-select').value;
+    if (connId) tvConn.save(connId);
+    selectedConn = connections.find(c => String(c.id) === String(connId)) || null;
+    document.getElementById('conn-status').textContent = '';
+
+    if (!selectedConn) {
+      updateBanners(false, false);
+      renderContent();
+      return;
+    }
+
+    document.getElementById('conn-status').innerHTML = '<div class="spinner"></div>';
+
+    // Load SSH targets for allnodes ops
+    const tgt = await fetch('/api/ebs-ssh-checks/target/' + connId, { credentials: 'include' });
+    sshTargets = tgt.ok ? (await tgt.json()).targets || [] : [];
+
+    const isEbs = !!(selectedConn.is_ebs);
+    const appsTierTargets = sshTargets.filter(t => t.role === 'apps_tier');
+    updateBanners(isEbs, appsTierTargets.length > 0);
+    document.getElementById('conn-status').textContent = isEbs ? '✦ EBS detected' : 'No EBS';
+
+    renderContent();
+  }
+
+  function updateBanners(isEbs, hasSsh) {
+    document.getElementById('no-ebs-banner').classList.toggle('visible', !!selectedConn && !isEbs);
+    document.getElementById('no-ssh-banner').classList.toggle('visible', !!selectedConn && isEbs && !hasSsh);
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  function renderContent() {
+    const container = document.getElementById('content');
+    if (!selectedConn) {
+      container.innerHTML = '<div class="empty-state"><div class="icon">📋</div><h3>Select a connection</h3><p>Choose an Oracle EBS connection to view running requests and manage all-nodes services.</p></div>';
+      return;
+    }
+    if (!selectedConn.is_ebs) {
+      container.innerHTML = '';
+      return;
+    }
+    const appsTierTargets = sshTargets.filter(t => t.role === 'apps_tier');
+
+    container.innerHTML =
+      renderRunningSection() +
+      renderAllnodesSection(appsTierTargets);
+  }
+
+  // ── Running Requests section ───────────────────────────────────────────────
+  function renderRunningSection() {
+    return `
+      <div class="section-header">
+        <span class="section-icon">⚡</span>
+        <span class="section-title">Running Concurrent Requests</span>
+        <span class="section-sub">Active/running phase — FND_CONCURRENT_REQUESTS</span>
+      </div>
+      <div class="req-toolbar">
+        <button class="btn btn-run" id="refresh-btn" onclick="loadRunningRequests()">
+          <span>↻ Refresh</span>
+        </button>
+        <span class="req-count" id="req-count"></span>
+      </div>
+      <div id="req-table-container">
+        <div class="empty-state" style="padding:30px 0;">
+          <div class="icon">↻</div>
+          <h3 style="font-size:14px;">Click Refresh to load running requests</h3>
+        </div>
+      </div>`;
+  }
+
+  // ── All-nodes section ──────────────────────────────────────────────────────
+  function renderAllnodesSection(appsTierTargets) {
+    const hasSsh = appsTierTargets.length > 0;
+    const targetId = hasSsh ? appsTierTargets[0].id : null;
+
+    const startCard = buildOpCard({
+      key: 'ebs.allnodes.start',
+      icon: '▶',
+      title: 'Start All Apps Services (All Nodes)',
+      meta: 'adstrtal.sh -mode=allnodes · starts services across all EBS nodes',
+      targetId,
+      hasSsh,
+    });
+    const stopCard = buildOpCard({
+      key: 'ebs.allnodes.stop',
+      icon: '⏹',
+      title: 'Stop All Apps Services (All Nodes)',
+      meta: 'adstpall.sh -mode=allnodes · stops services across all EBS nodes',
+      targetId,
+      hasSsh,
+    });
+
+    return `
+      <div class="section-header" style="margin-top:40px;">
+        <span class="section-icon">🔄</span>
+        <span class="section-title">All-Nodes Start / Stop</span>
+        <span class="section-sub">Multi-node EBS environment — affects all application tier nodes</span>
+        <span class="risk-badge risk-high">⚠ High — all-nodes impact</span>
+      </div>
+      <div class="ops-grid">${startCard}${stopCard}</div>`;
+  }
+
+  function buildOpCard({ key, icon, title, meta, targetId, hasSsh }) {
+    const cardId = 'card-' + key.replace(/\./g, '-');
+    const disabledClass = hasSsh ? '' : ' disabled';
+    const disabledAttr  = hasSsh ? '' : ' disabled title="No apps_tier SSH target configured"';
+    return `
+      <div class="op-card${disabledClass}" id="${cardId}">
+        <div class="op-card-header">
+          <div class="op-icon">${icon}</div>
+          <div>
+            <div class="op-title">${title}</div>
+            <div class="op-meta">${meta}</div>
+          </div>
+        </div>
+        <div style="margin-bottom:8px;">
+          <span class="op-badge badge-destructive">Destructive</span>
+        </div>
+        <div class="op-actions">
+          <button class="btn btn-danger"${disabledAttr}
+            onclick="runOp('${key}', '${targetId}')">
+            ${icon} Execute
+          </button>
+        </div>
+        <div class="result-panel" id="result-${cardId}"></div>
+      </div>`;
+  }
+
+  // ── Load running requests ──────────────────────────────────────────────────
+  async function loadRunningRequests() {
+    if (!selectedConn) return;
+    const btn = document.getElementById('refresh-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner"></div> Loading…';
+
+    try {
+      const r = await fetch('/api/ebs-concurrent/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          connection_id: selectedConn.id,
+          op_key: 'ebs.concurrent.running',
+          confirmed: true,
+        }),
+      });
+      const data = await r.json();
+      renderRequestsTable(data);
+    } catch (err) {
+      document.getElementById('req-table-container').innerHTML =
+        `<div class="empty-state"><span class="icon">⚠</span><h3>Error loading requests</h3><p>${err.message}</p></div>`;
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<span>↻ Refresh</span>';
+    }
+  }
+
+  function renderRequestsTable(data) {
+    const container = document.getElementById('req-table-container');
+    const countEl   = document.getElementById('req-count');
+
+    if (!data.ok) {
+      container.innerHTML = `<div class="empty-state"><span class="icon">⚠</span><h3>Query failed</h3><p>${data.error || 'Unknown error'}</p></div>`;
+      countEl.textContent = '';
+      return;
+    }
+
+    const rows = data.rows || [];
+    countEl.textContent = rows.length + ' running request' + (rows.length !== 1 ? 's' : '');
+
+    if (!rows.length) {
+      container.innerHTML = '<div class="req-table-wrap"><div class="empty-req"><span class="icon">✅</span>No requests currently running</div></div>';
+      return;
+    }
+
+    // Columns: REQUEST_ID, PHASE_CODE, STATUS_CODE, PROGRAM, REQUESTOR, ACTUAL_START_DATE, RUNTIME_MINUTES
+    const colMap = { REQUEST_ID:0, PHASE_CODE:1, STATUS_CODE:2, PROGRAM:3, REQUESTOR:4, ACTUAL_START_DATE:5, RUNTIME_MINUTES:6 };
+    const trs = rows.map(row => {
+      const reqId    = row[colMap.REQUEST_ID] || '—';
+      const phase    = row[colMap.PHASE_CODE] || '?';
+      const status   = row[colMap.STATUS_CODE] || '?';
+      const program  = row[colMap.PROGRAM] || '—';
+      const user     = row[colMap.REQUESTOR] || '—';
+      const started  = row[colMap.ACTUAL_START_DATE] ? fmtDate(row[colMap.ACTUAL_START_DATE]) : '—';
+      const mins     = row[colMap.RUNTIME_MINUTES] != null ? Number(row[colMap.RUNTIME_MINUTES]) : null;
+      const minsStr  = mins != null ? mins + ' min' : '—';
+      const longRun  = mins != null && mins > 60;
+
+      return `<tr>
+        <td class="req-id">${reqId}</td>
+        <td><span class="phase-R">${phase}/${status}</span></td>
+        <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;" title="${escHtml(program)}">${escHtml(program)}</td>
+        <td>${escHtml(user)}</td>
+        <td>${started}</td>
+        <td class="runtime-cell${longRun ? ' long-run' : ''}">${minsStr}</td>
+      </tr>`;
+    }).join('');
+
+    container.innerHTML = `
+      <div class="req-table-wrap">
+        <table class="req-table">
+          <thead>
+            <tr>
+              <th>Req ID</th>
+              <th>Phase/Status</th>
+              <th>Program</th>
+              <th>Requestor</th>
+              <th>Started</th>
+              <th>Runtime</th>
+            </tr>
+          </thead>
+          <tbody>${trs}</tbody>
+        </table>
+      </div>`;
+  }
+
+  function fmtDate(val) {
+    if (!val) return '—';
+    try {
+      const d = new Date(val);
+      if (isNaN(d)) return String(val);
+      return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } catch { return String(val); }
+  }
+
+  function escHtml(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── Op execution (allnodes SSH) ────────────────────────────────────────────
+  async function runOp(opKey, targetId) {
+    if (!selectedConn) return;
+
+    // Always require confirmation for destructive ops — first call without confirmed
+    const r = await fetch('/api/ebs-concurrent/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        connection_id: selectedConn.id,
+        op_key: opKey,
+        target_id: targetId,
+        confirmed: false,
+      }),
+    });
+
+    const data = await r.json();
+
+    if (r.status === 428 && data.requiresConfirmation) {
+      showModal(opKey, targetId, data.commandPreview || 'This will ' + (opKey.includes('start') ? 'start' : 'stop') + ' all EBS application tier services across all nodes.');
+      return;
+    }
+
+    showResult(opKey, data);
+  }
+
+  function showModal(opKey, targetId, preview) {
+    pendingConfirm = { opKey, targetId };
+    document.getElementById('modal-cmd').textContent = preview;
+    document.getElementById('modal-backdrop').classList.add('open');
+  }
+
+  function closeModal(e) {
+    if (e && e.target !== document.getElementById('modal-backdrop')) return;
+    document.getElementById('modal-backdrop').classList.remove('open');
+    pendingConfirm = null;
+  }
+
+  async function executeConfirmed() {
+    if (!pendingConfirm) return;
+    const { opKey, targetId } = pendingConfirm;
+    document.getElementById('modal-backdrop').classList.remove('open');
+    pendingConfirm = null;
+
+    const cardId  = 'card-' + opKey.replace(/\./g, '-');
+    const resultEl = document.getElementById('result-' + cardId);
+    if (resultEl) {
+      resultEl.innerHTML = '<div class="result-status"><div class="spinner"></div> Executing…</div>';
+      resultEl.classList.add('visible');
+    }
+
+    try {
+      const r = await fetch('/api/ebs-concurrent/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          connection_id: selectedConn.id,
+          op_key: opKey,
+          target_id: targetId,
+          confirmed: true,
+        }),
+      });
+      const data = await r.json();
+      showResult(opKey, data);
+    } catch (err) {
+      showResult(opKey, { ok: false, error: err.message });
+    }
+  }
+
+  function showResult(opKey, data) {
+    const cardId   = 'card-' + opKey.replace(/\./g, '-');
+    const resultEl = document.getElementById('result-' + cardId);
+    if (!resultEl) return;
+
+    const ok     = !!data.ok;
+    const status = ok ? '✓ Success' : '✕ Failed';
+    const cls    = ok ? 'status-ok' : 'status-err';
+    const body   = data.text || data.error || (ok ? 'Operation completed' : 'Unknown error');
+
+    resultEl.innerHTML = `
+      <div class="result-status ${cls}">${status}</div>
+      <div class="result-text">${escHtml(body)}</div>`;
+    resultEl.classList.add('visible');
+  }
+</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

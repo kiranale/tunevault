@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c; --surface: #111114; --surface-2: #1a1a1f;
+      --border: #2a2a30; --text: #e8e8ed; --text-dim: #b8b8c8;
+      --accent: #f0a830; --accent-dim: rgba(240,168,48,.12);
+      --green: #34d399; --green-dim: rgba(52,211,153,.10);
+      --red: #f87171; --red-dim: rgba(248,113,113,.10);
+      --blue: #60a5fa; --blue-dim: rgba(96,165,250,.10);
+      --mono: 'JetBrains Mono', monospace;
+    }
+    html, body { overflow-x: hidden; }
+    body { font-family: 'Space Grotesk', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    nav { background: rgba(10,10,12,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 9999; }
+    main { max-width: 800px; margin: 0 auto; padding: 48px 24px 80px; }
+
+    h1 { font-size: 28px; font-weight: 700; letter-spacing: -.5px; }
+    .subtitle { color: var(--text-dim); font-size: 14px; margin-top: 6px; }
+
+    /* Section cards */
+    .settings-section { margin-top: 40px; }
+    .section-label { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 12px; padding-left: 2px; }
+
+    .settings-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px;
+      gap: 16px;
+      border-bottom: 1px solid var(--border);
+      transition: background .15s;
+    }
+    .settings-row:last-child { border-bottom: none; }
+    .settings-row-link { text-decoration: none; color: inherit; cursor: pointer; }
+    .settings-row-link:hover { background: rgba(255,255,255,.03); }
+    .row-left { display: flex; align-items: center; gap: 14px; }
+    .row-icon {
+      width: 38px; height: 38px; border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .icon-gold { background: var(--accent-dim); border: 1px solid rgba(240,168,48,.2); }
+    .icon-blue { background: var(--blue-dim); border: 1px solid rgba(96,165,250,.2); }
+    .icon-green { background: var(--green-dim); border: 1px solid rgba(52,211,153,.2); }
+    .icon-gray { background: rgba(255,255,255,.05); border: 1px solid var(--border); }
+    .row-title { font-size: 14px; font-weight: 600; }
+    .row-desc { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+    .row-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .chevron { color: var(--text-dim); font-size: 16px; }
+
+    /* Account type toggle */
+    .account-type-wrap { display: flex; gap: 8px; flex-shrink: 0; }
+    .acct-btn {
+      padding: 6px 16px; border-radius: 6px; font-size: 12px; font-weight: 600;
+      cursor: pointer; border: 1px solid var(--border); background: transparent;
+      color: var(--text-dim); font-family: inherit; transition: all .15s;
+    }
+    .acct-btn.active {
+      background: var(--accent); border-color: var(--accent); color: #0a0a0c;
+    }
+    .acct-btn:not(.active):hover {
+      border-color: var(--accent); color: var(--accent);
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 5px;
+      font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+    }
+    .badge-gold { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(240,168,48,.2); }
+    .badge-blue { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(96,165,250,.2); }
+    .badge-green { background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,.2); }
+    .badge-gray { background: rgba(255,255,255,.05); color: var(--text-dim); border: 1px solid var(--border); }
+
+    /* User profile card */
+    .profile-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 24px 28px; display: flex; align-items: center; gap: 18px;
+    }
+    .avatar {
+      width: 52px; height: 52px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent) 0%, #e09820 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 700; color: #0a0a0c; flex-shrink: 0;
+    }
+    .profile-info .name { font-size: 17px; font-weight: 700; }
+    .profile-info .email { font-size: 13px; color: var(--text-dim); margin-top: 3px; }
+    .profile-info .role-line { margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+    /* Toast */
+    #toast {
+      position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      padding: 10px 20px; font-size: 13px; color: var(--text);
+      box-shadow: 0 4px 24px rgba(0,0,0,.4); z-index: 9999;
+      opacity: 0; pointer-events: none; transition: opacity .2s;
+      white-space: nowrap;
+    }
+    #toast.show { opacity: 1; }
+
+    /* Create team modal */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 500;
+      display: flex; align-items: center; justify-content: center; padding: 24px;
+      opacity: 0; pointer-events: none; transition: opacity .2s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: auto; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      padding: 32px; width: 100%; max-width: 440px;
+    }
+    .modal h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .modal p { font-size: 14px; color: var(--text-dim); margin-bottom: 24px; line-height: 1.5; }
+    .modal label { font-size: 12px; font-weight: 600; color: var(--text-dim); display: block; margin-bottom: 6px; }
+    .modal input {
+      width: 100%; background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 14px; font-size: 14px; color: var(--text);
+      font-family: inherit; outline: none; transition: border-color .15s;
+    }
+    .modal input:focus { border-color: var(--accent); }
+    .modal-actions { display: flex; gap: 10px; margin-top: 24px; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: opacity .15s; font-family: inherit; }
+    .btn:hover:not(:disabled) { opacity: .82; }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-primary { background: var(--accent); color: #000; flex: 1; justify-content: center; }
+    .btn-ghost { background: none; color: var(--text-dim); border: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+
+<nav id="nav-root"></nav>
+
+<main>
+  <div data-auth-guard style="opacity:0">
+    <h1>Settings</h1>
+    <p class="subtitle">Manage your account, team, and preferences.</p>
+
+    <!-- Profile card -->
+    <div class="settings-section">
+      <div class="section-label">Account</div>
+      <div class="profile-card">
+        <div class="avatar" id="profile-avatar">?</div>
+        <div class="profile-info">
+          <div class="name" id="profile-name">—</div>
+          <div class="email" id="profile-email">—</div>
+          <div class="role-line" id="profile-role-line"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Account type -->
+    <div class="settings-section">
+      <div class="section-label">Account Type</div>
+      <div class="settings-card">
+        <div class="settings-row">
+          <div class="row-left">
+            <div class="row-icon icon-gold">👤</div>
+            <div>
+              <div class="row-title">Account Type</div>
+              <div class="row-desc" id="acct-type-desc">Loading…</div>
+            </div>
+          </div>
+          <div class="row-right">
+            <div class="account-type-wrap">
+              <button class="acct-btn" id="btn-individual" onclick="setAccountType('individual')">Individual</button>
+              <button class="acct-btn" id="btn-team" onclick="setAccountType('team')">Team</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Team section (shown for team members) -->
+    <div class="settings-section" id="team-section" style="display:none">
+      <div class="section-label">Team</div>
+      <div class="settings-card">
+        <a class="settings-row settings-row-link" href="/settings/team">
+          <div class="row-left">
+            <div class="row-icon icon-gold">🏢</div>
+            <div>
+              <div class="row-title" id="team-name-display">My Team</div>
+              <div class="row-desc" id="team-members-display">Manage members, roles, and invites</div>
+            </div>
+          </div>
+          <div class="row-right">
+            <span class="badge" id="team-role-badge"></span>
+            <span class="chevron">›</span>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <!-- Billing -->
+    <div class="settings-section">
+      <div class="section-label">Plan &amp; Billing</div>
+      <div class="settings-card">
+        <a class="settings-row settings-row-link" href="/settings/billing">
+          <div class="row-left">
+            <div class="row-icon icon-gold">💳</div>
+            <div>
+              <div class="row-title">Billing</div>
+              <div class="row-desc" id="billing-plan-desc">View plan, usage, and billing history</div>
+            </div>
+          </div>
+          <div class="row-right">
+            <span class="badge badge-gray" id="billing-plan-badge"></span>
+            <span class="chevron">›</span>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <!-- Security -->
+    <div class="settings-section">
+      <div class="section-label">Security</div>
+      <div class="settings-card">
+        <a class="settings-row settings-row-link" href="/settings/security">
+          <div class="row-left">
+            <div class="row-icon icon-gold">🔐</div>
+            <div>
+              <div class="row-title">Two-Factor Authentication</div>
+              <div class="row-desc" id="mfa-settings-desc">Protect your account with an authenticator app</div>
+            </div>
+          </div>
+          <div class="row-right">
+            <span id="mfa-settings-badge"></span>
+            <span class="chevron">›</span>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <!-- Connections & tools -->
+    <div class="settings-section">
+      <div class="section-label">Connections & Tools</div>
+      <div class="settings-card">
+        <a class="settings-row settings-row-link" href="/settings/connection-targets">
+          <div class="row-left">
+            <div class="row-icon icon-blue">🛰</div>
+            <div>
+              <div class="row-title">Connection Targets</div>
+              <div class="row-desc">Proxy agents registered via the TuneVault one-line installer</div>
+            </div>
+          </div>
+          <div class="row-right">
+            <span class="chevron">›</span>
+          </div>
+        </a>
+        <a class="settings-row settings-row-link" href="/dashboard">
+          <div class="row-left">
+            <div class="row-icon icon-green">🗄️</div>
+            <div>
+              <div class="row-title">Oracle Connections</div>
+              <div class="row-desc">Add, edit, or remove database connections</div>
+            </div>
+          </div>
+          <div class="row-right">
+            <span class="chevron">›</span>
+          </div>
+        </a>
+        <a class="settings-row settings-row-link" href="/settings/alerts">
+          <div class="row-left">
+            <div class="row-icon icon-gold">🔔</div>
+            <div>
+              <div class="row-title">Alert Policies</div>
+              <div class="row-desc">Email, Slack, PagerDuty, Teams, and webhook alerts on threshold breaches</div>
+            </div>
+          </div>
+          <div class="row-right">
+            <span class="chevron">›</span>
+          </div>
+        </a>
+      </div>
+    </div>
+
+  </div><!-- /data-auth-guard -->
+
+  <!-- Support footer -->
+  <div style="margin-top:32px;padding:20px 0;border-top:1px solid rgba(255,255,255,0.06);text-align:center;">
+    <p style="font-size:13px;color:#9898a8;">Need help? Email <a href="mailto:support@tunevault.app" style="color:#f0a830;text-decoration:none;">support@tunevault.app</a></p>
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<!-- Create Team Modal -->
+<div class="modal-overlay" id="createTeamModal">
+  <div class="modal">
+    <h2>Create your team</h2>
+    <p>Give your team a name. You'll become the admin and can invite members from the Team Settings page.</p>
+    <label for="teamNameInput">Team name</label>
+    <input type="text" id="teamNameInput" placeholder="e.g. Acme DBA Team" maxlength="80" autocomplete="off">
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeCreateTeamModal()">Cancel</button>
+      <button class="btn btn-primary" id="createTeamBtn" onclick="createTeam()">Create Team →</button>
+    </div>
+  </div>
+</div>
+
+<script src="/nav-component.js"></script>
+<script>
+window.tvNav.init('settings');
+window.tvNav.onReady(loadSettings);
+
+var _teamData = null;
+var _userData = null;
+
+function loadSettings() {
+  // Load billing tier badge in parallel with auth
+  fetch('/api/billing/usage', { credentials: 'include' })
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(usage) {
+      if (!usage) return;
+      var badge = document.getElementById('billing-plan-badge');
+      var desc = document.getElementById('billing-plan-desc');
+      var tierLabels = { individual: 'Individual', team: 'Team', business: 'Business', enterprise: 'Enterprise' };
+      var tierClasses = { individual: 'badge-gray', team: 'badge-blue', business: 'badge-gold', enterprise: 'badge-blue' };
+      if (badge) {
+        badge.textContent = tierLabels[usage.tier] || usage.tier;
+        badge.className = 'badge ' + (tierClasses[usage.tier] || 'badge-gray');
+      }
+      // Show warning if at any cap
+      if (usage.at_cap && (usage.at_cap.connections || usage.at_cap.health_checks) && desc) {
+        desc.textContent = 'You have reached a plan limit — upgrade to continue';
+        desc.style.color = 'var(--red)';
+      }
+    })
+    .catch(function() {});
+
+  fetch('/api/auth/me', { credentials: 'include' })
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(data) {
+      if (!data || !data.user) { window.location.href = '/login'; return; }
+      _userData = data.user;
+      renderProfile(data.user);
+      // Load MFA status in parallel
+      fetch('/api/mfa/status').then(function(r) {
+        return r.ok ? r.json() : null;
+      }).then(function(mfa) {
+        if (!mfa) return;
+        var badge = document.getElementById('mfa-settings-badge');
+        var desc = document.getElementById('mfa-settings-desc');
+        if (mfa.enabled) {
+          if (badge) badge.innerHTML = '<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;background:rgba(52,211,153,.1);color:#34d399;border:1px solid rgba(52,211,153,.2);border-radius:20px;font-size:11px;font-weight:700">✓ Enabled</span>';
+          if (desc) desc.textContent = mfa.recovery_codes_remaining + ' recovery code' + (mfa.recovery_codes_remaining !== 1 ? 's' : '') + ' remaining';
+        } else {
+          if (badge) badge.innerHTML = '<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.2);border-radius:20px;font-size:11px;font-weight:700">Off</span>';
+        }
+      }).catch(function() {});
+      return fetch('/api/team/me', { credentials: 'include' });
+    })
+    .then(function(r) { return r && r.ok ? r.json() : null; })
+    .then(function(teamData) {
+      if (!teamData) return;
+      _teamData = teamData;
+      renderAccountType(teamData);
+      renderTeamSection(teamData);
+    })
+    .catch(function(err) {
+      console.error('Settings load error:', err);
+    });
+}
+
+function renderProfile(user) {
+  var name = user.name || user.email || '?';
+  var initial = name[0].toUpperCase();
+  document.getElementById('profile-avatar').textContent = initial;
+  document.getElementById('profile-name').textContent = name;
+  document.getElementById('profile-email').textContent = user.email || '';
+}
+
+function renderAccountType(teamData) {
+  var isOnTeam = !!teamData.team;
+  var descEl = document.getElementById('acct-type-desc');
+  var btnInd = document.getElementById('btn-individual');
+  var btnTeam = document.getElementById('btn-team');
+
+  if (isOnTeam) {
+    btnTeam.classList.add('active');
+    btnInd.classList.remove('active');
+    descEl.textContent = 'Team account — collaborating with your team on shared connections.';
+    btnInd.title = 'Leave your team to switch back to Individual';
+  } else {
+    btnInd.classList.add('active');
+    btnTeam.classList.remove('active');
+    descEl.textContent = 'Individual account — full access to all features.';
+  }
+
+  // Also render role line in profile
+  var roleLineEl = document.getElementById('profile-role-line');
+  if (isOnTeam && teamData.role) {
+    var roleColors = {
+      admin:      'badge-gold',
+      senior_dba: 'badge-blue',
+      junior_dba: 'badge-green',
+      viewer:     'badge-gray'
+    };
+    var roleLabels = { admin: 'Admin', senior_dba: 'Senior DBA', junior_dba: 'Junior DBA', viewer: 'Viewer' };
+    var cls = roleColors[teamData.role] || 'badge-gray';
+    var lbl = roleLabels[teamData.role] || teamData.role;
+    roleLineEl.innerHTML =
+      '<span class="badge badge-gold" style="background:rgba(240,168,48,.1);color:var(--accent);border:1px solid rgba(240,168,48,.2);">Team</span>' +
+      '<span class="badge ' + cls + '">' + lbl + '</span>';
+  } else {
+    roleLineEl.innerHTML = '<span class="badge badge-gray">Individual</span>';
+  }
+}
+
+function renderTeamSection(teamData) {
+  var teamSection = document.getElementById('team-section');
+  if (!teamData.team) {
+    teamSection.style.display = 'none';
+    return;
+  }
+  teamSection.style.display = '';
+  document.getElementById('team-name-display').textContent = teamData.team.name;
+  document.getElementById('team-members-display').textContent = 'Manage members, roles, and invites';
+
+  var roleColors = {
+    admin: 'badge-gold', senior_dba: 'badge-blue',
+    junior_dba: 'badge-green', viewer: 'badge-gray'
+  };
+  var roleLabels = { admin: 'Admin', senior_dba: 'Senior DBA', junior_dba: 'Junior DBA', viewer: 'Viewer' };
+  var badgeEl = document.getElementById('team-role-badge');
+  if (teamData.role) {
+    var cls = roleColors[teamData.role] || 'badge-gray';
+    var lbl = roleLabels[teamData.role] || teamData.role;
+    badgeEl.className = 'badge ' + cls;
+    badgeEl.textContent = lbl;
+  }
+}
+
+function setAccountType(type) {
+  var isOnTeam = _teamData && !!_teamData.team;
+
+  if (type === 'team') {
+    if (isOnTeam) {
+      // Already on a team — navigate to team settings
+      window.location.href = '/settings/team';
+    } else {
+      // Create a new team
+      document.getElementById('createTeamModal').classList.add('open');
+      document.getElementById('teamNameInput').focus();
+    }
+  } else {
+    // Individual — if already individual, nothing to do
+    if (!isOnTeam) return;
+    // Inform user they'd need to leave their team (not a destructive action from here)
+    showToast('To switch to Individual, remove yourself from your team on the Team Settings page.');
+  }
+}
+
+function closeCreateTeamModal() {
+  document.getElementById('createTeamModal').classList.remove('open');
+  document.getElementById('teamNameInput').value = '';
+}
+
+function createTeam() {
+  var name = document.getElementById('teamNameInput').value.trim();
+  if (!name) {
+    showToast('Team name is required.');
+    return;
+  }
+  var btn = document.getElementById('createTeamBtn');
+  btn.disabled = true;
+  btn.textContent = 'Creating…';
+
+  fetch('/api/team', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: name })
+  })
+  .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+  .then(function(res) {
+    if (!res.ok) {
+      showToast(res.data.error || 'Failed to create team.');
+      btn.disabled = false;
+      btn.textContent = 'Create Team →';
+      return;
+    }
+    // Success — redirect to team settings
+    closeCreateTeamModal();
+    showToast('Team created! Redirecting…');
+    setTimeout(function() { window.location.href = '/settings/team'; }, 800);
+  })
+  .catch(function() {
+    showToast('Network error — please try again.');
+    btn.disabled = false;
+    btn.textContent = 'Create Team →';
+  });
+}
+
+// Close modal on overlay click
+document.getElementById('createTeamModal').addEventListener('click', function(e) {
+  if (e.target === this) closeCreateTeamModal();
+});
+
+// Close modal on Escape
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeCreateTeamModal();
+});
+
+// Enter key in team name input
+document.getElementById('teamNameInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') createTeam();
+});
+
+var _toastTimer;
+function showToast(msg, duration) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(function() { el.classList.remove('show'); }, duration || 3500);
+}
+</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

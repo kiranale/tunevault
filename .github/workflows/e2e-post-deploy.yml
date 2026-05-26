@@ -1,0 +1,121 @@
+name: E2E Smoke — post-deploy (live tunevault.app)
+
+# Triggered when Render reports a successful deployment to main.
+# Runs the same connections smoke suite against the live app.
+# On failure: emails ops via Postmark with Playwright trace zip attached.
+
+on:
+  deployment_status:
+    # Only run when a deployment to the production environment succeeds
+    # "success" is the deployment_status.state that Render emits
+
+jobs:
+  post-deploy-smoke:
+    name: post-deploy-smoke
+    # Only run on successful deployments — not pending, failure, or error
+    if: github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run connections smoke tests against live app
+        env:
+          TEST_BASE_URL: https://tunevault.app
+          # Pre-baked session cookie for the dedicated E2E smoke admin account.
+          # Stored in repo secret E2E_SMOKE_SESSION_COOKIE as "tv_session=<token>"
+          TEST_SESSION_COOKIE: ${{ secrets.E2E_SMOKE_SESSION_COOKIE }}
+        run: |
+          npx playwright test tests/e2e/connections.spec.ts \
+            --reporter=list \
+            --trace on
+
+      - name: Zip Playwright trace for email attachment
+        if: failure()
+        run: |
+          zip -r playwright-trace.zip playwright-report/ 2>/dev/null || true
+
+      - name: Send failure alert via Postmark
+        if: failure()
+        env:
+          POSTMARK_SERVER_TOKEN: ${{ secrets.POSTMARK_SERVER_TOKEN }}
+          OPS_ALERT_EMAIL: ${{ secrets.OPS_ALERT_EMAIL }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          DEPLOY_URL: ${{ github.event.deployment_status.target_url }}
+        run: |
+          node - <<'EOF'
+          const https = require('https');
+          const fs = require('fs');
+
+          const token = process.env.POSTMARK_SERVER_TOKEN;
+          const to = process.env.OPS_ALERT_EMAIL || 'ops@tunevault.app';
+          const repo = process.env.GITHUB_REPOSITORY;
+          const runId = process.env.GITHUB_RUN_ID;
+          const deployUrl = process.env.DEPLOY_URL || 'https://tunevault.app';
+          const runUrl = `https://github.com/${repo}/actions/runs/${runId}`;
+
+          // Attach trace zip if it exists (Postmark base64 attachment)
+          let attachments = [];
+          try {
+            const traceData = fs.readFileSync('playwright-trace.zip');
+            attachments = [{
+              Name: 'playwright-trace.zip',
+              Content: traceData.toString('base64'),
+              ContentType: 'application/zip',
+            }];
+          } catch (_) {}
+
+          const body = JSON.stringify({
+            From: 'alerts@tunevault.app',
+            To: to,
+            Subject: '🔴 E2E smoke FAILED after deploy — /connections broken',
+            HtmlBody: `
+              <h2>E2E smoke test failed after production deploy</h2>
+              <p>The /connections page smoke suite failed against the live app.</p>
+              <p><strong>Deploy URL:</strong> <a href="${deployUrl}">${deployUrl}</a></p>
+              <p><strong>Workflow run:</strong> <a href="${runUrl}">${runUrl}</a></p>
+              <p>Playwright trace is attached. Fix the /connections page before the next deploy.</p>
+            `,
+            TextBody: `E2E smoke failed after deploy.\nDeploy: ${deployUrl}\nRun: ${runUrl}`,
+            MessageStream: 'outbound',
+            Attachments: attachments,
+          });
+
+          const req = https.request({
+            hostname: 'api.postmarkapp.com',
+            path: '/email',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Postmark-Server-Token': token,
+              'Content-Length': Buffer.byteLength(body),
+            },
+          }, (res) => {
+            res.on('data', (d) => process.stdout.write(d));
+            res.on('end', () => console.log('\nAlert email sent.'));
+          });
+          req.on('error', (e) => console.error('Email send failed:', e));
+          req.write(body);
+          req.end();
+          EOF
+
+      - name: Upload Playwright trace on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: post-deploy-smoke-trace
+          path: playwright-report/
+          retention-days: 14

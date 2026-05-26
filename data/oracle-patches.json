@@ -1,0 +1,259 @@
+{
+  "_meta": {
+    "description": "Curated Oracle CPU/PSU patch index. Source: MOS Doc 2118136.2 + Oracle Critical Patch Update advisories + dbsguru.com + oraclepatches.com.",
+    "LAST_REFRESHED": "2026-05-12",
+    "next_refresh_due": "2026-07-22",
+    "refresh_cadence": "quarterly",
+    "note": "Jan 2026 CPU (2026-Q1) released 2026-01-20; Apr 2026 CPU (2026-Q2) released 2026-04-21 (DB RUs delayed to 28-Apr). Oracle 23ai rebranded to 26ai as of Jan 2026. CVE-2026-21992 (CVSS 9.8, RCE in Oracle Net listener) released as OOB Security Alert on 2026-03-20 — apply immediately if not on current RU."
+  },
+  "rdbms": {
+    "19c": {
+      "version_label": "Oracle Database 19c",
+      "mos_doc_id": "2118136.2",
+      "release_update_patches": [
+        {
+          "patch_number": "39034528",
+          "label": "19.31 RU (Apr 2026 CPU)",
+          "release_date": "2026-04-28",
+          "cpu_quarter": "2026-Q2",
+          "severity": "HIGH",
+          "cvss_max": 8.6,
+          "cves": ["CVE-2026-21992", "CVE-2026-21344", "CVE-2025-30736"],
+          "highlights": "Includes fix for OOB Security Alert CVE-2026-21992 (CVSS 9.8, unauthenticated RCE in Oracle Net listener). 26 new DB security patches this quarter. DB RUs were delayed 1 week post-advisory; available from 28-Apr-2026.",
+          "mos_doc_id": "CPU58"
+        },
+        {
+          "patch_number": "38646922",
+          "label": "19.30 RU (Jan 2026 CPU)",
+          "release_date": "2026-01-30",
+          "cpu_quarter": "2026-Q1",
+          "severity": "HIGH",
+          "cvss_max": 7.9,
+          "cves": ["CVE-2025-30736", "CVE-2025-21571", "CVE-2025-22083"],
+          "highlights": "337 vulnerabilities fixed across Oracle portfolio this quarter. 19.30 RU includes database Core RDBMS and OJVM fixes. Note: 19.30 release date was delayed to 2026-01-30 (patch pushed back from initial Jan-21 date).",
+          "mos_doc_id": "CPU4"
+        },
+        {
+          "patch_number": "38291812",
+          "label": "19.29 RU (Oct 2025 CPU)",
+          "release_date": "2025-10-21",
+          "cpu_quarter": "2025-Q4",
+          "severity": "HIGH",
+          "cvss_max": 8.2,
+          "cves": ["CVE-2025-21549", "CVE-2025-21524"],
+          "highlights": "October 2025 quarterly bundle. Core RDBMS, OJVM, and XML DB security fixes.",
+          "mos_doc_id": "2118136.2"
+        },
+        {
+          "patch_number": "37056207",
+          "label": "19.27 RU (Jan 2025 CPU)",
+          "release_date": "2025-01-21",
+          "cpu_quarter": "2025-Q1",
+          "severity": "CRITICAL",
+          "cvss_max": 9.8,
+          "cves": ["CVE-2024-21287", "CVE-2024-21216", "CVE-2024-20953"],
+          "highlights": "Addresses 3 critical RCE vulnerabilities in OJVM and XML DB components. CVSS 9.8 in CVE-2024-21287.",
+          "mos_doc_id": "2118136.2"
+        },
+        {
+          "patch_number": "36912597",
+          "label": "19.26 RU (Oct 2024 CPU)",
+          "release_date": "2024-10-15",
+          "cpu_quarter": "2024-Q4",
+          "severity": "HIGH",
+          "cvss_max": 8.1,
+          "cves": ["CVE-2024-21254", "CVE-2024-21119"],
+          "highlights": "Privilege escalation fix in Oracle Database Vault and Data Redaction.",
+          "mos_doc_id": "2118136.2"
+        },
+        {
+          "patch_number": "36551755",
+          "label": "19.25 RU (Jul 2024 CPU)",
+          "release_date": "2024-07-16",
+          "cpu_quarter": "2024-Q3",
+          "severity": "HIGH",
+          "cvss_max": 7.5,
+          "cves": ["CVE-2024-21107", "CVE-2024-21012"],
+          "highlights": "SQL injection vulnerability in DBMS_SCHEDULER and Core RDBMS fixes.",
+          "mos_doc_id": "2118136.2"
+        },
+        {
+          "patch_number": "36209512",
+          "label": "19.24 RU (Apr 2024 CPU)",
+          "release_date": "2024-04-16",
+          "cpu_quarter": "2024-Q2",
+          "severity": "CRITICAL",
+          "cvss_max": 9.1,
+          "cves": ["CVE-2024-20982", "CVE-2024-20953", "CVE-2024-20970"],
+          "highlights": "Critical: unauthorized data access via XML DB (CVE-2024-20982, CVSS 9.1).",
+          "mos_doc_id": "2118136.2"
+        }
+      ],
+      "latest_patch": "39034528",
+      "latest_label": "19.31 RU (Apr 2026 CPU)",
+      "latest_release_date": "2026-04-28",
+      "latest_quarter": "2026-Q2"
+    },
+    "21c": {
+      "version_label": "Oracle Database 21c",
+      "mos_doc_id": "2118136.2",
+      "release_update_patches": [
+        {
+          "patch_number": "39073698",
+          "label": "21.22 RU (Apr 2026 CPU)",
+          "release_date": "2026-04-21",
+          "cpu_quarter": "2026-Q2",
+          "severity": "HIGH",
+          "cvss_max": 8.6,
+          "cves": ["CVE-2026-21992", "CVE-2026-21344"],
+          "highlights": "Available immediately (no delay). Includes CVE-2026-21992 (CVSS 9.8 network listener RCE). 21c OJVM fixes embedded in DB RU (no separate OJVM patch for 21c).",
+          "mos_doc_id": "CPU58"
+        },
+        {
+          "patch_number": "38371122",
+          "label": "21.20 RU (Oct 2025 CPU)",
+          "release_date": "2025-10-21",
+          "cpu_quarter": "2025-Q4",
+          "severity": "HIGH",
+          "cvss_max": 8.1,
+          "cves": ["CVE-2025-21549"],
+          "highlights": "October 2025 quarterly bundle. OJVM fixes embedded in DB RU.",
+          "mos_doc_id": "2118136.2"
+        },
+        {
+          "patch_number": "37056220",
+          "label": "21.16 RU (Jan 2025 CPU)",
+          "release_date": "2025-01-21",
+          "cpu_quarter": "2025-Q1",
+          "severity": "CRITICAL",
+          "cvss_max": 9.8,
+          "cves": ["CVE-2024-21287", "CVE-2024-21216"],
+          "highlights": "Same OJVM critical (CVE-2024-21287 CVSS 9.8) as 19c bundle.",
+          "mos_doc_id": "2118136.2"
+        },
+        {
+          "patch_number": "36912610",
+          "label": "21.15 RU (Oct 2024 CPU)",
+          "release_date": "2024-10-15",
+          "cpu_quarter": "2024-Q4",
+          "severity": "HIGH",
+          "cvss_max": 8.1,
+          "cves": ["CVE-2024-21254"],
+          "highlights": "Oracle Database Vault privilege escalation fix.",
+          "mos_doc_id": "2118136.2"
+        }
+      ],
+      "latest_patch": "39073698",
+      "latest_label": "21.22 RU (Apr 2026 CPU)",
+      "latest_release_date": "2026-04-21",
+      "latest_quarter": "2026-Q2"
+    },
+    "26ai": {
+      "version_label": "Oracle AI Database 26ai (formerly 23ai)",
+      "mos_doc_id": "2118136.2",
+      "release_update_patches": [
+        {
+          "patch_number": "39093711",
+          "label": "23.26.2 RU (Apr 2026 CPU)",
+          "release_date": "2026-04-28",
+          "cpu_quarter": "2026-Q2",
+          "severity": "HIGH",
+          "cvss_max": 8.6,
+          "cves": ["CVE-2026-21992", "CVE-2026-21344"],
+          "highlights": "26ai receives combined RU bundles. Includes Apr 2026 security fixes. Note: Oracle rebranded 23ai innovation release to 26ai in Jan 2026; cloud users can patch forward from 23ai without re-certification.",
+          "mos_doc_id": "CPU58"
+        },
+        {
+          "patch_number": "37056235",
+          "label": "23.7 RU (Jan 2025 CPU)",
+          "release_date": "2025-01-21",
+          "cpu_quarter": "2025-Q1",
+          "severity": "HIGH",
+          "cvss_max": 8.5,
+          "cves": ["CVE-2024-21287"],
+          "highlights": "OJVM critical CVE. 23ai receives combined RU+OJVM bundles. Rebranded to 26ai in Jan 2026.",
+          "mos_doc_id": "2118136.2"
+        }
+      ],
+      "latest_patch": "39093711",
+      "latest_label": "23.26.2 RU (Apr 2026 CPU)",
+      "latest_release_date": "2026-04-28",
+      "latest_quarter": "2026-Q2"
+    },
+    "23ai": {
+      "version_label": "Oracle Database 23ai (rebranded to 26ai in Jan 2026)",
+      "mos_doc_id": "2118136.2",
+      "eol_warning": "Oracle 23ai was rebranded to Oracle AI Database 26ai in January 2026. Use the 26ai section for current patch data. Existing 23ai installations should upgrade to the 26ai patch stream.",
+      "release_update_patches": [],
+      "latest_patch": null
+    },
+    "12.2": {
+      "version_label": "Oracle Database 12.2.0.1",
+      "mos_doc_id": "2118136.2",
+      "release_update_patches": [
+        {
+          "patch_number": "36582781",
+          "label": "12.2.0.1 DBRU (Jul 2024 CPU)",
+          "release_date": "2024-07-16",
+          "cpu_quarter": "2024-Q3",
+          "severity": "HIGH",
+          "cvss_max": 7.5,
+          "cves": ["CVE-2024-21107"],
+          "highlights": "Final extended support CPU for 12.2 (EOL Dec 2024). Upgrade recommended.",
+          "mos_doc_id": "2118136.2"
+        }
+      ],
+      "latest_patch": "36582781",
+      "latest_label": "12.2.0.1 DBRU (Jul 2024 CPU)",
+      "latest_release_date": "2024-07-16",
+      "latest_quarter": "2024-Q3",
+      "eol_warning": "Oracle Database 12.2 reached end of Extended Support in December 2024. No further CPUs will be released. Upgrade to 19c or later."
+    },
+    "18c": {
+      "version_label": "Oracle Database 18c",
+      "mos_doc_id": "2118136.2",
+      "eol_warning": "Oracle Database 18c reached end of Extended Support in June 2021. No further CPUs are released. Immediate upgrade required.",
+      "release_update_patches": [],
+      "latest_patch": null
+    }
+  },
+  "ebs": {
+    "12.2": {
+      "version_label": "Oracle E-Business Suite 12.2.x",
+      "mos_doc_id": "1594274.1",
+      "latest_adop_bundle": {
+        "patch_number": "34174657",
+        "label": "EBS 12.2.13 Release Update Pack",
+        "release_date": "2024-03-15",
+        "severity": "HIGH",
+        "cves": ["CVE-2024-20982", "CVE-2023-22131"],
+        "highlights": "12.2.13 RUP. Prerequisite: DB patch 36209512 (19.24+). Addresses 2 HIGH CVEs in Applications Framework. Apr 2026 CPU EBS document: MOS KA1539. Apply Apr 2026 DB patches to underlying Oracle Database for full coverage.",
+        "mos_doc_id": "1594274.1"
+      },
+      "adop_patches": [
+        {
+          "patch_number": "34174657",
+          "label": "EBS 12.2.13 RUP",
+          "release_date": "2024-03-15",
+          "cpu_quarter": "2024-Q1",
+          "severity": "HIGH",
+          "cvss_max": 8.1,
+          "cves": ["CVE-2024-20982", "CVE-2023-22131"],
+          "db_prerequisite": "19.24 RU (36209512) or later",
+          "mos_doc_id": "1594274.1"
+        },
+        {
+          "patch_number": "33267777",
+          "label": "EBS 12.2.12 RUP",
+          "release_date": "2023-06-20",
+          "cpu_quarter": "2023-Q2",
+          "severity": "MEDIUM",
+          "cvss_max": 6.5,
+          "cves": ["CVE-2023-21963"],
+          "db_prerequisite": "19.20 RU or later",
+          "mos_doc_id": "1594274.1"
+        }
+      ]
+    }
+  }
+}

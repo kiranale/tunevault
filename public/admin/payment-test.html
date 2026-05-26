@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Test — TuneVault Admin</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="canonical" href="https://tunevault.app/admin/payment-test">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0c;
+            --surface: #111114;
+            --surface-2: #1a1a1f;
+            --border: #2a2a30;
+            --text: #e8e8ed;
+            --text-dim: #9898a8;
+            --accent: #f0a830;
+            --accent-dim: rgba(240, 168, 48, 0.12);
+            --green: #34d399;
+            --red: #f87171;
+            --blue: #60a5fa;
+            --yellow: #fbbf24;
+            --gray: #6b7280;
+            --purple: #a78bfa;
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .grain {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 48px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: var(--text);
+        }
+
+        .logo-icon {
+            width: 26px; height: 26px;
+            background: var(--accent);
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px; font-weight: 700;
+            color: var(--bg);
+        }
+
+        .nav-links {
+            display: flex; gap: 8px;
+        }
+
+        .nav-link {
+            padding: 6px 14px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-dim);
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.15s;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            background: var(--surface-2);
+            color: var(--text);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 48px;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 4px;
+        }
+
+        .subtitle {
+            color: var(--text-dim);
+            font-size: 14px;
+            margin-bottom: 32px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title .badge-live {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: rgba(52,211,153,0.15);
+            color: var(--green);
+            letter-spacing: 0.5px;
+        }
+
+        /* Status bar */
+        .status-bar {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 28px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+        }
+
+        .dot-green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+        .dot-red   { background: var(--red);   box-shadow: 0 0 6px var(--red); }
+        .dot-gray  { background: var(--gray); }
+
+        .status-label { color: var(--text-dim); }
+        .status-value { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+
+        /* ── Pipeline test ────────────────────────────────────────────── */
+
+        .run-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .run-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .run-card h3 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .run-card p {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-bottom: 16px;
+        }
+
+        .tier-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .tier-btn {
+            padding: 6px 14px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .tier-btn.selected {
+            background: var(--accent-dim);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .run-btn {
+            padding: 10px 20px;
+            background: var(--accent);
+            border: none;
+            border-radius: 8px;
+            color: var(--bg);
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.15s;
+            width: 100%;
+        }
+
+        .run-btn:hover { opacity: 0.88; }
+        .run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* ── Live result panel ──────────────────────────────────────────── */
+
+        .live-result {
+            display: none;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 28px;
+        }
+
+        .live-result.visible { display: block; }
+
+        .result-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .result-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-pass    { background: rgba(52,211,153,0.15); color: var(--green); }
+        .badge-fail    { background: rgba(248,113,113,0.15); color: var(--red); }
+        .badge-running { background: rgba(251,191,36,0.15);  color: var(--yellow); }
+
+        .stage-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .stage-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: var(--surface-2);
+            border-radius: 8px;
+        }
+
+        .stage-name { font-size: 13px; color: var(--text-dim); }
+
+        .stage-badge {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        .s-pass { background: rgba(52,211,153,0.12); color: var(--green); }
+        .s-fail { background: rgba(248,113,113,0.12); color: var(--red); }
+        .s-skip { background: rgba(107,114,128,0.15); color: var(--gray); }
+        .s-run  { background: rgba(251,191,36,0.12); color: var(--yellow); }
+
+        .result-details {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--text-dim);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .detail-row span { color: var(--text); }
+
+        /* ── History tables ─────────────────────────────────────────────── */
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th {
+            text-align: left;
+            padding: 10px 12px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            color: var(--text-dim);
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(42,42,48,0.6);
+            vertical-align: middle;
+        }
+
+        tr:last-child td { border-bottom: none; }
+
+        .mono { font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+
+        .badge-sm {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            letter-spacing: 0.4px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+            color: var(--text-dim);
+        }
+
+        .error-detail {
+            font-size: 12px;
+            color: var(--red);
+            margin-top: 8px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 36px 0;
+        }
+
+        /* ── Order toast ────────────────────────────────────────────────── */
+
+        #orderToast {
+            display: none;
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 20px;
+            font-size: 13px;
+            font-family: 'JetBrains Mono', monospace;
+            align-items: center;
+            gap: 8px;
+            z-index: 1000;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            transition: opacity 0.3s;
+            max-width: 90vw;
+        }
+    </style>
+</head>
+<body>
+<div class="grain"></div>
+<div id="orderToast"></div>
+
+<nav id="nav-root"></nav>
+
+<div class="container">
+    <h1>Razorpay E2E Validation</h1>
+    <p class="subtitle">Backend pipeline tests validate the full payment flow server-side. No checkout modal needed.</p>
+
+    <!-- Auth banner — shown when admin session is missing -->
+    <div id="authBanner" style="display:none; background:rgba(248,113,113,0.08); border:1px solid var(--red); border-radius:12px; padding:16px 20px; margin-bottom:24px; font-size:13px;">
+        <strong style="color:var(--red);" id="authBannerTitle">Not signed in as admin</strong> —
+        <span id="authBannerMsg">
+            <a href="/login?redirect=/admin/payments/last-test" style="color:var(--accent); text-decoration:underline;">Sign in</a> to run pipeline tests and view history.
+        </span>
+        <span style="color:var(--text-dim); margin-left:4px;">The Razorpay key status below is always visible.</span>
+    </div>
+
+    <!-- Key status bar -->
+    <div class="status-bar" id="statusBar">
+        <div class="status-item">
+            <div class="status-dot dot-gray" id="statusDot"></div>
+            <span class="status-label">Loading...</span>
+        </div>
+    </div>
+
+    <!-- ──────────────────────────────────────────────────────────────── -->
+    <!-- SECTION 0: Razorpay Activation Checklist — Test-Mode Transaction -->
+    <!-- ──────────────────────────────────────────────────────────────── -->
+
+    <div class="section-title" style="color:var(--accent);">⚡ Razorpay Activation — Complete Test Transaction</div>
+    <p style="color:var(--text-dim); font-size:13px; margin-bottom:16px;">
+        Razorpay requires at least one <strong style="color:var(--text);">test-mode payment</strong> before activating your live account.
+        This section opens a $1 checkout using your test keys — complete it once with the test card and the activation checklist clears.
+    </p>
+
+    <!-- Test key status bar -->
+    <div class="status-bar" id="testKeyStatusBar" style="margin-bottom:16px;">
+        <div class="status-item">
+            <div class="status-dot dot-gray"></div>
+            <span class="status-label">Loading test key status...</span>
+        </div>
+    </div>
+
+    <!-- Validate & Deploy form (shown when test keys are missing or operator wants to update them) -->
+    <div id="testKeySetupInstructions" style="display:none; background:rgba(240,168,48,0.07); border:1px solid rgba(240,168,48,0.3); border-radius:12px; padding:20px; margin-bottom:20px; font-size:13px;">
+        <strong style="color:var(--accent); font-size:14px;">🔑 Validate &amp; Deploy New Test Keys</strong>
+        <p style="color:var(--text-dim); margin:8px 0 16px;">Get your test keys from <a href="https://dashboard.razorpay.com/app/keys" target="_blank" style="color:var(--accent);">Razorpay Dashboard → Settings → API Keys</a> (Test Mode toggle ON). Paste them below — this will validate them against Razorpay, update the server, and redeploy automatically.</p>
+
+        <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">
+            <div>
+                <label style="display:block; font-size:11px; color:var(--text-dim); margin-bottom:4px; letter-spacing:0.5px; text-transform:uppercase;">Key ID <span style="color:var(--text-dim);">(starts with rzp_test_)</span></label>
+                <input id="inputKeyId" type="text" placeholder="rzp_test_xxxxxxxxxxxxxxxxxxxx"
+                    style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:9px 14px; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:13px; outline:none;"
+                    autocomplete="off" spellcheck="false">
+            </div>
+            <div>
+                <label style="display:block; font-size:11px; color:var(--text-dim); margin-bottom:4px; letter-spacing:0.5px; text-transform:uppercase;">Key Secret</label>
+                <input id="inputKeySecret" type="password" placeholder="paste your test key secret"
+                    style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:9px 14px; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:13px; outline:none;"
+                    autocomplete="off" spellcheck="false">
+            </div>
+        </div>
+
+        <button id="btnValidateDeploy" class="run-btn" style="width:auto; padding:10px 24px;"
+            onclick="runValidateDeploy()">
+            ✓ Validate &amp; Deploy
+        </button>
+
+        <!-- Step-by-step pipeline status (shown during/after validation) -->
+        <div id="deployPipelinePanel" style="display:none; margin-top:18px;">
+            <div style="font-size:12px; font-weight:600; color:var(--text-dim); margin-bottom:10px; letter-spacing:0.5px; text-transform:uppercase;">Pipeline Status</div>
+            <div id="deployStepList" style="display:flex; flex-direction:column; gap:6px;"></div>
+            <div id="deployFinalMsg" style="margin-top:12px; font-size:13px; display:none;"></div>
+        </div>
+    </div>
+
+    <!-- Test checkout button + result -->
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
+        <button id="btnTestCheckout" class="run-btn" style="width:auto; padding:10px 28px; background:var(--accent);" disabled>
+            ▶ Run $1 Test Checkout
+        </button>
+        <span id="testCheckoutStatus" style="font-size:13px; color:var(--text-dim);">Configure test keys first</span>
+    </div>
+    <div id="testCheckoutResult" style="display:none; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 18px; margin-bottom:8px; font-size:13px; font-family:'JetBrains Mono',monospace;"></div>
+
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 18px; margin-bottom:20px; font-size:12px; color:var(--text-dim); line-height:1.8;">
+        <strong style="color:var(--text);">Test card details</strong> (Razorpay standard test card):<br>
+        Card: <code>4111 1111 1111 1111</code> &nbsp;|&nbsp; Expiry: any future date (e.g. <code>12/26</code>) &nbsp;|&nbsp; CVV: <code>123</code> &nbsp;|&nbsp; OTP: <code>1234</code><br>
+        <span style="color:var(--yellow);">⚠ Test cards only work with test keys (<code>rzp_test_...</code>). Live keys will reject them.</span>
+    </div>
+
+    <!-- Last Test Transaction Panel -->
+    <div id="lastActivationPanel" style="display:none; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 20px; margin-bottom:24px;">
+        <div style="font-size:14px; font-weight:600; margin-bottom:12px; display:flex; align-items:center; gap:10px;">
+            <span>Last Test Transaction</span>
+            <span id="lastActivationBadge" class="result-badge" style="font-size:11px; padding:2px 8px;"></span>
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--text-dim); display:flex; flex-direction:column; gap:6px;">
+            <div>payment_id: <span id="lastActivationPaymentId" style="color:var(--text);"></span></div>
+            <div>order_id: <span id="lastActivationOrderId" style="color:var(--text);"></span></div>
+            <div>ran_at: <span id="lastActivationTime" style="color:var(--text);"></span></div>
+            <div style="margin-top:8px;">
+                <a id="lastActivationDashboardLink" href="#" target="_blank"
+                   style="color:var(--accent); text-decoration:underline; font-size:12px;">
+                    View on Razorpay Test Dashboard →
+                </a>
+            </div>
+            <div style="color:var(--green); font-size:11px; margin-top:4px;" id="lastActivationConfirm"></div>
+        </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- ──────────────────────────────────────────────────────────────── -->
+    <!-- SECTION 1: Backend Pipeline Tests (primary)                      -->
+    <!-- ──────────────────────────────────────────────────────────────── -->
+
+    <div class="section-title">Backend Pipeline Tests</div>
+    <p style="color:var(--text-dim); font-size:13px; margin-bottom:20px;">
+        Creates real Razorpay orders/subscriptions, runs HMAC verification, and validates the credit-update pipeline
+        without opening the checkout UI. Use for regression testing the backend path.
+    </p>
+
+    <div class="run-grid">
+        <div class="run-card">
+            <h3>One-off Purchase Test</h3>
+            <p>Creates a real order, verifies HMAC, credits user. Tests <code>/api/create-order</code> + <code>/api/verify-payment</code>.</p>
+            <div class="tier-row">
+                <button class="tier-btn selected" data-type="one_off" data-tier="starter">Starter</button>
+                <button class="tier-btn" data-type="one_off" data-tier="growth">Growth</button>
+            </div>
+            <button class="run-btn" id="btnOneOff">▶ Run Pipeline Test</button>
+        </div>
+
+        <div class="run-card">
+            <h3>Subscription Pipeline Test</h3>
+            <p>Creates real plan + subscription, verifies signature, activates and credits user. Tests <code>/api/create-subscription</code>.</p>
+            <div class="tier-row">
+                <button class="tier-btn selected" data-type="subscription" data-tier="starter">Starter</button>
+                <button class="tier-btn" data-type="subscription" data-tier="growth">Growth</button>
+            </div>
+            <button class="run-btn" id="btnSub">▶ Run Pipeline Test</button>
+        </div>
+    </div>
+
+    <!-- Live result panel (pipeline) -->
+    <div class="live-result" id="liveResult">
+        <div class="result-header">
+            <span id="resultBadge" class="result-badge badge-running">RUNNING…</span>
+            <span id="resultTitle" style="font-size:14px; font-weight:600;"></span>
+        </div>
+
+        <div class="stage-list">
+            <div class="stage-row">
+                <span class="stage-name">1. Order / Subscription Created (Razorpay API)</span>
+                <span class="stage-badge" id="s1">—</span>
+            </div>
+            <div class="stage-row">
+                <span class="stage-name">2. HMAC Signature Verified (backend)</span>
+                <span class="stage-badge" id="s2">—</span>
+            </div>
+            <div class="stage-row">
+                <span class="stage-name">3. Credits Updated in DB</span>
+                <span class="stage-badge" id="s3">—</span>
+            </div>
+            <div class="stage-row">
+                <span class="stage-name">4. Webhook Received (async — configure in Razorpay Dashboard)</span>
+                <span class="stage-badge s-skip" id="s4">SKIP</span>
+            </div>
+            <div class="stage-row">
+                <span class="stage-name">5. Receipt Email Sent (trigger via /payment/success)</span>
+                <span class="stage-badge s-skip" id="s5">SKIP</span>
+            </div>
+        </div>
+
+        <div class="result-details" id="resultDetails"></div>
+        <div class="error-detail" id="errorDetail" style="display:none;"></div>
+    </div>
+
+    <!-- Webhook config hint -->
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 20px; margin-bottom:28px; font-size:13px;">
+        <strong>Webhook setup</strong>&nbsp;—&nbsp;
+        Point Razorpay Dashboard → Settings → Webhooks to:
+        <code id="webhookUrl" style="font-family:'JetBrains Mono',monospace; font-size:12px; background:var(--surface-2); padding:2px 8px; border-radius:4px; margin-left:4px;">loading…</code>
+        &nbsp;Events: <code>payment.captured</code>, <code>subscription.activated</code>, <code>subscription.charged</code>
+    </div>
+
+    <!-- Pipeline history -->
+    <div class="section-title">Pipeline Test History (last 20)</div>
+    <div id="historyContainer">
+        <div class="empty-state">Loading history…</div>
+    </div>
+</div>
+
+<!-- Razorpay checkout SDK — needed for the test-mode $1 activation checkout -->
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script src="/nav-component.js"></script>
+<script>
+'use strict';
+
+// ─── State ───────────────────────────────────────────────────────────────────
+var selectedTiers = { one_off: 'starter', subscription: 'starter' };
+var isAdmin = false;
+
+function stageClass(val) {
+    if (val === 'PASS') return 's-pass';
+    if (val === 'FAIL') return 's-fail';
+    return 's-skip';
+}
+
+function setStageBadge(id, val) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = val || 'SKIP';
+    el.className = 'stage-badge ' + stageClass(val);
+}
+
+function fmtINR(cents) {
+    return '$' + (cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2 });
+}
+
+// Helper: fetch with proper HTTP error handling
+function safeFetch(url, opts) {
+    return fetch(url, opts).then(function(r) {
+        if (!r.ok) {
+            return r.json().catch(function() { return { error: 'HTTP ' + r.status }; }).then(function(body) {
+                var err = new Error(body.error || 'HTTP ' + r.status);
+                err.status = r.status;
+                throw err;
+            });
+        }
+        return r.json();
+    });
+}
+
+// ─── Load Razorpay status (public endpoint — no auth required) ───────────────
+function loadStatus() {
+    safeFetch('/api/admin/payment-test/status', { credentials: 'include' })
+      .then(function(data) {
+        var bar = document.getElementById('statusBar');
+        if (!bar) return;
+        if (data.configured) {
+            var modeClass = data.mode === 'LIVE' ? 'badge-fail' : 'badge-pass';
+            bar.innerHTML =
+                '<div class="status-item">' +
+                    '<div class="status-dot dot-green"></div>' +
+                    '<span class="status-label">Razorpay</span>' +
+                    '<span class="status-value">' + data.key_prefix + '</span>' +
+                    '<span class="result-badge ' + modeClass + '" style="font-size:11px; padding:2px 8px;">' + data.mode + '</span>' +
+                '</div>' +
+                '<div class="status-item" style="margin-left:auto;">' +
+                    '<span class="status-label">Webhook URL:</span>' +
+                    '<span class="status-value">' + data.webhook_url + '</span>' +
+                '</div>';
+            var whEl = document.getElementById('webhookUrl');
+            if (whEl) whEl.textContent = data.webhook_url;
+        } else {
+            bar.innerHTML = '<div class="status-item"><div class="status-dot dot-red"></div><span style="color:var(--red)">Razorpay keys not configured — set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET env vars</span></div>';
+        }
+      })
+      .catch(function(err) {
+        var bar = document.getElementById('statusBar');
+        if (!bar) return;
+        // Distinguish auth errors from actual config failures
+        if (err.status === 401 || err.status === 403) {
+            bar.innerHTML = '<div class="status-item"><div class="status-dot dot-red"></div><span style="color:var(--yellow)">Sign in as admin to view key status</span></div>';
+        } else {
+            bar.innerHTML = '<span style="color:var(--red); font-size:13px;">Failed to load status: ' + err.message + '</span>';
+        }
+      });
+}
+
+// ─── Check admin auth (with retry for transient failures) ─────────────────────
+function checkAdminAuth(retryCount) {
+    retryCount = retryCount || 0;
+    safeFetch('/api/admin/payment-test/auth-check', { credentials: 'include' })
+      .then(function(data) {
+        isAdmin = true;
+        var banner = document.getElementById('authBanner');
+        if (banner) banner.style.display = 'none';
+        // Enable run buttons
+        enableRunButtons(true);
+        // Load admin-only data
+        loadPipelineHistory();
+      })
+      .catch(function(err) {
+        // Retry once after 1s for transient failures (500, network errors)
+        if (retryCount < 1 && (!err.status || err.status >= 500)) {
+            setTimeout(function() { checkAdminAuth(retryCount + 1); }, 1000);
+            return;
+        }
+        isAdmin = false;
+        var banner = document.getElementById('authBanner');
+        var title = document.getElementById('authBannerTitle');
+        var msg = document.getElementById('authBannerMsg');
+        if (banner) banner.style.display = 'block';
+        // Differentiate between "not logged in" vs "logged in but not admin"
+        if (err.status === 403 && title && msg) {
+            title.textContent = 'Access denied';
+            msg.innerHTML = 'Your account is not in the admin list. Contact the admin to request access.';
+        } else if (err.status === 401 && title && msg) {
+            title.textContent = 'Not signed in';
+            msg.innerHTML = '<a href="/login?redirect=/admin/payments/last-test" style="color:var(--accent); text-decoration:underline;">Sign in</a> to run pipeline tests and view history.';
+        }
+        // Disable run buttons with helpful text
+        enableRunButtons(false);
+      });
+}
+
+function enableRunButtons(enabled) {
+    var btns = document.querySelectorAll('.run-btn');
+    btns.forEach(function(b) {
+        b.disabled = !enabled;
+        if (!enabled) b.title = 'Sign in as admin first';
+    });
+}
+
+// ─── Toast notification ───────────────────────────────────────────────────────
+function showToast(html, durationMs) {
+    var t = document.getElementById('orderToast');
+    if (!t) return;
+    t.innerHTML = html;
+    t.style.display = 'flex';
+    t.style.opacity = '1';
+    clearTimeout(t._timer);
+    t._timer = setTimeout(function() {
+        t.style.opacity = '0';
+        setTimeout(function() { t.style.display = 'none'; }, 300);
+    }, durationMs || 8000);
+}
+
+// ─── Pipeline run test ────────────────────────────────────────────────────────
+function runTest(testType) {
+    if (!isAdmin) {
+        showToast('<span style="color:var(--red)">Sign in as admin first</span>', 4000);
+        return;
+    }
+    var planTier = selectedTiers[testType];
+    var btnId = testType === 'one_off' ? 'btnOneOff' : 'btnSub';
+    var btn = document.getElementById(btnId);
+    if (!btn) return;
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Running…';
+
+    var panel = document.getElementById('liveResult');
+    if (panel) panel.classList.add('visible');
+    var badge = document.getElementById('resultBadge');
+    if (badge) { badge.className = 'result-badge badge-running'; badge.textContent = 'RUNNING…'; }
+    var title = document.getElementById('resultTitle');
+    if (title) title.textContent = (testType === 'one_off' ? 'One-off' : 'Subscription') + ' · ' + planTier;
+    var details = document.getElementById('resultDetails');
+    if (details) details.innerHTML = '';
+    var errDetail = document.getElementById('errorDetail');
+    if (errDetail) errDetail.style.display = 'none';
+
+    ['s1','s2','s3'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) { el.textContent = '…'; el.className = 'stage-badge s-run'; }
+    });
+    ['s4','s5'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) { el.textContent = 'SKIP'; el.className = 'stage-badge s-skip'; }
+    });
+
+    safeFetch('/api/admin/payment-test/run', {
+        method : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body   : JSON.stringify({ test_type: testType, plan_tier: planTier })
+    })
+    .then(function(data) {
+        renderRunResult(data);
+        loadPipelineHistory();
+    })
+    .catch(function(err) {
+        var b = document.getElementById('resultBadge');
+        if (b) { b.className = 'result-badge badge-fail'; b.textContent = 'FAIL'; }
+        ['s1','s2','s3'].forEach(function(id) { setStageBadge(id, 'FAIL'); });
+        var e = document.getElementById('errorDetail');
+        if (e) {
+            var msg = err.status === 401 ? 'Authentication required — sign in as admin first'
+                    : err.status === 503 ? 'Razorpay not configured — check env vars'
+                    : err.message;
+            e.textContent = msg;
+            e.style.display = 'block';
+        }
+    })
+    .finally(function() {
+        btn.disabled = false;
+        btn.textContent = '▶ Run Pipeline Test';
+    });
+}
+
+function renderRunResult(data) {
+    var pass = data.result === 'PASS';
+    var badge = document.getElementById('resultBadge');
+    if (badge) {
+        badge.className = 'result-badge ' + (pass ? 'badge-pass' : 'badge-fail');
+        badge.textContent = pass ? 'PASS' : 'FAIL';
+    }
+
+    if (data.stages) {
+        setStageBadge('s1', data.stages.order_created);
+        setStageBadge('s2', data.stages.sig_verified);
+        setStageBadge('s3', data.stages.credits_updated);
+    }
+
+    if (data.run) {
+        var r = data.run;
+        var lines = [];
+        if (r.order_id)        lines.push('order_id: <span>' + r.order_id + '</span>');
+        if (r.payment_id)      lines.push('payment_id: <span>' + r.payment_id + '</span>');
+        if (r.subscription_id) lines.push('subscription_id: <span>' + r.subscription_id + '</span>');
+        if (r.credits_before != null) lines.push('credits: <span>' + r.credits_before + ' → ' + r.credits_after + '</span>');
+        var det = document.getElementById('resultDetails');
+        if (det) det.innerHTML = lines.map(function(d) { return '<div class="detail-row">' + d + '</div>'; }).join('');
+    }
+
+    if (data.error) {
+        var e = document.getElementById('errorDetail');
+        if (e) { e.textContent = data.error; e.style.display = 'block'; }
+    }
+}
+
+// ─── Pipeline history table ───────────────────────────────────────────────────
+function loadPipelineHistory() {
+    safeFetch('/api/admin/payment-test/history', { credentials: 'include' })
+      .then(function(data) { renderPipelineHistory(data.runs || []); })
+      .catch(function(err) {
+        var c = document.getElementById('historyContainer');
+        if (!c) return;
+        if (err.status === 401 || err.status === 403) {
+            c.innerHTML = '<div class="empty-state">Sign in as admin to view pipeline test history</div>';
+        } else {
+            c.innerHTML = '<div class="empty-state">Failed to load history</div>';
+        }
+      });
+}
+
+function renderPipelineHistory(runs) {
+    var container = document.getElementById('historyContainer');
+    if (!container) return;
+    if (!runs.length) {
+        container.innerHTML = '<div class="empty-state">No pipeline test runs yet — click ▶ Run Pipeline Test to start</div>';
+        return;
+    }
+
+    container.innerHTML =
+    '<table>' +
+        '<thead><tr>' +
+            '<th>Timestamp</th><th>Type</th><th>Plan</th><th>Order / Sub ID</th>' +
+            '<th>Payment ID</th><th>Order</th><th>Sig</th><th>Credits</th><th>Delta</th><th>Result</th>' +
+        '</tr></thead>' +
+        '<tbody id="historyBody"></tbody>' +
+    '</table>';
+
+    var tbody = document.getElementById('historyBody');
+    runs.forEach(function(r) {
+        var ts = new Date(r.ran_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false });
+        var pass = r.overall_result === 'PASS';
+        var badgeCls = pass ? 'badge-pass' : 'badge-fail';
+        var idCell = r.subscription_id
+            ? '<span class="mono">' + r.subscription_id + '</span>'
+            : (r.order_id ? '<span class="mono">' + r.order_id + '</span>' : '—');
+        var delta = (r.credits_before != null && r.credits_after != null)
+            ? r.credits_before + '→' + r.credits_after : '—';
+        var row = document.createElement('tr');
+        row.innerHTML =
+            '<td style="font-size:12px; white-space:nowrap;">' + ts + '</td>' +
+            '<td style="font-size:12px;">' + r.test_type + '</td>' +
+            '<td style="font-size:12px;">' + r.plan_tier + '</td>' +
+            '<td style="font-size:11px; font-family:\'JetBrains Mono\',monospace; max-width:140px; overflow:hidden; text-overflow:ellipsis;">' + idCell + '</td>' +
+            '<td style="font-size:11px; font-family:\'JetBrains Mono\',monospace; max-width:140px; overflow:hidden; text-overflow:ellipsis;">' + (r.payment_id ? '<span class="mono">' + r.payment_id + '</span>' : '—') + '</td>' +
+            '<td><span class="badge-sm ' + stageClass(r.stage_order_created) + '">' + (r.stage_order_created||'—') + '</span></td>' +
+            '<td><span class="badge-sm ' + stageClass(r.stage_sig_verified) + '">' + (r.stage_sig_verified||'—') + '</span></td>' +
+            '<td><span class="badge-sm ' + stageClass(r.stage_credits_updated) + '">' + (r.stage_credits_updated||'—') + '</span></td>' +
+            '<td style="font-size:12px; font-family:\'JetBrains Mono\',monospace;">' + delta + '</td>' +
+            '<td><span class="result-badge ' + badgeCls + '" style="font-size:11px; padding:2px 10px;">' + r.overall_result + '</span>' + (r.error_detail ? '<div style="font-size:11px; color:var(--red); margin-top:2px;">' + r.error_detail.substring(0,60) + '</div>' : '') + '</td>';
+        tbody.appendChild(row);
+    });
+}
+
+// ─── Test-mode activation checkout ───────────────────────────────────────────
+
+function loadTestKeyStatus() {
+    safeFetch('/api/admin/payment-test/status-test')
+      .then(function(data) {
+        var bar = document.getElementById('testKeyStatusBar');
+        var btn = document.getElementById('btnTestCheckout');
+        var statusEl = document.getElementById('testCheckoutStatus');
+        var instructions = document.getElementById('testKeySetupInstructions');
+        if (!bar) return;
+
+        if (data.configured && data.valid) {
+            bar.innerHTML =
+                '<div class="status-item">' +
+                    '<div class="status-dot dot-green"></div>' +
+                    '<span class="status-label">Test Keys</span>' +
+                    '<span class="status-value">' + data.key_prefix + '</span>' +
+                    '<span class="result-badge badge-pass" style="font-size:11px; padding:2px 8px;">TEST MODE</span>' +
+                '</div>' +
+                // "Update keys" toggle — always available so operator can rotate keys at any time
+                '<div class="status-item" style="margin-left:auto;">' +
+                    '<button onclick="toggleKeyForm()" style="background:none; border:1px solid var(--border); border-radius:6px; color:var(--text-dim); font-size:12px; padding:4px 10px; cursor:pointer;">Update keys</button>' +
+                '</div>';
+            if (btn) {
+                btn.disabled = false;
+                // Highlight checkout button now that keys are ready
+                btn.style.background = 'var(--green)';
+                btn.style.color = '#0a0a0c';
+            }
+            if (statusEl) statusEl.textContent = 'Ready — click to open ₹1 test checkout';
+            // Keep instructions hidden by default when keys are already valid
+            if (instructions && instructions.style.display !== 'block') {
+                instructions.style.display = 'none';
+            }
+        } else if (data.configured && !data.valid) {
+            bar.innerHTML =
+                '<div class="status-item">' +
+                    '<div class="status-dot dot-red"></div>' +
+                    '<span style="color:var(--red)">RAZORPAY_TEST_KEY_ID set but does not start with rzp_test_ — paste corrected keys below</span>' +
+                '</div>';
+            if (instructions) instructions.style.display = 'block';
+        } else {
+            bar.innerHTML =
+                '<div class="status-item">' +
+                    '<div class="status-dot dot-red"></div>' +
+                    '<span style="color:var(--yellow)">Test keys not configured — paste them below to validate &amp; deploy</span>' +
+                '</div>';
+            if (instructions) instructions.style.display = 'block';
+        }
+      })
+      .catch(function() {
+        var bar = document.getElementById('testKeyStatusBar');
+        if (bar) bar.innerHTML = '<div class="status-item"><span style="color:var(--red); font-size:13px;">Failed to load test key status</span></div>';
+      });
+}
+
+function toggleKeyForm() {
+    var el = document.getElementById('testKeySetupInstructions');
+    if (!el) return;
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function runTestCheckout() {
+    var btn = document.getElementById('btnTestCheckout');
+    var statusEl = document.getElementById('testCheckoutStatus');
+    var resultEl = document.getElementById('testCheckoutResult');
+    if (!btn || btn.disabled) return;
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Creating order…';
+    if (statusEl) statusEl.textContent = 'Creating $1 test order…';
+    if (resultEl) resultEl.style.display = 'none';
+
+    var startTime = Date.now();
+
+    safeFetch('/api/admin/payment-test/create-test-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: '{}'
+    })
+    .then(function(data) {
+        if (!data.order_id || !data.key_id) throw new Error('Invalid response from server');
+
+        // Guard: ensure Razorpay checkout SDK loaded successfully
+        if (typeof window.Razorpay !== 'function') {
+            if (statusEl) statusEl.innerHTML = '<span style="color:var(--red)">✗ Razorpay checkout.js failed to load — check network or ad-blockers</span>';
+            btn.textContent = '▶ Run $1 Test Checkout';
+            btn.disabled = false;
+            return;
+        }
+
+        btn.textContent = '⏳ Opening checkout…';
+        if (statusEl) statusEl.textContent = 'Razorpay checkout opening…';
+
+        var rzp = new window.Razorpay({
+            key              : data.key_id,
+            order_id         : data.order_id,
+            amount           : data.amount_paise,
+            currency         : 'INR',
+            name             : 'TuneVault',
+            description      : 'Razorpay Activation Test (₹1)',
+            method           : { card: true, upi: true, netbanking: false, wallet: false, emi: false },
+            theme   : { color: '#D4AF37' },
+            handler : function(response) {
+                var latency = Date.now() - startTime;
+                if (statusEl) statusEl.innerHTML = '<span style="color:var(--green)">✓ Payment successful</span>';
+                if (resultEl) {
+                    resultEl.innerHTML =
+                        '<div style="color:var(--green); font-weight:700; margin-bottom:8px;">✓ Test payment captured</div>' +
+                        '<div style="color:var(--text-dim);">payment_id: <span style="color:var(--text);">' + response.razorpay_payment_id + '</span></div>' +
+                        '<div style="color:var(--text-dim);">order_id: <span style="color:var(--text);">' + response.razorpay_order_id + '</span></div>' +
+                        '<div style="color:var(--text-dim); margin-top:8px; font-size:11px;">Check <a href="https://dashboard.razorpay.com/app/payment/' + response.razorpay_payment_id + '" target="_blank" style="color:var(--accent);">Razorpay Dashboard → Test Transactions</a> — ' + response.razorpay_payment_id + ' should appear there. Activation checklist should now clear.</div>';
+                    resultEl.style.display = 'block';
+                }
+                // Log result server-side for audit trail + refresh last activation panel
+                safeFetch('/api/admin/payment-test/log-test-result', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        order_id: response.razorpay_order_id,
+                        payment_id: response.razorpay_payment_id,
+                        status: 'success'
+                    })
+                }).then(function() {
+                    // Refresh the "Last Test Transaction" panel so the payment_id + dashboard link appear immediately
+                    loadLastActivation();
+                }).catch(function() {});
+                btn.textContent = '▶ Run $1 Test Checkout';
+                btn.disabled = false;
+            },
+            modal: {
+                ondismiss: function() {
+                    if (statusEl) statusEl.textContent = 'Checkout dismissed — click to try again';
+                    btn.textContent = '▶ Run $1 Test Checkout';
+                    btn.disabled = false;
+                }
+            }
+        });
+
+        rzp.on('payment.failed', function(response) {
+            var err = response.error || {};
+            if (statusEl) statusEl.innerHTML = '<span style="color:var(--red)">✗ Payment failed: ' + (err.description || 'unknown') + '</span>';
+            if (resultEl) {
+                resultEl.innerHTML =
+                    '<div style="color:var(--red); font-weight:700; margin-bottom:8px;">✗ Payment failed</div>' +
+                    '<div style="color:var(--text-dim);">code: <span style="color:var(--text);">' + (err.code || '—') + '</span></div>' +
+                    '<div style="color:var(--text-dim);">description: <span style="color:var(--text);">' + (err.description || '—') + '</span></div>' +
+                    (err.reason === 'payment_failed' ? '<div style="color:var(--yellow); margin-top:6px; font-size:11px;">Tip: Make sure you\'re using the test card 4111 1111 1111 1111 with test keys.</div>' : '');
+                resultEl.style.display = 'block';
+            }
+            safeFetch('/api/admin/payment-test/log-test-result', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    order_id: data.order_id,
+                    status: 'failed',
+                    error_code: err.code,
+                    error_description: err.description
+                })
+            }).catch(function() {});
+            btn.textContent = '▶ Run $1 Test Checkout';
+            btn.disabled = false;
+        });
+
+        rzp.open();
+    })
+    .catch(function(err) {
+        var msg = err.status === 401 ? 'Sign in as admin first'
+                : err.status === 503 ? 'Test keys not configured — follow setup instructions above'
+                : err.message;
+        if (statusEl) statusEl.innerHTML = '<span style="color:var(--red)">✗ ' + msg + '</span>';
+        btn.textContent = '▶ Run $1 Test Checkout';
+        btn.disabled = false;
+    });
+}
+
+// ─── Last activation panel ────────────────────────────────────────────────────
+function loadLastActivation() {
+    safeFetch('/api/admin/payment-test/last-activation')
+      .then(function(data) {
+        var panel = document.getElementById('lastActivationPanel');
+        if (!panel) return;
+        if (!data.found) return; // panel stays hidden if no activation run yet
+
+        panel.style.display = 'block';
+
+        var badge = document.getElementById('lastActivationBadge');
+        if (badge) {
+            var isSuccess = data.status === 'success';
+            badge.textContent = isSuccess ? 'SUCCESS' : 'FAILED';
+            badge.className = 'result-badge ' + (isSuccess ? 'badge-pass' : 'badge-fail');
+        }
+
+        var pidEl = document.getElementById('lastActivationPaymentId');
+        if (pidEl) pidEl.textContent = data.payment_id || '—';
+
+        var oidEl = document.getElementById('lastActivationOrderId');
+        if (oidEl) oidEl.textContent = data.order_id || '—';
+
+        var timeEl = document.getElementById('lastActivationTime');
+        if (timeEl && data.ran_at) {
+            timeEl.textContent = new Date(data.ran_at).toLocaleString('en-IN', {
+                timeZone: 'Asia/Kolkata', hour12: false
+            }) + ' IST';
+        }
+
+        var linkEl = document.getElementById('lastActivationDashboardLink');
+        if (linkEl && data.dashboard_url) {
+            linkEl.href = data.dashboard_url;
+        }
+
+        var confirmEl = document.getElementById('lastActivationConfirm');
+        if (confirmEl && data.status === 'success' && data.payment_id) {
+            confirmEl.textContent = '✓ This payment_id should appear in Razorpay Dashboard → Test Mode → Payments';
+        }
+      })
+      .catch(function() {}); // Non-critical — panel stays hidden on failure
+}
+
+// ─── Validate & Deploy test keys ──────────────────────────────────────────────
+
+function renderDeployStep(name, status, detail) {
+    var colors = { pass: 'var(--green)', fail: 'var(--red)', pending: 'var(--yellow)', warn: 'var(--yellow)', skipped: 'var(--gray)' };
+    var icons  = { pass: '✓', fail: '✗', pending: '⏳', warn: '⚠', skipped: '—' };
+    var label  = { format_validation: 'Format validation', razorpay_probe: 'Razorpay key probe', env_update: 'Env vars updated', deploy: 'Redeploy triggered', status_assert: 'Deploy verified' };
+    var color  = colors[status] || 'var(--text-dim)';
+    var icon   = icons[status]  || '?';
+    var div = document.createElement('div');
+    div.id = 'dstep-' + name;
+    div.style.cssText = 'display:flex; align-items:flex-start; gap:10px; background:var(--surface-2); border-radius:8px; padding:9px 12px;';
+    div.innerHTML =
+        '<span style="color:' + color + '; font-weight:700; min-width:14px;">' + icon + '</span>' +
+        '<div><div style="font-size:13px; color:var(--text);">' + (label[name] || name) + '</div>' +
+        (detail ? '<div style="font-size:11px; color:var(--text-dim); margin-top:2px; font-family:\'JetBrains Mono\',monospace;">' + detail + '</div>' : '') +
+        '</div>';
+    return div;
+}
+
+function runValidateDeploy() {
+    var keyId     = (document.getElementById('inputKeyId')     || {}).value || '';
+    var keySecret = (document.getElementById('inputKeySecret') || {}).value || '';
+    var btn       = document.getElementById('btnValidateDeploy');
+    var panel     = document.getElementById('deployPipelinePanel');
+    var stepList  = document.getElementById('deployStepList');
+    var finalMsg  = document.getElementById('deployFinalMsg');
+
+    keyId = keyId.trim(); keySecret = keySecret.trim();
+
+    if (!keyId || !keySecret) {
+        alert('Paste both Key ID and Key Secret before deploying.');
+        return;
+    }
+
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Validating…'; }
+    if (panel) panel.style.display = 'block';
+    if (stepList) stepList.innerHTML = '<div style="color:var(--text-dim); font-size:13px; padding:4px 0;">Running pipeline…</div>';
+    if (finalMsg) finalMsg.style.display = 'none';
+
+    safeFetch('/api/admin/razorpay/set-test-keys', {
+        method     : 'POST',
+        headers    : { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body       : JSON.stringify({ keyId: keyId, keySecret: keySecret })
+    })
+    .then(function(data) {
+        if (stepList) {
+            stepList.innerHTML = '';
+            (data.steps || []).forEach(function(s) {
+                stepList.appendChild(renderDeployStep(s.name, s.status, s.detail));
+            });
+        }
+
+        if (data.success) {
+            // Keys deployed and verified — enable checkout button, hide setup form
+            if (finalMsg) {
+                finalMsg.innerHTML = '<span style="color:var(--green); font-weight:700;">✓ New test keys are live.</span> The $1 checkout button below is now active.';
+                finalMsg.style.display = 'block';
+            }
+            // Refresh test key status to enable the checkout button
+            loadTestKeyStatus();
+        } else if (data.partial) {
+            // Env vars saved but deploy still in progress — poll status-test
+            if (finalMsg) {
+                finalMsg.innerHTML = '<span style="color:var(--yellow); font-weight:600;">⏳ Deploy in progress.</span> Checking every 20s for the new keys to go live…';
+                finalMsg.style.display = 'block';
+            }
+            pollDeployStatus(keyId, 0);
+        } else {
+            if (finalMsg) {
+                var lastFail = (data.steps || []).filter(function(s) { return s.status === 'fail'; }).pop();
+                finalMsg.innerHTML = '<span style="color:var(--red); font-weight:600;">✗ Validation failed.</span> ' + (lastFail ? lastFail.detail : 'See steps above.');
+                finalMsg.style.display = 'block';
+            }
+        }
+        if (btn) { btn.disabled = false; btn.textContent = '✓ Validate & Deploy'; }
+    })
+    .catch(function(err) {
+        if (stepList) stepList.innerHTML = '<div style="color:var(--red); font-size:13px;">Request failed: ' + err.message + '</div>';
+        if (finalMsg) finalMsg.style.display = 'none';
+        if (btn) { btn.disabled = false; btn.textContent = '✓ Validate & Deploy'; }
+    });
+}
+
+// Poll /api/admin/payment-test/status-test until testConfigured is true (deploy settled)
+function pollDeployStatus(expectedKeyId, attempts) {
+    if (attempts >= 18) { // ~6 min
+        var finalMsg = document.getElementById('deployFinalMsg');
+        if (finalMsg) {
+            finalMsg.innerHTML = '<span style="color:var(--yellow);">Deploy is taking longer than expected.</span> Refresh this page in a few minutes to check.';
+            finalMsg.style.display = 'block';
+        }
+        return;
+    }
+
+    setTimeout(function() {
+        safeFetch('/api/admin/payment-test/status-test')
+          .then(function(data) {
+            if (data.testConfigured && data.valid && data.key_id === expectedKeyId) {
+                var finalMsg = document.getElementById('deployFinalMsg');
+                if (finalMsg) {
+                    finalMsg.innerHTML = '<span style="color:var(--green); font-weight:700;">✓ New test keys are live after ' + (attempts + 1) + ' poll(s).</span> The $1 checkout button is now active.';
+                    finalMsg.style.display = 'block';
+                }
+                // Add a step row showing poll success
+                var stepList = document.getElementById('deployStepList');
+                if (stepList) {
+                    var existing = document.getElementById('dstep-status_assert');
+                    if (existing) existing.remove();
+                    stepList.appendChild(renderDeployStep('status_assert', 'pass', 'Keys confirmed live after deploy.'));
+                }
+                loadTestKeyStatus();
+            } else {
+                pollDeployStatus(expectedKeyId, attempts + 1);
+            }
+          })
+          .catch(function() { pollDeployStatus(expectedKeyId, attempts + 1); });
+    }, 20000);
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.tvNav) window.tvNav.init('admin');
+
+    // Tier selection (pipeline)
+    document.querySelectorAll('.tier-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var testType = btn.getAttribute('data-type');
+            document.querySelectorAll('[data-type="' + testType + '"]').forEach(function(b) {
+                b.classList.remove('selected');
+            });
+            btn.classList.add('selected');
+            selectedTiers[testType] = btn.getAttribute('data-tier');
+        });
+    });
+
+    // Pipeline run buttons
+    var btnOneOff = document.getElementById('btnOneOff');
+    if (btnOneOff) {
+        btnOneOff.addEventListener('click', function() { runTest('one_off'); });
+    }
+    var btnSub = document.getElementById('btnSub');
+    if (btnSub) {
+        btnSub.addEventListener('click', function() { runTest('subscription'); });
+    }
+
+    // Test checkout button
+    var btnTestCheckout = document.getElementById('btnTestCheckout');
+    if (btnTestCheckout) {
+        btnTestCheckout.addEventListener('click', function() { runTestCheckout(); });
+    }
+
+    // Load status (public — always works) and check admin auth
+    loadStatus();
+    loadTestKeyStatus();
+    loadLastActivation();
+    checkAdminAuth();
+});
+</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

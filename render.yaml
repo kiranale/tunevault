@@ -1,0 +1,14 @@
+services:
+  - type: web
+    runtime: node
+    name: app
+    buildCommand: npm install && npm run migrate && node scripts/build-agent-release.js
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: RESEND_API_KEY
+        sync: false   # set in Render dashboard — obtain from resend.com
+      - key: EMAIL_FROM
+        value: TuneVault <noreply@tunevault.app>

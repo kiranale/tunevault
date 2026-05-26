@@ -1,0 +1,10 @@
+node_modules/
+.env
+*.env
+.env.*
+undefined/
+tmp/
+*.log
+*.zip
+debug-nav-screenshot.png
+ebsdb-demo-setup.sql

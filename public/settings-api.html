@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Keys — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c; --surface: #111114; --surface-2: #1a1a1f;
+      --border: #2a2a30; --text: #e8e8ed; --text-dim: #b8b8c8;
+      --accent: #f0a830; --accent-dim: rgba(240,168,48,.12);
+      --green: #34d399; --green-dim: rgba(52,211,153,.10);
+      --red: #f87171; --red-dim: rgba(248,113,113,.10);
+      --blue: #60a5fa; --blue-dim: rgba(96,165,250,.10);
+      --purple: #a78bfa; --purple-dim: rgba(167,139,250,.10);
+      --mono: 'JetBrains Mono', monospace;
+    }
+    body { font-family: 'Space Grotesk', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 24px 100px; }
+    h1 { font-size: 26px; font-weight: 700; letter-spacing: -.5px; }
+    .subtitle { color: var(--text-dim); font-size: 14px; margin-top: 6px; }
+
+    .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: 13px; text-decoration: none; margin-bottom: 28px; transition: color .15s; }
+    .back-link:hover { color: var(--text); }
+
+    .section { margin-top: 36px; }
+    .section-label { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 12px; padding-left: 2px; }
+
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .card-row { display: flex; align-items: flex-start; justify-content: space-between; padding: 20px 24px; gap: 16px; border-bottom: 1px solid var(--border); }
+    .card-row:last-child { border-bottom: none; }
+    .row-label { font-size: 14px; font-weight: 600; }
+    .row-desc { font-size: 13px; color: var(--text-dim); margin-top: 3px; line-height: 1.5; }
+    .row-right { flex-shrink: 0; }
+
+    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .badge-green { background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,.2); }
+    .badge-gold { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(240,168,48,.25); }
+    .badge-blue { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(96,165,250,.2); }
+    .badge-purple { background: var(--purple-dim); color: var(--purple); border: 1px solid rgba(167,139,250,.2); }
+    .badge-red { background: var(--red-dim); color: var(--red); border: 1px solid rgba(248,113,113,.2); }
+
+    .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: 8px; font-family: 'Space Grotesk', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; text-decoration: none; }
+    .btn-primary { background: var(--accent); color: #0a0a0c; }
+    .btn-primary:hover { background: #f7b84a; transform: translateY(-1px); }
+    .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-outline:hover { border-color: var(--text-dim); background: rgba(255,255,255,.04); }
+    .btn-danger { background: var(--red-dim); color: var(--red); border: 1px solid rgba(248,113,113,.2); }
+    .btn-danger:hover { background: rgba(248,113,113,.22); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    .btn-sm { padding: 6px 13px; font-size: 12px; }
+
+    input[type="text"] {
+      background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+      padding: 10px 14px; border-radius: 8px; font-family: var(--mono); font-size: 13px;
+      outline: none; transition: border-color .15s;
+    }
+    input[type="text"]:focus { border-color: var(--accent); }
+    input[type="text"]::placeholder { color: var(--text-dim); font-family: 'Space Grotesk', sans-serif; }
+
+    /* New key reveal panel */
+    .key-reveal {
+      background: rgba(52,211,153,.06);
+      border: 1px solid rgba(52,211,153,.2);
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
+      display: none;
+    }
+    .key-reveal.visible { display: block; }
+    .key-reveal-label { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--green); margin-bottom: 10px; }
+    .key-reveal-value {
+      font-family: var(--mono); font-size: 14px; color: var(--text);
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px 16px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      word-break: break-all;
+    }
+    .key-reveal-warning { font-size: 13px; color: var(--text-dim); margin-top: 12px; }
+    .key-reveal-warning strong { color: var(--accent); }
+
+    /* Keys list */
+    .keys-empty { padding: 40px 24px; text-align: center; color: var(--text-dim); font-size: 14px; }
+    .key-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 24px; border-bottom: 1px solid var(--border); gap: 16px;
+    }
+    .key-row:last-child { border-bottom: none; }
+    .key-prefix { font-family: var(--mono); font-size: 13px; color: var(--text-dim); }
+    .key-prefix strong { color: var(--text); }
+    .key-meta { font-size: 12px; color: var(--text-dim); margin-top: 3px; }
+    .key-name { font-size: 14px; font-weight: 600; }
+
+    /* Create form */
+    .create-form { padding: 20px 24px; display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 160px; }
+    .form-label { font-size: 12px; font-weight: 600; color: var(--text-dim); }
+
+    /* Tier gate */
+    .upgrade-gate {
+      background: linear-gradient(135deg, rgba(96,165,250,.06), rgba(167,139,250,.06));
+      border: 1px solid rgba(96,165,250,.2);
+      border-radius: 12px;
+      padding: 32px 32px;
+      text-align: center;
+      margin-top: 36px;
+    }
+    .upgrade-gate h2 { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+    .upgrade-gate p { color: var(--text-dim); font-size: 14px; margin-bottom: 24px; line-height: 1.6; }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 32px; right: 32px; z-index: 9999;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px 20px; font-size: 14px;
+      display: none; align-items: center; gap: 10px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.4);
+      transition: opacity .2s;
+    }
+    .toast.visible { display: flex; }
+    .toast.success { border-color: rgba(52,211,153,.4); color: var(--green); }
+    .toast.error { border-color: rgba(248,113,113,.4); color: var(--red); }
+
+    /* Confirm modal */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 1000;
+      display: none; align-items: center; justify-content: center;
+    }
+    .modal-backdrop.visible { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 28px 32px; max-width: 400px; width: 90%;
+    }
+    .modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+    .modal p { color: var(--text-dim); font-size: 14px; line-height: 1.6; margin-bottom: 24px; }
+    .modal-buttons { display: flex; gap: 10px; justify-content: flex-end; }
+
+    /* Spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.2); border-top-color: currentColor; border-radius: 50%; animation: spin .6s linear infinite; }
+
+    /* Separator */
+    .sep { height: 1px; background: var(--border); margin: 8px 0; }
+
+    /* docs link */
+    .docs-link-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--blue-dim); border: 1px solid rgba(96,165,250,.15);
+      border-radius: 10px; padding: 14px 18px; margin-top: 36px;
+    }
+    .docs-link-bar span { font-size: 14px; color: var(--text-dim); }
+    .docs-link-bar a { color: var(--blue); font-weight: 600; font-size: 14px; text-decoration: none; }
+    .docs-link-bar a:hover { text-decoration: underline; }
+    nav { position: sticky; top: 0; z-index: 9999; background: rgba(10,10,12,.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); }
+  </style>
+</head>
+<body>
+<nav>
+  <div id="nav-root"></div>
+</nav>
+<main>
+  <a href="/settings" class="back-link">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    Settings
+  </a>
+
+  <h1>API Keys</h1>
+  <p class="subtitle">Generate API keys to access TuneVault data from ServiceNow, Grafana, or custom integrations.</p>
+
+  <!-- Tier gate (shown for individual tier) -->
+  <div id="upgradeGate" class="upgrade-gate" style="display:none;">
+    <svg width="40" height="40" fill="none" stroke="#60a5fa" stroke-width="1.5" viewBox="0 0 24 24" style="margin-bottom:16px;opacity:.7"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    <h2>API Access from Team plan</h2>
+    <p>The TuneVault REST API is available on Team plan and above. Integrate health data, TuneOps tickets, and activity logs with your existing tooling.</p>
+    <a href="/pricing" class="btn btn-primary">View Plans &amp; Upgrade →</a>
+  </div>
+
+  <!-- Main content (shown for team+ tier) -->
+  <div id="apiContent" style="display:none;">
+
+    <!-- Tier info -->
+    <div id="tierInfo" class="section">
+      <div class="section-label">Your API Access</div>
+      <div class="card">
+        <div class="card-row">
+          <div>
+            <div class="row-label">Plan Tier</div>
+            <div class="row-desc" id="accessDescription"></div>
+          </div>
+          <div class="row-right" id="tierBadge"></div>
+        </div>
+        <div class="card-row">
+          <div>
+            <div class="row-label">Rate Limit</div>
+            <div class="row-desc" id="rateLimitDesc"></div>
+          </div>
+          <div class="row-right">
+            <a href="/api-docs" class="btn btn-outline btn-sm" target="_blank">View API Docs</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- New key reveal panel (shown after create) -->
+    <div id="keyReveal" class="key-reveal" style="margin-top:24px;">
+      <div class="key-reveal-label">✓ New API Key Created</div>
+      <div class="key-reveal-value">
+        <span id="revealKeyText"></span>
+        <button class="btn btn-sm btn-outline" onclick="copyKey()">Copy</button>
+      </div>
+      <div class="key-reveal-warning">
+        <strong>Save this key now.</strong> It won't be shown again. Store it securely — treat it like a password.
+      </div>
+    </div>
+
+    <!-- API Keys list -->
+    <div class="section">
+      <div class="section-label">Active Keys</div>
+      <div class="card" id="keysCard">
+        <div id="keysList">
+          <div class="keys-empty">Loading…</div>
+        </div>
+        <!-- Create form -->
+        <div class="sep"></div>
+        <div class="create-form">
+          <div class="form-group">
+            <label class="form-label" for="keyName">Key name (optional)</label>
+            <input type="text" id="keyName" placeholder="e.g. Grafana production" maxlength="100">
+          </div>
+          <button class="btn btn-primary" id="createBtn" onclick="createKey()">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            Generate Key
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Danger zone -->
+    <div class="section">
+      <div class="section-label">Danger Zone</div>
+      <div class="card">
+        <div class="card-row">
+          <div>
+            <div class="row-label">Revoke All & Regenerate</div>
+            <div class="row-desc">Immediately invalidates all existing keys and creates a single new one.</div>
+          </div>
+          <div class="row-right">
+            <button class="btn btn-danger btn-sm" onclick="showRegenerateModal()">Regenerate All</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Docs link -->
+    <div class="docs-link-bar">
+      <span>Full endpoint reference, code examples, and webhook format</span>
+      <a href="/api-docs" target="_blank">Open API Docs →</a>
+    </div>
+
+  </div><!-- /#apiContent -->
+</main>
+
+<!-- Confirm modal -->
+<div class="modal-backdrop" id="confirmModal">
+  <div class="modal">
+    <h3>Revoke All Keys?</h3>
+    <p>This will immediately invalidate <strong>all active API keys</strong>. Any integrations using existing keys will stop working until you update them with the new key.</p>
+    <div class="modal-buttons">
+      <button class="btn btn-outline" onclick="hideModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="regenerateKeys()">Revoke &amp; Regenerate</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  let state = { keys: [], tier: 'individual', hasAccess: false };
+  let pendingKeyId = null;
+
+  async function loadKeys() {
+    try {
+      const res = await fetch('/api/keys');
+      if (!res.ok) { showToast('Failed to load keys', 'error'); return; }
+      const data = await res.json();
+      state = { ...state, ...data };
+      render();
+    } catch (e) {
+      showToast('Failed to load keys', 'error');
+    }
+  }
+
+  function render() {
+    if (!state.hasAccess) {
+      document.getElementById('upgradeGate').style.display = 'block';
+      document.getElementById('apiContent').style.display = 'none';
+      return;
+    }
+    document.getElementById('upgradeGate').style.display = 'none';
+    document.getElementById('apiContent').style.display = 'block';
+
+    // Tier badge
+    const tierMap = {
+      enterprise: ['Enterprise', 'badge-purple'],
+      business: ['Business', 'badge-blue'],
+      team: ['Team', 'badge-green'],
+    };
+    const [label, cls] = tierMap[state.tier] || ['Unknown', 'badge-gold'];
+    document.getElementById('tierBadge').innerHTML = `<span class="badge ${cls}">${label}</span>`;
+    document.getElementById('accessDescription').textContent = state.access_description;
+    document.getElementById('rateLimitDesc').textContent = `${state.rate_limit_per_min} requests per minute`;
+
+    // Keys list
+    const list = document.getElementById('keysList');
+    if (!state.keys || state.keys.length === 0) {
+      list.innerHTML = '<div class="keys-empty">No API keys yet. Generate one below.</div>';
+      return;
+    }
+
+    list.innerHTML = state.keys.map(k => `
+      <div class="key-row" id="key-row-${k.id}">
+        <div>
+          <div class="key-name">${escHtml(k.name || 'Unnamed Key')}</div>
+          <div class="key-prefix"><strong>${escHtml(k.key_prefix)}…</strong></div>
+          <div class="key-meta">
+            Created ${fmtDate(k.created_at)}
+            ${k.last_used_at ? ' · Last used ' + fmtDate(k.last_used_at) : ' · Never used'}
+          </div>
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="revokeKey(${k.id})">Revoke</button>
+      </div>
+    `).join('');
+  }
+
+  async function createKey() {
+    const name = document.getElementById('keyName').value.trim();
+    const btn = document.getElementById('createBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner"></div> Generating…';
+
+    try {
+      const res = await fetch('/api/keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error || 'Failed to create key', 'error'); return; }
+
+      // Show reveal panel
+      document.getElementById('revealKeyText').textContent = data.raw_key;
+      const reveal = document.getElementById('keyReveal');
+      reveal.style.display = 'block';
+      reveal.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      document.getElementById('keyName').value = '';
+      await loadKeys();
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> Generate Key';
+    }
+  }
+
+  async function revokeKey(id) {
+    if (!confirm('Revoke this API key? Any integrations using it will stop working immediately.')) return;
+    try {
+      const res = await fetch(`/api/keys/${id}`, { method: 'DELETE' });
+      if (!res.ok) { showToast('Failed to revoke key', 'error'); return; }
+      showToast('Key revoked', 'success');
+      // Hide reveal if it's showing (might be the just-created key)
+      document.getElementById('keyReveal').style.display = 'none';
+      await loadKeys();
+    } catch {
+      showToast('Failed to revoke key', 'error');
+    }
+  }
+
+  function showRegenerateModal() { document.getElementById('confirmModal').classList.add('visible'); }
+  function hideModal() { document.getElementById('confirmModal').classList.remove('visible'); }
+
+  async function regenerateKeys() {
+    hideModal();
+    try {
+      const res = await fetch('/api/keys/regenerate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'Default' }),
+      });
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error || 'Failed', 'error'); return; }
+
+      document.getElementById('revealKeyText').textContent = data.raw_key;
+      const reveal = document.getElementById('keyReveal');
+      reveal.style.display = 'block';
+      reveal.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      showToast('All keys revoked. New key created.', 'success');
+      await loadKeys();
+    } catch {
+      showToast('Failed to regenerate keys', 'error');
+    }
+  }
+
+  function copyKey() {
+    const text = document.getElementById('revealKeyText').textContent;
+    navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard', 'success')).catch(() => {
+      // Fallback
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast('Copied', 'success');
+    });
+  }
+
+  function showToast(msg, type = 'success') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `toast visible ${type}`;
+    setTimeout(() => { t.className = 'toast'; }, 3000);
+  }
+
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  // Close modal on backdrop click
+  document.getElementById('confirmModal').addEventListener('click', function(e) {
+    if (e.target === this) hideModal();
+  });
+
+  loadKeys();
+</script>
+<script src="/nav-component.js"></script>
+<script>window.tvNav.init('settings');</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DB Ops — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://tunevault.app/db-ops">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c;
+      --surface: #111114;
+      --surface-2: #1a1a1f;
+      --border: #2a2a30;
+      --text: #e8e8ed;
+      --text-dim: #b8b8c8;
+      --accent: #f0a830;
+      --accent-dim: rgba(240,168,48,0.12);
+      --green: #34d399;
+      --green-dim: rgba(52,211,153,0.12);
+      --red: #f87171;
+      --red-dim: rgba(248,113,113,0.12);
+      --yellow: #fbbf24;
+      --yellow-dim: rgba(251,191,36,0.12);
+      --blue: #60a5fa;
+      --blue-dim: rgba(96,165,250,0.12);
+      --orange: #fb923c;
+      --orange-dim: rgba(251,146,60,0.12);
+      --purple: #a78bfa;
+      --purple-dim: rgba(167,139,250,0.12);
+    }
+    body {
+      font-family: 'Space Grotesk', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    .grain {
+      position: fixed; top:0; left:0; right:0; bottom:0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 999;
+    }
+    nav { background: rgba(10,10,12,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 9999; }
+    .page-wrap { max-width: 1200px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    /* ── Toolbar ── */
+    .toolbar {
+      display: flex; align-items: center; gap: 16px; margin-bottom: 32px; flex-wrap: wrap;
+    }
+    .toolbar h1 { font-size: 22px; font-weight: 700; flex: 1; }
+    .conn-select {
+      background: var(--surface); border: 1px solid var(--border); color: var(--text);
+      font-family: inherit; font-size: 13px; padding: 8px 12px; border-radius: 8px;
+      min-width: 240px; cursor: pointer;
+    }
+    .conn-select:focus { outline: none; border-color: var(--accent); }
+
+    /* ── Caps badges ── */
+    .caps-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
+    .cap-badge {
+      padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600;
+      background: var(--surface); border: 1px solid var(--border); color: var(--text-dim);
+    }
+    .cap-badge.active { background: var(--green-dim); color: var(--green); border-color: transparent; }
+    .cap-badge.inactive { opacity: 0.4; }
+
+    /* ── No-SSH banner ── */
+    .no-ssh-banner {
+      background: var(--surface); border: 1px solid rgba(96,165,250,0.3); border-radius: 10px;
+      padding: 16px 20px; margin-bottom: 24px; display: none; align-items: center; gap: 14px;
+    }
+    .no-ssh-banner.visible { display: flex; }
+    .no-ssh-banner .icon { font-size: 20px; flex-shrink: 0; }
+    .no-ssh-banner .msg { font-size: 13px; color: var(--text-dim); }
+    .no-ssh-banner a { color: var(--blue); text-decoration: none; }
+    .no-ssh-banner a:hover { text-decoration: underline; }
+
+    /* ── Search bar ── */
+    .search-wrap {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 28px; flex-wrap: wrap;
+    }
+    .search-input-ops {
+      flex: 1; min-width: 200px; max-width: 400px;
+      background: var(--surface); border: 1px solid var(--border); color: var(--text);
+      font-family: inherit; font-size: 13px; padding: 9px 14px 9px 38px; border-radius: 8px;
+      transition: border-color 0.15s;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238888a0' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: 12px center;
+    }
+    .search-input-ops:focus { outline: none; border-color: var(--accent); }
+    .search-input-ops::placeholder { color: var(--text-dim); }
+    .search-result-count { font-size: 12px; color: var(--text-dim); }
+
+    /* ── Category picker grid ── */
+    .cat-picker {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 36px;
+    }
+    .cat-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      padding: 14px 16px; cursor: pointer; transition: all 0.15s;
+      display: flex; flex-direction: column; gap: 6px; user-select: none;
+    }
+    .cat-card:hover { border-color: rgba(240,168,48,0.35); background: rgba(240,168,48,0.04); }
+    .cat-card.active {
+      border-color: var(--accent); background: var(--accent-dim);
+    }
+    .cat-card-top { display: flex; align-items: center; gap: 9px; }
+    .cat-icon {
+      width: 30px; height: 30px; border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; flex-shrink: 0;
+      background: var(--surface-2);
+    }
+    .cat-card.active .cat-icon { background: rgba(240,168,48,0.2); }
+    .cat-name { font-size: 13px; font-weight: 600; line-height: 1.2; }
+    .cat-count { font-size: 11px; color: var(--text-dim); font-weight: 500; }
+    .cat-card.active .cat-count { color: rgba(240,168,48,0.7); }
+
+    /* ── Section header ── */
+    .section-header {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
+      padding-bottom: 12px; border-bottom: 1px solid var(--border);
+    }
+    .section-icon {
+      width: 34px; height: 34px; border-radius: 8px; background: var(--accent-dim);
+      display: flex; align-items: center; justify-content: center; font-size: 15px;
+    }
+    .section-title { font-size: 16px; font-weight: 700; }
+    .section-desc { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+    .section-back {
+      margin-left: auto; font-size: 12px; color: var(--text-dim); cursor: pointer;
+      padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border);
+      background: none; font-family: inherit; transition: all 0.15s;
+    }
+    .section-back:hover { color: var(--accent); border-color: var(--accent); }
+
+    /* ── Ops grid ── */
+    .ops-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(320px,1fr)); gap: 16px;
+    }
+
+    /* ── Op card ── */
+    .op-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 20px; transition: border-color 0.15s;
+    }
+    .op-card:hover { border-color: rgba(240,168,48,0.3); }
+    .op-card-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+    .op-icon {
+      width: 36px; height: 36px; border-radius: 8px; background: var(--surface-2);
+      display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;
+    }
+    .op-title { font-size: 14px; font-weight: 600; }
+    .op-meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+    .op-badge {
+      display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px;
+      font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+    }
+    .badge-destructive { background: var(--red-dim); color: var(--red); }
+    .badge-read { background: var(--green-dim); color: var(--green); }
+    .badge-ssh { background: var(--blue-dim); color: var(--blue); }
+    .badge-sysdba { background: var(--accent-dim); color: var(--accent); }
+    .badge-dba-role { background: rgba(96,165,250,0.12); color: var(--blue); }
+    .badge-gated { background: rgba(152,152,168,0.10); color: var(--text-dim); }
+
+    /* Gated op card — shown but visually subdued for lower-privilege connections */
+    .op-card.priv-gated {
+      opacity: 0.55;
+      position: relative;
+    }
+    .op-card.priv-gated .btn-run {
+      background: var(--bg3);
+      color: var(--text-dim);
+      cursor: not-allowed;
+      border: 1px solid var(--border);
+    }
+    .priv-lock-banner {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px;
+      background: rgba(152,152,168,0.06);
+      border: 1px solid rgba(152,152,168,0.18);
+      border-radius: 7px;
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+    }
+    .priv-lock-banner a { color: var(--accent); text-decoration: none; }
+    .priv-lock-banner a:hover { text-decoration: underline; }
+
+    /* Privilege tier pill shown in the caps row */
+    .priv-pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 100px;
+      font-size: 11px; font-weight: 600;
+    }
+    .priv-pill.reader { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
+    .priv-pill.sysdba { background: rgba(240,168,48,0.12); color: var(--accent); border: 1px solid rgba(240,168,48,0.25); }
+    .priv-pill.dba_role { background: rgba(96,165,250,0.12); color: var(--blue); border: 1px solid rgba(96,165,250,0.25); }
+
+    .op-preview {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim);
+      background: #0d0d10; border: 1px solid var(--border); border-radius: 6px;
+      padding: 10px 12px; margin: 12px 0; white-space: pre-wrap; word-break: break-all;
+      max-height: 80px; overflow: hidden; transition: max-height 0.2s;
+    }
+    .op-preview.expanded { max-height: 400px; }
+
+    .op-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn {
+      padding: 7px 14px; border-radius: 7px; font-size: 12px; font-weight: 600;
+      border: none; cursor: pointer; transition: all 0.15s; font-family: inherit;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-run { background: var(--accent); color: #0a0a0c; }
+    .btn-run:hover { background: #e09820; }
+    .btn-run:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-outline {
+      background: none; border: 1px solid var(--border); color: var(--text-dim);
+    }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-danger { background: var(--red-dim); color: var(--red); border: 1px solid transparent; }
+    .btn-danger:hover { border-color: var(--red); }
+
+    /* ── Result panel ── */
+    .result-panel {
+      margin-top: 14px; display: none; border-top: 1px solid var(--border); padding-top: 14px;
+    }
+    .result-panel.visible { display: block; }
+    .result-status {
+      display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600;
+      margin-bottom: 10px;
+    }
+    .status-ok { color: var(--green); }
+    .status-err { color: var(--red); }
+    .result-table-wrap { overflow-x: auto; }
+    .result-table {
+      width: 100%; border-collapse: collapse; font-size: 12px; font-family: 'JetBrains Mono', monospace;
+    }
+    .result-table th {
+      text-align: left; padding: 6px 10px; background: var(--surface-2);
+      border-bottom: 1px solid var(--border); color: var(--text-dim); font-size: 11px;
+      white-space: nowrap;
+    }
+    .result-table td {
+      padding: 6px 10px; border-bottom: 1px solid rgba(255,255,255,0.04);
+      color: var(--text); white-space: nowrap; max-width: 300px; overflow: hidden; text-overflow: ellipsis;
+    }
+    .result-table tr:last-child td { border-bottom: none; }
+    .result-text {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text);
+      background: #0d0d10; border: 1px solid var(--border); border-radius: 6px;
+      padding: 12px; white-space: pre-wrap; word-break: break-all; max-height: 300px; overflow-y: auto;
+    }
+
+    /* ── Confirmation modal ── */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 500;
+      display: none; align-items: center; justify-content: center;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      padding: 28px; max-width: 560px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    }
+    .modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .modal p { font-size: 13px; color: var(--text-dim); margin-bottom: 16px; }
+    .modal-cmd {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      background: #0d0d10; border: 1px solid var(--border); border-radius: 8px;
+      padding: 14px; margin-bottom: 20px; white-space: pre-wrap; word-break: break-all; color: var(--red);
+    }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+    /* ── Empty / loading states ── */
+    .empty-state { text-align: center; padding: 60px 0; color: var(--text-dim); }
+    .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+    .empty-state h3 { font-size: 16px; color: var(--text); margin-bottom: 8px; }
+    .spinner {
+      display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Mobile ── */
+    @media (max-width: 768px) {
+      .cat-picker { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+      .ops-grid { grid-template-columns: 1fr; }
+      .toolbar { gap: 10px; }
+      .conn-select { min-width: 0; width: 100%; }
+    }
+
+    /* ── Breadcrumb ── */
+    .breadcrumb-bar {
+      font-size: 12px; color: var(--text-dim);
+      margin-bottom: 24px; display: flex; align-items: center; gap: 6px;
+    }
+    .breadcrumb-bar a { color: var(--accent); text-decoration: none; }
+    .breadcrumb-bar a:hover { text-decoration: underline; }
+    .bc-sep { color: var(--border); }
+  </style>
+</head>
+<body>
+<div class="grain"></div>
+<nav>
+  <div id="nav-root"></div>
+</nav>
+
+<div class="breadcrumb-bar" id="bc-bar">
+  <a href="/connections">Connections</a>
+  <span class="bc-sep">›</span>
+  <a href="/db-ops">DB Ops</a>
+  <span class="bc-sep">›</span>
+  <span id="bc-conn-name" style="color:var(--text-dim)">—</span>
+</div>
+
+<div class="page-wrap">
+  <!-- ── Toolbar ── -->
+  <div class="toolbar">
+    <h1>⚡ DB Ops</h1>
+    <select class="conn-select" id="conn-select" onchange="onConnChange()">
+      <option value="">— Select connection —</option>
+    </select>
+    <div id="conn-status" style="font-size:12px;color:var(--text-dim);"></div>
+  </div>
+
+  <!-- ── Capability badges ── -->
+  <div class="caps-row" id="caps-row" style="display:none">
+    <span class="cap-badge" id="cap-rac">RAC</span>
+    <span class="cap-badge" id="cap-asm">ASM</span>
+    <span class="cap-badge" id="cap-pdb">Pluggable DBs</span>
+    <span class="cap-badge" id="cap-gi" title="Grid Infrastructure — gi_os_user, gi_oracle_home, asm_sid configured">GI (Grid)</span>
+    <span class="priv-pill" id="priv-pill" style="display:none"></span>
+  </div>
+
+  <!-- ── No-SSH banner ── -->
+  <div class="no-ssh-banner" id="no-ssh-banner">
+    <span class="icon">🔒</span>
+    <span class="msg">
+      SSH operations (Listener, RMAN, RAC/srvctl) require an SSH target linked to this connection.
+      <a href="/admin/ssh-targets">Configure SSH Access →</a>
+    </span>
+  </div>
+
+  <!-- ── Search bar (shown only in search mode) ── -->
+  <div class="search-wrap" id="search-wrap">
+    <input type="text" class="search-input-ops" id="ops-search" placeholder="Search all operations…"
+      oninput="onSearchChange()" autocomplete="off">
+    <span class="search-result-count" id="search-result-count"></span>
+  </div>
+
+  <!-- ── Category picker / ops grid / patches panel ── -->
+  <div id="main-content"></div>
+</div>
+
+<!-- ── Dry-run preview modal ── -->
+<div class="modal-backdrop" id="dryrun-backdrop" onclick="closeDryRun(event)" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;align-items:center;justify-content:center;padding:24px">
+  <div class="modal" style="max-width:640px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)">
+      <div>
+        <div style="font-size:15px;font-weight:600" id="dryrun-title">Command Preview</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:2px" id="dryrun-subtitle"></div>
+      </div>
+      <button onclick="closeDryRun()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:20px;line-height:1;padding:4px 8px;border-radius:4px">×</button>
+    </div>
+    <div style="padding:20px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px" id="dryrun-tags"></div>
+      <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em">Command that WOULD execute — no Oracle connection needed</div>
+      <div id="dryrun-cmd" style="background:#0d0d10;border:1px solid var(--border);border-radius:6px;padding:14px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.6;color:#a3e635;word-break:break-all;white-space:pre-wrap">Loading…</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:10px" id="dryrun-note"></div>
+      <div id="dryrun-warning" style="display:none;margin-top:12px;padding:10px 14px;border-radius:6px;background:var(--red-dim);border:1px solid rgba(248,113,113,0.2);color:var(--red);font-size:12px">⚠ Destructive operation — requires confirmation before execution</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Confirmation modal ── -->
+<div class="modal-backdrop" id="modal-backdrop" onclick="closeModal(event)">
+  <div class="modal" id="confirm-modal">
+    <h3>⚠️ Confirm Destructive Operation</h3>
+    <p>This operation will execute the following command against your Oracle instance. Review carefully before confirming.</p>
+    <div class="modal-cmd" id="modal-cmd"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" id="modal-confirm-btn" onclick="executeConfirmed()">Execute</button>
+    </div>
+  </div>
+</div>
+
+<script src="/connection-state.js"></script>
+<script src="/nav-component.js"></script>
+<script>
+  window.tvNav.init('db-ops');
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  let catalog = [];
+  let connections = [];
+  let sshTargets = [];
+  let selectedConn = null;
+  let caps = { hasAsm: false, hasRac: false, hasPdb: false, hasGi: false };
+  let searchQuery = '';
+  let activeCategory = new URLSearchParams(window.location.search).get('cat') || null;
+  let pendingConfirm = null;
+
+  // EBS middleware categories stay on /ebs-ops, not here
+  const EXCLUDED_CATEGORIES = new Set(['wls', 'apache', 'apps_listener', 'ebs_concurrent']);
+
+  // Priority groups: which categories appear in each group, in order.
+  // Groups render as labelled sections in the category picker.
+  const PRIORITY_GROUPS = [
+    {
+      label: '🔴 Critical / Daily',
+      desc: 'Check these every day',
+      categories: ['tablespace', 'sessions', 'fra', 'archive', 'segments'],
+    },
+    {
+      label: '🟡 Performance / Weekly',
+      desc: 'Review weekly or on reports',
+      categories: ['memory', 'stats', 'rman', 'undo', 'temp'],
+    },
+    {
+      label: '🔵 Maintenance / Periodic',
+      desc: 'Scheduled ops & housekeeping',
+      categories: ['objects', 'recyclebin', 'controlfile', 'listener', 'scheduler'],
+    },
+    {
+      label: '⚪ Administrative / As-Needed',
+      desc: 'Infrastructure & architecture',
+      categories: ['users', 'instance', 'pdb', 'asm', 'rac'],
+    },
+  ];
+
+  // Category metadata: display groups with icon, label, color, description
+  const CATEGORY_META = {
+    instance:     { label: 'Instance Control',   icon: '🖥️', color: 'amber',  desc: 'Startup, shutdown, status' },
+    listener:     { label: 'Listener',            icon: '📡', color: 'blue',   desc: 'TNS listener management' },
+    pdb:          { label: 'Pluggable DBs',        icon: '🗃️', color: 'purple', desc: 'PDB management' },
+    tablespace:   { label: 'Tablespace',           icon: '💾', color: 'red',    desc: 'Usage, datafiles, autoextend' },
+    sessions:     { label: 'Sessions & Locks',     icon: '👥', color: 'red',    desc: 'Active sessions, blockers, kill' },
+    memory:       { label: 'Memory (SGA/PGA)',      icon: '🧠', color: 'blue',   desc: 'SGA, PGA, buffer cache' },
+    stats:        { label: 'Statistics',           icon: '📊', color: 'green',  desc: 'Stale stats, gather, lock' },
+    archive:      { label: 'Archive Log',          icon: '📂', color: 'amber',  desc: 'Archive dest, log switch' },
+    rman:         { label: 'Backup & Recovery',    icon: '🛡️', color: 'green',  desc: 'RMAN status, backup jobs' },
+    asm:          { label: 'ASM',                  icon: '💿', color: 'purple', desc: 'Diskgroups, ASM disks' },
+    rac:          { label: 'RAC',                  icon: '🔗', color: 'blue',   desc: 'Cluster instances, srvctl' },
+    fra:          { label: 'FRA (Flash Recovery)',  icon: '💽', color: 'red',    desc: 'FRA usage, cleanup, files' },
+    controlfile:  { label: 'Controlfile',          icon: '📁', color: 'amber',  desc: 'Controlfile info, backup' },
+    recyclebin:   { label: 'Recycle Bin',          icon: '🗑️', color: 'amber',  desc: 'Show contents, purge' },
+    segments:     { label: 'Large Segments',       icon: '📦', color: 'red',    desc: 'Top segments, growth report' },
+    undo:         { label: 'Undo Management',      icon: '↩️', color: 'blue',   desc: 'Undo usage, retention advisor' },
+    temp:         { label: 'Temp Tablespace',      icon: '🌡️', color: 'amber',  desc: 'Temp usage, session detail' },
+    objects:      { label: 'Invalid Objects',      icon: '🔧', color: 'amber',  desc: 'List invalid, recompile' },
+    scheduler:    { label: 'Scheduler Jobs',       icon: '⏰', color: 'blue',   desc: 'Running, failed, disabled jobs' },
+    users:        { label: 'User Management',      icon: '👤', color: 'purple', desc: 'Accounts, locks, profiles' },
+    patches:      { label: 'Patches',              icon: '🩹', color: 'amber',  desc: 'CPU/PSU gap analysis' },
+    clone:        { label: 'Clone & Scale',        icon: '📋', color: 'purple', desc: 'DB clone wizard', isLink: '/db-clone' },
+  };
+
+  const COLOR_MAP = {
+    amber:  { icon: 'var(--accent-dim)',  text: 'var(--accent)' },
+    blue:   { icon: 'var(--blue-dim)',    text: 'var(--blue)' },
+    green:  { icon: 'var(--green-dim)',   text: 'var(--green)' },
+    purple: { icon: 'var(--purple-dim)',  text: 'var(--purple)' },
+    red:    { icon: 'var(--red-dim)',     text: 'var(--red)' },
+  };
+
+  // ── Bootstrap ──────────────────────────────────────────────────────────────
+  (async function init() {
+    await Promise.all([loadConnections(), loadCatalog()]);
+  })();
+
+  async function loadConnections() {
+    const r = await fetch('/api/connections', { credentials: 'include' });
+    if (!r.ok) return;
+    connections = tvConn.parseList(await r.json());
+    const sel = document.getElementById('conn-select');
+    connections.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name || c.host + ':' + c.port;
+      sel.appendChild(opt);
+    });
+    tvConn.bind(sel, connections);
+    if (sel.value) {
+      await onConnChange();
+    } else if (connections.length === 1) {
+      sel.value = connections[0].id;
+      tvConn.save(connections[0].id);
+      await onConnChange();
+    }
+  }
+
+  async function loadCatalog() {
+    const r = await fetch('/api/db-ops/catalog', { credentials: 'include' });
+    if (!r.ok) return;
+    catalog = (await r.json()).catalog;
+    renderMain();
+  }
+
+  async function onConnChange() {
+    const connId = document.getElementById('conn-select').value;
+    if (connId) tvConn.save(connId);
+    selectedConn = connections.find(c => String(c.id) === String(connId)) || null;
+    caps = { hasAsm: false, hasRac: false, hasPdb: false, hasGi: false };
+
+    // Update breadcrumb connection name
+    const bcName = document.getElementById('bc-conn-name');
+    if (selectedConn) {
+      bcName.textContent = selectedConn.name || (selectedConn.host + ':' + selectedConn.port);
+      bcName.style.color = 'var(--text)';
+    } else {
+      bcName.textContent = '—';
+      bcName.style.color = 'var(--text-dim)';
+    }
+    document.getElementById('caps-row').style.display = 'none';
+    document.getElementById('conn-status').textContent = '';
+    if (!selectedConn) return;
+
+    document.getElementById('conn-status').innerHTML = '<div class="spinner"></div>';
+
+    const tgt = await fetch('/api/ebs-ssh-checks/target/' + connId, { credentials: 'include' });
+    sshTargets = tgt.ok ? (await tgt.json()).targets || [] : [];
+    updateSshBanner();
+
+    if (selectedConn.connection_type !== 'proxy') {
+      const capR = await fetch('/api/db-ops/capabilities', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ connection_id: connId }),
+      });
+      if (capR.ok) caps = await capR.json();
+    }
+
+    const capRow = document.getElementById('caps-row');
+    capRow.style.display = 'flex';
+    setCap('cap-rac', caps.hasRac, 'RAC');
+    setCap('cap-asm', caps.hasAsm, 'ASM');
+    setCap('cap-pdb', caps.hasPdb, 'Pluggable DBs');
+    setCap('cap-gi', caps.hasGi, 'GI (Grid)');
+
+    document.getElementById('conn-status').textContent = selectedConn.connection_type === 'proxy'
+      ? 'Proxy — SQL ops unavailable' : '✓ Direct TCP';
+
+    // Privilege pill — show tier for the current connection
+    const privPill = document.getElementById('priv-pill');
+    const pm = selectedConn.privilege_model || 'sysdba';
+    const privLabels = { reader: '🔑 Standard (reader)', sysdba: '⚡ SYSDBA', dba_role: '🛡 DBA Role' };
+    privPill.textContent = privLabels[pm] || pm;
+    privPill.className = 'priv-pill ' + pm;
+    privPill.title = pm === 'reader'
+      ? 'Connected as tunevault_reader — some write operations are gated'
+      : pm === 'dba_role'
+        ? 'Connected with DBA role — most operations available'
+        : 'Connected as SYSDBA / OS Auth — all operations available';
+    privPill.style.display = 'inline-flex';
+
+    renderMain();
+  }
+
+  function setCap(id, active, label) {
+    const el = document.getElementById(id);
+    el.textContent = label;
+    el.className = 'cap-badge ' + (active ? 'active' : 'inactive');
+  }
+
+  function updateSshBanner() {
+    document.getElementById('no-ssh-banner').classList.toggle('visible', sshTargets.length === 0);
+  }
+
+  // ── Category visibility ────────────────────────────────────────────────────
+  function visibleOpsForCategory(cat) {
+    return catalog.filter(op => {
+      if (op.category !== cat) return false;
+      if (EXCLUDED_CATEGORIES.has(op.category)) return false;
+      if (op.requiresAsm && !caps.hasAsm) return false;
+      if (op.requiresRac && !caps.hasRac) return false;
+      if (op.requiresGi  && !caps.hasGi)  return false;
+      return true;
+    });
+  }
+
+  function visibleCategories() {
+    // Get categories that have at least one visible op
+    return [...new Set(catalog.map(o => o.category))].filter(cat => {
+      if (EXCLUDED_CATEGORIES.has(cat)) return false;
+      return visibleOpsForCategory(cat).length > 0;
+    });
+  }
+
+  // ── Search ────────────────────────────────────────────────────────────────
+  function onSearchChange() {
+    searchQuery = (document.getElementById('ops-search').value || '').toLowerCase().trim();
+    renderMain();
+  }
+
+  // ── Main renderer ─────────────────────────────────────────────────────────
+  function renderMain() {
+    const content = document.getElementById('main-content');
+    const countEl = document.getElementById('search-result-count');
+
+    // Search mode: show all matching ops across all categories
+    if (searchQuery) {
+      const matching = catalog.filter(op => {
+        if (EXCLUDED_CATEGORIES.has(op.category)) return false;
+        if (op.requiresAsm && !caps.hasAsm) return false;
+        if (op.requiresRac && !caps.hasRac) return false;
+        if (op.requiresGi  && !caps.hasGi)  return false;
+        const hay = (op.label + ' ' + op.category + ' ' + (op.commandPreview || '')).toLowerCase();
+        return hay.includes(searchQuery);
+      });
+      if (countEl) countEl.textContent = matching.length + ' result' + (matching.length !== 1 ? 's' : '');
+      if (matching.length === 0) {
+        content.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><h3>No operations match "' + escHtml(searchQuery) + '"</h3></div>';
+      } else {
+        content.innerHTML = '';
+        const grid = document.createElement('div');
+        grid.className = 'ops-grid';
+        matching.forEach(op => renderOpCard(op, grid));
+        content.appendChild(grid);
+      }
+      return;
+    }
+    if (countEl) countEl.textContent = '';
+
+    // Category selected: show its ops
+    if (activeCategory === 'patches') {
+      renderPatchesInContent(content);
+      return;
+    }
+
+    if (activeCategory && activeCategory !== 'clone') {
+      const ops = visibleOpsForCategory(activeCategory);
+      const meta = CATEGORY_META[activeCategory] || { label: activeCategory, icon: '•', color: 'amber', desc: '' };
+      const col = COLOR_MAP[meta.color] || COLOR_MAP.amber;
+
+      let html = `
+        <div class="section-header">
+          <div class="section-icon" style="background:${col.icon}">${meta.icon}</div>
+          <div>
+            <div class="section-title">${escHtml(meta.label)}</div>
+            <div class="section-desc">${escHtml(meta.desc)}</div>
+          </div>
+          <button class="section-back" onclick="clearCategory()">← All Categories</button>
+        </div>
+      `;
+      content.innerHTML = html;
+      const grid = document.createElement('div');
+      grid.className = 'ops-grid';
+      if (ops.length === 0) {
+        grid.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><h3>No operations available for this category with current capabilities</h3></div>';
+      } else {
+        ops.forEach(op => renderOpCard(op, grid));
+      }
+      content.appendChild(grid);
+      return;
+    }
+
+    // Default: category picker grid
+    renderCategoryPicker(content);
+  }
+
+  function clearCategory() {
+    activeCategory = null;
+    searchQuery = '';
+    const si = document.getElementById('ops-search');
+    if (si) si.value = '';
+    renderMain();
+  }
+
+  function selectCategory(cat) {
+    if (CATEGORY_META[cat] && CATEGORY_META[cat].isLink) {
+      window.location.href = CATEGORY_META[cat].isLink;
+      return;
+    }
+    activeCategory = cat;
+    renderMain();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ── Category picker ────────────────────────────────────────────────────────
+  function renderCategoryPicker(container) {
+    container.innerHTML = '';
+
+    // Render priority groups with visual section dividers
+    PRIORITY_GROUPS.forEach(group => {
+      // Find which categories in this group have visible ops
+      const groupCats = group.categories.filter(cat => {
+        if (EXCLUDED_CATEGORIES.has(cat)) return false;
+        return visibleOpsForCategory(cat).length > 0;
+      });
+      if (groupCats.length === 0) return;
+
+      // Group label / divider
+      const divider = document.createElement('div');
+      divider.style.cssText = 'margin:28px 0 12px;display:flex;align-items:center;gap:10px';
+      divider.innerHTML = `
+        <span style="font-size:12px;font-weight:700;color:var(--text-dim);letter-spacing:.07em;text-transform:uppercase;white-space:nowrap">${escHtml(group.label)}</span>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <span style="font-size:11px;color:var(--text-dim);white-space:nowrap;font-style:italic">${escHtml(group.desc)}</span>
+      `;
+      container.appendChild(divider);
+
+      const picker = document.createElement('div');
+      picker.className = 'cat-picker';
+
+      groupCats.forEach(cat => {
+        const meta = CATEGORY_META[cat] || { label: cat, icon: '•', color: 'amber', desc: '' };
+        const col = COLOR_MAP[meta.color] || COLOR_MAP.amber;
+        const count = visibleOpsForCategory(cat).length;
+
+        const card = document.createElement('div');
+        card.className = 'cat-card' + (activeCategory === cat ? ' active' : '');
+        card.onclick = () => selectCategory(cat);
+        card.innerHTML = `
+          <div class="cat-card-top">
+            <div class="cat-icon" style="background:${col.icon};color:${col.text}">${meta.icon}</div>
+            <div class="cat-name">${escHtml(meta.label)}</div>
+          </div>
+          <div class="cat-count">${escHtml(meta.desc)}</div>
+        `;
+        picker.appendChild(card);
+      });
+      container.appendChild(picker);
+    });
+
+    // ── Extra tools divider ──
+    const extraDivider = document.createElement('div');
+    extraDivider.style.cssText = 'margin:28px 0 12px;display:flex;align-items:center;gap:10px';
+    extraDivider.innerHTML = `
+      <span style="font-size:12px;font-weight:700;color:var(--text-dim);letter-spacing:.07em;text-transform:uppercase;white-space:nowrap">⚙️ Tools & Wizards</span>
+      <div style="flex:1;height:1px;background:var(--border)"></div>
+    `;
+    container.appendChild(extraDivider);
+
+    const toolsPicker = document.createElement('div');
+    toolsPicker.className = 'cat-picker';
+
+    // Patches card
+    const patchMeta = CATEGORY_META['patches'];
+    const patchCol = COLOR_MAP[patchMeta.color];
+    const patchCard = document.createElement('div');
+    patchCard.className = 'cat-card' + (activeCategory === 'patches' ? ' active' : '');
+    patchCard.onclick = () => { activeCategory = 'patches'; renderMain(); };
+    patchCard.innerHTML = `
+      <div class="cat-card-top">
+        <div class="cat-icon" style="background:${patchCol.icon};color:${patchCol.text}">${patchMeta.icon}</div>
+        <div class="cat-name">${escHtml(patchMeta.label)}</div>
+      </div>
+      <div class="cat-count">CPU/PSU gap analysis</div>
+    `;
+    toolsPicker.appendChild(patchCard);
+
+    // Clone card (links out)
+    const cloneMeta = CATEGORY_META['clone'];
+    const cloneCol = COLOR_MAP[cloneMeta.color];
+    const cloneCard = document.createElement('div');
+    cloneCard.className = 'cat-card';
+    cloneCard.onclick = () => { window.location.href = '/db-clone'; };
+    cloneCard.innerHTML = `
+      <div class="cat-card-top">
+        <div class="cat-icon" style="background:${cloneCol.icon};color:${cloneCol.text}">${cloneMeta.icon}</div>
+        <div class="cat-name">${escHtml(cloneMeta.label)}</div>
+      </div>
+      <div class="cat-count" style="color:var(--text-dim)">Clone wizard →</div>
+    `;
+    toolsPicker.appendChild(cloneCard);
+
+    // OS Diagnostics card (links to proxy-exec OS page)
+    const osDiagCard = document.createElement('div');
+    osDiagCard.className = 'cat-card';
+    osDiagCard.onclick = () => { window.location.href = '/os-diagnostics'; };
+    osDiagCard.innerHTML = `
+      <div class="cat-card-top">
+        <div class="cat-icon" style="background:var(--blue-dim);color:var(--blue)">🖥️</div>
+        <div class="cat-name">OS Diagnostics</div>
+      </div>
+      <div class="cat-count" style="color:var(--text-dim)">Proxy exec →</div>
+    `;
+    toolsPicker.appendChild(osDiagCard);
+
+    container.appendChild(toolsPicker);
+  }
+
+  // ── Privilege check ────────────────────────────────────────────────────────
+  // Returns true when the current connection can run an op at the given privilege tier.
+  // Hierarchy: sysdba > dba_role > reader
+  const PRIV_RANK = { reader: 0, dba_role: 1, sysdba: 2 };
+
+  function connCanRunOp(op) {
+    if (!selectedConn) return true; // no conn selected — don't grey out (will be disabled anyway)
+    const connPriv = selectedConn.privilege_model || 'sysdba';
+    const opPriv = op.requiredPrivilege || 'reader';
+    return (PRIV_RANK[connPriv] || 2) >= (PRIV_RANK[opPriv] || 0);
+  }
+
+  // ── Op card ────────────────────────────────────────────────────────────────
+  function renderOpCard(op, container) {
+    const card = document.createElement('div');
+    const isGated = selectedConn && !connCanRunOp(op);
+    card.className = 'op-card' + (isGated ? ' priv-gated' : '');
+    card.id = 'card-' + op.key.replace(/\./g, '-');
+
+    const meta = CATEGORY_META[op.category] || { icon: '•' };
+    const badges = [];
+    if (op.destructive) badges.push('<span class="op-badge badge-destructive">⚠ Destructive</span>');
+    else badges.push('<span class="op-badge badge-read">Read</span>');
+    if (op.type === 'ssh') badges.push('<span class="op-badge badge-ssh">SSH</span>');
+    if (op.sysdba) badges.push('<span class="op-badge badge-sysdba">SYSDBA</span>');
+    else if (op.requiredPrivilege === 'dba_role') badges.push('<span class="op-badge badge-dba-role">DBA Role</span>');
+
+    const needsParam = op.commandPreview && op.commandPreview.includes('{{');
+    const paramField = needsParam ? buildParamField(op) : '';
+
+    // Privilege lock banner — shown on gated ops explaining what's needed + upgrade link
+    const gateBanner = isGated ? `
+      <div class="priv-lock-banner">
+        🔒 ${escHtml(op.privilegeGrantHint || 'Requires elevated privileges')} ·
+        <a href="/docs/privileges">How to upgrade →</a>
+      </div>` : '';
+
+    const runDisabled = !selectedConn || isGated ? 'disabled' : '';
+    const runTitle = isGated
+      ? (op.privilegeGrantHint || 'Requires elevated privilege')
+      : '';
+
+    card.innerHTML = `
+      <div class="op-card-header">
+        <div class="op-icon">${meta.icon}</div>
+        <div>
+          <div class="op-title">${escHtml(op.label)}</div>
+          <div class="op-meta">${escHtml(op.category)} · ${op.type.toUpperCase()}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">${badges.join('')}</div>
+      ${gateBanner}
+      ${paramField}
+      <div class="op-preview" id="preview-${op.key.replace(/\./g,'-')}">${escHtml(op.commandPreview)}</div>
+      <div class="op-actions">
+        <button class="btn btn-run" id="run-${op.key.replace(/\./g,'-')}"
+          onclick="${isGated ? '' : `runOp('${op.key}')`}"
+          ${runDisabled}
+          title="${escHtml(runTitle)}">
+          ${isGated ? '🔒 Requires ' + escHtml(op.privilegeLabel || 'elevated access') : '▶ Run'}
+        </button>
+        <button class="btn btn-outline" onclick="showDryRun('${op.key}')">👁 Preview</button>
+        <button class="btn btn-outline" onclick="togglePreview('${op.key}')">SQL / Cmd</button>
+      </div>
+      <div class="result-panel" id="result-${op.key.replace(/\./g,'-')}"></div>
+    `;
+    container.appendChild(card);
+  }
+
+  function buildParamField(op) {
+    const matches = op.commandPreview.match(/\{\{([A-Z_]+)\}\}/g) || [];
+    if (!matches.length) return '';
+    return matches.map(m => {
+      const key = m.replace(/[{}]/g, '');
+      const ph = key === 'SID' ? 'e.g. 101' : key === 'SERIAL' ? 'e.g. 4321' : key === 'SCHEMA' ? 'e.g. SCOTT' : key;
+      return `<input id="param-${op.key.replace(/\./g,'-')}-${key}" class="conn-select" style="margin-bottom:8px;min-width:0;width:100%"
+        placeholder="${key}: ${ph}" />`;
+    }).join('');
+  }
+
+  // ── Run op ─────────────────────────────────────────────────────────────────
+  async function runOp(opKey, confirmed) {
+    if (!selectedConn) return;
+
+    const cardId = 'card-' + opKey.replace(/\./g, '-');
+    const resultId = 'result-' + opKey.replace(/\./g, '-');
+    const btnId = 'run-' + opKey.replace(/\./g, '-');
+
+    const btn = document.getElementById(btnId);
+    const resultEl = document.getElementById(resultId);
+
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner"></div> Running…';
+    resultEl.innerHTML = '';
+    resultEl.classList.add('visible');
+
+    const params = {};
+    const paramInputs = document.querySelectorAll(`[id^="param-${opKey.replace(/\./g,'-')}-"]`);
+    paramInputs.forEach(inp => {
+      const key = inp.id.split('-').pop();
+      params[key] = inp.value;
+    });
+
+    const targetId = sshTargets.length > 0 ? sshTargets[0].id : null;
+
+    try {
+      const r = await fetch('/api/db-ops/run', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          connection_id: selectedConn.id,
+          op_key: opKey,
+          target_id: targetId,
+          confirmed: !!confirmed,
+          params,
+        }),
+      });
+      const data = await r.json();
+
+      if (r.status === 428 && data.requiresConfirmation) {
+        pendingConfirm = { opKey, params };
+        document.getElementById('modal-cmd').textContent = data.commandPreview;
+        document.getElementById('modal-backdrop').classList.add('open');
+        resultEl.classList.remove('visible');
+      } else if (data.ok) {
+        renderResult(resultEl, data);
+      } else {
+        resultEl.innerHTML = `<div class="result-status status-err">✗ ${escHtml(data.error || 'Operation failed')}</div>`;
+      }
+    } catch (err) {
+      resultEl.innerHTML = `<div class="result-status status-err">✗ Network error: ${escHtml(err.message)}</div>`;
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '▶ Run';
+    }
+  }
+
+  function renderResult(container, data) {
+    let html = '<div class="result-status status-ok">✓ Success';
+    if (data.durationMs) html += ` <span style="color:var(--text-dim);font-weight:400">(${data.durationMs}ms)</span>`;
+    html += '</div>';
+    if (data.text) {
+      html += `<div class="result-text">${escHtml(data.text)}</div>`;
+    } else if (data.rows && data.rows.length > 0) {
+      const cols = data.columns || [];
+      html += '<div class="result-table-wrap"><table class="result-table"><thead><tr>';
+      cols.forEach(c => { html += `<th>${escHtml(c)}</th>`; });
+      html += '</tr></thead><tbody>';
+      data.rows.forEach(row => {
+        html += '<tr>';
+        row.forEach(cell => { html += `<td title="${escHtml(String(cell ?? ''))}">${escHtml(String(cell ?? ''))}</td>`; });
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+      html += `<div style="font-size:11px;color:var(--text-dim);margin-top:8px">${data.rows.length} row${data.rows.length !== 1 ? 's' : ''}</div>`;
+    } else {
+      html += '<div style="font-size:12px;color:var(--text-dim);margin-top:4px">No rows returned.</div>';
+    }
+    container.innerHTML = html;
+  }
+
+  // ── Modal ──────────────────────────────────────────────────────────────────
+  function closeModal(e) {
+    if (e && e.target !== document.getElementById('modal-backdrop')) return;
+    document.getElementById('modal-backdrop').classList.remove('open');
+    pendingConfirm = null;
+  }
+
+  function executeConfirmed() {
+    if (!pendingConfirm) return;
+    const { opKey, params } = pendingConfirm;
+    document.getElementById('modal-backdrop').classList.remove('open');
+    pendingConfirm = null;
+    runOp(opKey, true);
+  }
+
+  // ── Dry-run preview ────────────────────────────────────────────────────────
+  async function showDryRun(opKey) {
+    const backdrop = document.getElementById('dryrun-backdrop');
+    backdrop.style.display = 'flex';
+    document.getElementById('dryrun-title').textContent = 'Loading preview…';
+    document.getElementById('dryrun-subtitle').textContent = '';
+    document.getElementById('dryrun-cmd').textContent = '…';
+    document.getElementById('dryrun-note').textContent = '';
+    document.getElementById('dryrun-tags').innerHTML = '';
+    document.getElementById('dryrun-warning').style.display = 'none';
+
+    const params = {};
+    const paramInputs = document.querySelectorAll(`[id^="param-${opKey.replace(/\./g,'-')}-"]`);
+    paramInputs.forEach(inp => {
+      const key = inp.id.split('-').pop();
+      params[key] = inp.value || '';
+    });
+
+    try {
+      const r = await fetch('/api/db-ops/preview', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ op_key: opKey, params }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Preview failed');
+
+      document.getElementById('dryrun-title').textContent = data.label;
+      document.getElementById('dryrun-subtitle').textContent = data.category + ' · ' + data.type.toUpperCase() + ' — dry run only';
+      document.getElementById('dryrun-cmd').textContent = data.command_preview;
+      document.getElementById('dryrun-note').textContent = data.preview_note;
+
+      const tags = [];
+      const typeColor = data.type === 'sql' ? 'var(--blue)' : 'var(--purple)';
+      tags.push(`<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;background:rgba(96,165,250,0.1);color:${typeColor}">${data.type.toUpperCase()}</span>`);
+      if (data.destructive) tags.push('<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;background:var(--red-dim);color:var(--red)">DESTRUCTIVE</span>');
+      document.getElementById('dryrun-tags').innerHTML = tags.join('');
+      if (data.destructive) document.getElementById('dryrun-warning').style.display = 'block';
+    } catch (err) {
+      document.getElementById('dryrun-cmd').textContent = 'Error: ' + err.message;
+    }
+  }
+
+  function closeDryRun(e) {
+    if (e && e.target !== document.getElementById('dryrun-backdrop')) return;
+    document.getElementById('dryrun-backdrop').style.display = 'none';
+  }
+
+  function togglePreview(opKey) {
+    const el = document.getElementById('preview-' + opKey.replace(/\./g, '-'));
+    if (el) el.classList.toggle('expanded');
+  }
+
+  // ── Patch Advisor Panel ────────────────────────────────────────────────────
+  function renderPatchesInContent(container) {
+    container.innerHTML = `
+      <div class="section-header">
+        <div class="section-icon" style="background:var(--accent-dim)">🩹</div>
+        <div>
+          <div class="section-title">DB Patch Advisor</div>
+          <div class="section-desc">CPU/PSU gap analysis for your Oracle version</div>
+        </div>
+        <button class="section-back" onclick="clearCategory()">← All Categories</button>
+      </div>
+      <div id="patches-content"><div style="padding:40px;text-align:center"><div class="spinner"></div><div style="margin-top:12px;color:var(--text-dim);font-size:13px">Loading patch data…</div></div></div>
+    `;
+    loadPatchesContent(document.getElementById('patches-content'));
+  }
+
+  async function loadPatchesContent(container) {
+    const url = selectedConn ? '/api/patches/advisor/' + selectedConn.id : '/api/patches/advisor/0?demo=1';
+    try {
+      const r = await fetch(url, { credentials: 'include' });
+      const d = await r.json();
+      const g = d.gap_analysis;
+      const sevColor = g && g.severity_summary === 'CRITICAL' ? 'var(--red)' :
+                       g && g.severity_summary === 'HIGH'     ? 'var(--orange)' :
+                       g && g.severity_summary === 'MEDIUM'   ? 'var(--yellow)' :
+                       g && g.severity_summary === 'LOW'      ? 'var(--blue)' : 'var(--green)';
+      const sevBg   = g && g.severity_summary === 'CRITICAL' ? 'var(--red-dim)' :
+                      g && g.severity_summary === 'HIGH'     ? 'var(--orange-dim)' :
+                      g && g.severity_summary === 'MEDIUM'   ? 'var(--yellow-dim)' :
+                      g && g.severity_summary === 'LOW'      ? 'var(--blue-dim)' : 'var(--green-dim)';
+      const sevLabel = g ? (g.severity_summary || (g.fully_patched ? 'UP TO DATE' : 'UNKNOWN')) : '—';
+      const qBehind  = g && g.quarters_behind != null ? g.quarters_behind : '—';
+
+      let html = '';
+      if (d.is_demo) {
+        html += '<div style="background:var(--accent-dim);border:1px solid rgba(240,168,48,0.3);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:12px;color:var(--accent)">📊 Demo mode — showing sample EBS 12.2 / 19c data. Select a connection to analyze your system.</div>';
+      }
+      html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">';
+      if (d.ebs_detected) html += '<span style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--purple-dim);color:var(--purple);font-weight:600">EBS Detected</span>';
+      html += '<span style="font-size:11px;padding:2px 8px;border-radius:4px;background:' + sevBg + ';color:' + sevColor + ';font-weight:600">' + escHtml(sevLabel) + '</span>';
+      if (d.db_version) html += '<span style="font-size:12px;color:var(--text-dim)">' + escHtml(d.db_version) + '</span>';
+      html += '<a href="/patches/status" style="margin-left:auto;font-size:12px;color:var(--accent);text-decoration:none;padding:4px 12px;border:1px solid rgba(240,168,48,0.3);border-radius:6px;white-space:nowrap;">Patch Status (Dev/Func) →</a>';
+      html += '</div>';
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">';
+      html += '<div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:16px">';
+      html += '<div style="font-size:11px;color:var(--text-dim);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Current Patch Level</div>';
+      if (g && g.current_patch) {
+        html += '<div style="font-size:14px;font-weight:600;margin-bottom:4px">' + escHtml(g.current_patch.label || g.current_patch.patch_id || '—') + '</div>';
+        if (g.current_patch.date)    html += '<div style="font-size:12px;color:var(--text-dim)">' + escHtml(g.current_patch.date) + '</div>';
+        if (g.current_patch.quarter) html += '<div style="font-size:11px;color:var(--text-dim)">' + escHtml(g.current_patch.quarter) + '</div>';
+      } else {
+        html += '<div style="color:var(--text-dim);font-size:13px">Unable to detect</div>';
+      }
+      html += '</div>';
+      html += '<div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:16px">';
+      html += '<div style="font-size:11px;color:var(--text-dim);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Latest Available</div>';
+      if (g && g.latest_patch) {
+        html += '<div style="font-size:14px;font-weight:600;margin-bottom:4px">' + escHtml(g.latest_patch.label || '—') + '</div>';
+        if (g.latest_patch.date)    html += '<div style="font-size:12px;color:var(--text-dim)">' + escHtml(g.latest_patch.date) + '</div>';
+        if (g.latest_patch.quarter) html += '<div style="font-size:11px;color:var(--text-dim)">' + escHtml(g.latest_patch.quarter) + '</div>';
+      } else {
+        html += '<div style="color:var(--text-dim);font-size:13px">N/A</div>';
+      }
+      html += '</div></div>';
+      if (g && qBehind !== '—' && qBehind > 0) {
+        html += '<div style="background:var(--red-dim);border:1px solid rgba(248,113,113,0.2);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:var(--red)">⚠️ <strong>' + qBehind + ' quarter' + (qBehind !== 1 ? 's' : '') + ' behind</strong>' + (g.next_cpu_estimate ? ' — Next CPU estimated: ' + escHtml(g.next_cpu_estimate) : '') + '</div>';
+      } else if (g && g.fully_patched) {
+        html += '<div style="background:var(--green-dim);border:1px solid rgba(52,211,153,0.2);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:var(--green)">✅ Fully patched — no gaps detected.</div>';
+      }
+      if (g && g.missed_cves && g.missed_cves.length > 0) {
+        html += '<div style="margin-bottom:20px"><div style="font-size:12px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Missed CVEs (' + g.missed_cves.length + ')</div>';
+        html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;font-family:JetBrains Mono,monospace">';
+        html += '<thead><tr><th style="text-align:left;padding:6px 10px;background:var(--surface-2);border-bottom:1px solid var(--border);color:var(--text-dim)">CVE</th><th style="text-align:left;padding:6px 10px;background:var(--surface-2);border-bottom:1px solid var(--border);color:var(--text-dim)">CVSS</th><th style="text-align:left;padding:6px 10px;background:var(--surface-2);border-bottom:1px solid var(--border);color:var(--text-dim)">Patch</th></tr></thead><tbody>';
+        g.missed_cves.slice(0, 10).forEach(function(cve) {
+          const cvssColor = (cve.cvss >= 9) ? 'var(--red)' : (cve.cvss >= 7) ? 'var(--orange)' : 'var(--yellow)';
+          html += '<tr><td style="padding:6px 10px;border-bottom:1px solid rgba(255,255,255,0.04)">' + escHtml(cve.cve || '—') + '</td><td style="padding:6px 10px;border-bottom:1px solid rgba(255,255,255,0.04);color:' + cvssColor + '">' + (cve.cvss || '—') + '</td><td style="padding:6px 10px;border-bottom:1px solid rgba(255,255,255,0.04);color:var(--text-dim)">' + escHtml(cve.label || cve.patch_number || '—') + '</td></tr>';
+        });
+        html += '</tbody></table></div></div>';
+      }
+      if (d.runbook && d.runbook.length > 0) {
+        html += '<div style="margin-bottom:20px"><div style="font-size:12px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Patch Runbook ' + (d.ebs_detected ? '(ADOP)' : '(OPatch)') + '</div>';
+        d.runbook.forEach(function(step, i) {
+          const isRollback = step.step === 'rollback';
+          const borderColor = isRollback ? 'var(--border)' : (i === 0 ? 'rgba(96,165,250,0.3)' : 'var(--border)');
+          html += '<details style="margin-bottom:8px;background:var(--surface-2);border:1px solid ' + borderColor + ';border-radius:8px;overflow:hidden"' + (i === 0 ? ' open' : '') + '>';
+          html += '<summary style="padding:12px 16px;cursor:pointer;font-size:13px;font-weight:600;list-style:none;display:flex;align-items:center;justify-content:space-between"><span>' + escHtml(step.title) + '</span><span style="font-size:10px;color:var(--text-dim);font-weight:400">▼</span></summary>';
+          html += '<div style="padding:0 16px 16px">';
+          if (step.notes && step.notes.length) {
+            html += '<div style="margin-bottom:10px">';
+            step.notes.forEach(n => { html += '<div style="font-size:12px;color:var(--text-dim);margin-bottom:4px">' + escHtml(n) + '</div>'; });
+            html += '</div>';
+          }
+          if (step.commands && step.commands.length) {
+            html += '<pre style="background:#0d0d10;border:1px solid var(--border);border-radius:6px;padding:12px;font-family:JetBrains Mono,monospace;font-size:11px;color:var(--text);white-space:pre-wrap;word-break:break-all;overflow-x:auto;margin-bottom:10px">' + escHtml(step.commands.join('\n')) + '</pre>';
+          }
+          if (step.verification) {
+            html += '<div style="font-size:11px;color:var(--text-dim);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Verification</div>';
+            html += '<pre style="background:#0d0d10;border:1px solid rgba(52,211,153,0.2);border-radius:6px;padding:12px;font-family:JetBrains Mono,monospace;font-size:11px;color:var(--green);white-space:pre-wrap;word-break:break-all;overflow-x:auto">' + escHtml(step.verification) + '</pre>';
+          }
+          html += '</div></details>';
+        });
+        html += '</div>';
+      }
+      container.innerHTML = html;
+    } catch (err) {
+      container.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><h3>Failed to load patch data</h3><p style="color:var(--text-dim);font-size:13px">' + escHtml(err.message) + '</p></div>';
+    }
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+</script>
+<div style="text-align:center;padding:24px 16px 16px;border-top:1px solid rgba(255,255,255,0.05);margin-top:32px;">
+  <span style="font-size:12px;color:#9898a8;">Need help? <a href="mailto:support@tunevault.app" style="color:#f0a830;text-decoration:none;">support@tunevault.app</a></span>
+</div>
+<script src="/tunebot.js"></script>
+</body>
+</html>

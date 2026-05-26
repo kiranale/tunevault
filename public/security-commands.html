@@ -1,0 +1,1785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TuneVault Security — Complete Command Whitelist &amp; Audit Trail</title>
+    <meta name="description" content="Every SQL query and shell command TuneVault executes on your Oracle database. Full transparency. Download our lockdown script.">
+    <meta property="og:title" content="TuneVault Security — Complete Command Whitelist">
+    <meta property="og:description" content="Every SQL query and shell command TuneVault executes on your Oracle database. Full transparency for enterprise procurement and security review.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://tunevault.app/security/commands">
+    <meta property="og:image" content="https://tunevault.app/og/security.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="TuneVault Security — command whitelist and audit trail for Oracle DBA automation">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="TuneVault Security — Complete Command Whitelist">
+    <meta name="twitter:description" content="Every SQL query and shell command TuneVault executes on your Oracle database. Full transparency for enterprise procurement.">
+    <meta name="twitter:image" content="https://tunevault.app/og/security.png">
+    <link rel="canonical" href="https://tunevault.app/security/commands">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0c;
+            --surface: #111114;
+            --surface-2: #1a1a1f;
+            --surface-3: #222228;
+            --border: #2a2a30;
+            --border-hover: #3a3a44;
+            --text: #e8e8ed;
+            --text-dim: #b8b8c8;
+            --text-muted: #9898a8;
+            --accent: #f0a830;
+            --accent-dim: rgba(240, 168, 48, 0.1);
+            --green: #34d399;
+            --green-dim: rgba(52, 211, 153, 0.1);
+            --red: #f87171;
+            --blue: #60a5fa;
+            --blue-dim: rgba(96, 165, 250, 0.1);
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+
+        /* ── Hero ── */
+        .hero {
+            background: linear-gradient(180deg, #0f0f14 0%, #0a0a0c 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 72px 24px 56px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(240,168,48,0.06) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .hero-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--accent);
+            background: var(--accent-dim);
+            border: 1px solid rgba(240,168,48,0.25);
+            padding: 5px 12px;
+            border-radius: 20px;
+            margin-bottom: 24px;
+        }
+        .hero-eyebrow::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+        .hero h1 {
+            font-size: clamp(32px, 5vw, 52px);
+            font-weight: 700;
+            letter-spacing: -1.5px;
+            line-height: 1.1;
+            margin-bottom: 20px;
+            max-width: 720px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .hero h1 em { font-style: normal; color: var(--accent); }
+        .hero-sub {
+            font-size: 17px;
+            color: var(--text-dim);
+            max-width: 580px;
+            margin: 0 auto 36px;
+            line-height: 1.65;
+        }
+        .hero-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            background: var(--accent);
+            color: #0a0a0c;
+            font-weight: 700;
+            font-size: 14px;
+            border-radius: 6px;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .btn-primary:hover { background: #f8b840; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(240,168,48,0.3); }
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            background: transparent;
+            color: var(--text);
+            font-size: 14px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+        .hero-trust {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+            margin-top: 36px;
+            flex-wrap: wrap;
+        }
+        .trust-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        .trust-item .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+
+        /* ── Connection Model ── */
+        .connection-model {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 64px 24px;
+        }
+        .connection-inner {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .section-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 12px;
+        }
+        .connection-model h2 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 12px; }
+        .connection-model .lead { font-size: 15px; color: var(--text-dim); max-width: 560px; margin-bottom: 40px; }
+
+        .arch-diagram {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px 24px;
+            margin-bottom: 32px;
+            overflow-x: auto;
+        }
+        .arch-flow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            min-width: 480px;
+        }
+        .arch-node {
+            background: var(--surface-3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .arch-node .node-icon { font-size: 24px; margin-bottom: 6px; }
+        .arch-node .node-label { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+        .arch-node .node-sub { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); }
+        .arch-node.highlight { border-color: rgba(240,168,48,0.4); background: rgba(240,168,48,0.05); }
+        .arch-arrow {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 0 12px;
+            flex-shrink: 0;
+        }
+        .arch-arrow .arrow-line {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .arch-arrow .arrow-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            color: var(--green);
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+        .arch-arrow .arrow-sublabel {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+        .arrow-shaft { width: 40px; height: 1px; background: var(--green); position: relative; }
+        .arrow-shaft::after { content: '▶'; position: absolute; right: -7px; top: -6px; font-size: 10px; color: var(--green); }
+        .arrow-blocked { width: 40px; height: 1px; background: var(--red); position: relative; }
+        .arrow-blocked-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--red); }
+
+        .arch-blocked {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 0 8px;
+            flex-shrink: 0;
+        }
+        .blocked-bar {
+            width: 2px;
+            height: 32px;
+            background: repeating-linear-gradient(to bottom, var(--red) 0, var(--red) 4px, transparent 4px, transparent 8px);
+            position: relative;
+        }
+        .blocked-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            color: var(--red);
+            white-space: nowrap;
+            text-align: center;
+        }
+
+        .arch-key-points {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        .key-point {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .key-point .kp-icon { font-size: 18px; margin-bottom: 8px; }
+        .key-point .kp-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+        .key-point .kp-body { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+        .key-point.green-border { border-left: 3px solid var(--green); }
+
+        .comparison-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 24px;
+        }
+        .comparison-card {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .comparison-card.good { border-left: 3px solid var(--green); }
+        .comparison-card.neutral { border-left: 3px solid var(--text-muted); }
+        .comparison-card .cc-title { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; font-family: 'JetBrains Mono', monospace; }
+        .comparison-card .cc-item { font-size: 13px; color: var(--text-dim); padding: 3px 0; display: flex; align-items: center; gap: 8px; }
+        .comparison-card .cc-item .ci-icon { font-size: 12px; flex-shrink: 0; }
+
+        /* ── Main page layout ── */
+        .page-layout {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 0 24px 80px;
+            display: grid;
+            grid-template-columns: 220px 1fr;
+            gap: 48px;
+            align-items: start;
+        }
+
+        .toc {
+            position: sticky;
+            top: 76px;
+            padding: 32px 0;
+        }
+        .toc-title { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px; }
+        .toc-item { display: block; font-size: 13px; color: var(--text-dim); text-decoration: none; padding: 5px 0; border-left: 2px solid transparent; padding-left: 12px; transition: all 0.2s; margin-bottom: 2px; }
+        .toc-item:hover { color: var(--text); border-left-color: var(--accent); }
+        .toc-item.active { color: var(--accent); border-left-color: var(--accent); }
+        .toc-item.sub { font-size: 12px; padding-left: 22px; color: var(--text-muted); }
+        .toc-divider { height: 1px; background: var(--border); margin: 10px 0; }
+
+        .content { padding: 32px 0; }
+
+        /* Sections */
+        .section { margin-bottom: 64px; }
+        .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+        .section-num { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); background: var(--surface-3); border: 1px solid var(--border); padding: 2px 8px; border-radius: 4px; letter-spacing: 0.5px; }
+        .section h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+        .section-desc { font-size: 14px; color: var(--text-dim); margin-bottom: 24px; max-width: 620px; line-height: 1.6; }
+
+        /* Grant block */
+        .grant-block { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px; padding: 24px; margin-bottom: 32px; }
+        .grant-block h3 { font-size: 14px; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+        .grant-block .grant-subtitle { font-size: 13px; color: var(--text-dim); margin-bottom: 16px; }
+        .grant-block pre { background: var(--surface-3); border: 1px solid var(--border); border-radius: 6px; padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.7; color: var(--text); overflow-x: auto; }
+        .grant-block pre .comment { color: var(--text-muted); }
+        .grant-block pre .keyword { color: var(--accent); font-weight: 600; }
+        .grant-block pre .obj { color: var(--blue); }
+
+        /* Category */
+        .category { margin-bottom: 32px; }
+        .category-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+
+        /* Query card */
+        .query-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; overflow: hidden; }
+        .query-card-header { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; cursor: pointer; transition: background 0.15s; user-select: none; }
+        .query-card-header:hover { background: var(--surface-2); }
+        .query-name { flex: 1; }
+        .query-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+        .query-rationale { font-size: 12px; color: var(--text-dim); }
+        .query-views { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+        .view-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--blue); background: var(--blue-dim); border: 1px solid rgba(96,165,250,0.2); padding: 2px 6px; border-radius: 3px; }
+        .expand-icon { color: var(--text-muted); font-size: 14px; transition: transform 0.2s; flex-shrink: 0; margin-top: 2px; }
+        .query-card.open .expand-icon { transform: rotate(180deg); }
+        .query-body { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+        .query-card.open .query-body { max-height: 2000px; }
+        .query-body pre { background: var(--surface-3); border-top: 1px solid var(--border); padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; line-height: 1.7; color: var(--text); overflow-x: auto; margin: 0; }
+        .ebs-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--accent); background: var(--accent-dim); border: 1px solid rgba(240,168,48,0.25); padding: 2px 6px; border-radius: 3px; }
+
+        /* Shell commands table */
+        .cmd-table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); }
+        .cmd-table { width: 100%; border-collapse: collapse; }
+        .cmd-table th { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+        .cmd-table tr:hover td { background: var(--surface-2); }
+        .cmd-table td { padding: 12px 14px; border-bottom: 1px solid rgba(42,42,48,0.5); vertical-align: top; font-size: 13px; }
+        .cmd-table tr:last-child td { border-bottom: none; }
+        .cmd-table td code { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--accent); }
+        .cmd-table td.cmd-purpose { color: var(--text-dim); }
+        .cmd-table td.cmd-badge { white-space: nowrap; }
+        .badge-ro { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--green); background: var(--green-dim); border: 1px solid rgba(52,211,153,0.2); padding: 2px 8px; border-radius: 3px; }
+        .badge-ebs { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--accent); background: var(--accent-dim); border: 1px solid rgba(240,168,48,0.2); padding: 2px 8px; border-radius: 3px; }
+        .badge-none { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); background: var(--surface-3); border: 1px solid var(--border); padding: 2px 8px; border-radius: 3px; }
+
+        /* What we don't do */
+        .dont-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+        .dont-item { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; display: flex; gap: 12px; align-items: flex-start; }
+        .dont-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+        .dont-text .dt-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+        .dont-text .dt-body { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+
+        /* Lockdown script section */
+        .lockdown-hero {
+            background: linear-gradient(135deg, rgba(240,168,48,0.08) 0%, rgba(240,168,48,0.02) 100%);
+            border: 1px solid rgba(240,168,48,0.2);
+            border-radius: 10px;
+            padding: 28px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        .lockdown-hero .lh-icon { font-size: 32px; flex-shrink: 0; }
+        .lockdown-hero .lh-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+        .lockdown-hero .lh-desc { font-size: 14px; color: var(--text-dim); line-height: 1.6; margin-bottom: 16px; }
+        .lockdown-steps { list-style: none; counter-reset: steps; }
+        .lockdown-steps li { counter-increment: steps; font-size: 13px; color: var(--text-dim); padding: 6px 0 6px 28px; position: relative; }
+        .lockdown-steps li::before { content: counter(steps); position: absolute; left: 0; top: 6px; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); color: #0a0a0c; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+        .lockdown-steps li code { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent); background: var(--accent-dim); padding: 1px 5px; border-radius: 3px; }
+
+        .script-block { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+        .script-block-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+        .script-block-header .sb-title { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); }
+        .script-block-header .sb-actions { display: flex; gap: 8px; }
+        .sb-btn { font-size: 12px; color: var(--text-muted); background: var(--surface-3); border: 1px solid var(--border); padding: 4px 10px; border-radius: 4px; cursor: pointer; text-decoration: none; transition: all 0.2s; }
+        .sb-btn:hover { color: var(--accent); border-color: var(--accent); }
+        .script-collapsible { max-height: 320px; overflow: hidden; transition: max-height 0.4s ease; }
+        .script-collapsible.expanded { max-height: 9999px; }
+        .script-block pre { padding: 20px; font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.75; color: var(--text); overflow-x: auto; margin: 0; }
+        .script-block pre .sh-comment { color: var(--text-muted); }
+        .script-block pre .sh-cmd { color: var(--green); }
+        .script-block pre .sh-var { color: var(--blue); }
+        .script-block .script-fade { position: relative; }
+        .script-fade::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: linear-gradient(transparent, var(--surface)); pointer-events: none; }
+        .script-block .expand-btn { display: block; width: 100%; padding: 12px; text-align: center; font-size: 13px; color: var(--text-muted); background: var(--surface-2); border: none; border-top: 1px solid var(--border); cursor: pointer; transition: all 0.2s; }
+        .script-block .expand-btn:hover { color: var(--accent); }
+
+        /* Audit section */
+        .audit-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+        .audit-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+        .audit-card .ac-icon { font-size: 24px; margin-bottom: 12px; }
+        .audit-card .ac-title { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+        .audit-card .ac-body { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+
+        /* Egress */
+        .egress-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 16px; }
+        .egress-card-row { display: grid; grid-template-columns: 160px 1fr; }
+        .egress-cell { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; }
+        .egress-cell:first-child { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent); background: var(--surface-2); border-right: 1px solid var(--border); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .egress-cell.val { color: var(--text-dim); }
+        .egress-cell.no-border { border-bottom: none; }
+
+        /* Info/warn boxes */
+        .info-box { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--blue); border-radius: 6px; padding: 14px 16px; font-size: 13px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.6; }
+        .info-box strong { color: var(--text); }
+        .info-box code { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent); background: var(--accent-dim); padding: 1px 5px; border-radius: 3px; }
+        .warn-box { background: rgba(240,168,48,0.06); border: 1px solid rgba(240,168,48,0.25); border-radius: 6px; padding: 14px 16px; font-size: 13px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.6; }
+        .warn-box strong { color: var(--accent); }
+        .warn-box code { font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+
+        /* Footer */
+        footer { border-top: 1px solid var(--border); padding: 24px; display: flex; justify-content: space-between; align-items: center; max-width: 980px; margin: 0 auto; font-size: 13px; color: var(--text-muted); }
+        footer a { color: var(--text-muted); text-decoration: none; transition: color 0.2s; }
+        footer a:hover { color: var(--accent); }
+        footer .brand-name { color: var(--accent); }
+        .footer-links { display: flex; gap: 20px; align-items: center; }
+
+        @media (max-width: 768px) {
+            .page-layout { grid-template-columns: 1fr; }
+            .toc { display: none; }
+            .egress-card-row { grid-template-columns: 1fr; }
+            .egress-cell:first-child { border-right: none; border-bottom: 1px solid var(--border); }
+            .comparison-row { grid-template-columns: 1fr; }
+            .arch-flow { flex-direction: column; }
+            .lockdown-hero { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+<nav id="nav-root"></nav>
+
+<!-- Hero -->
+<section class="hero">
+    <div class="hero-eyebrow">Security Transparency</div>
+    <h1>Every Command We Run.<br><em>Nothing Hidden.</em></h1>
+    <p class="hero-sub">
+        TuneVault's proxy executes only pre-approved commands on your Oracle server.
+        Here's the complete list. If it's not on this page, we can't run it.
+    </p>
+    <div class="hero-actions">
+        <a href="/security/lockdown.sh" class="btn-primary" download>&#11015; Download Lockdown Script</a>
+        <a href="/security/commands.txt" class="btn-secondary">&#11015; Plaintext Reference</a>
+        <a href="/security/lockdown-verify.sh" class="btn-secondary" download>&#11015; Audit Verify Script</a>
+    </div>
+    <div class="hero-trust">
+        <div class="trust-item"><span class="dot"></span> Read-only — zero writes to your database</div>
+        <div class="trust-item"><span class="dot"></span> No inbound firewall rules needed</div>
+        <div class="trust-item"><span class="dot"></span> No plaintext credentials stored — AES-256 encrypted at rest</div>
+        <div class="trust-item"><span class="dot"></span> Every action logged and auditable</div>
+    </div>
+</section>
+
+<!-- Connection Model -->
+<section class="connection-model">
+    <div class="connection-inner">
+        <div class="section-label">Architecture</div>
+        <h2>How the Proxy Connects</h2>
+        <p class="lead">The proxy runs on your server and talks outbound only. Your Oracle instance never touches the internet.</p>
+
+        <div class="arch-diagram">
+            <div class="arch-flow">
+                <div class="arch-node highlight">
+                    <div class="node-icon">☁️</div>
+                    <div class="node-label">TuneVault Cloud</div>
+                    <div class="node-sub">tunevault.app:443</div>
+                </div>
+                <div class="arch-arrow">
+                    <div class="arrow-line"><div class="arrow-shaft"></div></div>
+                    <div class="arrow-label">HTTPS outbound</div>
+                    <div class="arrow-sublabel">port 443 only</div>
+                </div>
+                <div class="arch-node highlight">
+                    <div class="node-icon">🖥️</div>
+                    <div class="node-label">Proxy Agent</div>
+                    <div class="node-sub">your server · 127.0.0.1:3100</div>
+                </div>
+                <div class="arch-arrow">
+                    <div class="arrow-line"><div class="arrow-shaft"></div></div>
+                    <div class="arrow-label">SQL over TCP</div>
+                    <div class="arrow-sublabel">localhost:1521</div>
+                </div>
+                <div class="arch-node">
+                    <div class="node-icon">🗄️</div>
+                    <div class="node-label">Oracle Database</div>
+                    <div class="node-sub">localhost · never internet-exposed</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="arch-key-points">
+            <div class="key-point green-border">
+                <div class="kp-icon">🔒</div>
+                <div class="kp-title">No inbound rules</div>
+                <div class="kp-body">The proxy makes outbound HTTPS calls. Your firewall needs zero inbound rules from TuneVault.</div>
+            </div>
+            <div class="key-point green-border">
+                <div class="kp-icon">🌐</div>
+                <div class="kp-title">Oracle stays offline</div>
+                <div class="kp-body">Oracle only talks to <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">localhost:3100</code>. The database port 1521 is never exposed to the internet.</div>
+            </div>
+            <div class="key-point green-border">
+                <div class="kp-icon">📡</div>
+                <div class="kp-title">2 endpoints, that's it</div>
+                <div class="kp-body">Proxy contacts only <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">tunevault.app:443</code> — to deliver results and check for updates. No third parties.</div>
+            </div>
+            <div class="key-point green-border">
+                <div class="kp-icon">🔑</div>
+                <div class="kp-title">Local API key</div>
+                <div class="kp-body">A 64-hex API key is generated on your server at install time. TuneVault never holds Oracle credentials.</div>
+            </div>
+        </div>
+
+        <div class="comparison-row">
+            <div class="comparison-card good">
+                <div class="cc-title">✅ TuneVault requires</div>
+                <div class="cc-item"><span class="ci-icon">▸</span> Outbound HTTPS (443) from your server</div>
+                <div class="cc-item"><span class="ci-icon">▸</span> Oracle service account with SELECT_CATALOG_ROLE</div>
+                <div class="cc-item"><span class="ci-icon">▸</span> Proxy binary running on the Oracle host</div>
+            </div>
+            <div class="comparison-card neutral">
+                <div class="cc-title">❌ TuneVault does NOT need</div>
+                <div class="cc-item"><span class="ci-icon">▸</span> Inbound SSH (22) to your server</div>
+                <div class="cc-item"><span class="ci-icon">▸</span> Inbound DB port (1521) open to internet</div>
+                <div class="cc-item"><span class="ci-icon">▸</span> SNMP (161) or WMI access</div>
+                <div class="cc-item"><span class="ci-icon">▸</span> Root or SYSDBA privileges</div>
+                <div class="cc-item"><span class="ci-icon">▸</span> VPN or tunneling software</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Main content + TOC -->
+<div class="page-layout">
+    <aside class="toc">
+        <div class="toc-title">On this page</div>
+        <a href="#grants" class="toc-item">Required Oracle Grants</a>
+        <div class="toc-divider"></div>
+        <a href="#sql-queries" class="toc-item">SQL Queries</a>
+        <a href="#sql-instance" class="toc-item sub">Instance &amp; Version</a>
+        <a href="#sql-storage" class="toc-item sub">Storage</a>
+        <a href="#sql-memory" class="toc-item sub">Memory (SGA/PGA)</a>
+        <a href="#sql-performance" class="toc-item sub">Performance</a>
+        <a href="#sql-backup" class="toc-item sub">Backup &amp; Recovery</a>
+        <a href="#sql-security" class="toc-item sub">Security</a>
+        <a href="#sql-ebs" class="toc-item sub">EBS (conditional)</a>
+        <div class="toc-divider"></div>
+        <a href="#shell-commands" class="toc-item">Shell Commands</a>
+        <div class="toc-divider"></div>
+        <a href="#what-we-dont-do" class="toc-item">What We Don't Do</a>
+        <a href="#lockdown" class="toc-item">Lockdown Script</a>
+        <a href="#audit" class="toc-item">Audit &amp; Logging</a>
+        <a href="#network-egress" class="toc-item">Network Egress</a>
+    </aside>
+
+    <main class="content">
+
+        <!-- Required Grants -->
+        <section id="grants" class="section">
+            <div class="section-header">
+                <span class="section-num">00</span>
+                <h2>Required Oracle Grants</h2>
+            </div>
+            <p class="section-desc">Grant these privileges to the TuneVault service account before running health checks.</p>
+
+            <div class="grant-block">
+                <h3>&#128274; Minimum required grants</h3>
+                <p class="grant-subtitle">Run as SYS or SYSTEM. Replace <code style="color:var(--accent);background:var(--surface-3);padding:1px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;font-size:12px;">tunevault_user</code> with your service account name.</p>
+                <pre>
+<span class="comment">-- Core catalog access (covers DBA_* views, V$* views)</span>
+<span class="keyword">GRANT</span> <span class="obj">SELECT_CATALOG_ROLE</span> <span class="keyword">TO</span> tunevault_user;
+<span class="keyword">GRANT</span> <span class="obj">CREATE SESSION</span> <span class="keyword">TO</span> tunevault_user;
+
+<span class="comment">-- Alert log access (not covered by SELECT_CATALOG_ROLE)</span>
+<span class="keyword">GRANT</span> <span class="obj">SELECT</span> <span class="keyword">ON</span> V_$DIAG_ALERT_EXT <span class="keyword">TO</span> tunevault_user;
+                </pre>
+            </div>
+
+            <div class="info-box">
+                <strong>No write access needed.</strong> TuneVault never executes INSERT, UPDATE, DELETE, or DDL statements. All queries are SELECT-only against system catalog views (DBA_*, V$*, GV$*).
+            </div>
+
+            <div class="warn-box">
+                <strong>AWR / ADDM checks</strong> (optional on-demand panel) require Oracle Enterprise Edition with Diagnostics Pack (<code>control_management_pack_access = DIAGNOSTIC+TUNING</code>). TuneVault checks for this license and skips these queries gracefully on Standard Edition.
+            </div>
+        </section>
+
+        <!-- SQL Queries -->
+        <section id="sql-queries" class="section">
+            <div class="section-header">
+                <span class="section-num">01</span>
+                <h2>SQL Queries Executed Against Your Database</h2>
+            </div>
+            <p class="section-desc">All queries are read-only SELECTs run during a health check. Click any row to see the literal SQL.</p>
+
+            <!-- Instance & Version -->
+            <div id="sql-instance" class="category">
+                <div class="category-label">Instance &amp; Version</div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">Instance information</div>
+                            <div class="query-rationale">Identifies Oracle version, host, uptime, CPU count, SGA/PGA targets, and block size</div>
+                            <div class="query-views"><span class="view-tag">V$DATABASE</span><span class="view-tag">V$INSTANCE</span><span class="view-tag">V$PARAMETER</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>SELECT
+  d.NAME, i.INSTANCE_NAME, i.HOST_NAME, i.VERSION,
+  d.PLATFORM_NAME,
+  TO_CHAR(i.STARTUP_TIME, 'YYYY-MM-DD HH24:MI:SS'),
+  ROUND(SYSDATE - i.STARTUP_TIME),
+  (SELECT VALUE FROM v$parameter WHERE name = 'cpu_count'),
+  ROUND((SELECT TO_NUMBER(VALUE)/1024/1024/1024 FROM v$parameter WHERE name = 'sga_target'), 1),
+  ROUND((SELECT TO_NUMBER(VALUE)/1024/1024/1024 FROM v$parameter WHERE name = 'pga_aggregate_target'), 1),
+  (SELECT TO_NUMBER(VALUE) FROM v$parameter WHERE name = 'db_block_size')
+FROM v$database d, v$instance i</pre></div>
+                </div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">Database version banner</div>
+                            <div class="query-rationale">Detects Enterprise vs Standard Edition — gates AWR/ADDM queries</div>
+                            <div class="query-views"><span class="view-tag">V$VERSION</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>SELECT BANNER FROM V$VERSION WHERE ROWNUM = 1</pre></div>
+                </div>
+            </div>
+
+            <!-- Storage -->
+            <div id="sql-storage" class="category">
+                <div class="category-label">Storage</div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">Tablespace usage</div>
+                            <div class="query-rationale">Used/total GB and % utilisation per tablespace; flags &gt;80% warning, &gt;90% critical</div>
+                            <div class="query-views"><span class="view-tag">DBA_TABLESPACE_USAGE_METRICS</span><span class="view-tag">DBA_TABLESPACES</span><span class="view-tag">DBA_DATA_FILES</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>SELECT
+  ts.TABLESPACE_NAME,
+  ROUND(um.USED_SPACE * ts.BLOCK_SIZE / 1024/1024/1024, 1) AS used_gb,
+  ROUND(um.TABLESPACE_SIZE * ts.BLOCK_SIZE / 1024/1024/1024, 1) AS total_gb,
+  ROUND(um.USED_PERCENT, 1) AS pct_used,
+  CASE WHEN df.autoext > 0 THEN 1 ELSE 0 END AS autoextend
+FROM DBA_TABLESPACE_USAGE_METRICS um
+JOIN DBA_TABLESPACES ts ON ts.TABLESPACE_NAME = um.TABLESPACE_NAME
+LEFT JOIN (
+  SELECT TABLESPACE_NAME,
+    SUM(CASE WHEN AUTOEXTENSIBLE = 'YES' THEN 1 ELSE 0 END) AS autoext
+  FROM DBA_DATA_FILES GROUP BY TABLESPACE_NAME
+) df ON df.TABLESPACE_NAME = um.TABLESPACE_NAME
+ORDER BY um.USED_PERCENT DESC</pre></div>
+                </div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">Undo tablespace health</div>
+                            <div class="query-rationale">Undo retention, block counts, concurrency</div>
+                            <div class="query-views"><span class="view-tag">V$UNDOSTAT</span><span class="view-tag">DBA_DATA_FILES</span><span class="view-tag">DBA_TABLESPACES</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>SELECT UNDOBLKS, TXNCOUNT, MAXQUERYLEN, MAXCONCURRENCY,
+       TUNED_UNDORETENTION, EXPIREDBLKS, UNEXPIREDBLKS, ACTIVEBLKS
+FROM V$UNDOSTAT WHERE ROWNUM = 1 ORDER BY END_TIME DESC
+
+-- Undo tablespace size
+SELECT d.TABLESPACE_NAME, SUM(d.BYTES)/1073741824,
+       SUM(d.BYTES - NVL(f.FREE_BYTES,0))/1073741824,
+       ROUND(SUM(d.BYTES - NVL(f.FREE_BYTES,0))/SUM(d.BYTES)*100,1), t.RETENTION
+FROM DBA_DATA_FILES d JOIN DBA_TABLESPACES t ON t.TABLESPACE_NAME=d.TABLESPACE_NAME
+LEFT JOIN (SELECT FILE_ID, SUM(BYTES) AS FREE_BYTES FROM DBA_FREE_SPACE GROUP BY FILE_ID) f
+  ON f.FILE_ID=d.FILE_ID
+WHERE t.CONTENTS='UNDO' GROUP BY d.TABLESPACE_NAME, t.RETENTION</pre></div>
+                </div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">Temp tablespace usage</div>
+                            <div class="query-rationale">Temp space used/free; top sessions by temp usage to identify runaway sorts</div>
+                            <div class="query-views"><span class="view-tag">DBA_TEMP_FREE_SPACE</span><span class="view-tag">V$TEMPSEG_USAGE</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>SELECT TABLESPACE_NAME, ROUND(TABLESPACE_SIZE/1073741824,2),
+       ROUND(FREE_SPACE/1073741824,2),
+       ROUND((TABLESPACE_SIZE-FREE_SPACE)/NULLIF(TABLESPACE_SIZE,0)*100,1)
+FROM DBA_TEMP_FREE_SPACE
+
+-- Top temp-consuming sessions
+SELECT s.SID, s.SERIAL#, s.USERNAME,
+       ROUND(s.BLOCKS*8192/1048576,1), s.TABLESPACE
+FROM V$TEMPSEG_USAGE s ORDER BY s.BLOCKS DESC FETCH FIRST 10 ROWS ONLY</pre></div>
+                </div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">Top segments by size</div>
+                            <div class="query-rationale">10 largest tables/indexes by GB to spot unexpected growth</div>
+                            <div class="query-views"><span class="view-tag">DBA_SEGMENTS</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>SELECT OWNER, SEGMENT_NAME, SEGMENT_TYPE,
+       ROUND(SUM(BYTES)/1073741824, 2) AS size_gb
+FROM DBA_SEGMENTS
+WHERE OWNER NOT IN ('SYS','SYSTEM','DBSNMP','SYSMAN','OUTLN','MDSYS',
+  'ORDSYS','XDB','CTXSYS','WMSYS','EXFSYS')
+GROUP BY OWNER, SEGMENT_NAME, SEGMENT_TYPE
+ORDER BY size_gb DESC FETCH FIRST 10 ROWS ONLY</pre></div>
+                </div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">Datafile status &amp; recycle bin</div>
+                            <div class="query-rationale">Offline/problem datafiles; wasted space from dropped-but-not-purged objects</div>
+                            <div class="query-views"><span class="view-tag">DBA_DATA_FILES</span><span class="view-tag">DBA_RECYCLEBIN</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>SELECT COUNT(*) AS problem_count,
+       COUNT(CASE WHEN STATUS = 'OFFLINE' THEN 1 END) AS offline_count
+FROM DBA_DATA_FILES WHERE STATUS NOT IN ('AVAILABLE','ONLINE')
+
+SELECT COUNT(*) AS object_count,
+       ROUND(SUM(SPACE)*8192/1073741824, 2) AS size_gb
+FROM DBA_RECYCLEBIN</pre></div>
+                </div>
+            </div>
+
+            <!-- Memory -->
+            <div id="sql-memory" class="category">
+                <div class="category-label">Memory (SGA / PGA)</div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">SGA components &amp; hit ratios</div>
+                            <div class="query-rationale">Buffer cache, library cache, dictionary cache hit ratios; shared pool free %</div>
+                            <div class="query-views"><span class="view-tag">V$SGA</span><span class="view-tag">V$SYSSTAT</span><span class="view-tag">V$LIBRARYCACHE</span><span class="view-tag">V$ROWCACHE</span><span class="view-tag">V$SGASTAT</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>SELECT ROUND(SUM(VALUE)/1024/1024/1024, 1) FROM V$SGA
+
+-- Buffer cache hit ratio
+SELECT ROUND((1 - (phys.VALUE / (db_gets.VALUE + con_gets.VALUE))) * 100, 1)
+FROM (SELECT VALUE FROM V$SYSSTAT WHERE NAME = 'physical reads') phys,
+     (SELECT VALUE FROM V$SYSSTAT WHERE NAME = 'db block gets') db_gets,
+     (SELECT VALUE FROM V$SYSSTAT WHERE NAME = 'consistent gets') con_gets
+
+-- Library cache hit ratio
+SELECT ROUND(SUM(PINS - RELOADS) / NULLIF(SUM(PINS), 0) * 100, 1) FROM V$LIBRARYCACHE
+
+-- Dictionary cache hit ratio
+SELECT ROUND(SUM(GETS - GETMISSES) / NULLIF(SUM(GETS), 0) * 100, 1) FROM V$ROWCACHE
+
+-- Shared pool free %
+SELECT ROUND(free_bytes.val / total_bytes.val * 100, 1)
+FROM (SELECT SUM(BYTES) AS val FROM V$SGASTAT WHERE POOL='shared pool' AND NAME='free memory') free_bytes,
+     (SELECT SUM(BYTES) AS val FROM V$SGASTAT WHERE POOL='shared pool') total_bytes</pre></div>
+                </div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">PGA statistics</div>
+                            <div class="query-rationale">PGA target vs allocated, over-allocation count, cache hit %, work area execution modes</div>
+                            <div class="query-views"><span class="view-tag">V$PGASTAT</span><span class="view-tag">V$PARAMETER</span><span class="view-tag">V$SQL_WORKAREA_HISTOGRAM</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>SELECT
+  ROUND((SELECT TO_NUMBER(VALUE)/1024/1024/1024 FROM v$parameter WHERE name='pga_aggregate_target'),1),
+  ROUND((SELECT VALUE/1024/1024/1024 FROM V$PGASTAT WHERE NAME='total PGA allocated'),1),
+  ROUND((SELECT VALUE/1024/1024/1024 FROM V$PGASTAT WHERE NAME='maximum PGA allocated'),1),
+  (SELECT VALUE FROM V$PGASTAT WHERE NAME='over allocation count'),
+  ROUND((SELECT VALUE FROM V$PGASTAT WHERE NAME='cache hit percentage'),1)
+FROM DUAL</pre></div>
+                </div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">OS memory &amp; CPU stats (via Oracle)</div>
+                            <div class="query-rationale">Physical memory, free memory, CPU count, CPU utilisation, I/O wait — no shell access required</div>
+                            <div class="query-views"><span class="view-tag">V$OSSTAT</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>SELECT STAT_NAME, VALUE FROM V$OSSTAT
+WHERE STAT_NAME IN (
+  'NUM_CPUS','IDLE_TIME','BUSY_TIME','USER_TIME',
+  'SYS_TIME','IOWAIT_TIME',
+  'PHYSICAL_MEMORY_BYTES','FREE_MEMORY_BYTES'
+)</pre></div>
+                </div>
+            </div>
+
+            <!-- Performance -->
+            <div id="sql-performance" class="category">
+                <div class="category-label">Performance</div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">Top 10 SQL by elapsed time</div>
+                            <div class="query-rationale">Most resource-intensive SQL statements; excludes system schemas and internal metadata</div>
+                            <div class="query-views"><span class="view-tag">V$SQL</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>SELECT SQL_ID, SUBSTR(SQL_TEXT, 1, 500), EXECUTIONS,
+  ROUND(ELAPSED_TIME/1000000, 1), ROUND(CPU_TIME/1000000, 1),
+  BUFFER_GETS, DISK_READS, ROWS_PROCESSED,
+  CASE WHEN EXECUTIONS > 0 THEN ROUND(ELAPSED_TIME/EXECUTIONS/1000, 2) ELSE 0 END,
+  CASE WHEN EXECUTIONS > 0 THEN ROUND(BUFFER_GETS/EXECUTIONS) ELSE 0 END,
+  PLAN_HASH_VALUE
+FROM V$SQL
+WHERE EXECUTIONS > 0 AND ELAPSED_TIME > 0
+  AND PARSING_SCHEMA_NAME NOT IN ('SYS','SYSTEM','DBSNMP','SYSMAN','OUTLN',
+    'MDSYS','ORDSYS','EXFSYS','WMSYS','APPQOSSYS','DBSFWUSER')
+  AND SQL_TEXT NOT LIKE '%v$%' AND SQL_TEXT NOT LIKE '%V$%'
+  AND COMMAND_TYPE IN (2, 3, 6, 7, 189)
+ORDER BY ELAPSED_TIME DESC FETCH FIRST 10 ROWS ONLY</pre></div>
+                </div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">Top 15 wait events</div>
+                            <div class="query-rationale">Leading wait events (excluding idle) consuming database time</div>
+                            <div class="query-views"><span class="view-tag">V$SYSTEM_EVENT</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>SELECT EVENT, WAIT_CLASS, TOTAL_WAITS,
+  ROUND(TIME_WAITED/100, 1) AS time_waited_s,
+  CASE WHEN TOTAL_WAITS > 0
+    THEN ROUND((TIME_WAITED/100/TOTAL_WAITS)*1000, 2) ELSE 0 END AS avg_wait_ms
+FROM V$SYSTEM_EVENT
+WHERE WAIT_CLASS NOT IN ('Idle') AND TOTAL_WAITS > 0
+ORDER BY TIME_WAITED DESC FETCH FIRST 15 ROWS ONLY</pre></div>
+                </div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">Index health (top 20 fragmented)</div>
+                            <div class="query-rationale">Indexes with high B-tree depth (&gt;3) or low direct access % — rebuild candidates</div>
+                            <div class="query-views"><span class="view-tag">DBA_INDEXES</span><span class="view-tag">DBA_IND_STATISTICS</span><span class="view-tag">V$PARAMETER</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>SELECT i.OWNER, i.INDEX_NAME, i.TABLE_NAME,
+  ROUND(s.LEAF_BLOCKS *
+    (SELECT TO_NUMBER(VALUE) FROM v$parameter WHERE name='db_block_size')
+    / 1024/1024) AS size_mb,
+  i.BLEVEL, s.LEAF_BLOCKS, i.CLUSTERING_FACTOR,
+  NVL(s.PCT_DIRECT_ACCESS,100), i.STATUS,
+  CASE
+    WHEN i.STATUS != 'VALID' THEN 'unusable'
+    WHEN i.BLEVEL > 4 THEN 'critical'
+    WHEN NVL(s.PCT_DIRECT_ACCESS,100) < 50 THEN 'critical'
+    WHEN i.BLEVEL > 3 THEN 'fragmented'
+    WHEN NVL(s.PCT_DIRECT_ACCESS,100) < 70 THEN 'fragmented'
+    ELSE 'ok'
+  END AS health_status
+FROM DBA_INDEXES i
+LEFT JOIN DBA_IND_STATISTICS s
+  ON s.OWNER=i.OWNER AND s.INDEX_NAME=i.INDEX_NAME AND s.PARTITION_NAME IS NULL
+WHERE i.OWNER NOT IN ('SYS','SYSTEM','DBSNMP','SYSMAN','OUTLN','MDSYS','ORDSYS',
+  'EXFSYS','WMSYS','XDB','CTXSYS','APPQOSSYS','DBSFWUSER',
+  'APEX_040000','APEX_040200','APEX_050000','FLOWS_FILES')
+  AND i.INDEX_TYPE = 'NORMAL' AND NVL(s.LEAF_BLOCKS, 0) > 100
+ORDER BY CASE WHEN i.STATUS != 'VALID' THEN 1 WHEN i.BLEVEL > 4 THEN 2
+              WHEN i.BLEVEL > 3 THEN 3 ELSE 4 END,
+         s.LEAF_BLOCKS DESC NULLS LAST
+FETCH FIRST 20 ROWS ONLY</pre></div>
+                </div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">Resource limits &amp; sessions</div>
+                            <div class="query-rationale">Session/process counts, blocked sessions, long-running SQL, resource utilisation vs. configured limits</div>
+                            <div class="query-views"><span class="view-tag">V$RESOURCE_LIMIT</span><span class="view-tag">V$SESSION</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>-- Resource limits
+SELECT RESOURCE_NAME, CURRENT_UTILIZATION, MAX_UTILIZATION, INITIAL_ALLOCATION, LIMIT_VALUE
+FROM V$RESOURCE_LIMIT
+WHERE RESOURCE_NAME IN (
+  'sessions','processes','enqueue_locks','enqueue_resources',
+  'dml_locks','temporary_table_locks','transactions','max_rollback_segments'
+)
+
+-- Session counts
+SELECT COUNT(*), COUNT(CASE WHEN STATUS='ACTIVE' AND TYPE='USER' THEN 1 END),
+       COUNT(CASE WHEN TYPE='USER' THEN 1 END) FROM V$SESSION
+
+-- Blocked sessions
+SELECT COUNT(*) FROM V$SESSION WHERE BLOCKING_SESSION IS NOT NULL AND STATUS='ACTIVE'
+
+-- Long-running SQL
+SELECT COUNT(*), ROUND(MAX((SYSDATE - SQL_EXEC_START)*1440), 1)
+FROM V$SESSION WHERE STATUS='ACTIVE' AND TYPE='USER'
+  AND SQL_EXEC_START IS NOT NULL AND (SYSDATE - SQL_EXEC_START)*1440 > 5</pre></div>
+                </div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">Disk sort &amp; full table scan ratios</div>
+                            <div class="query-rationale">Disk vs in-memory sort ratio; full table scan vs index lookup ratio</div>
+                            <div class="query-views"><span class="view-tag">V$SYSSTAT</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>SELECT d.VALUE AS disk_sorts, m.VALUE AS mem_sorts
+FROM (SELECT VALUE FROM V$SYSSTAT WHERE NAME='sorts (disk)') d,
+     (SELECT VALUE FROM V$SYSSTAT WHERE NAME='sorts (memory)') m
+
+SELECT s.VALUE AS long_scans, i.VALUE AS index_lookups
+FROM (SELECT VALUE FROM V$SYSSTAT WHERE NAME='table scans (long tables)') s,
+     (SELECT VALUE FROM V$SYSSTAT WHERE NAME='table fetch by rowid') i</pre></div>
+                </div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">Invalid objects, stale statistics, SCN headroom</div>
+                            <div class="query-rationale">Invalid PL/SQL objects, stale optimizer stats, and days until SCN exhaustion</div>
+                            <div class="query-views"><span class="view-tag">DBA_OBJECTS</span><span class="view-tag">DBA_TAB_STATISTICS</span><span class="view-tag">V$DATABASE</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>SELECT COUNT(*),
+  COUNT(CASE WHEN OBJECT_TYPE IN ('PACKAGE BODY','PACKAGE') THEN 1 END),
+  COUNT(CASE WHEN OBJECT_TYPE='PROCEDURE' THEN 1 END),
+  COUNT(CASE WHEN OBJECT_TYPE='VIEW' THEN 1 END),
+  COUNT(CASE WHEN OBJECT_TYPE='TRIGGER' THEN 1 END)
+FROM DBA_OBJECTS WHERE STATUS='INVALID'
+  AND OWNER NOT IN ('SYS','SYSTEM','DBSNMP','SYSMAN','OUTLN','MDSYS','ORDSYS',
+    'XDB','CTXSYS','WMSYS','EXFSYS','APPQOSSYS','DBSFWUSER','OJVMSYS','DVSYS','LBACSYS')
+
+SELECT COUNT(*), COUNT(CASE WHEN LAST_ANALYZED IS NULL THEN 1 END)
+FROM DBA_TAB_STATISTICS WHERE STALE_STATS='YES'
+  AND OWNER NOT IN ('SYS','SYSTEM','DBSNMP','SYSMAN','OUTLN','MDSYS','ORDSYS','XDB','CTXSYS','WMSYS','EXFSYS')
+
+-- SCN headroom
+SELECT CURRENT_SCN,
+  ROUND((TO_NUMBER(SYSDATE-TO_DATE('01-01-1988','DD-MM-YYYY'))*24*3600*16384*1024-CURRENT_SCN)/(24*3600*16384),0)
+FROM V$DATABASE</pre></div>
+                </div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">Alert log errors (last 24h)</div>
+                            <div class="query-rationale">ORA- errors, checkpoints, corruption warnings, TNS errors from the in-memory alert log view</div>
+                            <div class="query-views"><span class="view-tag">V$DIAG_ALERT_EXT</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>SELECT TO_CHAR(ORIGINATING_TIMESTAMP,'YYYY-MM-DD HH24:MI:SS'), MESSAGE_TEXT
+FROM V$DIAG_ALERT_EXT
+WHERE ORIGINATING_TIMESTAMP > SYSDATE-1
+  AND (MESSAGE_TEXT LIKE 'ORA-%' OR MESSAGE_TEXT LIKE '%checkpoint%'
+       OR MESSAGE_TEXT LIKE '%corruption%' OR MESSAGE_TEXT LIKE '%recovery%'
+       OR MESSAGE_TEXT LIKE '%error%' OR MESSAGE_TEXT LIKE '%warning%'
+       OR MESSAGE_TEXT LIKE '%TNS-%' OR MESSAGE_TEXT LIKE '%instance%'
+       OR MESSAGE_TEXT LIKE 'Thread%')
+ORDER BY ORIGINATING_TIMESTAMP DESC FETCH FIRST 200 ROWS ONLY
+-- Note: requires GRANT SELECT ON V_$DIAG_ALERT_EXT (not in SELECT_CATALOG_ROLE)</pre></div>
+                </div>
+            </div>
+
+            <!-- Backup -->
+            <div id="sql-backup" class="category">
+                <div class="category-label">Backup &amp; Recovery</div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">RMAN backup freshness</div>
+                            <div class="query-rationale">Last full/incremental/archivelog backup time and size; flags &gt;48h since last full as critical</div>
+                            <div class="query-views"><span class="view-tag">V$RMAN_BACKUP_JOB_DETAILS</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>SELECT INPUT_TYPE, STATUS,
+  TO_CHAR(START_TIME,'YYYY-MM-DD HH24:MI:SS'),
+  TO_CHAR(END_TIME,'YYYY-MM-DD HH24:MI:SS'),
+  ROUND((SYSDATE - END_TIME)*24, 1) AS hours_ago,
+  ROUND(OUTPUT_BYTES/1073741824, 2) AS size_gb, ELAPSED_SECONDS
+FROM (
+  SELECT INPUT_TYPE, STATUS, START_TIME, END_TIME, OUTPUT_BYTES, ELAPSED_SECONDS,
+         ROW_NUMBER() OVER (PARTITION BY INPUT_TYPE ORDER BY END_TIME DESC) AS RN
+  FROM V$RMAN_BACKUP_JOB_DETAILS WHERE STATUS='COMPLETED'
+) WHERE RN=1</pre></div>
+                </div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">Fast Recovery Area (FRA) usage</div>
+                            <div class="query-rationale">FRA size, used/reclaimable space, and breakdown by file type</div>
+                            <div class="query-views"><span class="view-tag">V$RECOVERY_FILE_DEST</span><span class="view-tag">V$FLASH_RECOVERY_AREA_USAGE</span><span class="view-tag">V$ARCHIVED_LOG</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>SELECT NAME, ROUND(SPACE_LIMIT/1073741824,2), ROUND(SPACE_USED/1073741824,2),
+  ROUND(SPACE_RECLAIMABLE/1073741824,2), NUMBER_OF_FILES
+FROM V$RECOVERY_FILE_DEST
+
+SELECT FILE_TYPE, ROUND(PERCENT_SPACE_USED,1),
+       ROUND(PERCENT_SPACE_RECLAIMABLE,1), NUMBER_OF_FILES
+FROM V$FLASH_RECOVERY_AREA_USAGE ORDER BY PERCENT_SPACE_USED DESC
+
+SELECT ROUND(SUM(BLOCKS * BLOCK_SIZE)/1073741824, 2)
+FROM V$ARCHIVED_LOG WHERE COMPLETION_TIME > SYSDATE-1 AND STANDBY_DEST='NO'</pre></div>
+                </div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">Archivelog mode &amp; log switch rate</div>
+                            <div class="query-rationale">Confirms ARCHIVELOG mode; measures log switch frequency (alert if &gt;20/hour)</div>
+                            <div class="query-views"><span class="view-tag">V$DATABASE</span><span class="view-tag">V$INSTANCE</span><span class="view-tag">V$ARCHIVED_LOG</span><span class="view-tag">V$LOG_HISTORY</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>SELECT LOG_MODE, ROUND((SYSDATE - STARTUP_TIME)*24) FROM V$DATABASE, V$INSTANCE
+
+SELECT TO_CHAR(COMPLETION_TIME,'YYYY-MM-DD HH24'), COUNT(*),
+       ROUND(SUM(BLOCKS*BLOCK_SIZE)/1048576, 1)
+FROM V$ARCHIVED_LOG WHERE COMPLETION_TIME > SYSDATE-1 AND STANDBY_DEST='NO'
+GROUP BY TO_CHAR(COMPLETION_TIME,'YYYY-MM-DD HH24') ORDER BY 1 DESC
+
+SELECT ROUND(COUNT(*)/24.0, 1), COUNT(*) FROM V$LOG_HISTORY WHERE FIRST_TIME > SYSDATE-1</pre></div>
+                </div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">Backup corruption check</div>
+                            <div class="query-rationale">Corruption markers in RMAN backup sets and image copies</div>
+                            <div class="query-views"><span class="view-tag">V$BACKUP_CORRUPTION</span><span class="view-tag">V$COPY_CORRUPTION</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>SELECT COUNT(*), SUM(BLOCKS) FROM V$BACKUP_CORRUPTION
+SELECT COUNT(*), SUM(BLOCKS) FROM V$COPY_CORRUPTION</pre></div>
+                </div>
+            </div>
+
+            <!-- Security -->
+            <div id="sql-security" class="category">
+                <div class="category-label">Security</div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">Default-password accounts</div>
+                            <div class="query-rationale">OPEN accounts using well-known default passwords (Oracle's advisory view)</div>
+                            <div class="query-views"><span class="view-tag">DBA_USERS_WITH_DEFPWD</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>SELECT COUNT(*) FROM DBA_USERS_WITH_DEFPWD WHERE ACCOUNT_STATUS = 'OPEN'</pre></div>
+                </div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">Dangerous PUBLIC grants &amp; DBA users</div>
+                            <div class="query-rationale">PUBLIC privilege escalation risk; non-system accounts with DBA privilege</div>
+                            <div class="query-views"><span class="view-tag">DBA_SYS_PRIVS</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>-- Dangerous PUBLIC grants
+SELECT COUNT(*) FROM DBA_SYS_PRIVS WHERE GRANTEE = 'PUBLIC'
+  AND PRIVILEGE IN ('CREATE PROCEDURE','CREATE ANY PROCEDURE',
+    'CREATE ANY TRIGGER','ALTER SYSTEM','ALTER DATABASE',
+    'DROP ANY TABLE','EXECUTE ANY PROCEDURE')
+
+-- DBA-privileged user count
+SELECT COUNT(DISTINCT GRANTEE) FROM DBA_SYS_PRIVS
+WHERE PRIVILEGE='DBA' AND GRANTEE NOT IN ('SYS','SYSTEM','DBA','SYSMAN')</pre></div>
+                </div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">Password policy &amp; audit settings</div>
+                            <div class="query-rationale">Password complexity function and audit trail configuration</div>
+                            <div class="query-views"><span class="view-tag">DBA_PROFILES</span><span class="view-tag">V$PARAMETER</span><span class="view-tag">DBA_USERS</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>SELECT LIMIT FROM DBA_PROFILES WHERE PROFILE='DEFAULT' AND RESOURCE_NAME='PASSWORD_VERIFY_FUNCTION'
+SELECT VALUE FROM V$PARAMETER WHERE NAME='audit_trail'
+
+-- Schema-only (no-auth) open accounts
+SELECT COUNT(*) FROM DBA_USERS
+WHERE ACCOUNT_STATUS='OPEN' AND AUTHENTICATION_TYPE='NONE'
+  AND USERNAME NOT IN ('SYS','SYSTEM')</pre></div>
+                </div>
+            </div>
+
+            <!-- EBS -->
+            <div id="sql-ebs" class="category">
+                <div class="category-label">
+                    Oracle Applications (EBS) — <span style="color:var(--accent)">executes only when EBS detected</span>
+                </div>
+
+                <div class="warn-box">
+                    <strong>Conditional.</strong> TuneVault probes <code>APPS.DUAL</code> at connection time to detect EBS. These queries only run if the probe succeeds. On non-EBS Oracle databases, this entire section is skipped. The EBS detection result is passed to the AI Summary only.
+                </div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">EBS detection probe</div>
+                            <div class="query-rationale">Single-row probe to check if APPS schema exists; gates all EBS-specific checks</div>
+                            <div class="query-views"><span class="view-tag">APPS.DUAL</span><span class="ebs-tag">EBS only</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>SELECT 1 FROM APPS.DUAL WHERE ROWNUM = 1
+-- If this query fails (ORA-00942), EBS is not present. All APPS.* queries are skipped.</pre></div>
+                </div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">Concurrent Manager health</div>
+                            <div class="query-rationale">Running vs max processes for each Concurrent Manager queue</div>
+                            <div class="query-views"><span class="view-tag">APPS.FND_CONCURRENT_QUEUES</span><span class="view-tag">APPS.FND_CONCURRENT_QUEUES_VL</span><span class="ebs-tag">EBS only</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>SELECT b.user_concurrent_queue_name, b.node_name,
+       a.running_processes, a.max_processes
+FROM apps.fnd_concurrent_queues a, apps.fnd_concurrent_queues_vl b
+WHERE a.concurrent_queue_id = b.concurrent_queue_id</pre></div>
+                </div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">Pending request count &amp; WF components</div>
+                            <div class="query-rationale">Queued/running concurrent requests; Workflow service component statuses</div>
+                            <div class="query-views"><span class="view-tag">APPS.FND_CONCURRENT_REQUESTS</span><span class="view-tag">APPS.FND_SVC_COMPONENTS</span><span class="ebs-tag">EBS only</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>SELECT phase_code, COUNT(*) FROM APPS.FND_CONCURRENT_REQUESTS
+WHERE phase_code IN ('P','R') GROUP BY phase_code
+
+SELECT component_type, component_name, component_status, startup_mode
+FROM apps.fnd_svc_components WHERE component_type LIKE 'WF%' ORDER BY 1, 2</pre></div>
+                </div>
+
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">Workflow notification &amp; error queues</div>
+                            <div class="query-rationale">Stuck notifications (open &gt;1 hour); WF error queue depth</div>
+                            <div class="query-views"><span class="view-tag">APPS.WF_NOTIFICATIONS</span><span class="view-tag">APPS.WF_ERROR</span><span class="ebs-tag">EBS only</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>SELECT COUNT(*) FROM APPS.WF_NOTIFICATIONS
+WHERE STATUS='OPEN' AND MAIL_STATUS='MAIL' AND BEGIN_DATE < SYSDATE - 1/24
+
+SELECT COUNT(*) FROM APPS.WF_ERROR</pre></div>
+                </div>
+            </div>
+
+            <!-- ADDM -->
+            <div class="category">
+                <div class="category-label">ADDM (on-demand panel — Enterprise Edition + Diagnostics Pack only)</div>
+                <div class="warn-box">
+                    <strong>License gate.</strong> TuneVault checks <code>V$VERSION</code> for 'ENTERPRISE' and <code>DBA_FEATURE_USAGE_STATISTICS</code> for Diagnostics Pack before running any AWR/ADDM queries. Skipped silently on Standard Edition.
+                </div>
+                <div class="query-card">
+                    <div class="query-card-header" onclick="toggleCard(this)">
+                        <div class="query-name">
+                            <div class="query-title">ADDM findings (AWR-backed)</div>
+                            <div class="query-rationale">Automatic Database Diagnostic Monitor findings for a configurable lookback window</div>
+                            <div class="query-views"><span class="view-tag">DBA_HIST_SNAPSHOT</span><span class="view-tag">DBA_HIST_ADDM_TASKS</span><span class="view-tag">DBA_ADVISOR_FINDINGS</span><span class="view-tag">DBA_ADVISOR_RECOMMENDATIONS</span></div>
+                        </div>
+                        <div class="expand-icon">&#9660;</div>
+                    </div>
+                    <div class="query-body"><pre>SELECT MIN(SNAP_ID), MAX(SNAP_ID), MIN(BEGIN_INTERVAL_TIME), MAX(END_INTERVAL_TIME)
+FROM DBA_HIST_SNAPSHOT WHERE END_INTERVAL_TIME > SYSDATE - :lookback_hours/24
+
+SELECT TASK_ID, TASK_NAME FROM DBA_HIST_ADDM_TASKS
+WHERE BEGIN_SNAP_ID = :begin_snap AND END_SNAP_ID = :end_snap
+  AND STATUS = 'COMPLETED' FETCH FIRST 1 ROWS ONLY
+
+SELECT f.FINDING_ID, f.TYPE, f.MESSAGE, f.BENEFIT,
+       d.ATTR1 AS recommendation, d.TYPE AS rec_type
+FROM DBA_ADVISOR_FINDINGS f
+LEFT JOIN DBA_ADVISOR_RECOMMENDATIONS d ON d.TASK_ID=f.TASK_ID AND d.FINDING_ID=f.FINDING_ID
+WHERE f.TASK_ID = :task_id ORDER BY f.BENEFIT DESC NULLS LAST FETCH FIRST 20 ROWS ONLY</pre></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Shell Commands -->
+        <section id="shell-commands" class="section">
+            <div class="section-header">
+                <span class="section-num">02</span>
+                <h2>Shell Commands</h2>
+            </div>
+            <p class="section-desc">The complete whitelist of OS commands the proxy may execute on your server. All are read-only status checks. No commands modify files, change configuration, or write to disk.</p>
+
+            <div class="info-box">
+                <strong>Core health checks use zero shell commands.</strong> CPU, memory, and I/O wait metrics are read from <code>V$OSSTAT</code> via Oracle SQL. Shell commands only run on EBS 12.2.x environments to check application-tier service status — and only the exact commands below are permitted.
+            </div>
+
+            <div class="category">
+                <div class="category-label">Core Health Checks (200+ checks)</div>
+                <div class="cmd-table-wrap">
+                    <table class="cmd-table">
+                        <thead>
+                            <tr>
+                                <th>Command</th>
+                                <th>Purpose</th>
+                                <th>Condition</th>
+                                <th>Writes?</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>— none —</code></td>
+                                <td class="cmd-purpose">All core OS metrics (CPU, memory, I/O wait) are read via <code>V$OSSTAT</code> through the Oracle connection. No shell commands required for any of the 200+ core health checks.</td>
+                                <td class="cmd-badge"><span class="badge-none">always</span></td>
+                                <td class="cmd-badge"><span class="badge-ro">NO</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="category">
+                <div class="category-label">EBS 12.2.x Application-Tier Commands — conditional (complete whitelist)</div>
+                <p style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">All commands use <code>$ADMIN_SCRIPTS_HOME</code> — no hardcoded paths. Only <code>status</code> subcommands are whitelisted. <code>admanagedsrvctl.sh</code> is the unified controller for all managed servers in EBS 12.2.x.</p>
+                <div class="cmd-table-wrap">
+                    <table class="cmd-table">
+                        <thead>
+                            <tr>
+                                <th>Command</th>
+                                <th>Purpose</th>
+                                <th>Condition</th>
+                                <th>Writes?</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>adcmctl.sh status</code></td>
+                                <td class="cmd-purpose">Concurrent Manager status. Reports running/max processes per queue.</td>
+                                <td class="cmd-badge"><span class="badge-ebs">EBS detected</span></td>
+                                <td class="cmd-badge"><span class="badge-ro">NO</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>adalnctl.sh status</code></td>
+                                <td class="cmd-purpose">APPS TNS Listener status. Checks if the application-tier listener is running.</td>
+                                <td class="cmd-badge"><span class="badge-ebs">EBS detected</span></td>
+                                <td class="cmd-badge"><span class="badge-ro">NO</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>admanagedsrvctl.sh status oacore_server1</code></td>
+                                <td class="cmd-purpose">OACore managed server status. Hosts Oracle Applications Framework pages.</td>
+                                <td class="cmd-badge"><span class="badge-ebs">EBS detected</span></td>
+                                <td class="cmd-badge"><span class="badge-ro">NO</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>admanagedsrvctl.sh status forms_server1</code></td>
+                                <td class="cmd-purpose">Forms managed server status. Required for EBS forms-based modules.</td>
+                                <td class="cmd-badge"><span class="badge-ebs">EBS detected</span></td>
+                                <td class="cmd-badge"><span class="badge-ro">NO</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>admanagedsrvctl.sh status oafm_server1</code></td>
+                                <td class="cmd-purpose">OA Framework managed server status. Hosts OAF-based Oracle Applications pages.</td>
+                                <td class="cmd-badge"><span class="badge-ebs">EBS detected</span></td>
+                                <td class="cmd-badge"><span class="badge-ro">NO</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>admanagedsrvctl.sh status wfmlrsvc</code></td>
+                                <td class="cmd-purpose">Workflow Mailer managed service status. Reports if outbound workflow notifications are processing.</td>
+                                <td class="cmd-badge"><span class="badge-ebs">EBS detected</span></td>
+                                <td class="cmd-badge"><span class="badge-ro">NO</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>admanagedsrvctl.sh status opp</code></td>
+                                <td class="cmd-purpose">Output Post Processor status. Handles PDF/EXCEL output for concurrent requests.</td>
+                                <td class="cmd-badge"><span class="badge-ebs">EBS detected</span></td>
+                                <td class="cmd-badge"><span class="badge-ro">NO</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>adadminsrvctl.sh status</code></td>
+                                <td class="cmd-purpose">Admin Server status. The WLS administration server managing all managed servers.</td>
+                                <td class="cmd-badge"><span class="badge-ebs">EBS detected</span></td>
+                                <td class="cmd-badge"><span class="badge-ro">NO</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>adnodemgrctl.sh status</code></td>
+                                <td class="cmd-purpose">Node Manager status. Controls WebLogic managed server lifecycle on this node.</td>
+                                <td class="cmd-badge"><span class="badge-ebs">EBS detected</span></td>
+                                <td class="cmd-badge"><span class="badge-ro">NO</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>adopmnctl.sh status</code></td>
+                                <td class="cmd-purpose">OPMN status. Oracle Process Manager and Notification Server for OHS/Apache.</td>
+                                <td class="cmd-badge"><span class="badge-ebs">EBS detected</span></td>
+                                <td class="cmd-badge"><span class="badge-ro">NO</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>mwactl.sh status</code></td>
+                                <td class="cmd-purpose">Middleware Agent status. Monitors and reports on WLS middleware component health.</td>
+                                <td class="cmd-badge"><span class="badge-ebs">EBS detected</span></td>
+                                <td class="cmd-badge"><span class="badge-ro">NO</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>adapcctl.sh status</code></td>
+                                <td class="cmd-purpose">Apache/OHS status. Reports if the Oracle HTTP Server is running and accepting requests.</td>
+                                <td class="cmd-badge"><span class="badge-ebs">EBS detected</span></td>
+                                <td class="cmd-badge"><span class="badge-ro">NO</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="warn-box" style="margin-top:12px;">
+                    <strong>Hard whitelist enforcement.</strong> The proxy validates the exact script filename and argument list against a compiled whitelist before execution. Any command not in this table — including start/stop/restart variants — is rejected with a 403. Scripts are resolved via <code>$ADMIN_SCRIPTS_HOME</code> at runtime; the path itself is never accepted from the caller. Execution is logged with timestamp, requester IP, exit code, and a SHA-256 hash of the output.
+                </div>
+            </div>
+        </section>
+
+        <!-- What We Don't Do -->
+        <section id="what-we-dont-do" class="section">
+            <div class="section-header">
+                <span class="section-num">03</span>
+                <h2>What TuneVault Never Does</h2>
+            </div>
+            <p class="section-desc">Explicit guarantees. These are enforced in the proxy binary — not policy statements.</p>
+
+            <div class="dont-grid">
+                <div class="dont-item">
+                    <div class="dont-icon">✗</div>
+                    <div class="dont-text">
+                        <div class="dt-title">Never modifies your data</div>
+                        <div class="dt-body">Zero INSERT, UPDATE, DELETE, or MERGE statements. All SQL is SELECT-only against system catalog views.</div>
+                    </div>
+                </div>
+                <div class="dont-item">
+                    <div class="dont-icon">✗</div>
+                    <div class="dont-text">
+                        <div class="dt-title">Never executes DDL</div>
+                        <div class="dt-body">No CREATE, ALTER, DROP, or TRUNCATE. Can't create objects, can't destroy them.</div>
+                    </div>
+                </div>
+                <div class="dont-item">
+                    <div class="dont-icon">✗</div>
+                    <div class="dont-text">
+                        <div class="dt-title">Never runs as SYS or SYSDBA</div>
+                        <div class="dt-body">Only the service account you create is used. SYSDBA privilege is not needed and not requested.</div>
+                    </div>
+                </div>
+                <div class="dont-item">
+                    <div class="dont-icon">✗</div>
+                    <div class="dont-text">
+                        <div class="dt-title">Never changes passwords</div>
+                        <div class="dt-body">No ALTER USER statements. No password reads beyond what Oracle reports via DBA_USERS_WITH_DEFPWD (which stores no plaintext).</div>
+                    </div>
+                </div>
+                <div class="dont-item">
+                    <div class="dont-icon">✗</div>
+                    <div class="dont-text">
+                        <div class="dt-title">Never stores Oracle credentials</div>
+                        <div class="dt-body">Credentials live only in the proxy's local environment on your server. TuneVault never transmits or stores them.</div>
+                    </div>
+                </div>
+                <div class="dont-item">
+                    <div class="dont-icon">✗</div>
+                    <div class="dont-text">
+                        <div class="dt-title">Never opens inbound ports</div>
+                        <div class="dt-body">The proxy binds to <code style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent)">127.0.0.1:3100</code> only. No external inbound ports. No VPN. No SSH tunnel.</div>
+                    </div>
+                </div>
+                <div class="dont-item">
+                    <div class="dont-icon">✗</div>
+                    <div class="dont-text">
+                        <div class="dt-title">Never sends data to third parties</div>
+                        <div class="dt-body">Metrics go only to tunevault.app. No analytics SDKs, no third-party telemetry, no external tracking.</div>
+                    </div>
+                </div>
+                <div class="dont-item">
+                    <div class="dont-icon">✗</div>
+                    <div class="dont-text">
+                        <div class="dt-title">Never reads user data rows</div>
+                        <div class="dt-body">All queries target system catalog views (DBA_*, V$*, GV$*). No SELECT against application tables.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Lockdown Script -->
+        <section id="lockdown" class="section">
+            <div class="section-header">
+                <span class="section-num">04</span>
+                <h2>Customer Lockdown Script</h2>
+            </div>
+            <p class="section-desc">Run this before installing the proxy. It creates a restricted OS user, sets filesystem permissions, and configures sudoers with a command whitelist.</p>
+
+            <div class="lockdown-hero">
+                <div class="lh-icon">🔐</div>
+                <div>
+                    <div class="lh-title">tunevault-lockdown.sh</div>
+                    <div class="lh-desc">Creates a hardened environment for the TuneVault proxy on your Oracle server. Principle of least privilege throughout — the proxy user can only do exactly what's needed.</div>
+                    <ol class="lockdown-steps">
+                        <li>Creates restricted OS user <code>tunevault</code> with no login shell</li>
+                        <li>Sets <code>tunevault</code> as owner of the proxy install directory</li>
+                        <li>Configures sudoers with explicit command whitelist (NOPASSWD for allowed commands only)</li>
+                        <li>Prints a verification summary — inspect before running proxy</li>
+                    </ol>
+                    <div style="margin-top:16px;">
+                        <a href="/security/lockdown.sh" class="btn-primary" download style="font-size:13px;padding:10px 20px;">&#11015; Download lockdown.sh</a>
+                    </div>
+                </div>
+            </div>
+
+            <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;">Full script — read every line before running:</p>
+            <div class="script-block">
+                <div class="script-block-header">
+                    <span class="sb-title">tunevault-lockdown.sh</span>
+                    <div class="sb-actions">
+                        <a href="/security/lockdown.sh" class="sb-btn" download>&#11015; Download</a>
+                        <button class="sb-btn" onclick="copyScript()">&#128203; Copy</button>
+                    </div>
+                </div>
+                <div class="script-collapsible" id="lockdownScript">
+                    <div class="script-fade">
+                        <pre id="lockdownScriptContent"><span class="sh-comment">#!/bin/bash
+# tunevault-lockdown.sh
+# ==================================================
+# Run this on your Oracle server BEFORE installing
+# the TuneVault proxy. It creates a restricted OS
+# user and configures minimal sudo privileges.
+#
+# Usage:
+#   chmod +x tunevault-lockdown.sh
+#   sudo ./tunevault-lockdown.sh [--install-dir /opt/tunevault]
+#
+# Requirements: bash, sudo, useradd/adduser
+# Tested on: Oracle Linux 7/8/9, RHEL 7/8/9, Ubuntu 20/22
+# ==================================================
+
+</span><span class="sh-cmd">set -euo pipefail</span>
+
+<span class="sh-var">INSTALL_DIR</span>=<span class="sh-comment">${1:-/opt/tunevault}</span>
+<span class="sh-var">PROXY_USER</span>=tunevault
+<span class="sh-var">PROXY_GROUP</span>=tunevault
+<span class="sh-var">LOG_FILE</span>=/var/log/tunevault-lockdown.log
+
+<span class="sh-comment"># Must run as root</span>
+<span class="sh-cmd">if [ "$(id -u)" != "0" ]; then
+  echo "ERROR: Must run as root (sudo ./tunevault-lockdown.sh)"
+  exit 1
+fi</span>
+
+<span class="sh-comment">echo "========================================"
+echo " TuneVault Lockdown Script"
+echo " $(date)"
+echo " Install dir: $INSTALL_DIR"
+echo "========================================"
+echo ""</span>
+
+<span class="sh-comment"># --- Create restricted group and user ---</span>
+<span class="sh-cmd">if ! getent group "$PROXY_GROUP" &>/dev/null; then
+  echo "[1/4] Creating group: $PROXY_GROUP"
+  groupadd --system "$PROXY_GROUP"
+else
+  echo "[1/4] Group $PROXY_GROUP already exists — skipping"
+fi
+
+if ! id "$PROXY_USER" &>/dev/null; then
+  echo "[2/4] Creating user: $PROXY_USER (no login shell, system account)"
+  useradd \
+    --system \
+    --gid "$PROXY_GROUP" \
+    --shell /sbin/nologin \
+    --no-create-home \
+    --comment "TuneVault proxy service account" \
+    "$PROXY_USER"
+else
+  echo "[2/4] User $PROXY_USER already exists — skipping"
+fi</span>
+
+<span class="sh-comment"># --- Create and lock down install directory ---</span>
+<span class="sh-cmd">echo "[3/4] Setting up install directory: $INSTALL_DIR"
+mkdir -p "$INSTALL_DIR"
+chown "$PROXY_USER:$PROXY_GROUP" "$INSTALL_DIR"
+chmod 750 "$INSTALL_DIR"
+
+# Log directory (writable by proxy user only)
+mkdir -p "$INSTALL_DIR/logs"
+chown "$PROXY_USER:$PROXY_GROUP" "$INSTALL_DIR/logs"
+chmod 700 "$INSTALL_DIR/logs"</span>
+
+<span class="sh-comment"># --- Configure sudoers whitelist ---</span>
+<span class="sh-cmd">echo "[4/4] Writing sudoers whitelist..."
+SUDOERS_FILE=/etc/sudoers.d/tunevault
+
+# Remove existing file if present
+[ -f "$SUDOERS_FILE" ] && rm -f "$SUDOERS_FILE"
+
+cat > "$SUDOERS_FILE" << 'SUDOERS_EOF'
+# TuneVault proxy — minimal sudo whitelist (EBS 12.2.x application tier)
+# Generated by tunevault-lockdown.sh
+# DO NOT edit manually — re-run lockdown.sh to update
+#
+# All paths use $ADMIN_SCRIPTS_HOME set in the oracle user environment.
+# Only "status" subcommands are listed — start/stop/restart are NOT granted.
+
+Defaults:tunevault env_keep += "ADMIN_SCRIPTS_HOME"
+
+# Non-managed services
+Cmnd_Alias TUNEVAULT_NON_MANAGED = \
+  $ADMIN_SCRIPTS_HOME/adcmctl.sh status, \
+  $ADMIN_SCRIPTS_HOME/adalnctl.sh status, \
+  $ADMIN_SCRIPTS_HOME/adadminsrvctl.sh status, \
+  $ADMIN_SCRIPTS_HOME/adnodemgrctl.sh status, \
+  $ADMIN_SCRIPTS_HOME/adopmnctl.sh status, \
+  $ADMIN_SCRIPTS_HOME/mwactl.sh status, \
+  $ADMIN_SCRIPTS_HOME/adapcctl.sh status
+
+# Managed servers (unified admanagedsrvctl.sh controller)
+Cmnd_Alias TUNEVAULT_MANAGED = \
+  $ADMIN_SCRIPTS_HOME/admanagedsrvctl.sh status oacore_server1, \
+  $ADMIN_SCRIPTS_HOME/admanagedsrvctl.sh status forms_server1, \
+  $ADMIN_SCRIPTS_HOME/admanagedsrvctl.sh status oafm_server1, \
+  $ADMIN_SCRIPTS_HOME/admanagedsrvctl.sh status wfmlrsvc, \
+  $ADMIN_SCRIPTS_HOME/admanagedsrvctl.sh status opp
+
+tunevault ALL=(oracle) NOPASSWD: TUNEVAULT_NON_MANAGED, TUNEVAULT_MANAGED
+
+# No other commands are permitted
+SUDOERS_EOF
+
+# Validate sudoers file syntax
+if command -v visudo &>/dev/null; then
+  if visudo -c -f "$SUDOERS_FILE" &>/dev/null; then
+    echo "    sudoers syntax OK: $SUDOERS_FILE"
+  else
+    echo "ERROR: sudoers validation failed — removing $SUDOERS_FILE"
+    rm -f "$SUDOERS_FILE"
+    exit 1
+  fi
+fi
+chmod 440 "$SUDOERS_FILE"</span>
+
+<span class="sh-comment"># --- Print verification summary ---
+echo ""
+echo "========================================"
+echo " Lockdown complete. Verify before use:"
+echo "========================================"
+echo ""
+echo "OS user:"
+id tunevault 2>/dev/null || echo "  ERROR: user not found"
+echo ""
+echo "Install directory:"
+ls -la "$INSTALL_DIR" 2>/dev/null | head -5
+echo ""
+echo "Sudoers whitelist:"
+cat "$SUDOERS_FILE" 2>/dev/null
+echo ""
+echo "Shell (should be /sbin/nologin or /bin/false):"
+getent passwd tunevault | cut -d: -f7
+echo ""
+echo "========================================"
+echo " Next: install the proxy as user 'tunevault'"
+echo " See: https://tunevault.app/docs/oracle-setup"
+echo "========================================"</span>
+</pre>
+                    </div>
+                </div>
+                <button class="expand-btn" id="expandBtn" onclick="toggleScript()">Show full script &#9660;</button>
+            </div>
+        </section>
+
+        <!-- Audit & Logging -->
+        <section id="audit" class="section">
+            <div class="section-header">
+                <span class="section-num">05</span>
+                <h2>Audit &amp; Logging</h2>
+            </div>
+            <p class="section-desc">Every action TuneVault takes on your infrastructure is recorded. Your security team can audit the complete history at any time.</p>
+
+            <div class="audit-grid">
+                <div class="audit-card">
+                    <div class="ac-icon">📋</div>
+                    <div class="ac-title">TuneVault Dashboard</div>
+                    <div class="ac-body">Every health check run appears in your dashboard with timestamp, duration, score, and a complete record of which checks were executed. Filterable by date range and connection.</div>
+                </div>
+                <div class="audit-card">
+                    <div class="ac-icon">🖥️</div>
+                    <div class="ac-title">Local Proxy Logs</div>
+                    <div class="ac-body">The proxy writes structured JSON logs to <code style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent)">/opt/tunevault/logs/</code>. Each entry records: timestamp, command or query type, execution duration, success/failure, and a result hash (not the data itself).</div>
+                </div>
+                <div class="audit-card">
+                    <div class="ac-icon">🔎</div>
+                    <div class="ac-title">Verification Script</div>
+                    <div class="ac-body">Download <code style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent)">lockdown-verify.sh</code> to capture a live 30-second syscall trace of the proxy using strace or auditd. See every file open, network connection, and process execution in real time.</div>
+                </div>
+                <div class="audit-card">
+                    <div class="ac-icon">🔒</div>
+                    <div class="ac-title">Immutable Log Format</div>
+                    <div class="ac-body">Proxy logs are append-only. The log file is owned by <code style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent)">tunevault:tunevault</code> and not writable by other accounts. Hash chaining detects any post-hoc modification.</div>
+                </div>
+            </div>
+
+            <div class="info-box" style="margin-top:24px;">
+                <strong>Questions from your security team?</strong> We're happy to do a live walkthrough — screen share, walk through the proxy source, answer specific concerns. Email <a href="mailto:security@tunevault.app">security@tunevault.app</a> to schedule.
+            </div>
+        </section>
+
+        <!-- Network Egress -->
+        <section id="network-egress" class="section">
+            <div class="section-header">
+                <span class="section-num">06</span>
+                <h2>Network Egress from the Proxy</h2>
+            </div>
+            <p class="section-desc">Exactly two outbound HTTPS connections. No inbound ports. No third parties.</p>
+
+            <div class="egress-card">
+                <div class="egress-card-row">
+                    <div class="egress-cell">Destination</div>
+                    <div class="egress-cell val">tunevault.app (US region) — port 443 / HTTPS / TLS 1.2+</div>
+                </div>
+                <div class="egress-card-row">
+                    <div class="egress-cell">Purpose</div>
+                    <div class="egress-cell val">Delivers health check results to your TuneVault account. JSON payload of Oracle metrics collected during the run.</div>
+                </div>
+                <div class="egress-card-row">
+                    <div class="egress-cell">Authentication</div>
+                    <div class="egress-cell val">64-hex API key in <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">X-API-Key</code> header — generated locally on your server at install time. TuneVault never holds Oracle credentials.</div>
+                </div>
+                <div class="egress-card-row">
+                    <div class="egress-cell no-border">Data sent</div>
+                    <div class="egress-cell val no-border">Oracle metrics (tablespace usage, wait events, SQL stats). NOT sent: Oracle credentials, schema objects, user data rows.</div>
+                </div>
+            </div>
+
+            <div class="egress-card">
+                <div class="egress-card-row">
+                    <div class="egress-cell">Destination</div>
+                    <div class="egress-cell val">tunevault.app/api/proxy/version (same host)</div>
+                </div>
+                <div class="egress-card-row">
+                    <div class="egress-cell">Purpose</div>
+                    <div class="egress-cell val">Auto-update check every 6 hours. Downloads new binary, validates SHA-256 checksum, replaces in-place. No restart of PM2/systemd required.</div>
+                </div>
+                <div class="egress-card-row">
+                    <div class="egress-cell no-border">Data sent</div>
+                    <div class="egress-cell val no-border">Current proxy version string only. No credentials, no metrics.</div>
+                </div>
+            </div>
+
+            <div class="info-box" style="margin-top:16px;">
+                <strong>No tunnel software. No inbound connections.</strong> The proxy uses standard outbound HTTPS. Your firewall only needs to allow outbound 443 from the Oracle server to <code>tunevault.app</code>. No inbound rules, no VPN, no NAT punching.
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<footer>
+    <span><span class="brand-name">TuneVault</span> &copy; 2026</span>
+    <div class="footer-links">
+        <a href="/about">About</a>
+        <a href="/blog">Blog</a>
+        <a href="/docs/oracle-setup">Setup Guide</a>
+        <a href="/security/commands" style="color:var(--accent);">Security Review</a>
+        <a href="/sample-report">Sample Report</a>
+        <a href="/pricing">Pricing</a>
+    </div>
+</footer>
+
+<script src="/nav-component.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    window.tvNav.init('main');
+});
+
+function toggleCard(header) {
+    header.parentElement.classList.toggle('open');
+}
+
+function toggleScript() {
+    var el = document.getElementById('lockdownScript');
+    var btn = document.getElementById('expandBtn');
+    var fade = el.querySelector('.script-fade');
+    if (el.classList.contains('expanded')) {
+        el.classList.remove('expanded');
+        btn.textContent = 'Show full script ▼';
+        if (fade) fade.style.display = '';
+    } else {
+        el.classList.add('expanded');
+        btn.textContent = 'Collapse ▲';
+        if (fade) fade.style.display = 'none';
+    }
+}
+
+function copyScript() {
+    var pre = document.getElementById('lockdownScriptContent');
+    var text = pre ? pre.innerText || pre.textContent : '';
+    if (navigator.clipboard && text) {
+        navigator.clipboard.writeText(text).then(function() {
+            var btn = document.querySelector('.sb-btn[onclick="copyScript()"]');
+            if (btn) { btn.textContent = '✓ Copied'; setTimeout(function() { btn.textContent = '⧉ Copy'; }, 2000); }
+        });
+    }
+}
+
+// TOC scroll highlight
+(function() {
+    var sections = document.querySelectorAll('[id]');
+    var tocLinks = document.querySelectorAll('.toc-item');
+    function onScroll() {
+        var scrollY = window.scrollY + 80;
+        var current = '';
+        sections.forEach(function(s) { if (s.offsetTop <= scrollY) current = s.id; });
+        tocLinks.forEach(function(link) {
+            link.classList.remove('active');
+            if (link.getAttribute('href') === '#' + current) link.classList.add('active');
+        });
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+})();
+</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

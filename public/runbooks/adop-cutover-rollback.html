@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ADOP Cutover and Rollback Runbook — Oracle EBS 12.2 Online Patching | TuneVault</title>
+    <meta name="description" content="ADOP cutover stalled or patch cycle failed? Step-by-step EBS 12.2 ADOP cutover troubleshooting, rollback commands, stuck phase recovery, and emergency adop cleanup for Oracle E-Business Suite 12.2.">
+    <meta name="author" content="TuneVault">
+    <link rel="canonical" href="https://tunevault.app/resources/runbooks/adop-cutover-rollback">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <meta property="og:title" content="ADOP Cutover and Rollback Runbook — TuneVault">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://tunevault.app/resources/runbooks/adop-cutover-rollback">
+    <meta property="og:site_name" content="TuneVault">
+    <meta property="og:image" content="https://tunevault.app/og/runbook.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="Oracle DBA Runbook — TuneVault production-tested recovery guide">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://tunevault.app/og/runbook.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        { "@type": "Organization", "@id": "https://tunevault.app/#organization", "name": "TuneVault", "url": "https://tunevault.app", "logo": { "@type": "ImageObject", "url": "https://tunevault.app/logo.png" }, "foundingDate": "2026", "founder": { "@type": "Person", "name": "Kiran Kumar Ale", "url": "https://tunevault.app/about" }, "contactPoint": { "@type": "ContactPoint", "email": "hello@tunevault.app", "contactType": "customer support" } },
+        { "@type": "TechArticle", "@id": "https://tunevault.app/resources/runbooks/adop-cutover-rollback#article", "headline": "ADOP Cutover and Rollback Runbook for Oracle EBS 12.2", "description": "Troubleshoot ADOP cutover stalls, perform patch cycle rollback, and recover from stuck ADOP phases in Oracle EBS 12.2.", "url": "https://tunevault.app/resources/runbooks/adop-cutover-rollback", "datePublished": "2026-05-15", "dateModified": "2026-05-15", "author": { "@type": "Person", "name": "Kiran Kumar Ale", "url": "https://tunevault.app/about" }, "publisher": { "@id": "https://tunevault.app/#organization" }, "about": [{ "@type": "Thing", "name": "Oracle EBS" }, { "@type": "Thing", "name": "ADOP" }, { "@type": "Thing", "name": "Online Patching" }] }
+      ]
+    }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+    <style>
+        :root{--bg:#0a0a0c;--surface:#111114;--surface2:#18181c;--border:#2a2a30;--text:#e8e8ed;--text-dim:#9898a8;--accent:#f0a830;--accent-dim:rgba(240,168,48,0.12);--red:#f87171;--red-dim:rgba(248,113,113,0.1);--green:#4ade80;--green-dim:rgba(74,222,128,0.1);--blue:#60a5fa;--blue-dim:rgba(96,165,250,0.1);}
+        *{box-sizing:border-box;margin:0;padding:0;}body{background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif;line-height:1.7;}a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
+        nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+        .nav-logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;color:var(--text);text-decoration:none;}
+        .nav-logo-icon{width:28px;height:28px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:13px;color:#0a0a0c;font-weight:700;}
+        .nav-links{display:flex;align-items:center;gap:20px;}.nav-links a{font-size:13px;color:var(--text-dim);transition:color 0.15s;}.nav-links a:hover{color:var(--text);text-decoration:none;}
+        .nav-cta{background:var(--accent);color:#0a0a0c !important;padding:6px 16px;border-radius:6px;font-weight:600;font-size:13px !important;}
+        .page-wrap{max-width:820px;margin:0 auto;padding:48px 24px 80px;}
+        .breadcrumb{font-size:13px;color:var(--text-dim);margin-bottom:32px;}.breadcrumb a{color:var(--text-dim);}.breadcrumb a:hover{color:var(--accent);}.breadcrumb span{margin:0 6px;}
+        .article-tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:3px 10px;border-radius:20px;background:rgba(168,85,247,0.1);color:#c084fc;margin-bottom:16px;}
+        h1{font-size:clamp(26px,4vw,40px);font-weight:700;line-height:1.2;margin-bottom:16px;}
+        .article-meta{display:flex;gap:20px;flex-wrap:wrap;font-size:13px;color:var(--text-dim);margin-bottom:40px;}
+        .toc{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 24px;margin-bottom:40px;}
+        .toc-title{font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-dim);margin-bottom:12px;}
+        .toc ol{padding-left:20px;}.toc li{margin-bottom:6px;}.toc a{font-size:14px;color:var(--text-dim);}.toc a:hover{color:var(--accent);}
+        h2{font-size:22px;font-weight:700;margin:48px 0 16px;padding-top:32px;border-top:1px solid var(--border);}h3{font-size:17px;font-weight:600;margin:28px 0 12px;}
+        p{margin-bottom:16px;font-size:15px;}ul,ol{padding-left:22px;margin-bottom:16px;}li{margin-bottom:8px;font-size:15px;}
+        pre{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:18px 20px;overflow-x:auto;margin:16px 0 24px;}
+        code{font-family:'JetBrains Mono',monospace;font-size:13px;color:#93c5fd;line-height:1.6;}p code,li code{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:12.5px;color:#93c5fd;}
+        .comment{color:#6b7280;}.keyword{color:#f0a830;}.string{color:#4ade80;}
+        .callout{border-radius:10px;padding:18px 20px;margin:20px 0;font-size:14px;}
+        .callout-critical{background:var(--red-dim);border:1px solid rgba(248,113,113,0.3);}.callout-warning{background:var(--accent-dim);border:1px solid rgba(240,168,48,0.3);}.callout-info{background:var(--blue-dim);border:1px solid rgba(96,165,250,0.3);}.callout-success{background:var(--green-dim);border:1px solid rgba(74,222,128,0.3);}
+        .callout-title{font-weight:700;margin-bottom:6px;}.callout-critical .callout-title{color:var(--red);}.callout-warning .callout-title{color:var(--accent);}.callout-info .callout-title{color:var(--blue);}.callout-success .callout-title{color:var(--green);}
+        .cta-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:32px;text-align:center;margin:48px 0;}
+        .cta-box h3{font-size:20px;margin-bottom:8px;}.cta-box p{color:var(--text-dim);margin-bottom:20px;font-size:14px;}
+        .cta-btn{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#0a0a0c;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;}
+        .cta-btn:hover{background:#e09820;text-decoration:none;}
+        .nav-footer{display:flex;justify-content:space-between;gap:16px;margin-top:48px;padding-top:32px;border-top:1px solid var(--border);flex-wrap:wrap;}
+        .nav-footer a{font-size:14px;font-weight:500;color:var(--text-dim);}.nav-footer a:hover{color:var(--accent);text-decoration:none;}
+        footer{border-top:1px solid var(--border);padding:32px 24px;text-align:center;font-size:13px;color:var(--text-dim);}
+        .footer-links{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin-bottom:12px;}.footer-links a{color:var(--text-dim);}
+        @media(max-width:600px){.page-wrap{padding:32px 16px 60px;}}
+    </style>
+</head>
+<body>
+
+<nav>
+    <a href="/" class="nav-logo"><div class="nav-logo-icon">TV</div>TuneVault</a>
+    <div class="nav-links">
+        <a href="/resources/runbooks">Runbooks</a>
+        <a href="/blog">Blog</a>
+        <a href="/signup?path=health-check&redirect=/dashboard" class="nav-cta">Start Free</a>
+    </div>
+</nav>
+
+<div class="page-wrap">
+
+    <div class="breadcrumb">
+        <a href="/">TuneVault</a><span>›</span>
+        <a href="/resources/runbooks">Runbooks</a><span>›</span>
+        ADOP Cutover &amp; Rollback
+    </div>
+
+    <div class="article-tag">🔄 ADOP / Patching</div>
+    <h1>ADOP Cutover and Rollback Runbook</h1>
+    <div class="article-meta">
+        <span>⏱ 30–120 min</span>
+        <span>EBS 12.2 only</span>
+        <span>Updated 2026-05-15</span>
+    </div>
+
+    <div class="callout callout-critical">
+        <div class="callout-title">🔴 EBS 12.2 only</div>
+        ADOP (AD Online Patching) is specific to Oracle EBS 12.2. For EBS 12.1, use adpatch. This runbook covers ADOP phases: prepare → apply → finalize → cutover → cleanup.
+    </div>
+
+    <div class="toc">
+        <div class="toc-title">In this runbook</div>
+        <ol>
+            <li><a href="#adop-overview">ADOP phase overview</a></li>
+            <li><a href="#check-status">Check current ADOP session status</a></li>
+            <li><a href="#stuck-phases">Recover from stuck phases</a></li>
+            <li><a href="#cutover-fails">When cutover fails or stalls</a></li>
+            <li><a href="#rollback">Rollback a patch cycle</a></li>
+            <li><a href="#emergency-cleanup">Emergency adop cleanup</a></li>
+            <li><a href="#post-cleanup">Post-cleanup verification</a></li>
+        </ol>
+    </div>
+
+    <h2 id="adop-overview">1. ADOP Phase Overview</h2>
+
+    <p>ADOP runs Oracle EBS patching across five phases. Each phase must complete before the next begins. The patching happens on the patch edition (run filesystem), keeping the run edition (production filesystem) live throughout apply and finalize.</p>
+
+    <ul>
+        <li><strong>prepare</strong>: Creates the patch edition. Copies the run filesystem to the patch filesystem. Activates the patch edition in the database.</li>
+        <li><strong>apply</strong>: Applies patches to the patch edition only. Production users are completely unaffected.</li>
+        <li><strong>finalize</strong>: Compiles and generates objects in the patch edition. The longest phase for large patches.</li>
+        <li><strong>cutover</strong>: Switches the database from run edition to patch edition. Requires a brief outage (typically 5–30 minutes). All current sessions must be terminated.</li>
+        <li><strong>cleanup</strong>: Drops the old run edition. Reclaims disk space on the old patch filesystem. Can run after cutover while users are active.</li>
+    </ul>
+
+    <h2 id="check-status">2. Check Current ADOP Session Status</h2>
+
+    <pre><code><span class="comment">-- Current ADOP session and phase status</span>
+<span class="keyword">SELECT</span>
+  s.adop_session_id,
+  s.prepare_status,
+  s.apply_status,
+  s.finalize_status,
+  s.cutover_status,
+  s.cleanup_status,
+  s.abandon_status,
+  s.start_date,
+  s.end_date
+<span class="keyword">FROM</span> apps.ad_adop_sessions s
+<span class="keyword">WHERE</span> s.adop_session_id = (
+  <span class="keyword">SELECT</span> MAX(adop_session_id)
+  <span class="keyword">FROM</span> apps.ad_adop_sessions
+);
+
+<span class="comment">-- Check active workers (should be 0 if no ADOP is running)</span>
+<span class="keyword">SELECT</span> COUNT(*) AS active_workers
+<span class="keyword">FROM</span> apps.ad_adop_session_patches sp
+<span class="keyword">JOIN</span> apps.ad_adop_sessions s ON s.adop_session_id = sp.adop_session_id
+<span class="keyword">WHERE</span> sp.apply_status = <span class="string">'R'</span>; <span class="comment">-- R = Running</span>
+
+<span class="comment">-- Get the edition names (run vs patch)</span>
+<span class="keyword">SELECT</span> edition_name, edition_type
+<span class="keyword">FROM</span> dba_editions
+<span class="keyword">ORDER BY</span> edition_name;</code></pre>
+
+    <h2 id="stuck-phases">3. Recover from Stuck Phases</h2>
+
+    <h3>3a. Resume a failed or interrupted ADOP session</h3>
+    <p>If ADOP was interrupted (SSH disconnect, server restart, OOM), you can resume from where it stopped:</p>
+    <pre><code><span class="comment">-- As applmgr OS user, source EBS environment</span>
+<span class="comment">-- . /u01/oracle/ebs/EBSapps.env run</span>
+
+<span class="comment">-- Resume the most recent session</span>
+<span class="comment">-- adop phase=apply patches=&lt;patch_number&gt; resume=yes</span>
+<span class="comment">-- adop phase=finalize resume=yes</span>
+<span class="comment">-- adop phase=cutover resume=yes</span></code></pre>
+
+    <h3>3b. Prepare phase stuck</h3>
+    <pre><code><span class="comment">-- Check if the patch edition was created</span>
+<span class="keyword">SELECT</span> edition_name, edition_type, parent_edition_name
+<span class="keyword">FROM</span> dba_editions;
+
+<span class="comment">-- If prepare is stuck: check for locked sessions preventing edition creation</span>
+<span class="keyword">SELECT</span> s.sid, s.serial#, s.username, s.status, s.sql_id,
+  ROUND((SYSDATE - s.logon_time)*24, 1) AS hours_connected
+<span class="keyword">FROM</span> v$session s
+<span class="keyword">WHERE</span> s.status = <span class="string">'ACTIVE'</span>
+  <span class="keyword">AND</span> s.username IS NOT NULL
+<span class="keyword">ORDER BY</span> s.logon_time;</code></pre>
+
+    <h3>3c. Finalize phase hung on object compilation</h3>
+    <pre><code><span class="comment">-- Check what's being compiled</span>
+<span class="keyword">SELECT</span> object_name, object_type, status, last_ddl_time
+<span class="keyword">FROM</span> dba_objects
+<span class="keyword">WHERE</span> status = <span class="string">'INVALID'</span>
+  <span class="keyword">AND</span> owner = <span class="string">'APPS'</span>
+<span class="keyword">ORDER BY</span> last_ddl_time <span class="keyword">DESC</span>
+<span class="keyword">FETCH FIRST</span> 20 <span class="keyword">ROWS ONLY</span>;
+
+<span class="comment">-- If specific objects keep failing, compile manually in the patch edition</span>
+<span class="comment">-- ALTER SESSION SET EDITION = &amp;PATCH_EDITION_NAME;</span>
+<span class="comment">-- ALTER PACKAGE APPS.PROBLEM_PACKAGE COMPILE;</span>
+<span class="comment">-- ALTER VIEW APPS.PROBLEM_VIEW COMPILE;</span></code></pre>
+
+    <h2 id="cutover-fails">4. When Cutover Fails or Stalls</h2>
+
+    <div class="callout callout-critical">
+        <div class="callout-title">🔴 During cutover: EBS is in outage mode</div>
+        Cutover requires all user sessions to terminate. If sessions cannot be ended (open transactions, hung processes), cutover will wait indefinitely. Do NOT restart the database during cutover — this will corrupt the edition state.
+    </div>
+
+    <h3>4a. Terminate blocking sessions preventing cutover</h3>
+    <pre><code><span class="comment">-- Find sessions blocking cutover (non-ADOP sessions in APPS)</span>
+<span class="keyword">SELECT</span>
+  s.sid, s.serial#, s.username, s.status,
+  s.program, s.machine,
+  ROUND((SYSDATE - s.logon_time) * 60, 0) AS mins_connected
+<span class="keyword">FROM</span> v$session s
+<span class="keyword">WHERE</span> s.username IS NOT NULL
+  <span class="keyword">AND</span> s.username != <span class="string">'SYS'</span>
+  <span class="keyword">AND</span> s.program NOT LIKE <span class="string">'%adop%'</span>
+<span class="keyword">ORDER BY</span> s.logon_time;
+
+<span class="comment">-- Terminate blocking sessions (use with caution)</span>
+<span class="comment">-- ALTER SYSTEM KILL SESSION 'SID,SERIAL#' IMMEDIATE;</span>
+
+<span class="comment">-- If OS-level signal is needed (for disconnected sessions)</span>
+<span class="comment">-- SELECT s.sid, s.serial#, p.spid AS os_pid</span>
+<span class="comment">-- FROM v$session s JOIN v$process p ON p.addr = s.paddr</span>
+<span class="comment">-- WHERE s.sid = &amp;YOUR_SID;</span>
+<span class="comment">-- Send SIGTERM to &OS_PID (as oracle OS user)</span></code></pre>
+
+    <h3>4b. Cutover hung on &ldquo;Waiting for database edition switch&rdquo;</h3>
+    <pre><code><span class="comment">-- Check if the database edition switch is actually happening</span>
+<span class="keyword">SELECT</span> property_name, property_value
+<span class="keyword">FROM</span> database_properties
+<span class="keyword">WHERE</span> property_name = <span class="string">'DEFAULT_EDITION'</span>;
+
+<span class="comment">-- If switch is hung, check for edition-blocking locks</span>
+<span class="keyword">SELECT</span> l.sid, s.username, l.type, l.lmode, l.request
+<span class="keyword">FROM</span> v$lock l
+<span class="keyword">JOIN</span> v$session s ON s.sid = l.sid
+<span class="keyword">WHERE</span> l.type = <span class="string">'ED'</span>;  <span class="comment">-- ED = Edition lock</span></code></pre>
+
+    <h2 id="rollback">5. Rollback a Patch Cycle</h2>
+
+    <div class="callout callout-warning">
+        <div class="callout-title">⚠️ Rollback window is before cutover</div>
+        You can only rollback BEFORE cutover completes. Once the database switches to the patch edition (cutover done), rollback is not possible — the old edition has been committed. If cutover is complete and you have problems, you need to apply a fix patch forward.
+    </div>
+
+    <pre><code><span class="comment">-- Rollback is possible only if cutover_status != 'C' (Completed)</span>
+<span class="keyword">SELECT</span> cutover_status, abandon_status
+<span class="keyword">FROM</span> apps.ad_adop_sessions
+<span class="keyword">WHERE</span> adop_session_id = (
+  <span class="keyword">SELECT</span> MAX(adop_session_id) <span class="keyword">FROM</span> apps.ad_adop_sessions
+);
+
+<span class="comment">-- Rollback the patch (as applmgr, EBS env sourced)</span>
+<span class="comment">-- adop phase=abandon</span>
+
+<span class="comment">-- After abandon completes, start cleanup to reclaim disk space</span>
+<span class="comment">-- adop phase=cleanup</span></code></pre>
+
+    <h2 id="emergency-cleanup">6. Emergency adop cleanup</h2>
+
+    <p>If a previous ADOP session ended abnormally and left the system in an inconsistent state (no active ADOP running but <code>adop phase=prepare</code> fails with &ldquo;active session exists&rdquo;), you may need to force-abandon and cleanup:</p>
+
+    <pre><code><span class="comment">-- Check for orphaned ADOP session</span>
+<span class="keyword">SELECT</span>
+  adop_session_id,
+  prepare_status, apply_status, finalize_status,
+  cutover_status, cleanup_status, abandon_status
+<span class="keyword">FROM</span> apps.ad_adop_sessions
+<span class="keyword">ORDER BY</span> adop_session_id <span class="keyword">DESC</span>
+<span class="keyword">FETCH FIRST</span> 3 <span class="keyword">ROWS ONLY</span>;
+
+<span class="comment">-- Force-mark orphaned session as abandoned (if truly no ADOP is running)</span>
+<span class="keyword">UPDATE</span> apps.ad_adop_sessions
+<span class="keyword">SET</span> abandon_status = <span class="string">'C'</span>
+<span class="keyword">WHERE</span> adop_session_id = &amp;SESSION_ID
+  <span class="keyword">AND</span> abandon_status IS NULL;
+<span class="keyword">COMMIT</span>;
+
+<span class="comment">-- Then run cleanup to drop old edition and reclaim space</span>
+<span class="comment">-- adop phase=cleanup</span>
+
+<span class="comment">-- If cleanup itself fails, force cleanup</span>
+<span class="comment">-- adop phase=cleanup force=yes</span></code></pre>
+
+    <div class="callout callout-info">
+        <div class="callout-title">ℹ️ When to call Oracle Support</div>
+        If force cleanup fails, or if the database has two active editions and you cannot determine which is the run edition, open an Oracle SR immediately. Incorrect edition manipulation can corrupt the EBS database state permanently.
+    </div>
+
+    <h2 id="post-cleanup">7. Post-Cleanup Verification</h2>
+
+    <pre><code><span class="comment">-- Verify only one edition exists post-cleanup</span>
+<span class="keyword">SELECT</span> edition_name, edition_type, parent_edition_name
+<span class="keyword">FROM</span> dba_editions;
+
+<span class="comment">-- Verify default edition is the run edition</span>
+<span class="keyword">SELECT</span> property_name, property_value
+<span class="keyword">FROM</span> database_properties
+<span class="keyword">WHERE</span> property_name = <span class="string">'DEFAULT_EDITION'</span>;
+
+<span class="comment">-- Check invalid objects after cleanup</span>
+<span class="keyword">SELECT</span> COUNT(*) AS invalid_objects
+<span class="keyword">FROM</span> dba_objects
+<span class="keyword">WHERE</span> status = <span class="string">'INVALID'</span>
+  <span class="keyword">AND</span> owner IN (<span class="string">'APPS'</span>, <span class="string">'APPLSYS'</span>);
+
+<span class="comment">-- Recompile invalid objects</span>
+<span class="comment">-- Run as APPS: EXEC UTL_RECOMP.recomp_parallel(4);</span>
+
+<span class="comment">-- Verify disk space was reclaimed</span>
+<span class="comment">-- du -sh $PATCH_TOP (should be smaller or gone)</span></code></pre>
+
+    <div class="callout callout-success">
+        <div class="callout-title">✅ ADOP health checklist</div>
+        <ul style="margin:8px 0 0 20px;">
+            <li>Never start ADOP without checking current patch edition state first</li>
+            <li>Plan cutover outage window in advance (notify users)</li>
+            <li>Check invalid objects before starting ADOP (pre-existing invalids slow finalize)</li>
+            <li>Monitor filesystem space: apply needs 2× run filesystem space on patch filesystem</li>
+            <li>Run cleanup immediately after cutover to reclaim disk space</li>
+            <li>TuneVault health check monitors ADOP session state and edition count</li>
+        </ul>
+    </div>
+
+    <div class="cta-box">
+        <h3>Monitor ADOP status between patch cycles</h3>
+        <p>TuneVault's EBS health checks include ADOP session state, edition count, and patch filesystem utilisation — so you know the patching state before you start your next cycle.</p>
+        <a href="/signup?path=health-check&redirect=/dashboard" class="cta-btn">Run a Free Health Check →</a>
+    </div>
+
+    <div class="nav-footer">
+        <a href="/resources/runbooks/rman-backup-failure-triage">← RMAN Backup Failure Triage</a>
+        <a href="/resources/runbooks">All Runbooks →</a>
+    </div>
+
+</div>
+
+<footer>
+    <div class="footer-links">
+        <a href="/">TuneVault</a>
+        <a href="/resources/runbooks">Runbooks</a>
+        <a href="/blog">Blog</a>
+        <a href="/compare">Compare Tools</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/about">About</a>
+    </div>
+    <p style="margin-top:12px;">© 2026 TuneVault · <a href="mailto:hello@tunevault.app">hello@tunevault.app</a></p>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Autonomous Monitoring — Admin — TuneVault</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://tunevault.app/admin/schedules">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0;
+    background: #0a0a0c;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #e8e8ed;
+    font-size: 14px;
+    overflow-x: hidden;
+  }
+  /* ── Layout ── */
+  .page { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+
+  /* ── Stats row ── */
+  .stats { display: flex; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
+  .stat-card {
+    background: #111114; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px;
+    padding: 16px 24px; flex: 1; min-width: 140px;
+  }
+  .stat-label { font-size: 11px; color: #9898a8; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+  .stat-value { font-size: 24px; font-weight: 700; color: #e8e8ed; }
+
+  /* ── Table ── */
+  .table-wrap {
+    background: #111114; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; overflow: hidden;
+  }
+  .table-header {
+    padding: 16px 24px; border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .table-header h2 { margin: 0; font-size: 15px; font-weight: 600; color: #e8e8ed; }
+  .refresh-btn {
+    background: rgba(240,168,48,0.1); border: 1px solid rgba(240,168,48,0.25); color: #f0a830;
+    border-radius: 6px; padding: 6px 14px; font-size: 12px; cursor: pointer;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 600;
+    color: #9898a8; text-transform: uppercase; letter-spacing: 0.8px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.1s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: rgba(255,255,255,0.02); }
+  td { padding: 12px 16px; vertical-align: middle; }
+  .conn-name { font-weight: 600; color: #e8e8ed; }
+  .conn-host { font-size: 12px; color: #9898a8; margin-top: 2px; }
+  .badge {
+    display: inline-block; border-radius: 4px; font-size: 11px; font-weight: 700;
+    padding: 2px 8px; letter-spacing: 0.4px;
+  }
+  .badge-enabled  { background: rgba(74,222,128,.15); color: #4ade80; border: 1px solid rgba(74,222,128,.25); }
+  .badge-disabled { background: rgba(136,136,160,.1); color: #9898a8; border: 1px solid rgba(136,136,160,.15); }
+  .badge-snoozed  { background: rgba(240,168,48,.12); color: #f0a830; border: 1px solid rgba(240,168,48,.22); }
+  .badge-red   { background: rgba(248,113,113,.15); color: #f87171; border: 1px solid rgba(248,113,113,.25); }
+  .badge-amber { background: rgba(240,168,48,.12); color: #f0a830; border: 1px solid rgba(240,168,48,.22); }
+  .ts { font-size: 12px; color: #9898a8; }
+  .ts-null { color: #3a3a50; font-style: italic; font-size: 12px; }
+  .alert-subj { font-size: 12px; color: #9898a8; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ── Loading / empty ── */
+  .loading-row td, .empty-row td {
+    text-align: center; padding: 48px 16px; color: #9898a8; font-size: 13px;
+  }
+  .spinner {
+    width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.08);
+    border-top-color: #f0a830; border-radius: 50%; animation: spin 0.8s linear infinite;
+    display: inline-block; margin-right: 8px; vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<nav id="nav-root"></nav>
+
+<div class="page">
+  <div class="stats" id="stats-row">
+    <div class="stat-card"><div class="stat-label">Total Schedules</div><div class="stat-value" id="stat-total">—</div></div>
+    <div class="stat-card"><div class="stat-label">Active</div><div class="stat-value" id="stat-enabled" style="color:#4ade80;">—</div></div>
+    <div class="stat-card"><div class="stat-label">Snoozed</div><div class="stat-value" id="stat-snoozed" style="color:#f0a830;">—</div></div>
+    <div class="stat-card"><div class="stat-label">Alerts Sent (total)</div><div class="stat-value" id="stat-alerts">—</div></div>
+  </div>
+
+  <div class="table-wrap">
+    <div class="table-header">
+      <h2>All Schedules</h2>
+      <button class="refresh-btn" onclick="loadSchedules()">↻ Refresh</button>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Connection</th>
+          <th>Status</th>
+          <th>Cadence</th>
+          <th>Threshold</th>
+          <th>Alert Email</th>
+          <th>Last Run</th>
+          <th>Next Run</th>
+          <th>Last Alert</th>
+        </tr>
+      </thead>
+      <tbody id="schedules-tbody">
+        <tr class="loading-row"><td colspan="8"><span class="spinner"></span>Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+function fmtDate(d) {
+  if (!d) return '<span class="ts-null">—</span>';
+  const dt = new Date(d);
+  const now = new Date();
+  const diff = (now - dt) / 1000;
+  if (diff < 60) return `<span class="ts">just now</span>`;
+  if (diff < 3600) return `<span class="ts">${Math.round(diff / 60)}m ago</span>`;
+  if (diff < 86400) return `<span class="ts">${Math.round(diff / 3600)}h ago</span>`;
+  return `<span class="ts">${dt.toLocaleDateString()} ${dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>`;
+}
+
+function fmtFuture(d) {
+  if (!d) return '<span class="ts-null">—</span>';
+  const dt = new Date(d);
+  const now = new Date();
+  const diff = (dt - now) / 1000;
+  if (diff < 0) return `<span class="ts" style="color:#f87171;">overdue</span>`;
+  if (diff < 60) return `<span class="ts">in &lt;1m</span>`;
+  if (diff < 3600) return `<span class="ts">in ${Math.round(diff / 60)}m</span>`;
+  if (diff < 86400) return `<span class="ts">in ${Math.round(diff / 3600)}h</span>`;
+  return `<span class="ts">in ${Math.round(diff / 86400)}d</span>`;
+}
+
+function cadenceLabel(mins) {
+  if (mins === 60)   return '1 hour';
+  if (mins === 240)  return '4 hours';
+  if (mins === 720)  return '12 hours';
+  if (mins === 1440) return '24 hours';
+  return `${mins}m`;
+}
+
+function statusBadge(row) {
+  const now = new Date();
+  const snoozeUntil = row.snoozed_until ? new Date(row.snoozed_until) : null;
+  if (snoozeUntil && snoozeUntil > now) {
+    return `<span class="badge badge-snoozed">SNOOZED</span>`;
+  }
+  if (row.enabled) return `<span class="badge badge-enabled">ACTIVE</span>`;
+  return `<span class="badge badge-disabled">OFF</span>`;
+}
+
+function thresholdBadge(t) {
+  if (t === 'red') return `<span class="badge badge-red">RED only</span>`;
+  return `<span class="badge badge-amber">AMBER+</span>`;
+}
+
+async function loadSchedules() {
+  const tbody = document.getElementById('schedules-tbody');
+  tbody.innerHTML = '<tr class="loading-row"><td colspan="8"><span class="spinner"></span>Loading…</td></tr>';
+
+  try {
+    const res = await fetch('/api/schedules/admin/all');
+    if (res.status === 401) {
+      window.location.href = '/login?redirect=/admin/schedules.html';
+      return;
+    }
+    if (res.status === 403) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="8">Admin access required.</td></tr>';
+      return;
+    }
+    const data = await res.json();
+    const schedules = data.schedules || [];
+
+    // Update stats
+    const total   = schedules.length;
+    const enabled = schedules.filter(s => s.enabled && !(s.snoozed_until && new Date(s.snoozed_until) > new Date())).length;
+    const snoozed = schedules.filter(s => s.snoozed_until && new Date(s.snoozed_until) > new Date()).length;
+    const alerts  = schedules.filter(s => s.last_alert_sent_at).length;
+
+    document.getElementById('stat-total').textContent   = total;
+    document.getElementById('stat-enabled').textContent = enabled;
+    document.getElementById('stat-snoozed').textContent = snoozed;
+    document.getElementById('stat-alerts').textContent  = alerts;
+
+    if (!schedules.length) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="8">No schedules configured yet.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = schedules.map(s => `
+      <tr>
+        <td>
+          <div class="conn-name">${esc(s.connection_name)}</div>
+          <div class="conn-host">${esc(s.host || '')} · ${esc(s.user_email || '')}</div>
+        </td>
+        <td>${statusBadge(s)}</td>
+        <td><span class="ts">${cadenceLabel(s.cadence_minutes)}</span></td>
+        <td>${thresholdBadge(s.severity_threshold)}</td>
+        <td><span class="ts">${esc(s.alert_email)}</span></td>
+        <td>${fmtDate(s.last_run_at)}</td>
+        <td>${fmtFuture(s.next_run_at)}</td>
+        <td>
+          ${s.last_alert_sent_at ? `${fmtDate(s.last_alert_sent_at)}<div class="alert-subj" title="${esc(s.last_alert_subject || '')}">${esc(s.last_alert_subject || '')}</div>` : '<span class="ts-null">Never</span>'}
+        </td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="8">Error loading schedules: ${esc(err.message)}</td></tr>`;
+  }
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+loadSchedules();
+// Auto-refresh every 60 seconds
+setInterval(loadSchedules, 60000);
+</script>
+<script src="/nav-component.js"></script>
+<script>window.tvNav.init('admin');</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

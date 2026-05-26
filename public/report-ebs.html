@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deep EBS Health Report — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://tunevault.app/report-ebs">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <script src="/nav-component.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c;
+      --surface: #111114;
+      --surface-2: #1a1a1f;
+      --border: #2a2a30;
+      --text: #e8e8ed;
+      --text-dim: #b8b8c8;
+      --accent: #f0a830;
+      --accent-dim: rgba(240,168,48,0.12);
+      --green: #34d399;
+      --green-dim: rgba(52,211,153,0.12);
+      --red: #f87171;
+      --red-dim: rgba(248,113,113,0.12);
+      --yellow: #fbbf24;
+      --yellow-dim: rgba(251,191,36,0.12);
+      --blue: #60a5fa;
+      --blue-dim: rgba(96,165,250,0.12);
+      --orange: #fb923c;
+      --orange-dim: rgba(251,146,60,0.12);
+    }
+    body {
+      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    .grain {
+      position: fixed; top: 0; left: 0;
+      width: 100vw; height: 100vh; overflow: hidden;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 999;
+    }
+
+    /* ── Page layout ── */
+    .page-wrapper { max-width: 1100px; margin: 0 auto; padding: 48px 48px 80px; }
+
+    /* ── Report header ── */
+    .report-header {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px 32px;
+      margin-bottom: 32px;
+      position: relative;
+      overflow: hidden;
+    }
+    .report-header::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--orange) 0%, var(--accent) 100%);
+    }
+    .report-header-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; flex-wrap: wrap; }
+    .report-title-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+    .report-title { font-size: 22px; font-weight: 700; letter-spacing: -0.4px; }
+    .badge { display: inline-flex; align-items: center; font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 100px; letter-spacing: 0.5px; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; }
+    .badge-ebs { background: var(--orange-dim); color: var(--orange); border: 1px solid rgba(251,146,60,0.25); }
+    .badge-demo { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(240,168,48,0.25); }
+    .report-meta { font-size: 13px; color: var(--text-dim); display: flex; gap: 20px; flex-wrap: wrap; margin-top: 6px; }
+    .report-meta span { display: flex; align-items: center; gap: 5px; }
+    .report-actions { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
+
+    /* ── AI Overview ── */
+    .ai-overview {
+      background: linear-gradient(135deg, rgba(240,168,48,0.06) 0%, rgba(251,146,60,0.04) 100%);
+      border: 1px solid rgba(240,168,48,0.2);
+      border-radius: 10px;
+      padding: 18px 22px;
+      margin-bottom: 28px;
+    }
+    .ai-overview-label { font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; font-family: 'JetBrains Mono', monospace; margin-bottom: 8px; }
+    .ai-overview-text { font-size: 14px; color: var(--text); line-height: 1.7; }
+
+    /* ── Sections ── */
+    .section { margin-bottom: 20px; }
+    .section-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .section-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 20px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .section-header:hover { background: var(--surface-2); }
+    .section-header-left { display: flex; align-items: center; gap: 10px; }
+    .section-icon { font-size: 16px; }
+    .section-title-text { font-size: 14px; font-weight: 700; }
+    .section-summary { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+    .section-header-right { display: flex; align-items: center; gap: 10px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .status-dot.ok { background: var(--green); box-shadow: 0 0 6px rgba(52,211,153,0.5); }
+    .status-dot.warn { background: var(--yellow); box-shadow: 0 0 6px rgba(251,191,36,0.5); }
+    .status-dot.crit { background: var(--red); box-shadow: 0 0 6px rgba(248,113,113,0.5); }
+    .status-dot.unknown { background: var(--text-dim); }
+    .status-label { font-size: 11px; font-weight: 700; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; }
+    .status-label.ok { color: var(--green); }
+    .status-label.warn { color: var(--yellow); }
+    .status-label.crit { color: var(--red); }
+    .status-label.unknown { color: var(--text-dim); }
+    .chevron { font-size: 12px; color: var(--text-dim); transition: transform 0.2s; }
+    .chevron.open { transform: rotate(180deg); }
+
+    .section-body { padding: 0 20px 20px; border-top: 1px solid var(--border); }
+
+    /* ── KV grid ── */
+    .kv-grid { display: grid; grid-template-columns: 220px 1fr; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-top: 14px; }
+    .kv-key { background: var(--surface-2); padding: 9px 14px; font-size: 12px; color: var(--text-dim); font-weight: 500; }
+    .kv-val { background: var(--surface); padding: 9px 14px; font-size: 12px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+    .kv-val.ok { color: var(--green); }
+    .kv-val.warn { color: var(--yellow); }
+    .kv-val.crit { color: var(--red); }
+
+    /* ── Table ── */
+    .data-table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 12px; }
+    .data-table th { text-align: left; padding: 8px 12px; background: var(--surface-2); color: var(--text-dim); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+    .data-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: var(--surface-2); }
+
+    /* ── Fix commands block ── */
+    .fix-commands {
+      background: rgba(240,168,48,0.04);
+      border: 1px solid rgba(240,168,48,0.18);
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-top: 14px;
+    }
+    .fix-commands-label {
+      font-size: 10px; font-weight: 700; color: var(--accent);
+      text-transform: uppercase; letter-spacing: 1px;
+      font-family: 'JetBrains Mono', monospace;
+      margin-bottom: 10px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .fix-group { margin-bottom: 10px; }
+    .fix-group-label { font-size: 11px; font-weight: 600; color: var(--text-dim); margin-bottom: 6px; }
+    .fix-cmd {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 12px;
+      margin-bottom: 4px;
+      gap: 10px;
+    }
+    .fix-cmd code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text);
+      flex: 1;
+      word-break: break-all;
+    }
+    .copy-btn {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 3px 8px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-dim);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .copy-btn:hover { background: var(--accent-dim); color: var(--accent); border-color: rgba(240,168,48,0.3); }
+    .fix-disclaimer {
+      font-size: 10px; color: var(--text-dim);
+      margin-top: 8px; padding-top: 8px;
+      border-top: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ── Empty / loading / error states ── */
+    .state-container {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; padding: 80px 20px; gap: 16px; text-align: center;
+    }
+    .state-icon { font-size: 48px; }
+    .state-title { font-size: 20px; font-weight: 700; }
+    .state-text { font-size: 14px; color: var(--text-dim); max-width: 400px; line-height: 1.6; }
+    .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Subheadings ── */
+    .sub-heading { font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.7px; margin-top: 16px; margin-bottom: 6px; }
+
+    /* ── Polled status on server entry ── */
+    .server-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .server-row:last-child { border-bottom: none; }
+    .server-name { font-size: 13px; font-weight: 600; }
+    .server-status { font-size: 11px; font-weight: 700; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 4px; }
+    .server-status.running { background: var(--green-dim); color: var(--green); }
+    .server-status.down { background: var(--red-dim); color: var(--red); }
+    .server-status.unknown { background: var(--surface-2); color: var(--text-dim); }
+
+    /* ── Responsive ── */
+    @media (max-width: 700px) {
+      .page-wrapper { padding: 48px 16px 60px; }
+      nav { padding: 12px 16px; }
+      .report-header { padding: 20px 16px; }
+      .kv-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="grain"></div>
+
+<div id="nav-root"></div>
+
+<div class="page-wrapper">
+  <!-- Loading state -->
+  <div id="loadingState" class="state-container">
+    <div class="spinner"></div>
+    <div class="state-title">Loading Deep EBS Report…</div>
+    <div class="state-text">Fetching diagnostics and AI analysis</div>
+  </div>
+
+  <!-- Error state -->
+  <div id="errorState" class="state-container" style="display:none">
+    <div class="state-icon">⚠️</div>
+    <div class="state-title">Report Not Found</div>
+    <div class="state-text" id="errorMsg">This report could not be loaded.</div>
+    <a href="/ebs-deep" class="btn btn-accent" style="margin-top:8px">← Back to Deep EBS</a>
+  </div>
+
+  <!-- Report content -->
+  <div id="reportContent" style="display:none">
+    <!-- Report header -->
+    <div class="report-header">
+      <div class="report-header-top">
+        <div>
+          <div class="report-title-row">
+            <span class="report-title" id="reportTitle">Deep EBS Health Report</span>
+            <span class="badge badge-ebs">Deep EBS</span>
+            <span class="badge badge-demo" id="demoBadge" style="display:none">Demo</span>
+          </div>
+          <div class="report-meta">
+            <span>🔌 <span id="connName">—</span></span>
+            <span>🕐 <span id="reportDate">—</span></span>
+          </div>
+        </div>
+        <div class="report-actions">
+          <a href="/ebs-deep" class="btn btn-ghost">← Deep EBS</a>
+          <button class="btn btn-accent" id="exportPdfBtn2" onclick="exportPdf()">↓ Export PDF</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI overview -->
+    <div class="ai-overview" id="aiOverview" style="display:none">
+      <div class="ai-overview-label">⚡ AI Assessment</div>
+      <div class="ai-overview-text" id="aiOverviewText"></div>
+    </div>
+
+    <!-- AI loading -->
+    <div id="aiLoading" class="ai-overview" style="background:var(--surface-2);border-color:var(--border);">
+      <div class="ai-overview-label">⚡ AI Assessment</div>
+      <div class="ai-overview-text" style="color:var(--text-dim)">Generating AI analysis… this may take a few seconds.</div>
+    </div>
+
+    <!-- Sections -->
+    <div id="sectionsContainer"></div>
+  </div>
+</div>
+
+<script>
+  window.tvNav.init('report');
+  window.tvNav.onReady(function() {
+    var navActions = document.getElementById('navActions');
+    if (navActions) {
+      navActions.innerHTML =
+        '<a href="/ebs-deep" style="font-size:13px;color:var(--text);text-decoration:none;padding:6px 14px;border:1px solid rgba(255,255,255,0.15);border-radius:6px;display:inline-flex;align-items:center;gap:6px;">&#8592; Deep EBS</a>' +
+        '<button id="exportPdfBtn" onclick="exportPdf()" style="display:none;font-size:13px;font-weight:600;padding:7px 14px;background:var(--accent);color:#0a0a0c;border:none;border-radius:6px;cursor:pointer;">&#8595; Export PDF</button>';
+    }
+  });
+
+  const reportId = location.pathname.split('/report/ebs/')[1]?.split('/')[0] || 'demo';
+  let reportData = null;
+
+  // ── Section definitions ─────────────────────────────────────────────────
+  const SECTIONS = [
+    { key: 'concurrent_processing', icon: '⚙️',  title: 'Concurrent Processing', render: renderConcurrent },
+    { key: 'workflow_mailer',       icon: '📧',  title: 'Workflow Mailer',        render: renderWorkflow  },
+    { key: 'managed_servers',       icon: '🖥️', title: 'Managed Servers',        render: renderManaged   },
+    { key: 'listener',              icon: '🔌',  title: 'Apps Listener',          render: renderListener  },
+    { key: 'adop_state',            icon: '🔧',  title: 'ADOP State',             render: renderAdop      },
+    { key: 'error_log_tail',        icon: '📋',  title: 'Error Log Tail',         render: renderErrorLog  },
+  ];
+
+  // ── Bootstrap ────────────────────────────────────────────────────────────
+  async function loadReport() {
+    try {
+      const resp = await fetch(`/api/ebs-deep/report/${reportId}`, { credentials: 'include' });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        return showError(err.error || `HTTP ${resp.status}`);
+      }
+      reportData = await resp.json();
+      renderReport(reportData);
+
+      // Poll for AI if not yet ready (background generation)
+      if (!reportData.ai_analysis && reportId !== 'demo') {
+        pollForAi();
+      }
+    } catch (e) {
+      showError('Network error: ' + e.message);
+    }
+  }
+
+  async function pollForAi(attempts = 0) {
+    if (attempts > 8) return; // give up after ~16s
+    await sleep(2000);
+    try {
+      const resp = await fetch(`/api/ebs-deep/report/${reportId}`, { credentials: 'include' });
+      if (!resp.ok) return;
+      const data = await resp.json();
+      if (data.ai_analysis) {
+        reportData = data;
+        applyAiOverlay(data.ai_analysis, data.findings_json);
+      } else {
+        pollForAi(attempts + 1);
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  // ── Render report ────────────────────────────────────────────────────────
+  function renderReport(data) {
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('reportContent').style.display = 'block';
+    document.getElementById('exportPdfBtn').style.display = 'flex';
+    injectSplitDownloadButtons(data.connection_id);
+
+    const f = data.findings_json || {};
+    const ai = data.ai_analysis || null;
+
+    // Header
+    document.getElementById('reportTitle').textContent = 'Deep EBS Health Report — ' + (data.connection_name || '');
+    document.getElementById('connName').textContent = data.connection_name || '—';
+    document.getElementById('reportDate').textContent = new Date(data.created_at).toLocaleString();
+    if (data.is_demo) document.getElementById('demoBadge').style.display = '';
+    document.title = `Deep EBS Report — ${data.connection_name || 'TuneVault'}`;
+
+    // AI Overview
+    if (ai?.overall_summary) {
+      document.getElementById('aiLoading').style.display = 'none';
+      document.getElementById('aiOverview').style.display = 'block';
+      document.getElementById('aiOverviewText').textContent = ai.overall_summary;
+    }
+
+    // Sections
+    const container = document.getElementById('sectionsContainer');
+    container.innerHTML = '';
+    for (const sec of SECTIONS) {
+      const secData = sec.key === 'managed_servers'
+        ? { servers: f.managed_servers, opp: f.opp }
+        : f[sec.key];
+      const aiSec = ai ? ai[sec.key] : null;
+      container.appendChild(buildSectionCard(sec, secData, aiSec));
+    }
+  }
+
+  function applyAiOverlay(ai, findings) {
+    // Update AI overview
+    if (ai?.overall_summary) {
+      document.getElementById('aiLoading').style.display = 'none';
+      document.getElementById('aiOverview').style.display = 'block';
+      document.getElementById('aiOverviewText').textContent = ai.overall_summary;
+    }
+
+    // Re-render sections with AI data
+    const container = document.getElementById('sectionsContainer');
+    container.innerHTML = '';
+    for (const sec of SECTIONS) {
+      const secData = sec.key === 'managed_servers'
+        ? { servers: findings.managed_servers, opp: findings.opp }
+        : findings[sec.key];
+      const aiSec = ai ? ai[sec.key] : null;
+      container.appendChild(buildSectionCard(sec, secData, aiSec));
+    }
+  }
+
+  // ── Section card builder ──────────────────────────────────────────────────
+  function buildSectionCard(sec, data, aiSec) {
+    const status = (aiSec?.status || 'unknown').toLowerCase();
+    const card = document.createElement('div');
+    card.className = 'section';
+
+    const bodyId = `sec-body-${sec.key}`;
+    card.innerHTML = `
+      <div class="section-card">
+        <div class="section-header" onclick="toggleSection('${bodyId}', this)">
+          <div class="section-header-left">
+            <span class="section-icon">${sec.icon}</span>
+            <div>
+              <div class="section-title-text">${sec.title}</div>
+              ${aiSec?.summary ? `<div class="section-summary">${escHtml(aiSec.summary)}</div>` : ''}
+            </div>
+          </div>
+          <div class="section-header-right">
+            <div class="status-dot ${status}"></div>
+            <span class="status-label ${status}">${status.toUpperCase()}</span>
+            <span class="chevron open" id="chev-${bodyId}">▼</span>
+          </div>
+        </div>
+        <div class="section-body" id="${bodyId}">
+          ${sec.render(data)}
+          ${aiSec?.fix_keys?.length ? renderFixCommands(aiSec.fix_keys) : ''}
+        </div>
+      </div>`;
+    return card;
+  }
+
+  function toggleSection(bodyId, header) {
+    const body = document.getElementById(bodyId);
+    const chev = document.getElementById('chev-' + bodyId);
+    if (body.style.display === 'none') {
+      body.style.display = '';
+      chev.classList.add('open');
+    } else {
+      body.style.display = 'none';
+      chev.classList.remove('open');
+    }
+  }
+
+  // ── Section renderers ─────────────────────────────────────────────────────
+  function renderConcurrent(data) {
+    if (!data) return '<p style="color:var(--text-dim);font-size:13px;padding-top:12px">No data available.</p>';
+    const icmClass = data.icm_running > 0 ? 'ok' : 'crit';
+    const pendClass = data.pending_requests > 200 ? 'crit' : data.pending_requests > 50 ? 'warn' : 'ok';
+    const errClass  = data.error_requests_24h > 50 ? 'crit' : data.error_requests_24h > 10 ? 'warn' : 'ok';
+    let html = kv([
+      ['ICM Running / Target', `${data.icm_running} / ${data.icm_target}`, icmClass],
+      ['Pending Requests',      String(data.pending_requests),               pendClass],
+      ['Error Requests (24h)',  String(data.error_requests_24h),              errClass],
+    ]);
+    if (data.long_running?.length) {
+      html += `<div class="sub-heading">Long-Running (> 1 hour)</div>`;
+      html += `<table class="data-table"><thead><tr><th>Request ID</th><th>Program</th><th>Run (min)</th></tr></thead><tbody>`;
+      for (const r of data.long_running) {
+        html += `<tr><td>${r.request_id}</td><td>${escHtml(r.program)}</td><td>${r.run_mins}</td></tr>`;
+      }
+      html += '</tbody></table>';
+    }
+    return html;
+  }
+
+  function renderWorkflow(data) {
+    if (!data) return '<p style="color:var(--text-dim);font-size:13px;padding-top:12px">No data available.</p>';
+    const stClass    = data.status === 'RUNNING' ? 'ok' : 'crit';
+    const stuckClass = data.stuck_count > 500 ? 'crit' : data.stuck_count > 100 ? 'warn' : 'ok';
+    const errClass   = data.error_count > 50 ? 'crit' : data.error_count > 10 ? 'warn' : 'ok';
+    return kv([
+      ['Service Status',        data.status || 'UNKNOWN',              stClass],
+      ['Stuck Notifications',   String(data.stuck_count),              stuckClass],
+      ['WF Error Queue',        String(data.error_count),              errClass],
+      ['Pending > 2 hours',     String(data.pending_over_2h),          data.pending_over_2h > 100 ? 'warn' : 'ok'],
+    ]);
+  }
+
+  function renderManaged(data) {
+    if (!data) return '<p style="color:var(--text-dim);font-size:13px;padding-top:12px">No data available.</p>';
+    const servers = data.servers || [];
+    let html = '';
+    if (servers.length) {
+      html += '<div class="sub-heading">Application Tier Servers</div><div style="margin-top:8px">';
+      for (const s of servers) {
+        const cls = s.status === 'RUNNING' ? 'running' : s.status === 'UNKNOWN' ? 'unknown' : 'down';
+        html += `<div class="server-row">
+          <span class="server-name">${escHtml(s.label || s.name)}</span>
+          <span class="server-status ${cls}">${s.status}</span>
+        </div>`;
+      }
+      html += '</div>';
+    }
+    if (data.opp) {
+      const oppClass = data.opp.status === 'RUNNING' ? 'ok' : 'crit';
+      html += '<div class="sub-heading">Output Post Processor (OPP)</div>';
+      html += kv([
+        ['OPP Status',    data.opp.status,               oppClass],
+        ['Queue Depth',   String(data.opp.queue_depth),  'ok'],
+      ]);
+    }
+    return html || '<p style="color:var(--text-dim);font-size:13px;padding-top:12px">No server data.</p>';
+  }
+
+  function renderListener(data) {
+    if (!data) return '<p style="color:var(--text-dim);font-size:13px;padding-top:12px">No data available.</p>';
+    const cls = data.status === 'UP' ? 'ok' : data.status === 'UNKNOWN' ? 'unknown' : 'crit';
+    return kv([
+      ['Status', data.status || 'UNKNOWN', cls],
+      ['Port',   data.port ? String(data.port) : '—',  'ok'],
+    ]);
+  }
+
+  function renderAdop(data) {
+    if (!data?.sessions?.length) return '<p style="color:var(--text-dim);font-size:13px;padding-top:12px">No ADOP sessions found or ADOP not in use.</p>';
+    let html = `<table class="data-table"><thead><tr><th>Session</th><th>Phase</th><th>Status</th><th>Started</th><th>Patch</th></tr></thead><tbody>`;
+    for (const s of data.sessions) {
+      const date = s.start_date ? String(s.start_date).substring(0, 10) : '—';
+      html += `<tr><td>${s.session_id}</td><td>${escHtml(s.phase)}</td><td>${escHtml(s.status)}</td><td>${date}</td><td>${escHtml(s.patch_name || '—')}</td></tr>`;
+    }
+    html += '</tbody></table>';
+    return html;
+  }
+
+  function renderErrorLog(data) {
+    if (!data?.entries?.length) return '<p style="color:var(--text-dim);font-size:13px;padding-top:12px">No error log entries in the past hour.</p>';
+    let html = `<table class="data-table"><thead><tr><th>Module</th><th>Message</th><th>Time</th></tr></thead><tbody>`;
+    for (const e of data.entries) {
+      const ts = e.ts ? new Date(e.ts).toLocaleTimeString() : '—';
+      html += `<tr><td>${escHtml(e.module || '—')}</td><td style="max-width:400px;word-break:break-word">${escHtml(String(e.message || '').substring(0, 120))}</td><td style="white-space:nowrap">${ts}</td></tr>`;
+    }
+    html += '</tbody></table>';
+    return html;
+  }
+
+  // ── Fix commands renderer ────────────────────────────────────────────────
+  function renderFixCommands(fixItems) {
+    if (!fixItems?.length) return '';
+    let html = `<div class="fix-commands">
+      <div class="fix-commands-label">🛠 Whitelisted Fix Commands</div>`;
+    for (const item of fixItems) {
+      html += `<div class="fix-group">`;
+      if (item.label) html += `<div class="fix-group-label">${escHtml(item.label)}</div>`;
+      for (const cmd of (item.commands || [])) {
+        const escaped = escHtml(cmd);
+        html += `<div class="fix-cmd">
+          <code>${escaped}</code>
+          <button class="copy-btn" onclick="copyCmd(this, ${JSON.stringify(cmd)})">Copy</button>
+        </div>`;
+      }
+      html += '</div>';
+    }
+    html += `<div class="fix-disclaimer">All commands use $ADMIN_SCRIPTS_HOME. Verified against Oracle EBS 12.2 whitelist. <&lt;pw&gt;> = apps schema password.</div>
+    </div>`;
+    return html;
+  }
+
+  // ── Shared helpers ────────────────────────────────────────────────────────
+  function kv(rows) {
+    let html = '<div class="kv-grid">';
+    for (const [k, v, cls] of rows) {
+      html += `<div class="kv-key">${escHtml(k)}</div><div class="kv-val ${cls || ''}">${escHtml(v)}</div>`;
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function escHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function copyCmd(btn, cmd) {
+    navigator.clipboard.writeText(cmd).then(() => {
+      btn.textContent = 'Copied!';
+      btn.style.color = 'var(--green)';
+      btn.style.borderColor = 'rgba(52,211,153,0.3)';
+      setTimeout(() => { btn.textContent = 'Copy'; btn.style.color = ''; btn.style.borderColor = ''; }, 1500);
+    });
+  }
+
+  function exportPdf() {
+    window.open(`/api/ebs-deep/report/${reportId}/pdf`, '_blank');
+  }
+
+  // Inject split download buttons into .report-actions once connection_id is known.
+  // Shows: [Download EBS PDF] [Download EBS XLSX] [Download DB PDF] [Download DB XLSX] [Full Report PDF]
+  function injectSplitDownloadButtons(connectionId) {
+    if (!connectionId) return;
+    const container = document.querySelector('.report-actions');
+    if (!container || container.querySelector('.tv-split-btn')) return;
+
+    const base = '/api/reports/' + connectionId;
+    const btnStyle = 'display:inline-flex;align-items:center;gap:5px;padding:8px 14px;' +
+      'border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;' +
+      'transition:all 0.2s;letter-spacing:0.2px;flex-shrink:0;line-height:1;';
+
+    const dlIcon = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+
+    function mkBtn(href, label, bg, color, border, hoverBg) {
+      const a = document.createElement('a');
+      a.href = href;
+      a.className = 'tv-split-btn';
+      a.setAttribute('style', btnStyle + `background:${bg};color:${color};border:1.5px solid ${border};`);
+      a.innerHTML = dlIcon + label;
+      a.addEventListener('mouseenter', function() { this.style.background = hoverBg; this.style.transform = 'translateY(-1px)'; });
+      a.addEventListener('mouseleave', function() { this.style.background = bg; this.style.transform = 'translateY(0)'; });
+      return a;
+    }
+
+    // EBS PDF — orange primary
+    container.appendChild(mkBtn(base + '/ebs?format=pdf', 'EBS PDF', '#c2410c', '#fff', '#c2410c', '#9a3409'));
+    // EBS XLSX — orange outline
+    container.appendChild(mkBtn(base + '/ebs?format=xlsx', 'EBS XLSX', 'transparent', '#f97316', '#f97316', 'rgba(249,115,22,0.15)'));
+    // DB PDF — gold
+    container.appendChild(mkBtn(base + '/db?format=pdf', 'DB PDF', '#f0a830', '#0a0a0c', '#f0a830', '#d4921e'));
+    // DB XLSX — gold outline
+    container.appendChild(mkBtn(base + '/db?format=xlsx', 'DB XLSX', 'transparent', '#f0a830', '#f0a830', 'rgba(240,168,48,0.15)'));
+    // Full Report — muted
+    container.appendChild(mkBtn(base + '/combined?format=pdf', 'Full Report', 'transparent', '#9898a8', '#9898a8', 'rgba(136,136,160,0.12)'));
+  }
+
+  function showError(msg) {
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('errorState').style.display = 'flex';
+    document.getElementById('errorMsg').textContent = msg;
+  }
+
+  // ── Kick off ──────────────────────────────────────────────────────────────
+  loadReport();
+</script>
+<script src="/tv-tracker.js"></script>
+<script>
+  if (window.tvTrack) window.tvTrack('demo_started', { demo_type: 'ebs' });
+  var _ebsDemoCompleted = false;
+  document.addEventListener('scroll', function() {
+    if (_ebsDemoCompleted) return;
+    var scrolled = window.scrollY + window.innerHeight;
+    var total    = document.body.scrollHeight;
+    if (scrolled / total > 0.8) {
+      _ebsDemoCompleted = true;
+      if (window.tvTrack) window.tvTrack('demo_completed', { demo_type: 'ebs' });
+    }
+  }, { passive: true });
+</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

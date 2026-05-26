@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bulk-Delete Connections — TuneVault Admin</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0c;
+      --surface: #111114;
+      --surface-2: #1a1a1f;
+      --border: #2a2a30;
+      --text: #e8e8ed;
+      --text-dim: #9898a8;
+      --accent: #f0a830;
+      --accent-dim: rgba(240,168,48,0.12);
+      --green: #34d399;
+      --green-dim: rgba(52,211,153,0.10);
+      --red: #f87171;
+      --red-dim: rgba(248,113,113,0.10);
+      --yellow: #fbbf24;
+      --blue: #60a5fa;
+      --mono: 'JetBrains Mono', monospace;
+    }
+
+    body {
+      font-family: 'Space Grotesk', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    .grain {
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 999;
+    }
+
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 16px 48px; border-bottom: 1px solid var(--border); }
+
+    .container { max-width: 860px; margin: 0 auto; padding: 40px 48px 80px; }
+
+    /* ── Page header ── */
+    .page-header { margin-bottom: 32px; }
+    .page-header h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.8px; margin-bottom: 6px; }
+    .page-header p { font-size: 13px; color: var(--text-dim); }
+    .danger-badge {
+      display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--red); background: var(--red-dim);
+      border: 1px solid rgba(248,113,113,0.3); border-radius: 4px; padding: 2px 8px;
+      margin-bottom: 10px; font-family: var(--mono);
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 28px; margin-bottom: 20px;
+    }
+    .card-title {
+      font-size: 13px; font-weight: 600; letter-spacing: 0.5px;
+      text-transform: uppercase; color: var(--text-dim); margin-bottom: 20px;
+    }
+
+    /* ── Pattern input ── */
+    .input-row { display: flex; gap: 12px; align-items: flex-start; }
+    .input-wrap { flex: 1; }
+    .input-label { font-size: 12px; color: var(--text-dim); margin-bottom: 6px; }
+    .pattern-input {
+      width: 100%; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 14px; font-size: 14px; color: var(--text);
+      font-family: var(--mono); outline: none; transition: border-color 0.2s;
+    }
+    .pattern-input:focus { border-color: var(--accent); }
+    .input-hint { font-size: 11px; color: var(--text-dim); margin-top: 6px; font-family: var(--mono); }
+
+    /* ── Preview panel ── */
+    .preview-panel {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+      padding: 16px; margin-top: 16px; min-height: 80px;
+    }
+    .preview-idle { color: var(--text-dim); font-size: 13px; font-style: italic; }
+    .preview-count {
+      font-size: 22px; font-weight: 700; font-family: var(--mono); letter-spacing: -1px;
+    }
+    .preview-count.zero { color: var(--text-dim); }
+    .preview-count.nonzero { color: var(--red); }
+    .preview-label { font-size: 12px; color: var(--text-dim); margin-bottom: 12px; }
+
+    .sample-list { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+    .sample-item {
+      font-family: var(--mono); font-size: 12px; color: var(--text-dim);
+      padding: 3px 8px; background: var(--surface-2); border-radius: 4px;
+      border-left: 2px solid var(--red);
+    }
+    .sample-more { font-size: 11px; color: var(--text-dim); margin-top: 6px; font-style: italic; }
+
+    /* ── Action button ── */
+    .btn-delete {
+      background: var(--red-dim); border: 1px solid rgba(248,113,113,0.4);
+      color: var(--red); border-radius: 8px; padding: 10px 22px; font-size: 13px;
+      font-weight: 600; cursor: pointer; font-family: 'Space Grotesk', sans-serif;
+      transition: all 0.2s; white-space: nowrap; margin-top: 16px;
+    }
+    .btn-delete:hover:not(:disabled) { background: rgba(248,113,113,0.25); }
+    .btn-delete:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-secondary {
+      background: var(--surface-2); border: 1px solid var(--border);
+      color: var(--text-dim); border-radius: 8px; padding: 10px 22px; font-size: 13px;
+      font-weight: 500; cursor: pointer; font-family: 'Space Grotesk', sans-serif;
+      transition: all 0.2s;
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Modal overlay ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.75); z-index: 1000;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 32px; max-width: 480px; width: calc(100% - 48px);
+    }
+    .modal h2 {
+      font-size: 18px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 8px;
+      color: var(--red);
+    }
+    .modal p { font-size: 13px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.6; }
+    .modal-input {
+      width: 100%; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 14px; font-size: 22px; color: var(--text);
+      font-family: var(--mono); font-weight: 700; outline: none; text-align: center;
+      letter-spacing: 2px; transition: border-color 0.2s; margin-bottom: 16px;
+    }
+    .modal-input:focus { border-color: var(--red); }
+    .modal-input.match { border-color: var(--red); }
+    .modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
+
+    .btn-confirm-delete {
+      background: var(--red); border: none;
+      color: #fff; border-radius: 8px; padding: 10px 24px; font-size: 13px;
+      font-weight: 700; cursor: pointer; font-family: 'Space Grotesk', sans-serif;
+      transition: all 0.2s;
+    }
+    .btn-confirm-delete:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-confirm-delete:hover:not(:disabled) { background: #ef4444; }
+
+    /* ── Result panel ── */
+    .result-panel { display: none; }
+    .result-panel.visible { display: block; }
+    .result-success {
+      background: var(--green-dim); border: 1px solid rgba(52,211,153,0.25);
+      border-radius: 8px; padding: 16px 20px; margin-bottom: 16px;
+    }
+    .result-success .count { font-size: 28px; font-weight: 700; color: var(--green); font-family: var(--mono); letter-spacing: -1px; }
+    .result-success .label { font-size: 12px; color: var(--green); opacity: 0.7; }
+    .result-failed { margin-top: 12px; }
+    .failed-title { font-size: 12px; font-weight: 600; color: var(--red); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+    .failed-item {
+      background: var(--red-dim); border: 1px solid rgba(248,113,113,0.2);
+      border-radius: 6px; padding: 8px 12px; margin-bottom: 6px;
+      font-size: 12px; font-family: var(--mono);
+    }
+    .failed-item .name { color: var(--text); font-weight: 600; }
+    .failed-item .err { color: var(--red); margin-top: 2px; }
+    .audit-link {
+      font-size: 12px; color: var(--accent); text-decoration: none; font-family: var(--mono);
+      margin-top: 12px; display: inline-block;
+    }
+    .audit-link:hover { text-decoration: underline; }
+
+    /* ── Spinner ── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid rgba(240,168,48,0.3); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      nav { padding: 14px 20px; }
+      .container { padding: 28px 20px 60px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="grain"></div>
+  <nav id="nav-root"></nav>
+
+  <div class="container">
+    <div class="page-header">
+      <div class="danger-badge">Destructive — Admin Only</div>
+      <h1>Bulk-Delete Connections</h1>
+      <p>Delete multiple connections matching a name pattern. Full cascade — all associated data is purged. Irreversible.</p>
+    </div>
+
+    <!-- ── Pattern + Preview ── -->
+    <div class="card">
+      <div class="card-title">1. Define Pattern</div>
+      <div class="input-wrap">
+        <div class="input-label">Name pattern (SQL ILIKE — use % as wildcard)</div>
+        <input id="patternInput" class="pattern-input" type="text"
+               placeholder="e.g.  apex-lab%  or  %_test_%  or  %223" autocomplete="off" spellcheck="false">
+        <div class="input-hint">Example: <code>apex-lab%</code> matches apex-lab_001, apex-lab_223, apex-lab_xyz</div>
+      </div>
+
+      <div class="preview-panel" id="previewPanel">
+        <div class="preview-idle" id="previewIdle">Type a pattern above — a live preview will appear here.</div>
+        <div id="previewResult" style="display:none">
+          <span class="preview-count" id="previewCount"></span>
+          <div class="preview-label" id="previewLabel"></div>
+          <ul class="sample-list" id="sampleList"></ul>
+          <div class="sample-more" id="sampleMore"></div>
+        </div>
+        <div id="previewLoading" style="display:none;color:var(--text-dim);font-size:13px;">
+          <span class="spinner"></span>Checking…
+        </div>
+        <div id="previewError" style="display:none;color:var(--red);font-size:13px;"></div>
+      </div>
+
+      <button id="btnDelete" class="btn-delete" disabled>Delete N connections…</button>
+    </div>
+
+    <!-- ── Result panel ── -->
+    <div class="card result-panel" id="resultPanel">
+      <div class="card-title">Result</div>
+      <div class="result-success" id="resultSuccess">
+        <div class="count" id="resultCount">0</div>
+        <div class="label">connections deleted</div>
+      </div>
+      <div class="result-failed" id="resultFailed" style="display:none">
+        <div class="failed-title">Failed</div>
+        <div id="failedList"></div>
+      </div>
+      <a class="audit-link" href="#" id="auditLink" style="display:none" target="_blank">
+        View audit log entries →
+      </a>
+    </div>
+  </div>
+
+  <!-- ── Confirm modal ── -->
+  <div class="modal-overlay" id="confirmModal">
+    <div class="modal">
+      <h2>This is irreversible.</h2>
+      <p id="modalDesc">You are about to permanently delete <strong id="modalCount">0</strong> connections and all their data. Type the number below to confirm.</p>
+      <input id="confirmInput" class="modal-input" type="text"
+             inputmode="numeric" pattern="[0-9]*" placeholder="0" autocomplete="off">
+      <div class="modal-actions">
+        <button class="btn-secondary" id="btnCancel">Cancel</button>
+        <button class="btn-confirm-delete" id="btnConfirmDelete" disabled>Delete forever</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/nav-component.js"></script>
+  <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    window.tvNav.init('admin');
+
+    const patternInput    = document.getElementById('patternInput');
+    const previewIdle     = document.getElementById('previewIdle');
+    const previewResult   = document.getElementById('previewResult');
+    const previewLoading  = document.getElementById('previewLoading');
+    const previewError    = document.getElementById('previewError');
+    const previewCount    = document.getElementById('previewCount');
+    const previewLabel    = document.getElementById('previewLabel');
+    const sampleList      = document.getElementById('sampleList');
+    const sampleMore      = document.getElementById('sampleMore');
+    const btnDelete       = document.getElementById('btnDelete');
+    const confirmModal    = document.getElementById('confirmModal');
+    const modalCount      = document.getElementById('modalCount');
+    const confirmInput    = document.getElementById('confirmInput');
+    const btnCancel       = document.getElementById('btnCancel');
+    const btnConfirmDel   = document.getElementById('btnConfirmDelete');
+    const resultPanel     = document.getElementById('resultPanel');
+    const resultCount     = document.getElementById('resultCount');
+    const resultFailed    = document.getElementById('resultFailed');
+    const failedList      = document.getElementById('failedList');
+    const auditLink       = document.getElementById('auditLink');
+
+    let currentCount    = 0;
+    let currentPattern  = '';
+    let isDeleting      = false;
+    let debounceTimer   = null;
+
+    // ── Dry-run preview ──────────────────────────────────────────────────────
+    async function runPreview(pattern) {
+      previewIdle.style.display    = 'none';
+      previewResult.style.display  = 'none';
+      previewLoading.style.display = 'block';
+      previewError.style.display   = 'none';
+      btnDelete.disabled = true;
+
+      try {
+        const resp = await fetch('/api/admin/connections/bulk-delete', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ namePattern: pattern, dryRun: true }),
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+          throw new Error(data.error || `HTTP ${resp.status}`);
+        }
+
+        previewLoading.style.display = 'none';
+        previewResult.style.display  = 'block';
+
+        currentCount   = data.count;
+        currentPattern = pattern;
+
+        previewCount.textContent = data.count;
+        previewCount.className   = 'preview-count ' + (data.count === 0 ? 'zero' : 'nonzero');
+        previewLabel.textContent = data.count === 1
+          ? 'connection matches this pattern'
+          : 'connections match this pattern';
+
+        sampleList.innerHTML = '';
+        (data.sampleNames || []).forEach(name => {
+          const li = document.createElement('li');
+          li.className = 'sample-item';
+          li.textContent = name;
+          sampleList.appendChild(li);
+        });
+
+        sampleMore.textContent = data.count > 10
+          ? `…and ${data.count - 10} more`
+          : '';
+
+        btnDelete.disabled  = data.count === 0;
+        btnDelete.textContent = data.count === 0
+          ? 'No matches'
+          : `Delete ${data.count} connection${data.count !== 1 ? 's' : ''}…`;
+
+      } catch (err) {
+        previewLoading.style.display = 'none';
+        previewError.style.display   = 'block';
+        previewError.textContent     = err.message;
+        currentCount = 0;
+        btnDelete.disabled = true;
+        btnDelete.textContent = 'Delete N connections…';
+      }
+    }
+
+    // ── Debounced input handler ──────────────────────────────────────────────
+    patternInput.addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      const val = patternInput.value.trim();
+      if (!val) {
+        previewIdle.style.display    = 'block';
+        previewResult.style.display  = 'none';
+        previewLoading.style.display = 'none';
+        previewError.style.display   = 'none';
+        btnDelete.disabled = true;
+        btnDelete.textContent = 'Delete N connections…';
+        currentCount = 0;
+        return;
+      }
+      debounceTimer = setTimeout(() => runPreview(val), 600);
+    });
+
+    // ── Open confirm modal ───────────────────────────────────────────────────
+    btnDelete.addEventListener('click', () => {
+      if (currentCount === 0 || isDeleting) return;
+      modalCount.textContent  = currentCount;
+      confirmInput.value      = '';
+      btnConfirmDel.disabled  = true;
+      confirmModal.classList.add('open');
+      setTimeout(() => confirmInput.focus(), 80);
+    });
+
+    // ── Confirm input validation ─────────────────────────────────────────────
+    confirmInput.addEventListener('input', () => {
+      const typed = parseInt(confirmInput.value, 10);
+      const match = typed === currentCount;
+      btnConfirmDel.disabled = !match;
+      confirmInput.classList.toggle('match', match);
+    });
+
+    // ── Cancel ───────────────────────────────────────────────────────────────
+    btnCancel.addEventListener('click', () => {
+      confirmModal.classList.remove('open');
+    });
+    confirmModal.addEventListener('click', (e) => {
+      if (e.target === confirmModal) confirmModal.classList.remove('open');
+    });
+
+    // ── Execute bulk delete ───────────────────────────────────────────────────
+    btnConfirmDel.addEventListener('click', async () => {
+      if (isDeleting) return;
+      const typed = parseInt(confirmInput.value, 10);
+      if (typed !== currentCount) return;
+
+      isDeleting = true;
+      btnConfirmDel.disabled  = true;
+      btnConfirmDel.innerHTML = '<span class="spinner"></span>Deleting…';
+
+      try {
+        const resp = await fetch('/api/admin/connections/bulk-delete', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            namePattern:  currentPattern,
+            confirmCount: currentCount,
+            dryRun:       false,
+          }),
+        });
+        const data = await resp.json();
+
+        confirmModal.classList.remove('open');
+        isDeleting = false;
+        btnConfirmDel.innerHTML = 'Delete forever';
+
+        if (!resp.ok) {
+          // 409 = count mismatch — re-run preview
+          if (resp.status === 409) {
+            alert(`Count changed on server (${data.serverCount} now). Refreshing preview.`);
+            runPreview(currentPattern);
+            return;
+          }
+          // 429 = rate limited
+          if (resp.status === 429) {
+            alert(data.error);
+            return;
+          }
+          throw new Error(data.error || `HTTP ${resp.status}`);
+        }
+
+        // ── Show result ──
+        resultCount.textContent = data.deleted;
+        resultPanel.classList.add('visible');
+
+        if (data.failed && data.failed.length > 0) {
+          resultFailed.style.display = 'block';
+          failedList.innerHTML = data.failed.map(f => `
+            <div class="failed-item">
+              <div class="name">${escHtml(f.name)} (id ${f.id})</div>
+              <div class="err">${escHtml(f.error)}</div>
+            </div>
+          `).join('');
+        } else {
+          resultFailed.style.display = 'none';
+        }
+
+        if (data.bulkOperationId) {
+          auditLink.style.display = 'inline-block';
+          auditLink.textContent   = `View audit log — op ${data.bulkOperationId.slice(0, 8)}… →`;
+          // Audit log is at /admin/ebs-validation or just note the op ID for now.
+          auditLink.href = '#';
+          auditLink.title = `bulk_operation_id: ${data.bulkOperationId}`;
+          auditLink.onclick = (e) => {
+            e.preventDefault();
+            prompt('Copy bulk_operation_id for audit query:', data.bulkOperationId);
+          };
+        }
+
+        // Clear the form so next action starts fresh.
+        patternInput.value = '';
+        previewIdle.style.display    = 'block';
+        previewResult.style.display  = 'none';
+        btnDelete.disabled = true;
+        btnDelete.textContent = 'Delete N connections…';
+        currentCount = 0;
+
+      } catch (err) {
+        isDeleting = false;
+        confirmModal.classList.remove('open');
+        btnConfirmDel.innerHTML = 'Delete forever';
+        alert('Delete failed: ' + err.message);
+      }
+    });
+
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+  });
+  </script>
+  <script src="/tunebot.js"></script>
+</body>
+</html>

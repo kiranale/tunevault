@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ready to Test — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    :root {
+      --bg: #0a0a0c;
+      --surface: #111114;
+      --border: #2a2a30;
+      --text: #e8e8ed;
+      --muted: #8888a0;
+      --dim: #444455;
+      --accent: #f0a830;
+      --green: var(--tv-pass, #34d399);
+      --green-bg: #0d2116;
+      --green-border: #14532d;
+      --amber: var(--tv-warn, #fbbf24);
+      --amber-bg: #1c1300;
+      --amber-border: #713f12;
+      --red: var(--tv-fail, #f87171);
+      --red-bg: #2d0a0a;
+      --red-border: #7b0000;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; padding: 0 0 80px;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────────── */
+    .header {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 10;
+    }
+    .header-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .header-logo {
+      width: 30px; height: 30px; background: var(--accent); border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; color: #0a0a0c; font-size: 12px; flex-shrink: 0;
+    }
+    .header-title { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -.3px; }
+    .header-sub { font-size: 11px; color: var(--muted); }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .refresh-info { font-size: 12px; color: var(--dim); }
+    .conn-label {
+      font-size: 12px; font-weight: 600;
+      background: #1e1e24; border: 1px solid var(--border);
+      color: var(--muted); padding: 4px 10px; border-radius: 6px;
+    }
+
+    /* ── Page ────────────────────────────────────────────────────────────── */
+    .page { max-width: 860px; margin: 0 auto; padding: 28px 20px; }
+
+    /* ── Hero banner ─────────────────────────────────────────────────────── */
+    .hero {
+      border-radius: var(--radius); padding: 24px 28px; margin-bottom: 28px;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      transition: background .35s, border-color .35s;
+    }
+    .hero.green  { background: var(--green-bg); border: 1.5px solid var(--green-border); }
+    .hero.amber  { background: var(--amber-bg); border: 1.5px solid var(--amber-border); }
+    .hero.red    { background: var(--red-bg);   border: 1.5px solid var(--red-border); }
+    .hero.loading { background: #111118; border: 1.5px solid var(--border); }
+
+    .hero-left { display: flex; align-items: center; gap: 14px; }
+    .hero-dot {
+      width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
+    }
+    .hero-dot.green { background: var(--green); box-shadow: 0 0 0 4px rgba(52,211,153,.15); }
+    .hero-dot.amber { background: var(--amber); box-shadow: 0 0 0 4px rgba(251,191,36,.15); }
+    .hero-dot.red   { background: var(--red);   box-shadow: 0 0 0 4px rgba(248,113,113,.15); }
+    .hero-dot.pulse { animation: pulse 2s infinite; }
+    @keyframes pulse {
+      0%,100% { opacity: 1; } 50% { opacity: .4; }
+    }
+    .hero-text h2 { font-size: 22px; font-weight: 700; letter-spacing: -.4px; }
+    .hero-text p  { font-size: 13px; color: var(--muted); margin-top: 4px; }
+    .hero-right { font-size: 12px; color: var(--dim); text-align: right; white-space: nowrap; }
+
+    /* ── Badges grid ─────────────────────────────────────────────────────── */
+    .badges { display: flex; flex-direction: column; gap: 12px; }
+
+    .badge-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+      transition: border-color .25s;
+    }
+    .badge-card.green { border-left: 3px solid var(--green); }
+    .badge-card.amber { border-left: 3px solid var(--amber); }
+    .badge-card.red   { border-left: 3px solid var(--red); }
+    .badge-card.loading { border-left: 3px solid var(--border); }
+
+    .badge-main {
+      display: flex; align-items: center; gap: 12px;
+      padding: 16px 20px; cursor: default;
+    }
+    .badge-card.red .badge-main   { cursor: pointer; }
+    .badge-card.amber .badge-main { cursor: pointer; }
+
+    .badge-icon { font-size: 18px; flex-shrink: 0; width: 24px; text-align: center; }
+
+    .badge-body { flex: 1; min-width: 0; }
+    .badge-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px; }
+    .badge-value { font-size: 14px; font-weight: 600; color: var(--text); }
+
+    .badge-pill {
+      font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .badge-pill.green { background: rgba(52,211,153,.12); color: var(--green); border: 1px solid rgba(52,211,153,.25); }
+    .badge-pill.amber { background: rgba(251,191,36,.12);  color: var(--amber); border: 1px solid rgba(251,191,36,.25); }
+    .badge-pill.red   { background: rgba(248,113,113,.12); color: var(--red);   border: 1px solid rgba(248,113,113,.25); }
+    .badge-pill.loading { background: rgba(136,136,160,.08); color: var(--dim); border: 1px solid var(--border); }
+
+    .badge-toggle {
+      font-size: 11px; color: var(--dim); flex-shrink: 0;
+      transition: transform .2s;
+    }
+    .badge-toggle.open { transform: rotate(180deg); }
+
+    /* ── Fix command drawer ───────────────────────────────────────────────── */
+    .fix-drawer {
+      display: none; padding: 0 20px 16px; border-top: 1px solid var(--border);
+    }
+    .fix-drawer.open { display: block; }
+    .fix-label { font-size: 11px; color: var(--muted); margin-bottom: 8px; padding-top: 14px; }
+    .fix-detail { font-size: 12px; color: var(--dim); margin-bottom: 10px; line-height: 1.5; }
+    .fix-cmd-box {
+      display: flex; align-items: center; gap: 10px;
+      background: #0d0d10; border: 1px solid #333340; border-radius: 8px;
+      padding: 10px 14px;
+    }
+    .fix-cmd-text {
+      flex: 1; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 12px; color: #c8d3f5; white-space: pre-wrap; word-break: break-all;
+    }
+    .fix-copy-btn {
+      background: #1e1e28; border: 1px solid #3a3a4a; color: var(--muted);
+      padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;
+      cursor: pointer; flex-shrink: 0; transition: background .15s, color .15s;
+    }
+    .fix-copy-btn:hover { background: #2a2a38; color: var(--text); }
+    .fix-copy-btn.copied { color: var(--green); border-color: rgba(52,211,153,.3); }
+
+    /* ── E2E readiness banner ────────────────────────────────────────────── */
+    .e2e-banner {
+      border-radius: var(--radius); padding: 18px 24px; margin-bottom: 20px;
+      display: none; align-items: center; gap: 14px;
+    }
+    .e2e-banner.show { display: flex; }
+    .e2e-banner.green { background: var(--green-bg); border: 2px solid var(--green-border); }
+    .e2e-banner.amber { background: var(--amber-bg); border: 2px solid var(--amber-border); }
+    .e2e-banner-icon { font-size: 24px; flex-shrink: 0; }
+    .e2e-banner-body { flex: 1; }
+    .e2e-banner-title { font-size: 16px; font-weight: 700; }
+    .e2e-banner.green .e2e-banner-title { color: var(--green); }
+    .e2e-banner.amber .e2e-banner-title { color: var(--amber); }
+    .e2e-banner-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+    /* ── Smoke test panel ────────────────────────────────────────────────── */
+    .smoke-panel {
+      margin-top: 24px;
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+    }
+    .smoke-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; border-bottom: 1px solid var(--border);
+    }
+    .smoke-header-left { display: flex; align-items: center; gap: 10px; }
+    .smoke-icon { font-size: 18px; }
+    .smoke-title { font-size: 14px; font-weight: 700; color: var(--text); }
+    .smoke-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+    /* Run button */
+    .smoke-run-btn {
+      display: flex; align-items: center; gap: 6px;
+      background: #1a2a1a; border: 1.5px solid var(--green-border);
+      color: var(--green); font-size: 13px; font-weight: 700;
+      padding: 8px 16px; border-radius: 8px; cursor: pointer;
+      transition: background .15s, opacity .15s;
+      white-space: nowrap;
+    }
+    .smoke-run-btn:hover:not(:disabled) { background: #1e3520; }
+    .smoke-run-btn:disabled {
+      opacity: .45; cursor: not-allowed;
+      border-color: var(--border); color: var(--dim); background: transparent;
+    }
+    .smoke-run-btn.running {
+      background: #1a1a28; border-color: #3a3a6a; color: #8888cc;
+      animation: btnPulse 1.5s ease-in-out infinite;
+    }
+    @keyframes btnPulse { 0%,100%{opacity:1} 50%{opacity:.6} }
+
+    /* Step list */
+    .smoke-steps {
+      padding: 8px 20px 16px;
+    }
+    .smoke-step {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 0; border-bottom: 1px solid #1a1a1e;
+    }
+    .smoke-step:last-child { border-bottom: none; }
+    .step-num {
+      font-size: 10px; font-weight: 700; color: var(--dim);
+      width: 18px; text-align: center; flex-shrink: 0;
+    }
+    .step-label { flex: 1; font-size: 13px; color: var(--text); }
+    .step-detail { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .step-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 12px;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .step-badge.pass    { background: rgba(52,211,153,.12);  color: var(--green); border:1px solid rgba(52,211,153,.25); }
+    .step-badge.fail    { background: rgba(248,113,113,.12); color: var(--red);   border:1px solid rgba(248,113,113,.25); }
+    .step-badge.warn    { background: rgba(251,191,36,.12);  color: var(--amber); border:1px solid rgba(251,191,36,.25); }
+    .step-badge.skip    { background: rgba(136,136,160,.08); color: var(--dim);   border:1px solid var(--border); }
+    .step-badge.na      { background: rgba(136,136,160,.06); color: var(--dim);   border:1px dashed var(--border); }
+    .step-badge.running { background: rgba(100,100,200,.08); color: #8888cc;      border:1px solid #3a3a6a;
+      animation: btnPulse 1.5s ease-in-out infinite; }
+    .step-badge.pending { background: transparent; color: var(--dim); border:1px solid var(--border); }
+    .step-ms { font-size: 10px; color: var(--dim); flex-shrink: 0; min-width: 40px; text-align: right; }
+
+    /* Result summary card */
+    .smoke-result {
+      display: none; margin: 0 20px 16px;
+      border-radius: 8px; padding: 14px 16px;
+      border: 1.5px solid var(--border);
+    }
+    .smoke-result.pass  { background: var(--green-bg); border-color: var(--green-border); }
+    .smoke-result.fail  { background: var(--red-bg);   border-color: var(--red-border); }
+    .smoke-result.error { background: var(--red-bg);   border-color: var(--red-border); }
+    .smoke-result-line {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    }
+    .smoke-result-text { font-size: 15px; font-weight: 700; }
+    .smoke-result-text.pass  { color: var(--green); }
+    .smoke-result-text.fail  { color: var(--red); }
+    .smoke-result-text.error { color: var(--red); }
+    .smoke-result-meta { font-size: 11px; color: var(--dim); margin-top: 4px; }
+    .smoke-copy-btn {
+      background: transparent; border: 1px solid var(--border); color: var(--muted);
+      padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: background .15s, color .15s; flex-shrink: 0;
+    }
+    .smoke-copy-btn:hover { background: #1e1e28; color: var(--text); }
+    .smoke-copy-btn.copied { color: var(--green); border-color: rgba(52,211,153,.3); }
+
+    /* ── Bottom bar ──────────────────────────────────────────────────────── */
+    .bottom-bar {
+      margin-top: 28px; display: flex; align-items: center; justify-content: space-between;
+      font-size: 12px; color: var(--dim);
+    }
+    .refresh-indicator {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .refresh-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--dim);
+      transition: background .3s;
+    }
+    .refresh-dot.active { background: var(--green); }
+
+    /* ── Error state ─────────────────────────────────────────────────────── */
+    .error-box {
+      background: var(--red-bg); border: 1px solid var(--red-border);
+      border-radius: var(--radius); padding: 20px 24px; color: var(--red);
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <a class="header-brand" href="/connections">
+    <div class="header-logo">TV</div>
+    <div>
+      <div class="header-title">TuneVault</div>
+      <div class="header-sub">Ready to Test</div>
+    </div>
+  </a>
+  <div class="header-right">
+    <span class="conn-label" id="connLabel">—</span>
+    <span class="refresh-info" id="refreshInfo">Loading…</span>
+  </div>
+</div>
+
+<div class="page">
+  <!-- Hero -->
+  <div class="hero loading" id="hero">
+    <div class="hero-left">
+      <div class="hero-dot pulse" id="heroDot"></div>
+      <div class="hero-text">
+        <h2 id="heroTitle">Checking status…</h2>
+        <p id="heroSub">Loading badge data</p>
+      </div>
+    </div>
+    <div class="hero-right" id="heroTime"></div>
+  </div>
+
+  <!-- Error -->
+  <div class="error-box" id="errorBox" style="display:none"></div>
+
+  <!-- Badges -->
+  <div class="badges" id="badgesContainer">
+    <div class="badge-card loading"><div class="badge-main">
+      <div class="badge-icon">⏳</div>
+      <div class="badge-body"><div class="badge-label">Loading</div><div class="badge-value" style="color:var(--dim)">Fetching data…</div></div>
+      <span class="badge-pill loading">—</span>
+    </div></div>
+  </div>
+
+  <!-- E2E Readiness banner (shown after smoke test run) -->
+  <div class="e2e-banner" id="e2eBanner">
+    <div class="e2e-banner-icon" id="e2eBannerIcon"></div>
+    <div class="e2e-banner-body">
+      <div class="e2e-banner-title" id="e2eBannerTitle"></div>
+      <div class="e2e-banner-sub" id="e2eBannerSub"></div>
+    </div>
+  </div>
+
+  <!-- Smoke Test Panel -->
+  <div class="smoke-panel" id="smokePanel">
+    <div class="smoke-header">
+      <div class="smoke-header-left">
+        <span class="smoke-icon">🧪</span>
+        <div>
+          <div class="smoke-title">End-to-End Smoke Test</div>
+          <div class="smoke-sub">12-step live proof: heartbeat → health probe → key rotation → /api/test → upgrade audit → config drift → EBS checks → Apps SSH → adop → DB via SSH sqlplus</div>
+        </div>
+      </div>
+      <button class="smoke-run-btn" id="smokeRunBtn" onclick="runSmokeTest()" disabled title="Waiting for badge data…">
+        ▶ Run smoke test
+      </button>
+    </div>
+
+    <!-- Step list (shown during + after a run) -->
+    <div class="smoke-steps" id="smokeSteps" style="display:none">
+      <!-- Populated by JS -->
+    </div>
+
+    <!-- Result card (shown after run completes) -->
+    <div class="smoke-result" id="smokeResult">
+      <div class="smoke-result-line">
+        <span class="smoke-result-text" id="smokeResultText"></span>
+        <button class="smoke-copy-btn" id="smokeCopyBtn" onclick="copyDiagnostic()">Copy diagnostic</button>
+      </div>
+      <div class="smoke-result-meta" id="smokeResultMeta"></div>
+    </div>
+  </div>
+
+  <!-- Full Validation Suite CTA — shown after smoke test clears all steps -->
+  <div id="validationCta" style="display:none;margin-top:16px;background:#1a1a1f;border:1px solid var(--accent);border-radius:12px;padding:18px 24px;display:none;align-items:center;gap:20px">
+    <div style="font-size:24px;flex-shrink:0">🧪</div>
+    <div style="flex:1">
+      <div style="font-weight:700;font-size:15px;color:var(--text)">Run Full Validation Suite</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:3px">
+        All 54+ health checks + EBS checks + DB Ops read-only probes + SSH paths + credential vault — one shareable report URL
+      </div>
+    </div>
+    <a id="validationSuiteBtn" href="#" class="btn" style="background:var(--accent);color:#0a0a0c;border:none;padding:10px 18px;border-radius:8px;font-weight:700;font-size:14px;text-decoration:none;flex-shrink:0;display:inline-flex;align-items:center;gap:6px">
+      ▶ Run Validation Suite
+    </a>
+  </div>
+
+  <!-- Bottom bar -->
+  <div class="bottom-bar">
+    <div class="refresh-indicator">
+      <div class="refresh-dot" id="refreshDot"></div>
+      <span id="lastUpdated">—</span>
+    </div>
+    <span>Auto-refresh every 10s</span>
+  </div>
+</div>
+
+<script>
+  // ── Config ──────────────────────────────────────────────────────────────────
+  const params     = new URLSearchParams(window.location.search);
+  const connName   = params.get('conn') || 'ebs12210-db-dev';
+  const tokenParam = params.get('token') ? `&token=${encodeURIComponent(params.get('token'))}` : '';
+  const API_URL    = `/api/status/ready-to-test?conn=${encodeURIComponent(connName)}${tokenParam}`;
+
+  // Resolved from first successful badge fetch
+  let resolvedConnId = null;
+  // Smoke test state
+  let smokeRunId    = null;
+  let smokePollTimer = null;
+  let smokeRunning  = false;
+  let smokeRunData  = null;  // latest full run JSON for copy-diagnostic
+
+  // Step definitions (labels in display order)
+  const STEP_LABELS = [
+    '', // placeholder (steps are 1-indexed)
+    'Heartbeat sanity',
+    'Health probe dispatch',
+    'Key rotation round-trip',
+    'Assert /api/test → 410',
+    'Upgrade audit verify',
+    'Config drift check',
+    'EBS detected',
+    'Concurrent Managers',
+    'EBS Ops path',
+    'Apps-node SSH reachability',
+    'adop -status',
+    'DB query via ssh_sqlplus',
+  ];
+  const TOTAL_STEPS = 12;
+
+  // ── Badge icons by id ────────────────────────────────────────────────────────
+  const BADGE_ICONS = {
+    heartbeat:         '💓',
+    agent_version:     '📦',
+    last_health_check: '🩺',
+    upgrade_audit:     '⬆️',
+    key_rotation:      '🔑',
+    config_drift:      '⚙️',
+  };
+
+  const STATUS_LABEL = {
+    green: 'PASS',
+    amber: 'WARN',
+    red:   'FAIL',
+  };
+
+  // ── Render status badges ──────────────────────────────────────────────────────
+  function render(data) {
+    const hero   = document.getElementById('hero');
+    const dot    = document.getElementById('heroDot');
+    const title  = document.getElementById('heroTitle');
+    const sub    = document.getElementById('heroSub');
+    const time   = document.getElementById('heroTime');
+    const errBox = document.getElementById('errorBox');
+
+    errBox.style.display = 'none';
+
+    document.getElementById('connLabel').textContent = data.conn_name || connName;
+    document.getElementById('refreshInfo').textContent = '10s auto-refresh';
+
+    if (data.conn_id) resolvedConnId = data.conn_id;
+
+    // Enable smoke test button once we have a connection id and heartbeat isn't dead-red
+    const heartbeatBadge = (data.badges || []).find(b => b.id === 'heartbeat');
+    const agentAlive = heartbeatBadge && heartbeatBadge.status !== 'red';
+    const btn = document.getElementById('smokeRunBtn');
+    if (!smokeRunning) {
+      btn.disabled = !resolvedConnId || !agentAlive;
+      btn.title = !resolvedConnId ? 'Loading…'
+                : !agentAlive ? 'Agent offline — heartbeat is red'
+                : 'Run full end-to-end smoke test';
+    }
+
+    // Hero
+    hero.className = `hero ${data.overall}`;
+    dot.className  = `hero-dot ${data.overall}`;
+
+    if (data.overall === 'green') {
+      title.textContent = 'READY TO TEST ✅';
+      sub.textContent   = 'All checks passed — good to ship';
+    } else if (data.overall === 'amber') {
+      title.textContent = `PROCEED WITH CAUTION ⚠️`;
+      sub.textContent   = `${data.amber_count} warning${data.amber_count !== 1 ? 's' : ''} — review before testing`;
+    } else {
+      title.textContent = `BLOCKED — ${data.red_count} FAIL${data.red_count !== 1 ? 'S' : ''} 🔴`;
+      sub.textContent   = 'Fix red badges before testing';
+    }
+
+    const ts = data.refreshed_at ? new Date(data.refreshed_at).toLocaleTimeString() : '';
+    time.textContent = ts ? `as of ${ts}` : '';
+
+    // Badges
+    const container = document.getElementById('badgesContainer');
+    container.innerHTML = '';
+
+    (data.badges || []).forEach(badge => {
+      const card = document.createElement('div');
+      card.className = `badge-card ${badge.status}`;
+
+      const hasFix    = (badge.status === 'red' || badge.status === 'amber') && badge.fix_cmd;
+      const hasDetail = badge.detail || hasFix;
+
+      const icon  = BADGE_ICONS[badge.id] || '🔵';
+      const label = STATUS_LABEL[badge.status] || badge.status.toUpperCase();
+
+      card.innerHTML = `
+        <div class="badge-main" ${hasDetail ? 'onclick="toggleDrawer(this)"' : ''}>
+          <div class="badge-icon">${icon}</div>
+          <div class="badge-body">
+            <div class="badge-label">${escHtml(badge.label)}</div>
+            <div class="badge-value">${escHtml(badge.value)}</div>
+          </div>
+          <span class="badge-pill ${badge.status}">${label}</span>
+          ${hasDetail ? '<span class="badge-toggle">▾</span>' : ''}
+        </div>
+        ${hasDetail ? `
+        <div class="fix-drawer">
+          ${badge.detail ? `<div class="fix-label">Detail</div><div class="fix-detail">${escHtml(badge.detail)}</div>` : ''}
+          ${hasFix ? `
+          <div class="fix-label">Fix command</div>
+          <div class="fix-cmd-box">
+            <span class="fix-cmd-text">${escHtml(badge.fix_cmd)}</span>
+            <button class="fix-copy-btn" onclick="copyCmd(this, ${JSON.stringify(badge.fix_cmd)})">Copy</button>
+          </div>` : ''}
+        </div>` : ''}
+      `;
+      container.appendChild(card);
+    });
+
+    document.getElementById('lastUpdated').textContent = `Last updated ${new Date().toLocaleTimeString()}`;
+    flashRefreshDot();
+  }
+
+  function renderError(msg) {
+    const errBox = document.getElementById('errorBox');
+    errBox.textContent = `Error: ${msg}`;
+    errBox.style.display = 'block';
+    document.getElementById('hero').className = 'hero red';
+    document.getElementById('heroDot').className = 'hero-dot red';
+    document.getElementById('heroTitle').textContent = 'ERROR';
+    document.getElementById('heroSub').textContent = msg;
+  }
+
+  // ── Toggle fix drawer ────────────────────────────────────────────────────────
+  function toggleDrawer(mainEl) {
+    const card    = mainEl.closest('.badge-card');
+    const drawer  = card.querySelector('.fix-drawer');
+    const toggle  = card.querySelector('.badge-toggle');
+    if (!drawer) return;
+    const isOpen  = drawer.classList.contains('open');
+    drawer.classList.toggle('open', !isOpen);
+    if (toggle) toggle.classList.toggle('open', !isOpen);
+  }
+
+  // ── Copy command ─────────────────────────────────────────────────────────────
+  function copyCmd(btn, text) {
+    const copy = () => {
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(copy).catch(() => fallbackCopy(btn, text));
+    } else {
+      fallbackCopy(btn, text);
+    }
+  }
+  function fallbackCopy(btn, text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try {
+      document.execCommand('copy');
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+    } catch (e) {
+      btn.textContent = 'Failed';
+      setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+    }
+    document.body.removeChild(ta);
+  }
+
+  // ── Smoke test ───────────────────────────────────────────────────────────────
+
+  async function runSmokeTest() {
+    if (smokeRunning || !resolvedConnId) return;
+    smokeRunning = true;
+
+    const btn = document.getElementById('smokeRunBtn');
+    btn.disabled = true;
+    btn.classList.add('running');
+    btn.textContent = '⏳ Running…';
+
+    // Hide any previous result
+    document.getElementById('smokeResult').style.display = 'none';
+
+    // Show step skeleton
+    renderSmokeSteps([], true);
+
+    try {
+      const resp = await fetch(`/api/admin/smoke-test/${resolvedConnId}`, { method: 'POST' });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        showSmokeError(err.error || `HTTP ${resp.status}`);
+        return;
+      }
+      const data = await resp.json();
+      smokeRunId = data.run_id;
+      pollSmokeRun();
+    } catch (e) {
+      showSmokeError(e.message || 'Network error');
+    }
+  }
+
+  function pollSmokeRun() {
+    if (!smokeRunId) return;
+    clearTimeout(smokePollTimer);
+    smokePollTimer = setTimeout(async () => {
+      try {
+        const resp = await fetch(`/api/admin/smoke-test/runs/${smokeRunId}`);
+        if (!resp.ok) { showSmokeError(`Poll HTTP ${resp.status}`); return; }
+        const run = await resp.json();
+        smokeRunData = run;
+
+        renderSmokeSteps(run.steps || [], run.in_flight);
+
+        if (run.in_flight) {
+          pollSmokeRun(); // keep polling
+        } else {
+          finishSmokeRun(run);
+        }
+      } catch (e) {
+        showSmokeError(e.message || 'Poll error');
+      }
+    }, 1000);
+  }
+
+  function renderSmokeSteps(steps, inFlight) {
+    const container = document.getElementById('smokeSteps');
+    container.style.display = 'block';
+    container.innerHTML = '';
+
+    // Render all steps (9 total)
+    for (let i = 1; i <= TOTAL_STEPS; i++) {
+      const s = steps.find(x => x.step === i);
+      const label = STEP_LABELS[i];
+      const div = document.createElement('div');
+      div.className = 'smoke-step';
+
+      let badgeClass = 'pending';
+      let badgeText  = '—';
+      let detail     = '';
+      let ms         = '';
+
+      if (s) {
+        badgeClass = s.status;
+        badgeText  = s.status === 'na' ? 'N/A' : s.status.toUpperCase();
+        detail     = s.error_msg || s.detail || '';
+        ms         = s.duration_ms ? `${s.duration_ms}ms` : '';
+      } else if (inFlight && steps.length >= i - 1) {
+        // Current step in progress
+        badgeClass = 'running';
+        badgeText  = '…';
+      }
+
+      // EBS steps (7-9): add visual separator
+      if (i === 7) {
+        const sep = document.createElement('div');
+        sep.style.cssText = 'padding: 6px 0 2px; font-size: 10px; font-weight: 700; color: var(--dim); text-transform: uppercase; letter-spacing: .07em;';
+        sep.textContent = 'EBS checks (auto-skip if not EBS)';
+        container.appendChild(sep);
+      }
+
+      // SSH-only steps (10-12): add visual separator
+      if (i === 10) {
+        const sep = document.createElement('div');
+        sep.style.cssText = 'padding: 6px 0 2px; font-size: 10px; font-weight: 700; color: var(--dim); text-transform: uppercase; letter-spacing: .07em; border-top: 1px solid #1a1a1e; margin-top: 6px;';
+        sep.textContent = 'SSH-only path (zero TNS required)';
+        container.appendChild(sep);
+      }
+
+      div.innerHTML = `
+        <span class="step-num">${i}</span>
+        <div class="badge-body">
+          <div class="step-label">${escHtml(label)}</div>
+          ${detail ? `<div class="step-detail">${escHtml(detail)}</div>` : ''}
+        </div>
+        <span class="step-badge ${badgeClass}">${escHtml(badgeText)}</span>
+        <span class="step-ms">${escHtml(ms)}</span>
+      `;
+      container.appendChild(div);
+    }
+  }
+
+  function finishSmokeRun(run) {
+    smokeRunning = false;
+    const btn = document.getElementById('smokeRunBtn');
+    btn.classList.remove('running');
+    btn.textContent = '▶ Run smoke test';
+    btn.disabled = false;
+
+    const allPass   = run.overall_status === 'pass';
+    const durationS = run.duration_ms ? (run.duration_ms / 1000).toFixed(1) : '?';
+    const steps     = run.steps || [];
+    // Count steps that actually ran (exclude 'na' — neutral skips on non-configured paths)
+    const passCount = steps.filter(s => s.status === 'pass').length;
+    const naCount   = steps.filter(s => s.status === 'na').length;
+    const failSteps = steps.filter(s => s.status === 'fail');
+    const coreSteps = TOTAL_STEPS - naCount;
+
+    const resultDiv  = document.getElementById('smokeResult');
+    const resultText = document.getElementById('smokeResultText');
+    const resultMeta = document.getElementById('smokeResultMeta');
+
+    resultDiv.style.display = 'block';
+    resultDiv.className = `smoke-result ${run.overall_status}`;
+
+    // Update e2e readiness banner
+    const banner      = document.getElementById('e2eBanner');
+    const bannerIcon  = document.getElementById('e2eBannerIcon');
+    const bannerTitle = document.getElementById('e2eBannerTitle');
+    const bannerSub   = document.getElementById('e2eBannerSub');
+
+    const sshStepsPassed = steps.filter(s => s.step >= 10 && s.status === 'pass').length;
+    const sshBlockers    = steps.filter(s => s.step >= 10 && s.status === 'fail');
+    const earlyBlockers  = steps.filter(s => s.step < 10 && s.status === 'fail');
+
+    if (allPass) {
+      resultText.className = 'smoke-result-text pass';
+      const naLabel = naCount > 0 ? ` · ${naCount} step${naCount !== 1 ? 's' : ''} N/A` : '';
+      const e2eReady = sshStepsPassed > 0;
+      resultText.textContent = e2eReady
+        ? `✅ CLEARED FOR END-TO-END TESTING — ${passCount} PASSED in ${durationS}s${naLabel}`
+        : `ALL ${passCount} PASSED ✅ in ${durationS}s${naLabel}`;
+      if (e2eReady) {
+        resultMeta.textContent = `TNS optional · SSH path validated · Credentials vault working · Run #${run.id}`;
+      } else {
+        resultMeta.textContent = `Run #${run.id} · ${new Date(run.started_at).toLocaleTimeString()}`;
+      }
+
+      // Green banner
+      banner.className = 'e2e-banner green show';
+      bannerIcon.textContent = '✅';
+      bannerTitle.textContent = 'You can test completely now — TNS optional, SSH path validated, credentials vault working';
+      bannerSub.textContent   = `All ${passCount} active steps passed · ${naCount} N/A · ${durationS}s · Run #${run.id}`;
+
+      // Show validation suite CTA after smoke test fully passes
+      if (resolvedConnId) {
+        const cta = document.getElementById('validationCta');
+        const btn = document.getElementById('validationSuiteBtn');
+        if (cta && btn) {
+          btn.href = `/connections/${resolvedConnId}/validation-suite/run`;
+          cta.style.display = 'flex';
+        }
+      }
+    } else {
+      const firstFail = failSteps[0];
+      resultText.className = `smoke-result-text ${run.overall_status}`;
+      resultText.textContent = firstFail
+        ? `FAILED at step ${firstFail.step} — ${firstFail.label}`
+        : `FAILED (${run.overall_status})`;
+      resultMeta.textContent = `${passCount}/${coreSteps} passed · ${durationS}s · Run #${run.id}`;
+
+      // Amber banner with blocker list
+      const allBlockers = [...earlyBlockers, ...sshBlockers];
+      banner.className = 'e2e-banner amber show';
+      bannerIcon.textContent = '⚠️';
+      bannerTitle.textContent = `${allBlockers.length} step${allBlockers.length !== 1 ? 's' : ''} blocking end-to-end readiness`;
+      bannerSub.textContent   = allBlockers.map(s => `Step ${s.step} (${s.label})`).join(' · ');
+    }
+  }
+
+  function showSmokeError(msg) {
+    smokeRunning = false;
+    clearTimeout(smokePollTimer);
+    const btn = document.getElementById('smokeRunBtn');
+    btn.classList.remove('running');
+    btn.textContent = '▶ Run smoke test';
+    btn.disabled = false;
+
+    const resultDiv  = document.getElementById('smokeResult');
+    const resultText = document.getElementById('smokeResultText');
+    const resultMeta = document.getElementById('smokeResultMeta');
+    resultDiv.style.display = 'block';
+    resultDiv.className = 'smoke-result error';
+    resultText.className = 'smoke-result-text error';
+    resultText.textContent = `Error: ${msg}`;
+    resultMeta.textContent = 'Check that you are logged in as admin';
+  }
+
+  function copyDiagnostic() {
+    const btn = document.getElementById('smokeCopyBtn');
+    const text = JSON.stringify(smokeRunData || {}, null, 2);
+    copyCmd(btn, text);
+  }
+
+  // ── Refresh dot flash ────────────────────────────────────────────────────────
+  function flashRefreshDot() {
+    const dot = document.getElementById('refreshDot');
+    dot.classList.add('active');
+    setTimeout(() => dot.classList.remove('active'), 800);
+  }
+
+  // ── HTML escape ──────────────────────────────────────────────────────────────
+  function escHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Fetch + render ────────────────────────────────────────────────────────────
+  async function fetchStatus() {
+    try {
+      const resp = await fetch(API_URL);
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: resp.statusText }));
+        renderError(err.error || `HTTP ${resp.status}`);
+        return;
+      }
+      const data = await resp.json();
+      if (data.error) { renderError(data.error); return; }
+      render(data);
+    } catch (e) {
+      renderError(e.message || 'Network error');
+    }
+  }
+
+  // ── Boot ──────────────────────────────────────────────────────────────────────
+  fetchStatus();
+  setInterval(fetchStatus, 10_000);
+</script>
+</body>
+</html>

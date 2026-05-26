@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Conversion Funnel — TuneVault Admin</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://tunevault.app/admin/funnel">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; padding: 0; background: #0a0a0c; color: #e8e8ed; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+
+  .header { padding: 20px 32px 16px; border-bottom: 1px solid #1e1e24; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .logo { font-size: 18px; font-weight: 700; color: #f0a830; letter-spacing: -0.4px; }
+  .admin-tag { font-size: 11px; color: #9898a8; background: #111114; border: 1px solid #2a2a30; padding: 2px 8px; border-radius: 4px; }
+  .header-nav { display: flex; gap: 12px; align-items: center; }
+  .nav-link { font-size: 13px; color: #9898a8; text-decoration: none; }
+  .nav-link:hover { color: #e8e8ed; }
+
+  .page { padding: 28px 32px; max-width: 1200px; margin: 0 auto; }
+
+  h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.4px; margin: 0 0 4px; }
+  .sub { font-size: 13px; color: #9898a8; margin: 0 0 24px; }
+
+  .controls { display: flex; gap: 12px; align-items: flex-end; margin-bottom: 28px; flex-wrap: wrap; }
+  .control-group { display: flex; flex-direction: column; gap: 4px; }
+  .control-group label { font-size: 11px; color: #9898a8; text-transform: uppercase; letter-spacing: .06em; }
+  .control-group input { background: #111114; border: 1px solid #2a2a30; color: #e8e8ed; padding: 7px 12px; border-radius: 6px; font-size: 13px; }
+  .btn { padding: 8px 18px; background: #f0a830; color: #0a0a0c; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btn:hover { background: #ffc142; }
+
+  .section-title { font-size: 13px; font-weight: 600; color: #9898a8; text-transform: uppercase; letter-spacing: .06em; margin: 0 0 14px; }
+
+  /* Funnel */
+  .funnel-wrap { display: flex; flex-direction: column; gap: 4px; margin-bottom: 36px; }
+  .funnel-step { display: flex; align-items: center; gap: 12px; position: relative; }
+  .step-bar-container { flex: 1; position: relative; height: 44px; }
+  .step-bar-bg { position: absolute; inset: 0; background: #111114; border: 1px solid #1e1e24; border-radius: 6px; }
+  .step-bar-fill { position: absolute; top: 0; left: 0; height: 100%; border-radius: 6px; background: linear-gradient(90deg, #f0a830 0%, #c07a00 100%); opacity: 0.85; transition: width .5s ease; }
+  .step-label { position: absolute; inset: 0; display: flex; align-items: center; padding: 0 12px; gap: 8px; pointer-events: none; }
+  .step-name { font-size: 13px; font-weight: 600; color: #e8e8ed; white-space: nowrap; flex-shrink: 0; }
+  .step-count { font-size: 13px; color: #f0a830; font-weight: 600; margin-left: auto; white-space: nowrap; }
+  .step-uniq { font-size: 11px; color: #9898a8; white-space: nowrap; }
+  .step-drop { width: 56px; text-align: right; flex-shrink: 0; }
+  .drop-badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 4px; }
+  .drop-high  { background: rgba(220,40,40,.15); color: #ff6b6b; }
+  .drop-med   { background: rgba(240,168,48,.12); color: #f0a830; }
+  .drop-low   { background: rgba(60,200,80,.12); color: #4de080; }
+  .drop-none  { color: #9898a8; font-size: 11px; }
+
+  /* Stats strip */
+  .stats-strip { display: flex; gap: 16px; margin-bottom: 32px; flex-wrap: wrap; }
+  .stat-card { background: #111114; border: 1px solid #1e1e24; border-radius: 8px; padding: 16px 20px; min-width: 140px; }
+  .stat-label { font-size: 11px; color: #9898a8; text-transform: uppercase; letter-spacing: .06em; margin: 0 0 4px; }
+  .stat-value { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; color: #f0a830; }
+  .stat-sub   { font-size: 11px; color: #9898a8; margin-top: 2px; }
+
+  /* Recent events */
+  .recent-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .recent-table th { text-align: left; padding: 8px 10px; border-bottom: 1px solid #1e1e24; color: #9898a8; font-weight: 500; }
+  .recent-table td { padding: 8px 10px; border-bottom: 1px solid #0f0f12; color: #9898a8; font-family: 'SF Mono', 'Fira Code', monospace; }
+  .recent-table td.ev-name { color: #e8e8ed; font-family: inherit; font-weight: 500; }
+  .event-badge { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 3px; background: #1e1e24; color: #9898a8; }
+  .event-badge.signup    { background: rgba(60,130,255,.15); color: #6ba3ff; }
+  .event-badge.checkout  { background: rgba(60,200,80,.15); color: #4de080; }
+  .event-badge.drip      { background: rgba(240,168,48,.12); color: #f0a830; }
+  .event-badge.check     { background: rgba(200,80,240,.12); color: #d480ff; }
+  .event-badge.limit     { background: rgba(220,40,40,.15); color: #ff6b6b; }
+  .event-badge.modal     { background: rgba(240,168,48,.12); color: #f0a830; }
+
+  .loading { display: flex; align-items: center; justify-content: center; height: 120px; color: #9898a8; font-size: 14px; }
+  .error-msg { background: rgba(220,40,40,.12); border: 1px solid rgba(220,40,40,.25); border-radius: 6px; padding: 12px 16px; color: #ff6b6b; font-size: 13px; margin-bottom: 20px; }
+
+  /* Two-column layout: funnel left, UTM right */
+  .main-grid { display: grid; grid-template-columns: 1fr 340px; gap: 28px; align-items: start; }
+  @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+
+  /* UTM panel */
+  .utm-panel { background: #111114; border: 1px solid #1e1e24; border-radius: 8px; padding: 16px; }
+  .utm-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .utm-table th { text-align: left; padding: 6px 8px; border-bottom: 1px solid #1e1e24; color: #9898a8; font-weight: 500; }
+  .utm-table td { padding: 6px 8px; border-bottom: 1px solid #0f0f12; color: #9898a8; }
+  .utm-table td.src  { color: #e8e8ed; font-weight: 500; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .utm-table td.num  { color: #f0a830; font-weight: 600; text-align: right; }
+  .utm-table td.paid { color: #4de080; font-weight: 600; text-align: right; }
+
+  /* Sparkline canvas */
+  .sparkline-wrap { margin-top: 28px; background: #111114; border: 1px solid #1e1e24; border-radius: 8px; padding: 16px; }
+  canvas#spark { width: 100%; height: 80px; display: block; }
+  .spark-legend { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+  .spark-key { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #9898a8; }
+  .spark-dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  .backfill-note { font-size: 11px; color: #9898a8; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="logo">TuneVault</div>
+    <div class="admin-tag">Admin</div>
+  </div>
+  <div class="header-nav">
+    <a href="/admin/users" class="nav-link">Users</a>
+    <a href="/admin/requests" class="nav-link">Requests</a>
+    <a href="/admin/funnel" class="nav-link" style="color:#f0a830">Funnel</a>
+    <a href="/dashboard" class="nav-link">← App</a>
+  </div>
+</div>
+
+<div class="page">
+  <h1>Conversion Funnel</h1>
+  <p class="sub">End-to-end visibility from first page view to paid conversion.</p>
+
+  <div class="controls">
+    <div class="control-group">
+      <label>From</label>
+      <input type="date" id="from" />
+    </div>
+    <div class="control-group">
+      <label>To</label>
+      <input type="date" id="to" />
+    </div>
+    <button class="btn" onclick="loadData()">Apply</button>
+  </div>
+
+  <div id="error" style="display:none" class="error-msg"></div>
+
+  <div id="stats-strip" class="stats-strip" style="display:none">
+    <div class="stat-card">
+      <div class="stat-label">Page Views</div>
+      <div class="stat-value" id="stat-pv">—</div>
+      <div class="stat-sub">unique sessions</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Signups</div>
+      <div class="stat-value" id="stat-signups">—</div>
+      <div class="stat-sub">new accounts</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Checks Run</div>
+      <div class="stat-value" id="stat-checks">—</div>
+      <div class="stat-sub">first checks</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Paid</div>
+      <div class="stat-value" id="stat-paid">—</div>
+      <div class="stat-sub">checkouts completed</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Visitor→Paid</div>
+      <div class="stat-value" id="stat-cvr">—</div>
+      <div class="stat-sub">conversion rate</div>
+    </div>
+  </div>
+
+  <div id="funnel-loading" class="loading">Loading funnel data…</div>
+
+  <div id="funnel-section" style="display:none">
+    <div class="main-grid">
+      <div>
+        <div class="section-title">Funnel Steps</div>
+        <div class="funnel-wrap" id="funnel-steps"></div>
+        <p class="backfill-note">⚠ Historical (pre-deploy) numbers are zero — data starts from first deploy.</p>
+      </div>
+      <div>
+        <div class="utm-panel">
+          <div class="section-title" style="margin-bottom:12px">Top Traffic Sources</div>
+          <table class="utm-table">
+            <thead><tr><th>Source</th><th>Medium</th><th style="text-align:right">Visitors</th><th style="text-align:right">Paid</th></tr></thead>
+            <tbody id="utm-body"></tbody>
+          </table>
+        </div>
+        <div class="sparkline-wrap">
+          <div class="section-title" style="margin-bottom:10px">Daily Event Volume</div>
+          <canvas id="spark" height="80"></canvas>
+          <div class="spark-legend" id="spark-legend"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="recent-section" style="display:none;margin-top:32px">
+    <div class="section-title" style="margin-top:32px">Recent Events</div>
+    <table class="recent-table">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Event</th>
+          <th>User ID</th>
+          <th>Session</th>
+          <th>Page</th>
+          <th>Properties</th>
+        </tr>
+      </thead>
+      <tbody id="recent-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+// Default date range: last 7 days (per spec)
+const now = new Date();
+const d7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+document.getElementById('from').value = d7.toISOString().slice(0, 10);
+document.getElementById('to').value   = now.toISOString().slice(0, 10);
+
+const EVENT_CLASSES = {
+  page_view: '', signup_started: 'signup', signup_completed: 'signup',
+  demo_started: 'check', demo_completed: 'check',
+  connection_added: 'check', first_check_started: 'check', first_check_completed: 'check',
+  health_check_started: 'check', health_check_completed: 'check',
+  free_tier_limit_hit: 'limit', upgrade_modal_shown: 'modal', upgrade_modal_clicked: 'modal',
+  cta_click: 'modal', tunebot_query: 'check',
+  checkout_started: 'checkout', checkout_completed: 'checkout',
+  checkout_failed: 'limit', checkout_succeeded: 'checkout',
+  trial_drip_email_sent: 'drip', trial_drip_email_clicked: 'drip',
+};
+
+function fmt(n) {
+  if (n == null) return '—';
+  return n.toLocaleString();
+}
+
+function fmtPct(p) {
+  if (p == null) return '';
+  return p + '% drop';
+}
+
+function dropClass(pct) {
+  if (pct == null) return 'drop-none';
+  if (pct >= 70) return 'drop-high';
+  if (pct >= 40) return 'drop-med';
+  return 'drop-low';
+}
+
+function relTime(iso) {
+  const d = new Date(iso);
+  const ago = Math.round((Date.now() - d.getTime()) / 1000);
+  if (ago < 60)  return ago + 's ago';
+  if (ago < 3600) return Math.round(ago/60) + 'm ago';
+  if (ago < 86400) return Math.round(ago/3600) + 'h ago';
+  return d.toLocaleDateString();
+}
+
+async function loadData() {
+  const from = document.getElementById('from').value;
+  const to   = document.getElementById('to').value;
+
+  document.getElementById('funnel-loading').style.display = 'flex';
+  document.getElementById('funnel-section').style.display = 'none';
+  document.getElementById('recent-section').style.display = 'none';
+  document.getElementById('stats-strip').style.display = 'none';
+  document.getElementById('error').style.display = 'none';
+
+  try {
+    const url = `/api/analytics/funnel-data?from=${from}&to=${to}`;
+    const resp = await fetch(url, { credentials: 'include' });
+    if (resp.status === 401) {
+      showError('Not authenticated. Please log in as an admin.');
+      return;
+    }
+    if (resp.status === 403) {
+      showError('Access denied — admin accounts only.');
+      return;
+    }
+    if (!resp.ok) {
+      const e = await resp.json().catch(() => ({}));
+      showError(e.error || 'Failed to load data (' + resp.status + ')');
+      return;
+    }
+
+    const data = await resp.json();
+    renderFunnel(data.steps);
+    renderRecent(data.recent);
+    renderStats(data.steps);
+    renderUtm(data.utmBreakdown || []);
+    renderSparkline(data.dailyVolume || []);
+
+    document.getElementById('funnel-loading').style.display = 'none';
+    document.getElementById('funnel-section').style.display = '';
+    document.getElementById('recent-section').style.display = '';
+    document.getElementById('stats-strip').style.display = 'flex';
+  } catch (err) {
+    showError('Network error: ' + err.message);
+  }
+}
+
+function showError(msg) {
+  document.getElementById('funnel-loading').style.display = 'none';
+  const el = document.getElementById('error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function renderStats(steps) {
+  const byKey = {};
+  steps.forEach(s => byKey[s.key] = s);
+
+  const pv      = byKey['page_view'];
+  const signup  = byKey['signup_completed'];
+  const check   = byKey['first_check_completed'];
+  const paid    = byKey['checkout_completed'];
+
+  document.getElementById('stat-pv').textContent      = fmt(pv?.unique_sessions);
+  document.getElementById('stat-signups').textContent  = fmt(signup?.count);
+  document.getElementById('stat-checks').textContent   = fmt(check?.count);
+  document.getElementById('stat-paid').textContent     = fmt(paid?.count);
+
+  const pvCount   = pv?.unique_sessions || 0;
+  const paidCount = paid?.count || 0;
+  const cvr = pvCount > 0 ? ((paidCount / pvCount) * 100).toFixed(1) + '%' : '—';
+  document.getElementById('stat-cvr').textContent = cvr;
+}
+
+function renderFunnel(steps) {
+  const max = steps.reduce((m, s) => Math.max(m, s.count), 1);
+  const container = document.getElementById('funnel-steps');
+  container.innerHTML = '';
+
+  steps.forEach(step => {
+    const pct = Math.max(2, Math.round((step.count / max) * 100));
+    const dpClass = dropClass(step.drop_pct);
+    const dropLabel = step.drop_pct != null
+      ? `<span class="drop-badge ${dpClass}">${step.drop_pct}% ↓</span>`
+      : `<span class="drop-none">—</span>`;
+
+    const html = `
+      <div class="funnel-step">
+        <div class="step-bar-container">
+          <div class="step-bar-bg"></div>
+          <div class="step-bar-fill" style="width:${pct}%"></div>
+          <div class="step-label">
+            <span class="step-name">${step.label}</span>
+            <span class="step-uniq">${fmt(step.unique_users)} users</span>
+            <span class="step-count">${fmt(step.count)}</span>
+          </div>
+        </div>
+        <div class="step-drop">${dropLabel}</div>
+      </div>`;
+
+    container.insertAdjacentHTML('beforeend', html);
+  });
+}
+
+function renderRecent(events) {
+  const tbody = document.getElementById('recent-body');
+  tbody.innerHTML = '';
+  if (!events || events.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="color:#9898a8;padding:16px 10px">No events yet</td></tr>';
+    return;
+  }
+  events.forEach(ev => {
+    const cls = EVENT_CLASSES[ev.event_name] || '';
+    const props = ev.properties ? JSON.stringify(ev.properties).slice(0, 80) : '—';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${relTime(ev.occurred_at)}</td>
+      <td class="ev-name"><span class="event-badge ${cls}">${ev.event_name}</span></td>
+      <td>${ev.user_id || '—'}</td>
+      <td style="font-size:10px">${ev.session_id ? ev.session_id.slice(0,12) + '…' : '—'}</td>
+      <td>${ev.page_path || '—'}</td>
+      <td style="max-width:200px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${props}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderUtm(rows) {
+  const tbody = document.getElementById('utm-body');
+  tbody.innerHTML = '';
+  if (!rows || rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="color:#9898a8;padding:10px 8px">No UTM data yet</td></tr>';
+    return;
+  }
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      `<td class="src" title="${r.utm_source || '(direct)'}">${r.utm_source || '(direct)'}</td>` +
+      `<td style="color:#9898a8;font-size:11px">${r.utm_medium || '—'}</td>` +
+      `<td class="num">${fmt(Number(r.visitors))}</td>` +
+      `<td class="paid">${Number(r.paid) > 0 ? fmt(Number(r.paid)) : '—'}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// Sparkline: daily page_view + checkout_completed volume
+const SPARK_EVENTS = [
+  { key: 'page_view',       color: '#6ba3ff', label: 'Page Views' },
+  { key: 'health_check_completed', color: '#d480ff', label: 'Checks' },
+  { key: 'checkout_completed', color: '#4de080', label: 'Paid' },
+];
+
+function renderSparkline(rows) {
+  const canvas = document.getElementById('spark');
+  if (!canvas || !canvas.getContext) return;
+
+  // Group by day
+  const byDay = {};
+  rows.forEach(r => {
+    const day = r.day ? r.day.toString().slice(0, 10) : null;
+    if (!day) return;
+    if (!byDay[day]) byDay[day] = {};
+    byDay[day][r.event_name] = Number(r.count);
+  });
+
+  const days = Object.keys(byDay).sort();
+  if (days.length === 0) { canvas.style.display = 'none'; return; }
+
+  canvas.style.display = 'block';
+  const W = canvas.offsetWidth || 600;
+  const H = 80;
+  canvas.width  = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  SPARK_EVENTS.forEach(ev => {
+    const vals = days.map(d => byDay[d][ev.key] || 0);
+    const max  = Math.max(...vals, 1);
+    ctx.beginPath();
+    ctx.strokeStyle = ev.color;
+    ctx.lineWidth   = 1.5;
+    ctx.globalAlpha = 0.85;
+    vals.forEach((v, i) => {
+      const x = (i / (days.length - 1 || 1)) * W;
+      const y = H - (v / max) * (H - 8) - 4;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  });
+
+  // Legend
+  const legend = document.getElementById('spark-legend');
+  legend.innerHTML = SPARK_EVENTS.map(ev =>
+    `<span class="spark-key"><span class="spark-dot" style="background:${ev.color}"></span>${ev.label}</span>`
+  ).join('');
+}
+
+// Auto-load on page open
+loadData();
+</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

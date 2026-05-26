@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Team &amp; Roles — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c; --surface: #111114; --surface-2: #1a1a1f;
+      --border: #2a2a30; --text: #e8e8ed; --text-dim: #9898a8;
+      --accent: #f0a830; --accent-dim: rgba(240,168,48,.12);
+      --green: #34d399; --green-dim: rgba(52,211,153,.10);
+      --red: #f87171; --red-dim: rgba(248,113,113,.10);
+      --blue: #60a5fa; --blue-dim: rgba(96,165,250,.10);
+      --purple: #c084fc; --purple-dim: rgba(192,132,252,.10);
+      --yellow: #fbbf24;
+      --mono: 'JetBrains Mono', monospace;
+    }
+    body { font-family: 'Space Grotesk', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    nav { background: rgba(10,10,12,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 9999; }
+    main { max-width: 960px; margin: 0 auto; padding: 48px 24px 80px; }
+    h1 { font-size: 28px; font-weight: 700; letter-spacing: -.5px; }
+    .subtitle { color: var(--text-dim); font-size: 14px; margin-top: 6px; }
+
+    /* Tab strip */
+    .tabs { display: flex; gap: 4px; margin-top: 32px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 4px; width: fit-content; }
+    .tab { padding: 7px 20px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text-dim); background: none; border: none; font-family: inherit; transition: all .15s; }
+    .tab.active { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+    .tab:hover:not(.active) { color: var(--text); }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    .section { margin-top: 36px; }
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .section-title { font-size: 16px; font-weight: 600; }
+    .section-desc { color: var(--text-dim); font-size: 13px; margin-top: 4px; }
+
+    /* Buttons */
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: opacity .15s; font-family: inherit; }
+    .btn:hover { opacity: .82; }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-primary { background: var(--accent); color: #000; }
+    .btn-secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+    .btn-danger { background: var(--red-dim); color: var(--red); border: 1px solid rgba(248,113,113,.25); }
+    .btn-ghost { background: none; color: var(--text-dim); border: 1px solid var(--border); }
+    .btn-sm { padding: 5px 12px; font-size: 12px; }
+    .btn-success { background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,.25); }
+
+    /* Team banner */
+    .team-banner { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px 28px; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+    .team-name-row { display: flex; align-items: center; gap: 12px; }
+    .team-icon { width: 44px; height: 44px; background: var(--accent-dim); border: 1px solid rgba(240,168,48,.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: var(--accent); }
+    .team-name-text { font-size: 20px; font-weight: 700; }
+    .plan-badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 5px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(240,168,48,.2); margin-left: 10px; }
+    .plan-badge.enterprise { background: var(--purple-dim); color: var(--purple); border-color: rgba(192,132,252,.2); }
+    .name-edit-row { display: flex; gap: 8px; align-items: center; }
+    .name-input { background: var(--surface-2); border: 1px solid var(--accent); color: var(--text); border-radius: 8px; padding: 8px 12px; font-size: 16px; font-weight: 600; font-family: inherit; outline: none; width: 260px; }
+    .member-count { color: var(--text-dim); font-size: 13px; }
+
+    /* Role badges */
+    .role-badge { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 5px; font-size: 11px; font-weight: 700; letter-spacing: .04em; }
+    .role-admin { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(240,168,48,.2); }
+    .role-senior_dba { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(96,165,250,.2); }
+    .role-junior_dba { background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,.2); }
+    .role-viewer { background: rgba(255,255,255,.05); color: var(--text-dim); border: 1px solid var(--border); }
+    .branch-dba { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(96,165,250,.2); }
+    .branch-functional { background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,.2); }
+    .branch-dev { background: var(--purple-dim); color: var(--purple); border: 1px solid rgba(192,132,252,.2); }
+    .branch-management { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(240,168,48,.2); }
+
+    /* Status badges */
+    .status-badge { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 5px; font-size: 11px; font-weight: 600; }
+    .status-active { background: var(--green-dim); color: var(--green); }
+    .status-pending { background: rgba(251,191,36,.10); color: var(--yellow); }
+    .status-approved { background: var(--green-dim); color: var(--green); }
+    .status-rejected { background: var(--red-dim); color: var(--red); }
+
+    /* Table */
+    table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+    th { background: var(--surface-2); color: var(--text-dim); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; padding: 11px 16px; text-align: left; border-bottom: 1px solid var(--border); }
+    td { padding: 13px 16px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,.015); }
+    .empty { text-align: center; padding: 48px 24px; color: var(--text-dim); font-size: 14px; }
+    .actions-cell { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--text-dim); flex-shrink: 0; }
+    .member-info { display: flex; align-items: center; gap: 10px; }
+    .member-name { font-weight: 500; }
+    .member-email { color: var(--text-dim); font-size: 12px; }
+    .role-select { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 5px 8px; font-size: 12px; font-family: inherit; outline: none; cursor: pointer; }
+    .role-select:focus { border-color: var(--accent); }
+
+    /* Role matrix cards */
+    .roles-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-top: 16px; }
+    .role-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; transition: border-color .15s; }
+    .role-card:hover { border-color: rgba(240,168,48,.3); }
+    .role-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; gap: 10px; }
+    .role-card-name { font-size: 15px; font-weight: 700; }
+    .role-card-default { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+    .perms-list { display: flex; flex-direction: column; gap: 5px; }
+    .perm-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dim); }
+    .perm-check { color: var(--green); font-size: 13px; }
+    .perm-x { color: var(--text-dim); opacity: .5; font-size: 13px; }
+    .approval-chain { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-dim); display: flex; align-items: center; gap: 6px; }
+    .approval-chain-name { color: var(--accent); font-weight: 600; }
+    .role-card-actions { margin-top: 14px; display: flex; gap: 8px; }
+
+    /* Approval requests list */
+    .approval-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 12px; }
+    .approval-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; gap: 16px; }
+    .approval-card-title { font-size: 14px; font-weight: 600; }
+    .approval-card-meta { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+    .approval-card-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+    /* Modal */
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.72); z-index: 200; align-items: center; justify-content: center; }
+    .overlay.open { display: flex; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; width: 560px; max-width: 96vw; padding: 32px; max-height: 90vh; overflow-y: auto; }
+    .modal h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+    .modal-subtitle { color: var(--text-dim); font-size: 13px; margin-bottom: 28px; }
+    .form-group { margin-bottom: 18px; }
+    label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+    input[type="email"], input[type="text"] { width: 100%; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 10px 12px; font-size: 14px; font-family: inherit; outline: none; transition: border-color .15s; }
+    input:focus { border-color: var(--accent); }
+    select { width: 100%; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 10px 12px; font-size: 14px; font-family: inherit; outline: none; cursor: pointer; }
+    select:focus { border-color: var(--accent); }
+    .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+    .confirm-text { color: var(--text-dim); font-size: 14px; margin-bottom: 24px; line-height: 1.6; }
+    .confirm-text strong { color: var(--text); }
+
+    /* Permissions matrix in modal */
+    .perm-matrix { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+    .perm-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; }
+    .perm-toggle input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
+
+    /* Info callout */
+    .callout { background: var(--accent-dim); border: 1px solid rgba(240,168,48,.2); border-radius: 10px; padding: 14px 18px; font-size: 13px; color: var(--text-dim); line-height: 1.5; margin-bottom: 20px; }
+    .callout strong { color: var(--accent); }
+    .callout-blue { background: var(--blue-dim); border-color: rgba(96,165,250,.2); }
+    .callout-blue strong { color: var(--blue); }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 20px; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px; z-index: 999; opacity: 0; transition: opacity .2s; pointer-events: none; box-shadow: 0 8px 24px rgba(0,0,0,.5); }
+    .toast.show { opacity: 1; }
+    .toast.success { border-color: rgba(52,211,153,.3); color: var(--green); }
+    .toast.error { border-color: rgba(248,113,113,.3); color: var(--red); }
+
+    /* No team state */
+    .empty-state { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 64px 32px; text-align: center; max-width: 520px; margin: 64px auto; }
+    .empty-state h2 { font-size: 22px; font-weight: 700; margin-bottom: 12px; }
+    .empty-state p { color: var(--text-dim); font-size: 14px; line-height: 1.6; margin-bottom: 28px; }
+    .empty-state .create-form { display: flex; gap: 10px; max-width: 360px; margin: 0 auto; }
+    .empty-state input { flex: 1; }
+
+    /* Loading */
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.15); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-state { text-align: center; padding: 64px 24px; color: var(--text-dim); }
+
+    @media (max-width: 640px) {
+      main { padding: 32px 16px; }
+      .roles-grid { grid-template-columns: 1fr; }
+      .perm-matrix { grid-template-columns: 1fr; }
+      table, thead, tbody, th, td, tr { display: block; }
+      thead { display: none; }
+      tr { border: 1px solid var(--border); border-radius: 10px; margin-bottom: 12px; padding: 12px; background: var(--surface); }
+      td { border-bottom: none; padding: 4px 0; }
+      td::before { content: attr(data-label); font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-dim); letter-spacing: .06em; display: block; margin-bottom: 3px; }
+      .actions-cell { padding-top: 10px; }
+      .team-banner { flex-direction: column; align-items: flex-start; }
+      .name-input { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<nav><div id="nav-root"></div></nav>
+
+<main id="main">
+  <div class="loading-state">
+    <div class="spinner" style="width:24px;height:24px;"></div>
+    <div style="margin-top:16px;">Loading team…</div>
+  </div>
+</main>
+
+<!-- Invite Modal -->
+<div class="overlay" id="inviteOverlay">
+  <div class="modal">
+    <h2>Invite Team Member</h2>
+    <p class="modal-subtitle">They'll receive an email with a link to join your team.</p>
+    <div class="form-group">
+      <label>Email Address</label>
+      <input type="email" id="inviteEmail" placeholder="colleague@company.com" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label>Role</label>
+      <select id="inviteRole">
+        <option value="viewer">Viewer — read-only access</option>
+        <option value="junior_dba">Junior DBA — run checks, needs approval to execute</option>
+        <option value="senior_dba">Senior DBA — full DBA access including EBS Ops</option>
+        <option value="admin">Admin — manage team members and all settings</option>
+      </select>
+      <p id="inviteRoleDesc" class="role-option-desc" style="font-size:12px;color:var(--text-dim);margin-top:6px;"></p>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeInviteModal()">Cancel</button>
+      <button class="btn btn-primary" id="sendInviteBtn" onclick="sendInvite()">Send Invite</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div class="overlay" id="confirmOverlay">
+  <div class="modal">
+    <h2 id="confirmTitle">Confirm</h2>
+    <p class="confirm-text" id="confirmText"></p>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeConfirm()">Cancel</button>
+      <button class="btn btn-danger" id="confirmBtn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create / Edit Role Modal -->
+<div class="overlay" id="roleModalOverlay">
+  <div class="modal">
+    <h2 id="roleModalTitle">Create Custom Role</h2>
+    <p class="modal-subtitle" id="roleModalSubtitle">Define a new role for your team with custom permissions.</p>
+    <input type="hidden" id="editRoleId">
+    <div class="form-group">
+      <label>Role Name</label>
+      <input type="text" id="roleModalName" placeholder="e.g. Database Architect">
+    </div>
+    <div class="form-group">
+      <label>Branch</label>
+      <select id="roleModalBranch">
+        <option value="dba">DBA — Database administration and ops</option>
+        <option value="functional">Functional — EBS/CM functional operations</option>
+        <option value="dev">Dev — SQL, performance, development</option>
+        <option value="management">Management — Oversight, approvals, compliance</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Permissions</label>
+      <div class="perm-matrix" id="permMatrix">
+        <label class="perm-toggle"><input type="checkbox" id="perm_can_diagnose"> Diagnose (run health checks)</label>
+        <label class="perm-toggle"><input type="checkbox" id="perm_can_recommend"> Recommend (AI suggestions)</label>
+        <label class="perm-toggle"><input type="checkbox" id="perm_can_execute"> Execute (DB Ops, destructive)</label>
+        <label class="perm-toggle"><input type="checkbox" id="perm_can_approve"> Approve (approve others' requests)</label>
+        <label class="perm-toggle"><input type="checkbox" id="perm_can_view_sql_console"> SQL Console access</label>
+        <label class="perm-toggle"><input type="checkbox" id="perm_can_view_cm_dashboard"> CM Dashboard</label>
+        <label class="perm-toggle"><input type="checkbox" id="perm_can_view_perf_impact"> Performance impact data</label>
+        <label class="perm-toggle"><input type="checkbox" id="perm_can_view_patch_status"> Patch status widget</label>
+        <label class="perm-toggle"><input type="checkbox" id="perm_can_view_adop_internals"> ADOP internals (DBA only)</label>
+        <label class="perm-toggle"><input type="checkbox" id="perm_can_export_compliance"> Export compliance reports</label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Requires Approval From (optional)</label>
+      <select id="roleModalApprover">
+        <option value="">— No approval required —</option>
+      </select>
+      <p style="font-size:12px;color:var(--text-dim);margin-top:6px;">When set, this role cannot execute actions without approval from the selected role.</p>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeRoleModal()">Cancel</button>
+      <button class="btn btn-primary" id="saveRoleBtn" onclick="saveRole()">Create Role</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script src="/nav-component.js"></script>
+<script>
+  window.tvNav.init('settings');
+
+  var teamId = null;
+  var currentUserRole = null;
+  var teamData = null;
+  var rolesData = [];
+  var isEnterprise = false;
+  var isAdmin = false;
+
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+
+  function escHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function toast(msg, type) {
+    var el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast show ' + (type || '');
+    clearTimeout(el._t);
+    el._t = setTimeout(function() { el.className = 'toast'; }, 3200);
+  }
+
+  function roleBadge(role) {
+    var labels = { admin: 'Admin', senior_dba: 'Senior DBA', junior_dba: 'Junior DBA', viewer: 'Viewer' };
+    return '<span class="role-badge role-' + escHtml(role) + '">' + escHtml(labels[role] || role) + '</span>';
+  }
+
+  function branchBadge(branch) {
+    var labels = { dba: 'DBA', functional: 'Functional', dev: 'Dev', management: 'Mgmt' };
+    return '<span class="role-badge branch-' + escHtml(branch) + '">' + escHtml(labels[branch] || branch) + '</span>';
+  }
+
+  function statusBadge(status) {
+    var map = {
+      pending: '<span class="status-badge status-pending">Pending</span>',
+      active: '<span class="status-badge status-active">Active</span>',
+      approved: '<span class="status-badge status-approved">Approved</span>',
+      rejected: '<span class="status-badge status-rejected">Rejected</span>',
+    };
+    return map[status] || '<span class="status-badge">' + escHtml(status) + '</span>';
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function avatar(name, email) {
+    var initials = (name || email || '?').substring(0, 2).toUpperCase();
+    return '<div class="avatar">' + escHtml(initials) + '</div>';
+  }
+
+  // ─── Init ──────────────────────────────────────────────────────────────────
+
+  function renderError(msg) {
+    document.getElementById('main').innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div><h1>Team &amp; Roles</h1><p class="subtitle">Collaborate with your Oracle operations team.</p></div>
+      </div>
+      <div class="empty-state">
+        <h2>Something went wrong</h2>
+        <p>${escHtml(msg || 'Failed to load team data. Please try again.')}</p>
+        <button class="btn btn-primary" onclick="location.reload()">Retry</button>
+      </div>`;
+  }
+
+  async function init() {
+    try {
+      var meRes = await fetch('/api/team/me', { credentials: 'include' });
+      if (meRes.status === 401) {
+        window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+        return;
+      }
+      if (!meRes.ok) { renderError('Server error (' + meRes.status + '). Please try again.'); return; }
+      var meData = await meRes.json();
+      if (!meData.team) { renderNoTeam(); return; }
+
+      teamId = meData.team.id;
+      currentUserRole = meData.role;
+      isAdmin = (currentUserRole === 'admin');
+      isEnterprise = meData.team.plan_tier === 'enterprise';
+
+      var [teamRes, rolesRes] = await Promise.all([
+        fetch('/api/team/' + teamId, { credentials: 'include' }),
+        fetch('/api/roles', { credentials: 'include' }),
+      ]);
+
+      if (!teamRes.ok) { renderError('Could not load team details. Please try again.'); return; }
+      teamData = await teamRes.json();
+      if (!teamData.team) { renderError('Team data is unavailable. Please try again.'); return; }
+
+      var rolesResult = rolesRes.ok ? await rolesRes.json() : { roles: [] };
+      rolesData = rolesResult.roles || [];
+
+      // Seed default roles if none exist yet
+      if (rolesData.length === 0 && isAdmin) {
+        try {
+          await fetch('/api/roles/seed', { method: 'POST', credentials: 'include' });
+          var r2 = await fetch('/api/roles', { credentials: 'include' });
+          if (r2.ok) rolesData = (await r2.json()).roles || [];
+        } catch (_) { /* non-fatal: page works without roles */ }
+      }
+
+      // Load user ID for self-detection
+      fetch('/api/auth/me', { credentials: 'include' })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(d) { if (d && d.user) window._currentUserId = d.user.id; })
+        .catch(function() {});
+
+      renderPage();
+    } catch (err) {
+      console.error('[team] init error:', err);
+      renderError('Failed to load team data. Please try again.');
+    }
+  }
+
+  // ─── Page render ──────────────────────────────────────────────────────────
+
+  function renderNoTeam() {
+    document.getElementById('main').innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div><h1>Team &amp; Roles</h1><p class="subtitle">Collaborate with your Oracle operations team.</p></div>
+      </div>
+      <div class="empty-state">
+        <h2>No Team Yet</h2>
+        <p>Create a team to invite colleagues and collaborate on Oracle health checks. Up to 10 members per team.</p>
+        <div class="create-form">
+          <input type="text" id="newTeamName" placeholder="Your team name">
+          <button class="btn btn-primary" onclick="createTeam()">Create Team</button>
+        </div>
+      </div>`;
+  }
+
+  function renderPage() {
+    if (!teamData || !teamData.team) { renderError('Team data is unavailable. Please try again.'); return; }
+    var planLabel = isEnterprise ? 'Enterprise' : (teamData.team.plan_tier === 'business' ? 'Business' : 'Team');
+    var members = teamData.members || [];
+    var invites = teamData.invites || [];
+    var memberCount = members.length;
+    var pendingCount = invites.length;
+    var total = memberCount + pendingCount;
+
+    document.getElementById('main').innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
+        <div>
+          <h1>Team &amp; Roles</h1>
+          <p class="subtitle">Manage members, cross-team roles, and approval workflows.</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="team-banner">
+          <div class="team-name-row" id="teamNameDisplay">
+            <div class="team-icon">${escHtml((teamData.team.name || '?').substring(0,2).toUpperCase())}</div>
+            <div>
+              <span class="team-name-text">${escHtml(teamData.team.name)}</span>
+              <span class="plan-badge${isEnterprise?' enterprise':''}">${escHtml(planLabel)}</span>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span class="member-count">${total} / 10 members</span>
+            ${isAdmin ? '<button class="btn btn-ghost btn-sm" onclick="startEditName()">Rename</button>' : ''}
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab strip -->
+      <div class="tabs" style="margin-top:28px;">
+        <button class="tab active" onclick="switchTab('members',this)">Members</button>
+        <button class="tab" onclick="switchTab('roles',this)">Role Hierarchy</button>
+        <button class="tab" onclick="switchTab('approvals',this)">Approvals</button>
+      </div>
+
+      <!-- MEMBERS TAB -->
+      <div id="tab-members" class="tab-pane active">
+        ${renderMembersTab()}
+      </div>
+
+      <!-- ROLES TAB -->
+      <div id="tab-roles" class="tab-pane">
+        ${renderRolesTab()}
+      </div>
+
+      <!-- APPROVALS TAB -->
+      <div id="tab-approvals" class="tab-pane">
+        <div id="approvalsContent">
+          <div class="loading-state" style="padding:40px 0;">Loading approvals…</div>
+        </div>
+      </div>
+    `;
+  }
+
+  function switchTab(name, btn) {
+    document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+    document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.remove('active'); });
+    btn.classList.add('active');
+    document.getElementById('tab-' + name).classList.add('active');
+    if (name === 'approvals') loadApprovals();
+  }
+
+  // ─── Members tab ──────────────────────────────────────────────────────────
+
+  function renderMembersTab() {
+    var html = `
+      <div class="section">
+        <div class="section-header">
+          <span class="section-title">Active Members</span>
+          ${isAdmin ? '<button class="btn btn-primary btn-sm" onclick="openInviteModal()">+ Invite Member</button>' : ''}
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Member</th>
+              <th>Legacy Role</th>
+              <th>Branch Role</th>
+              <th>Status</th>
+              <th>Joined</th>
+              ${isAdmin ? '<th>Actions</th>' : ''}
+            </tr>
+          </thead>
+          <tbody>`;
+
+    if (!teamData.members || teamData.members.length === 0) {
+      html += `<tr><td colspan="${isAdmin ? 6 : 5}" class="empty">No members yet</td></tr>`;
+    } else {
+      teamData.members.forEach(function(m) {
+        var isSelf = (m.user_id === window._currentUserId);
+        var branchRole = rolesData.find(function(r) { return r.id === m.role_id; });
+        html += `<tr>
+          <td data-label="Member">
+            <div class="member-info">
+              ${avatar(m.name, m.email)}
+              <div>
+                <div class="member-name">${escHtml(m.name || m.email)}${isSelf ? ' <span style="color:var(--text-dim);font-size:11px;">(you)</span>' : ''}</div>
+                <div class="member-email">${escHtml(m.email)}</div>
+              </div>
+            </div>
+          </td>
+          <td data-label="Legacy Role">`;
+
+        if (isAdmin && !isSelf) {
+          html += `<select class="role-select" onchange="changeRole(this,${m.user_id})">
+            <option value="admin" ${m.role==='admin'?'selected':''}>Admin</option>
+            <option value="senior_dba" ${m.role==='senior_dba'?'selected':''}>Senior DBA</option>
+            <option value="junior_dba" ${m.role==='junior_dba'?'selected':''}>Junior DBA</option>
+            <option value="viewer" ${m.role==='viewer'?'selected':''}>Viewer</option>
+          </select>`;
+        } else {
+          html += roleBadge(m.role);
+        }
+
+        html += `</td>
+          <td data-label="Branch Role">`;
+
+        if (isAdmin && !isSelf && rolesData.length > 0) {
+          html += `<select class="role-select" onchange="assignBranchRole(this,${m.user_id})">
+            <option value="">— None —</option>`;
+          rolesData.forEach(function(r) {
+            html += `<option value="${r.id}" ${m.role_id===r.id?'selected':''}>${escHtml(r.name)} (${r.branch})</option>`;
+          });
+          html += `</select>`;
+        } else if (branchRole) {
+          html += `${branchBadge(branchRole.branch)} <span style="font-size:12px;margin-left:6px;">${escHtml(branchRole.name)}</span>`;
+        } else {
+          html += '<span style="color:var(--text-dim);font-size:12px;">—</span>';
+        }
+
+        html += `</td>
+          <td data-label="Status">${statusBadge('active')}</td>
+          <td data-label="Joined">${fmtDate(m.joined_at)}</td>`;
+
+        if (isAdmin) {
+          html += `<td data-label="Actions">
+            <div class="actions-cell">
+              ${!isSelf ? `<button class="btn btn-danger btn-sm" onclick="confirmRemoveMember(${m.user_id},'${escHtml(m.name||m.email)}')">Remove</button>` : '<span style="color:var(--text-dim);font-size:12px;">—</span>'}
+            </div>
+          </td>`;
+        }
+        html += `</tr>`;
+      });
+    }
+    html += `</tbody></table></div>`;
+
+    // Pending invites
+    if (teamData.invites && teamData.invites.length > 0) {
+      html += `
+        <div class="section">
+          <div class="section-header"><span class="section-title">Pending Invites</span></div>
+          <table>
+            <thead><tr>
+              <th>Email</th><th>Role</th><th>Status</th><th>Sent</th>
+              ${isAdmin ? '<th>Actions</th>' : ''}
+            </tr></thead>
+            <tbody>`;
+      teamData.invites.forEach(function(inv) {
+        html += `<tr>
+          <td data-label="Email"><span style="font-family:var(--mono);font-size:12px;">${escHtml(inv.email)}</span></td>
+          <td data-label="Role">${roleBadge(inv.role)}</td>
+          <td data-label="Status">${statusBadge('pending')}</td>
+          <td data-label="Sent">${fmtDate(inv.created_at)}</td>`;
+        if (isAdmin) {
+          html += `<td data-label="Actions">
+            <div class="actions-cell">
+              <button class="btn btn-ghost btn-sm" onclick="resendInvite(${inv.id})">Resend</button>
+              <button class="btn btn-danger btn-sm" onclick="confirmRevokeInvite(${inv.id},'${escHtml(inv.email)}')">Revoke</button>
+            </div>
+          </td>`;
+        }
+        html += `</tr>`;
+      });
+      html += `</tbody></table></div>`;
+    } else if (isAdmin && teamData.members && teamData.members.length <= 1) {
+      html += `
+        <div class="section">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;text-align:center;">
+            <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">No pending invites. Add colleagues to collaborate on Oracle health checks.</p>
+            <button class="btn btn-primary" onclick="openInviteModal()">+ Invite Team Member</button>
+          </div>
+        </div>`;
+    }
+    return html;
+  }
+
+  // ─── Roles tab ────────────────────────────────────────────────────────────
+
+  function renderRolesTab() {
+    var branches = ['dba', 'functional', 'dev', 'management'];
+    var branchLabels = { dba: '🔧 DBA Branch', functional: '📋 Functional Branch', dev: '💻 Dev Branch', management: '📊 Management' };
+
+    var html = `<div class="section">`;
+
+    if (!isEnterprise && isAdmin) {
+      html += `<div class="callout" style="margin-top:16px;">
+        <strong>Custom roles require Enterprise tier.</strong> The default cross-team roles below are available on all tiers. Upgrade to Enterprise to create custom role names with fully configurable permissions and approval chains.
+      </div>`;
+    }
+
+    if (isAdmin && isEnterprise) {
+      html += `<div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+        <button class="btn btn-primary btn-sm" onclick="openCreateRoleModal()">+ Custom Role</button>
+      </div>`;
+    }
+
+    branches.forEach(function(branch) {
+      var branchRoles = rolesData.filter(function(r) { return r.branch === branch; });
+      if (branchRoles.length === 0) return;
+
+      html += `
+        <div style="margin-bottom:32px;">
+          <div style="font-size:13px;font-weight:700;color:var(--text-dim);letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px;">
+            ${escHtml(branchLabels[branch] || branch)}
+          </div>
+          <div class="roles-grid">`;
+
+      branchRoles.forEach(function(role) {
+        var perms = role.permissions || {};
+        var permRows = [
+          ['can_diagnose', 'Diagnose'],
+          ['can_recommend', 'Recommend'],
+          ['can_execute', 'Execute'],
+          ['can_approve', 'Approve'],
+          ['can_view_sql_console', 'SQL Console'],
+          ['can_view_cm_dashboard', 'CM Dashboard'],
+          ['can_view_patch_status', 'Patch Status'],
+          ['can_view_adop_internals', 'ADOP Internals'],
+          ['can_export_compliance', 'Compliance Export'],
+        ];
+
+        html += `<div class="role-card">
+          <div class="role-card-header">
+            <div>
+              <div class="role-card-name">${escHtml(role.name)}</div>
+              <div class="role-card-default">${role.is_default ? 'Default role' : 'Custom role'}</div>
+            </div>
+            ${branchBadge(role.branch)}
+          </div>
+          <div class="perms-list">`;
+
+        permRows.forEach(function(p) {
+          var val = perms[p[0]];
+          if (val === undefined && !['can_diagnose','can_execute','can_approve'].includes(p[0])) return;
+          html += `<div class="perm-row">
+            <span class="${val ? 'perm-check' : 'perm-x'}">${val ? '✓' : '·'}</span>
+            <span>${escHtml(p[1])}</span>
+          </div>`;
+        });
+
+        html += `</div>`;
+
+        if (role.approval_required_from) {
+          html += `<div class="approval-chain">
+            <span>⚡</span>
+            <span>Requires approval from <span class="approval-chain-name">${escHtml(role.approver_role_name || '?')}</span></span>
+          </div>`;
+        }
+
+        if (isAdmin && !role.is_default && isEnterprise) {
+          html += `<div class="role-card-actions">
+            <button class="btn btn-ghost btn-sm" onclick="openEditRoleModal(${role.id})">Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="confirmDeleteRole(${role.id},'${escHtml(role.name)}')">Delete</button>
+          </div>`;
+        }
+
+        html += `</div>`;
+      });
+
+      html += `</div></div>`;
+    });
+
+    // Cross-team permission matrix reference
+    html += `
+      <div style="margin-top:16px;">
+        <div class="section-header" style="margin-bottom:12px;">
+          <span class="section-title">Cross-Team Permission Reference</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table style="min-width:640px;">
+            <thead>
+              <tr>
+                <th>Capability</th>
+                <th>DBA Team</th>
+                <th>Functional</th>
+                <th>Dev</th>
+                <th>Management</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Health Checks (full detail)</td><td>✅ Full</td><td>❌</td><td>❌</td><td>Read-only</td></tr>
+              <tr><td>Concurrent Manager status</td><td>✅</td><td>✅ Their modules</td><td>❌</td><td>Read-only</td></tr>
+              <tr><td>SQL Console</td><td>✅ Full</td><td>❌</td><td>✅ Read + Run</td><td>❌</td></tr>
+              <tr><td>DB Ops (bounce, kill, startup)</td><td>✅</td><td>❌</td><td>❌</td><td>❌</td></tr>
+              <tr><td>ADOP/patching internals</td><td>✅ DBA only</td><td>❌</td><td>❌</td><td>❌</td></tr>
+              <tr><td><strong>Patch Status (Applied/Pending/Failed)</strong></td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
+              <tr><td>TuneOps tickets</td><td>Full CRUD + execute</td><td>Create + track own</td><td>Create + track own</td><td>Approve + audit all</td></tr>
+              <tr><td>Activity / Audit log</td><td>Team view</td><td>Own actions only</td><td>Own actions only</td><td>Full + export</td></tr>
+              <tr><td>Compliance reports</td><td>❌</td><td>❌</td><td>❌</td><td>Full + export</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>`;
+
+    return html;
+  }
+
+  // ─── Approvals tab ────────────────────────────────────────────────────────
+
+  async function loadApprovals() {
+    try {
+      var [pendingRes, myRes] = await Promise.all([
+        fetch('/api/approvals', { credentials: 'include' }),
+        fetch('/api/approvals/my', { credentials: 'include' }),
+      ]);
+      var pendingData = await pendingRes.json();
+      var myData = await myRes.json();
+      renderApprovals(pendingData.approvals || [], myData.requests || []);
+    } catch (err) {
+      document.getElementById('approvalsContent').innerHTML = `<p style="color:var(--text-dim);padding:32px 0;">Failed to load approvals</p>`;
+    }
+  }
+
+  function renderApprovals(pending, myRequests) {
+    var html = `<div style="margin-top:16px;">`;
+
+    if (pending.length > 0) {
+      html += `
+        <div class="section">
+          <div class="section-header" style="margin-bottom:16px;">
+            <span class="section-title">Pending Approvals (${pending.length})</span>
+          </div>`;
+
+      pending.forEach(function(req) {
+        html += `
+          <div class="approval-card">
+            <div class="approval-card-header">
+              <div>
+                <div class="approval-card-title">
+                  Approval request from <strong>${escHtml(req.requester_name || req.requester_email)}</strong>
+                  ${req.ticket_id ? ' — Ticket #' + req.ticket_id : ''}
+                </div>
+                <div class="approval-card-meta">
+                  Needs: ${escHtml(req.approver_role_name)} · Requested ${fmtDate(req.created_at)}
+                  ${req.branch ? ' · ' + escHtml(req.branch.toUpperCase()) + ' branch' : ''}
+                </div>
+              </div>
+              <div class="approval-card-actions">
+                <button class="btn btn-success btn-sm" onclick="approveRequest(${req.id})">Approve</button>
+                <button class="btn btn-danger btn-sm" onclick="rejectRequest(${req.id})">Reject</button>
+              </div>
+            </div>
+            ${req.context && Object.keys(req.context).length > 0 ?
+              `<div style="font-size:12px;color:var(--text-dim);font-family:var(--mono);">${escHtml(JSON.stringify(req.context))}</div>` : ''}
+          </div>`;
+      });
+
+      html += `</div>`;
+    } else {
+      html += `
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:32px;text-align:center;margin-top:16px;">
+          <p style="color:var(--text-dim);font-size:14px;">No pending approvals.</p>
+        </div>`;
+    }
+
+    if (myRequests.length > 0) {
+      html += `
+        <div class="section" style="margin-top:28px;">
+          <div class="section-header" style="margin-bottom:12px;"><span class="section-title">My Requests</span></div>
+          <table>
+            <thead><tr>
+              <th>Ticket</th><th>Approver Role</th><th>Status</th><th>Submitted</th><th>Resolved</th>
+            </tr></thead>
+            <tbody>`;
+
+      myRequests.forEach(function(req) {
+        html += `<tr>
+          <td>${req.ticket_id ? '#' + req.ticket_id : '—'}</td>
+          <td>${escHtml(req.approver_role_name || '?')}</td>
+          <td>${statusBadge(req.status)}</td>
+          <td>${fmtDate(req.created_at)}</td>
+          <td>${fmtDate(req.approved_at || req.rejected_at)}</td>
+        </tr>`;
+      });
+
+      html += `</tbody></table></div>`;
+    }
+
+    html += `</div>`;
+    document.getElementById('approvalsContent').innerHTML = html;
+  }
+
+  async function approveRequest(id) {
+    try {
+      var res = await fetch('/api/approvals/' + id + '/approve', { method: 'POST', credentials: 'include' });
+      var data = await res.json();
+      if (!res.ok) { toast(data.error || 'Failed to approve', 'error'); return; }
+      toast('Request approved', 'success');
+      loadApprovals();
+    } catch (err) { toast('Failed to approve', 'error'); }
+  }
+
+  async function rejectRequest(id) {
+    var reason = prompt('Rejection reason (optional):');
+    try {
+      var res = await fetch('/api/approvals/' + id + '/reject', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: reason || '' }),
+      });
+      var data = await res.json();
+      if (!res.ok) { toast(data.error || 'Failed to reject', 'error'); return; }
+      toast('Request rejected', 'success');
+      loadApprovals();
+    } catch (err) { toast('Failed to reject', 'error'); }
+  }
+
+  // ─── Team name edit ───────────────────────────────────────────────────────
+
+  function startEditName() {
+    var display = document.getElementById('teamNameDisplay');
+    var currentName = teamData.team.name;
+    display.innerHTML = `
+      <div class="name-edit-row">
+        <input class="name-input" id="nameEditInput" type="text" value="${escHtml(currentName)}">
+        <button class="btn btn-primary btn-sm" onclick="saveName()">Save</button>
+        <button class="btn btn-ghost btn-sm" onclick="renderPage()">Cancel</button>
+      </div>`;
+    document.getElementById('nameEditInput').focus();
+  }
+
+  async function saveName() {
+    var name = document.getElementById('nameEditInput').value.trim();
+    if (!name) { toast('Name cannot be empty', 'error'); return; }
+    try {
+      var res = await fetch('/api/team/' + teamId + '/name', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name }),
+      });
+      var data = await res.json();
+      if (!res.ok) { toast(data.error || 'Failed to rename', 'error'); return; }
+      teamData.team = data.team;
+      toast('Team renamed', 'success');
+      renderPage();
+    } catch (err) { toast('Failed to rename', 'error'); }
+  }
+
+  async function createTeam() {
+    var name = document.getElementById('newTeamName').value.trim();
+    if (!name) { toast('Enter a team name', 'error'); return; }
+    var btn = event.target;
+    btn.disabled = true;
+    try {
+      var res = await fetch('/api/team', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name }),
+      });
+      var data = await res.json();
+      if (!res.ok) { toast(data.error || 'Failed to create team', 'error'); btn.disabled = false; return; }
+      toast('Team created!', 'success');
+      teamId = data.team.id;
+      teamData = { team: data.team, members: [], invites: [], currentUserRole: 'admin' };
+      isAdmin = true;
+      currentUserRole = 'admin';
+      await init();
+    } catch (err) { toast('Failed to create team', 'error'); btn.disabled = false; }
+  }
+
+  // ─── Member CRUD ──────────────────────────────────────────────────────────
+
+  async function changeRole(select, userId) {
+    var role = select.value;
+    try {
+      var res = await fetch('/api/team/' + teamId + '/members/' + userId + '/role', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ role }),
+      });
+      var data = await res.json();
+      if (!res.ok) {
+        toast(data.error || 'Failed to update role', 'error');
+        var member = teamData.members.find(function(m) { return m.user_id === userId; });
+        if (member) select.value = member.role;
+        return;
+      }
+      var member = teamData.members.find(function(m) { return m.user_id === userId; });
+      if (member) member.role = role;
+      toast('Role updated', 'success');
+    } catch (err) { toast('Failed to update role', 'error'); }
+  }
+
+  async function assignBranchRole(select, userId) {
+    var roleId = select.value ? parseInt(select.value) : null;
+    if (!roleId) return;
+    try {
+      var res = await fetch('/api/roles/assign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ userId, roleId }),
+      });
+      var data = await res.json();
+      if (!res.ok) { toast(data.error || 'Failed to assign role', 'error'); return; }
+      var member = teamData.members.find(function(m) { return m.user_id === userId; });
+      if (member) member.role_id = roleId;
+      toast('Branch role assigned', 'success');
+    } catch (err) { toast('Failed to assign role', 'error'); }
+  }
+
+  var _confirmCallback = null;
+
+  function confirmRemoveMember(userId, name) {
+    document.getElementById('confirmTitle').textContent = 'Remove Member';
+    document.getElementById('confirmText').innerHTML = 'Remove <strong>' + escHtml(name) + '</strong> from the team? They will lose access immediately.';
+    document.getElementById('confirmBtn').textContent = 'Remove';
+    document.getElementById('confirmBtn').className = 'btn btn-danger';
+    _confirmCallback = function() { removeMember(userId); };
+    document.getElementById('confirmBtn').onclick = function() { closeConfirm(); _confirmCallback && _confirmCallback(); };
+    document.getElementById('confirmOverlay').classList.add('open');
+  }
+
+  async function removeMember(userId) {
+    try {
+      var res = await fetch('/api/team/' + teamId + '/members/' + userId, { method: 'DELETE', credentials: 'include' });
+      var data = await res.json();
+      if (!res.ok) { toast(data.error || 'Failed to remove', 'error'); return; }
+      toast('Member removed', 'success');
+      teamData.members = teamData.members.filter(function(m) { return m.user_id !== userId; });
+      renderPage();
+    } catch (err) { toast('Failed to remove member', 'error'); }
+  }
+
+  // ─── Invite actions ───────────────────────────────────────────────────────
+
+  function openInviteModal() {
+    document.getElementById('inviteEmail').value = '';
+    document.getElementById('inviteRole').value = 'viewer';
+    document.getElementById('sendInviteBtn').disabled = false;
+    document.getElementById('sendInviteBtn').textContent = 'Send Invite';
+    document.getElementById('inviteOverlay').classList.add('open');
+    setTimeout(function() { document.getElementById('inviteEmail').focus(); }, 100);
+  }
+
+  function closeInviteModal() { document.getElementById('inviteOverlay').classList.remove('open'); }
+
+  async function sendInvite() {
+    var email = document.getElementById('inviteEmail').value.trim();
+    var role = document.getElementById('inviteRole').value;
+    if (!email) { toast('Enter an email address', 'error'); return; }
+    var btn = document.getElementById('sendInviteBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Sending…';
+    try {
+      var res = await fetch('/api/team/' + teamId + '/invites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email, role }),
+      });
+      var data = await res.json();
+      if (!res.ok) { toast(data.error || 'Failed to send invite', 'error'); btn.disabled = false; btn.textContent = 'Send Invite'; return; }
+      closeInviteModal();
+      toast('Invite sent to ' + email, 'success');
+      var res2 = await fetch('/api/team/' + teamId, { credentials: 'include' });
+      teamData = await res2.json();
+      renderPage();
+    } catch (err) { toast('Failed to send invite', 'error'); btn.disabled = false; btn.textContent = 'Send Invite'; }
+  }
+
+  async function resendInvite(inviteId) {
+    try {
+      var res = await fetch('/api/team/' + teamId + '/invites/' + inviteId + '/resend', { method: 'POST', credentials: 'include' });
+      var data = await res.json();
+      if (!res.ok) { toast(data.error || 'Failed to resend', 'error'); return; }
+      toast('Invite resent', 'success');
+    } catch (err) { toast('Failed to resend', 'error'); }
+  }
+
+  function confirmRevokeInvite(inviteId, email) {
+    document.getElementById('confirmTitle').textContent = 'Revoke Invite';
+    document.getElementById('confirmText').innerHTML = 'Revoke invite for <strong>' + escHtml(email) + '</strong>?';
+    document.getElementById('confirmBtn').textContent = 'Revoke';
+    document.getElementById('confirmBtn').className = 'btn btn-danger';
+    _confirmCallback = function() { revokeInvite(inviteId); };
+    document.getElementById('confirmBtn').onclick = function() { closeConfirm(); _confirmCallback && _confirmCallback(); };
+    document.getElementById('confirmOverlay').classList.add('open');
+  }
+
+  async function revokeInvite(inviteId) {
+    try {
+      var res = await fetch('/api/team/' + teamId + '/invites/' + inviteId, { method: 'DELETE', credentials: 'include' });
+      var data = await res.json();
+      if (!res.ok) { toast(data.error || 'Failed to revoke', 'error'); return; }
+      toast('Invite revoked', 'success');
+      teamData.invites = teamData.invites.filter(function(i) { return i.id !== inviteId; });
+      renderPage();
+    } catch (err) { toast('Failed to revoke', 'error'); }
+  }
+
+  // ─── Custom role modal ────────────────────────────────────────────────────
+
+  function openCreateRoleModal() {
+    document.getElementById('roleModalTitle').textContent = 'Create Custom Role';
+    document.getElementById('roleModalSubtitle').textContent = 'Define a new role with custom permissions and approval chain.';
+    document.getElementById('editRoleId').value = '';
+    document.getElementById('roleModalName').value = '';
+    document.getElementById('roleModalBranch').value = 'dba';
+    document.getElementById('saveRoleBtn').textContent = 'Create Role';
+    ['can_diagnose','can_recommend','can_execute','can_approve','can_view_sql_console',
+     'can_view_cm_dashboard','can_view_perf_impact','can_view_patch_status','can_view_adop_internals','can_export_compliance']
+      .forEach(function(key) {
+        var el = document.getElementById('perm_' + key);
+        if (el) el.checked = false;
+      });
+    populateApproverSelect(null);
+    document.getElementById('roleModalOverlay').classList.add('open');
+    setTimeout(function() { document.getElementById('roleModalName').focus(); }, 100);
+  }
+
+  function openEditRoleModal(roleId) {
+    var role = rolesData.find(function(r) { return r.id === roleId; });
+    if (!role) return;
+    document.getElementById('roleModalTitle').textContent = 'Edit Role';
+    document.getElementById('roleModalSubtitle').textContent = 'Update permissions and approval chain for ' + escHtml(role.name) + '.';
+    document.getElementById('editRoleId').value = roleId;
+    document.getElementById('roleModalName').value = role.name;
+    document.getElementById('roleModalBranch').value = role.branch;
+    document.getElementById('saveRoleBtn').textContent = 'Save Changes';
+    var perms = role.permissions || {};
+    ['can_diagnose','can_recommend','can_execute','can_approve','can_view_sql_console',
+     'can_view_cm_dashboard','can_view_perf_impact','can_view_patch_status','can_view_adop_internals','can_export_compliance']
+      .forEach(function(key) {
+        var el = document.getElementById('perm_' + key);
+        if (el) el.checked = Boolean(perms[key]);
+      });
+    populateApproverSelect(role.approval_required_from);
+    document.getElementById('roleModalOverlay').classList.add('open');
+  }
+
+  function populateApproverSelect(selectedId) {
+    var sel = document.getElementById('roleModalApprover');
+    sel.innerHTML = '<option value="">— No approval required —</option>';
+    rolesData.forEach(function(r) {
+      var opt = document.createElement('option');
+      opt.value = r.id;
+      opt.textContent = r.name + ' (' + r.branch + ')';
+      if (r.id === selectedId) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+
+  function closeRoleModal() { document.getElementById('roleModalOverlay').classList.remove('open'); }
+
+  async function saveRole() {
+    var name = document.getElementById('roleModalName').value.trim();
+    var branch = document.getElementById('roleModalBranch').value;
+    var editId = document.getElementById('editRoleId').value;
+    var approverVal = document.getElementById('roleModalApprover').value;
+
+    if (!name) { toast('Role name is required', 'error'); return; }
+
+    var permissions = {};
+    ['can_diagnose','can_recommend','can_execute','can_approve','can_view_sql_console',
+     'can_view_cm_dashboard','can_view_perf_impact','can_view_patch_status','can_view_adop_internals','can_export_compliance']
+      .forEach(function(key) {
+        var el = document.getElementById('perm_' + key);
+        if (el) permissions[key] = el.checked;
+      });
+
+    var btn = document.getElementById('saveRoleBtn');
+    btn.disabled = true;
+
+    try {
+      var url = editId ? '/api/roles/' + editId : '/api/roles';
+      var method = editId ? 'PUT' : 'POST';
+      var res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name, branch, permissions, approvalRequiredFrom: approverVal ? parseInt(approverVal) : null }),
+      });
+      var data = await res.json();
+      if (!res.ok) { toast(data.error || 'Failed to save role', 'error'); btn.disabled = false; return; }
+      toast(editId ? 'Role updated' : 'Role created', 'success');
+      closeRoleModal();
+      var rolesRes = await fetch('/api/roles', { credentials: 'include' });
+      rolesData = (await rolesRes.json()).roles || [];
+      renderPage();
+    } catch (err) { toast('Failed to save role', 'error'); btn.disabled = false; }
+  }
+
+  function confirmDeleteRole(roleId, name) {
+    document.getElementById('confirmTitle').textContent = 'Delete Role';
+    document.getElementById('confirmText').innerHTML = 'Delete the <strong>' + escHtml(name) + '</strong> role? This cannot be undone.';
+    document.getElementById('confirmBtn').textContent = 'Delete';
+    document.getElementById('confirmBtn').className = 'btn btn-danger';
+    _confirmCallback = async function() {
+      var res = await fetch('/api/roles/' + roleId, { method: 'DELETE', credentials: 'include' });
+      var data = await res.json();
+      if (!res.ok) { toast(data.error || 'Failed to delete', 'error'); return; }
+      toast('Role deleted', 'success');
+      var rolesRes = await fetch('/api/roles', { credentials: 'include' });
+      rolesData = (await rolesRes.json()).roles || [];
+      renderPage();
+    };
+    document.getElementById('confirmBtn').onclick = function() { closeConfirm(); _confirmCallback && _confirmCallback(); };
+    document.getElementById('confirmOverlay').classList.add('open');
+  }
+
+  function closeConfirm() { document.getElementById('confirmOverlay').classList.remove('open'); }
+
+  // ─── Modal close on overlay click ─────────────────────────────────────────
+
+  ['inviteOverlay','confirmOverlay','roleModalOverlay'].forEach(function(id) {
+    document.getElementById(id).addEventListener('click', function(e) {
+      if (e.target === this) this.classList.remove('open');
+    });
+  });
+
+  init();
+</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

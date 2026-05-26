@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Add Connection — TuneVault</title>
+  <style>
+    :root {
+      --bg: #0e0e14;
+      --bg2: #16161f;
+      --bg3: #1e1e2a;
+      --border: #2a2a3a;
+      --accent: #f0a830;
+      --accent-dim: #c68920;
+      --green: #22c55e;
+      --green-dim: #16a34a;
+      --text: #e8e8f0;
+      --text-muted: #9898a8;
+      --red: #ef4444;
+      --blue: #60a5fa;
+      --radius: 10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* Nav — rendered by nav-component.js */
+    nav { background: var(--bg2); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 9999; }
+
+    /* Layout */
+    .page-wrap { max-width: 680px; margin: 0 auto; padding: 48px 24px 80px; }
+    .page-title { font-size: 28px; font-weight: 700; margin-bottom: 6px; }
+    .page-sub { color: var(--text-muted); font-size: 14px; margin-bottom: 40px; }
+
+    /* Progress */
+    .steps {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-bottom: 44px;
+    }
+    .step-item { display: flex; align-items: center; gap: 10px; }
+    .step-num {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700;
+      background: var(--bg3);
+      border: 2px solid var(--border);
+      color: var(--text-muted);
+      flex-shrink: 0;
+      transition: background 0.2s, border-color 0.2s, color 0.2s;
+    }
+    .step-num.active { background: var(--accent); border-color: var(--accent); color: #000; }
+    .step-num.done { background: var(--green); border-color: var(--green); color: #fff; }
+    .step-label { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+    .step-label.active { color: var(--text); font-weight: 600; }
+    .step-label.done { color: var(--green); }
+    .step-line { height: 2px; flex: 1; min-width: 24px; background: var(--border); margin: 0 8px; }
+    .step-line.done { background: var(--green); }
+
+    /* Card */
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 32px;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .card.active { display: block; }
+    .card-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+    .card-badge {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 3px 9px; border-radius: 20px;
+      background: rgba(240,168,48,0.12); color: var(--accent); border: 1px solid rgba(240,168,48,0.25);
+    }
+    .card-badge.green {
+      background: rgba(34,197,94,0.12); color: var(--green); border-color: rgba(34,197,94,0.25);
+    }
+    .card-title { font-size: 19px; font-weight: 700; }
+    .card-desc { color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
+
+    /* Type picker (Step 1) */
+    .type-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .type-option {
+      background: var(--bg3);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 18px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      position: relative;
+      text-align: left;
+    }
+    .type-option:hover { border-color: rgba(240,168,48,0.5); }
+    .type-option.selected { border-color: var(--accent); background: rgba(240,168,48,0.05); }
+    .type-option-icon { font-size: 28px; margin-bottom: 8px; }
+    .type-option-label { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .type-option-desc { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+    .type-recommended {
+      position: absolute; top: 10px; right: 10px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 2px 8px; border-radius: 20px;
+      background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.25);
+    }
+
+    /* Form */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-grid .full { grid-column: 1 / -1; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .form-input {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--text);
+      font-size: 14px;
+      padding: 9px 12px;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .form-input:focus { border-color: var(--accent); }
+    .form-input::placeholder { color: var(--text-muted); }
+    .form-hint { font-size: 11px; color: var(--text-muted); }
+    .form-error { font-size: 12px; color: var(--error, #e53e3e); font-weight: 500; }
+    .input-error-border { border-color: var(--error, #e53e3e) !important; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      border: none; border-radius: 7px; cursor: pointer;
+      font-size: 14px; font-weight: 600; padding: 10px 20px;
+      transition: opacity 0.15s, background 0.15s;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: var(--accent); color: #000; }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-dim); }
+    .btn-secondary {
+      background: var(--bg3); border: 1px solid var(--border);
+      color: var(--text-muted); padding: 9px 18px;
+    }
+    .btn-secondary:hover { border-color: var(--text-muted); color: var(--text); }
+    .btn-copy {
+      background: var(--bg3); border: 1px solid var(--border);
+      color: var(--text-muted); padding: 6px 12px; font-size: 12px;
+    }
+    .btn-copy:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Command block */
+    .cmd-block {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .cmd-block-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px;
+      background: rgba(255,255,255,0.03);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px; font-weight: 600; color: var(--text-muted);
+    }
+    .cmd-text {
+      padding: 18px 16px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      color: #b0e0ff;
+      word-break: break-all;
+      line-height: 1.7;
+      min-height: 60px;
+    }
+    .cmd-text .loading { color: var(--text-muted); font-style: italic; }
+
+    /* Status indicator */
+    .status-bar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg3);
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+    .status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      flex-shrink: 0;
+    }
+    .status-dot.waiting { background: var(--accent); animation: pulse 1.5s ease-in-out infinite; }
+    .status-dot.live { background: var(--green); }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+    .status-text { flex: 1; }
+    .status-text strong { display: block; }
+    .status-text span { color: var(--text-muted); font-size: 12px; }
+
+    /* Status steps (install progress) */
+    .install-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin: 20px 0;
+    }
+    .install-step {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .install-step:last-child { border-bottom: none; }
+    .install-step.done { color: var(--text); }
+    .install-step.active { color: var(--accent); }
+    .step-icon { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
+
+    /* Live CTA */
+    .live-cta {
+      display: none;
+      margin-top: 24px;
+      text-align: center;
+    }
+    .live-cta.visible { display: block; }
+    .live-cta .btn { font-size: 15px; padding: 12px 28px; }
+    .live-cta p { color: var(--text-muted); font-size: 13px; margin-top: 10px; }
+
+    /* Info box */
+    .info-box {
+      background: rgba(96,165,250,0.07);
+      border: 1px solid rgba(96,165,250,0.2);
+      border-radius: 7px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #9dcfff;
+      margin-bottom: 16px;
+    }
+
+    /* Error */
+    .error-msg {
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.25);
+      border-radius: 7px;
+      padding: 10px 14px;
+      color: #fca5a5;
+      font-size: 13px;
+      display: none;
+      margin-top: 12px;
+    }
+    .error-msg.visible { display: block; }
+
+    /* Privilege model selector */
+    .priv-section { margin-bottom: 24px; }
+    .priv-label {
+      font-size: 12px; font-weight: 600; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.04em;
+      margin-bottom: 10px; display: block;
+    }
+    .priv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .priv-option {
+      background: var(--bg3); border: 2px solid var(--border);
+      border-radius: var(--radius); padding: 14px 16px;
+      cursor: pointer; transition: border-color 0.15s, background 0.15s;
+      position: relative; text-align: left;
+    }
+    .priv-option:hover { border-color: rgba(240,168,48,0.5); }
+    .priv-option.selected { border-color: var(--accent); background: rgba(240,168,48,0.05); }
+    .priv-option-label { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+    .priv-option-caps {
+      font-size: 12px; color: var(--text-muted); line-height: 1.7;
+    }
+    .priv-recommended {
+      position: absolute; top: 8px; right: 8px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+      padding: 2px 7px; border-radius: 20px;
+      background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.25);
+    }
+    .priv-callout {
+      background: rgba(96,165,250,0.07);
+      border: 1px solid rgba(96,165,250,0.2);
+      border-radius: 7px; padding: 10px 14px;
+      font-size: 13px; color: #9dcfff;
+      margin-top: 10px; display: none;
+    }
+    .priv-callout.visible { display: block; }
+
+    /* SQL disclosure panel */
+    .sql-disclosure {
+      margin-top: 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .sql-disclosure-toggle {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--bg3); cursor: pointer;
+      font-size: 13px; color: var(--blue);
+      border: none; width: 100%; text-align: left;
+      user-select: none;
+    }
+    .sql-disclosure-toggle:hover { background: rgba(96,165,250,0.08); }
+    .sql-disclosure-body {
+      display: none;
+      background: #12121a;
+    }
+    .sql-disclosure-body.open { display: block; }
+    .sql-disclosure-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 14px;
+      background: rgba(255,255,255,0.03);
+      border-bottom: 1px solid var(--border);
+      font-size: 11px; color: var(--text-muted);
+    }
+    .sql-note {
+      font-size: 12px; font-style: italic; color: var(--text-muted);
+      border-bottom: 1px solid var(--border); padding: 8px 14px;
+      background: rgba(240,168,48,0.05);
+    }
+    .sql-code {
+      padding: 16px 14px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px; line-height: 1.8;
+      color: #d4d4d4;
+      white-space: pre-wrap; word-break: break-all;
+      max-height: 320px; overflow-y: auto;
+    }
+    .btn-copy-sm {
+      background: var(--bg3); border: 1px solid var(--border);
+      color: var(--text-muted); padding: 4px 10px; font-size: 11px;
+      border-radius: 5px; cursor: pointer;
+    }
+    .btn-copy-sm:hover { color: var(--accent); border-color: var(--accent); }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .type-grid { grid-template-columns: 1fr; }
+      .priv-grid { grid-template-columns: 1fr; }
+      .page-wrap { padding: 24px 16px 60px; }
+      .card { padding: 20px 18px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div id="nav-root"></div>
+</nav>
+<script src="/nav-component.js"></script>
+<script>window.tvNav.init('connection-targets');</script>
+
+<div class="page-wrap">
+  <h1 class="page-title">Add Connection</h1>
+  <p class="page-sub">Connect an Oracle database to TuneVault. Agent is recommended — no firewall changes required.</p>
+
+  <!-- Step indicator -->
+  <div class="steps">
+    <div class="step-item">
+      <div class="step-num active" id="s1-num">1</div>
+      <div class="step-label active" id="s1-label">Connection Type</div>
+    </div>
+    <div class="step-line" id="line-1"></div>
+    <div class="step-item">
+      <div class="step-num" id="s2-num">2</div>
+      <div class="step-label" id="s2-label">Configure</div>
+    </div>
+    <div class="step-line" id="line-2"></div>
+    <div class="step-item">
+      <div class="step-num" id="s3-num">3</div>
+      <div class="step-label" id="s3-label">Run Installer</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       STEP 1 — Choose connection type
+       ═══════════════════════════════════════════════ -->
+  <div class="card active" id="step1">
+    <div class="card-head">
+      <span class="card-badge">Step 1</span>
+      <span class="card-title">Choose Connection Type</span>
+    </div>
+    <p class="card-desc">How does TuneVault reach your Oracle database?</p>
+
+    <div class="type-grid">
+      <div class="type-option selected" id="opt-agent" onclick="selectType('agent')">
+        <span class="type-recommended">Recommended</span>
+        <div class="type-option-icon">🤖</div>
+        <div class="type-option-label">Agent Installer</div>
+        <div class="type-option-desc">One command on your Oracle server. Outbound-only HTTPS — no firewall changes, no inbound ports.</div>
+      </div>
+      <div class="type-option" id="opt-direct" onclick="selectType('direct')">
+        <div class="type-option-icon">🔌</div>
+        <div class="type-option-label">Direct Connection</div>
+        <div class="type-option-desc">TuneVault connects to your Oracle listener directly. Requires network access from our servers.</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;align-items:center;">
+      <button class="btn btn-primary" id="s1-next-btn" onclick="goToStep2()">
+        Continue →
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       STEP 2 (Agent) — Connection name + host IP + SSH user
+       ═══════════════════════════════════════════════ -->
+  <div class="card" id="step2-agent">
+    <div class="card-head">
+      <span class="card-badge">Step 2</span>
+      <span class="card-title">Server Details</span>
+    </div>
+    <p class="card-desc">Tell us about the Oracle server so the agent can connect back. The agent auto-detects Oracle SIDs after install.</p>
+
+    <div class="form-grid">
+      <div class="form-group full">
+        <label class="form-label">Connection name</label>
+        <input class="form-input" type="text" id="f-agent-name" placeholder="e.g. prod-erp-db" autocomplete="off" onblur="validateAgentName()"/>
+        <span id="f-agent-name-error" class="form-error" style="display:none;"></span>
+        <span class="form-hint">Optional — auto-generated if blank.</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Host IP or hostname</label>
+        <input class="form-input" type="text" id="f-agent-host" placeholder="e.g. 10.0.1.50 or ebs-db-prod" required autocomplete="off"/>
+        <span class="form-hint">IP or hostname of the Oracle server (reachable from TuneVault).</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">SSH username</label>
+        <input class="form-input" type="text" id="f-agent-ssh-user" placeholder="oracle" value="oracle" autocomplete="off"/>
+        <span class="form-hint">OS user for the agent (typically <code>oracle</code>).</span>
+      </div>
+    </div>
+
+    <!-- Privilege Model selector -->
+    <div class="priv-section" style="margin-top:20px;">
+      <span class="priv-label">Privilege Model</span>
+      <div class="priv-grid">
+        <div class="priv-option selected" id="agent-priv-reader" onclick="selectPriv('agent','reader')">
+          <span class="priv-recommended">Recommended</span>
+          <div class="priv-option-label">Standard</div>
+          <div class="priv-option-caps">
+            ✅ All 200+ health checks<br>
+            ✅ ADDM analysis<br>
+            ✅ SQL Tuning Advisor<br>
+            ✅ Wait event analysis<br>
+            ⚠️ Read-only — ops actions disabled
+          </div>
+        </div>
+        <div class="priv-option" id="agent-priv-sysdba" onclick="selectPriv('agent','sysdba')">
+          <div class="priv-option-label">Advanced</div>
+          <div class="priv-option-caps">
+            ✅ Everything above<br>
+            ✅ Kill session, ALTER SYSTEM<br>
+            ✅ RMAN, listener bounce<br>
+            ✅ ADOP phases (EBS)
+          </div>
+        </div>
+      </div>
+      <div class="priv-callout" id="agent-priv-callout">
+        Use the OS <code>oracle</code> user via SSH + sudo sqlplus. No password file required.
+      </div>
+      <!-- SQL disclosure -->
+      <div class="sql-disclosure">
+        <button class="sql-disclosure-toggle" onclick="toggleSql('agent-sql-body', this)">
+          <span>View the exact SQL your DBA needs to run →</span>
+          <span id="agent-sql-arrow">▸</span>
+        </button>
+        <div class="sql-disclosure-body" id="agent-sql-body">
+          <div class="sql-note">Hand this to your DBA. TuneVault never asks for SYSDBA unless you choose the Advanced model.</div>
+          <div class="sql-disclosure-head">
+            <span>SQL — run as SYSTEM</span>
+            <button class="btn-copy-sm" onclick="copySqlDisclosure('agent')">Copy</button>
+          </div>
+          <div class="sql-code" id="agent-sql-code">Loading…</div>
+        </div>
+      </div>
+      <div style="font-size:12px; color:var(--text-muted); margin-top:8px;">
+        <a href="/docs/privileges" target="_blank" style="color:var(--blue);">Full privilege model docs →</a>
+      </div>
+    </div>
+
+    <div class="error-msg" id="s2-agent-error"></div>
+
+    <div style="margin-top:20px;display:flex;gap:10px;align-items:center;">
+      <button type="button" class="btn btn-secondary" onclick="backToStep1()">← Back</button>
+      <button type="button" class="btn btn-primary" id="s2-agent-btn" onclick="submitAgentSetup()">
+        Generate Install Command →
+      </button>
+      <span id="s2-agent-spin" style="display:none;color:var(--text-muted);font-size:13px;">Generating…</span>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       STEP 2 (Direct) — Full DB credentials form
+       ═══════════════════════════════════════════════ -->
+  <div class="card" id="step2-direct">
+    <div class="card-head">
+      <span class="card-badge">Step 2</span>
+      <span class="card-title">Oracle Connection Details</span>
+    </div>
+    <p class="card-desc">Enter the Oracle database credentials. TuneVault connects directly to your listener.</p>
+
+    <form id="conn-form" onsubmit="submitDirectConn(event)">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label class="form-label">Connection name</label>
+          <input class="form-input" type="text" id="f-name" placeholder="e.g. prod-erp-db" autocomplete="off" onblur="validateDirectName()"/>
+          <span id="f-name-error" class="form-error" style="display:none;"></span>
+          <span class="form-hint">Optional — auto-generated from host/service if blank.</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Host</label>
+          <input class="form-input" type="text" id="f-host" placeholder="db.internal.example.com" required autocomplete="off"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Port</label>
+          <input class="form-input" type="number" id="f-port" placeholder="1521" value="1521"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Service name</label>
+          <input class="form-input" type="text" id="f-service" placeholder="ORCL" required autocomplete="off"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Oracle username</label>
+          <input class="form-input" type="text" id="f-user" placeholder="system" required autocomplete="off"/>
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Oracle password</label>
+          <input class="form-input" type="password" id="f-pass" placeholder="••••••••" required autocomplete="new-password"/>
+        </div>
+      </div>
+
+      <!-- Privilege Model selector -->
+      <div class="priv-section" style="margin-top:20px;">
+        <span class="priv-label">Privilege Model</span>
+        <div class="priv-grid">
+          <div class="priv-option selected" id="direct-priv-reader" onclick="selectPriv('direct','reader')">
+            <span class="priv-recommended">Recommended</span>
+            <div class="priv-option-label">Standard</div>
+            <div class="priv-option-caps">
+              ✅ All 200+ health checks<br>
+              ✅ ADDM analysis<br>
+              ✅ SQL Tuning Advisor<br>
+              ✅ Wait event analysis<br>
+              ⚠️ Read-only — ops actions disabled
+            </div>
+          </div>
+          <div class="priv-option" id="direct-priv-sysdba" onclick="selectPriv('direct','sysdba')">
+            <div class="priv-option-label">Advanced</div>
+            <div class="priv-option-caps">
+              ✅ Everything above<br>
+              ✅ Kill session, ALTER SYSTEM<br>
+              ✅ RMAN, listener bounce<br>
+              ✅ ADOP phases (EBS)
+            </div>
+          </div>
+        </div>
+        <div class="priv-callout" id="direct-priv-callout">
+          Use the OS <code>oracle</code> user via SSH + sudo sqlplus. No password file required.
+        </div>
+        <!-- SQL disclosure -->
+        <div class="sql-disclosure">
+          <button class="sql-disclosure-toggle" onclick="toggleSql('direct-sql-body', this)">
+            <span>View the exact SQL your DBA needs to run →</span>
+            <span id="direct-sql-arrow">▸</span>
+          </button>
+          <div class="sql-disclosure-body" id="direct-sql-body">
+            <div class="sql-note">Hand this to your DBA. TuneVault never asks for SYSDBA unless you choose the Advanced model.</div>
+            <div class="sql-disclosure-head">
+              <span>SQL — run as SYSTEM</span>
+              <button class="btn-copy-sm" onclick="copySqlDisclosure('direct')">Copy</button>
+            </div>
+            <div class="sql-code" id="direct-sql-code">Loading…</div>
+          </div>
+        </div>
+        <div style="font-size:12px; color:var(--text-muted); margin-top:8px;">
+          <a href="/docs/privileges" target="_blank" style="color:var(--blue);">Full privilege model docs →</a>
+        </div>
+      </div>
+
+      <div class="error-msg" id="s2-direct-error"></div>
+
+      <div style="margin-top:20px;display:flex;gap:10px;align-items:center;">
+        <button type="button" class="btn btn-secondary" onclick="backToStep1()">← Back</button>
+        <button type="submit" class="btn btn-primary" id="s2-direct-btn">
+          Create Connection →
+        </button>
+        <span id="s2-direct-spin" style="display:none;color:var(--text-muted);font-size:13px;">Creating…</span>
+      </div>
+    </form>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       STEP 3 — Single install command (Agent flow)
+       ═══════════════════════════════════════════════ -->
+  <div class="card" id="step3">
+    <div class="card-head">
+      <span class="card-badge green">Step 3</span>
+      <span class="card-title">Run This on Your Oracle Server</span>
+    </div>
+    <p class="card-desc">Paste the command below into a root terminal on your Oracle server. It handles everything: agent install, proxy setup, and systemd services.</p>
+
+    <div class="info-box">
+      <strong>One command does it all.</strong> No firewall changes needed. The agent connects outbound to TuneVault — zero inbound ports required. It registers itself automatically.
+    </div>
+
+    <div class="cmd-block">
+      <div class="cmd-block-head">
+        <span>Terminal (root) — Oracle server</span>
+        <button class="btn btn-copy" id="copy-btn" onclick="copyCmd()">Copy command</button>
+      </div>
+      <div class="cmd-text" id="cmd-display">
+        <span class="loading">⟳ Generating secure install command…</span>
+      </div>
+    </div>
+
+    <!-- Install status -->
+    <div class="status-bar" id="status-bar">
+      <div class="status-dot waiting" id="status-dot"></div>
+      <div class="status-text">
+        <strong id="status-title">Waiting for agent…</strong>
+        <span id="status-sub">Run the command above. The page updates automatically.</span>
+      </div>
+    </div>
+
+    <!-- Install progress steps (shown once agent starts reporting) -->
+    <div class="install-steps" id="install-steps" style="display:none;">
+      <div class="install-step" id="ps-tunnel">
+        <span class="step-icon">⟳</span>
+        <span>Agent connected</span>
+      </div>
+      <div class="install-step" id="ps-proxy">
+        <span class="step-icon">⟳</span>
+        <span>Proxy agent running</span>
+      </div>
+      <div class="install-step" id="ps-confirmed">
+        <span class="step-icon">⟳</span>
+        <span>Registered with TuneVault</span>
+      </div>
+    </div>
+
+    <!-- SID picker (shown when agent detects multiple SIDs) -->
+    <div id="sid-picker" style="display:none; margin-top:20px;">
+      <div style="background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius); padding:18px 20px;">
+        <div style="font-size:15px; font-weight:700; margin-bottom:6px;">Select Oracle Database</div>
+        <p style="color:var(--text-muted); font-size:13px; margin-bottom:14px;">The agent detected multiple Oracle SIDs on this server. Pick the one you want TuneVault to monitor.</p>
+        <div id="sid-options" style="display:flex; flex-direction:column; gap:8px;"></div>
+        <div class="error-msg" id="sid-error" style="margin-top:10px;"></div>
+        <div style="margin-top:14px;">
+          <button class="btn btn-primary" id="sid-confirm-btn" onclick="confirmSid()" disabled>
+            Confirm Selection →
+          </button>
+          <span id="sid-spin" style="display:none;color:var(--text-muted);font-size:13px;margin-left:10px;">Saving…</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live CTA: ping verification then dashboard link -->
+    <div class="live-cta" id="live-cta">
+      <!-- Ping panel: shown while pinging or after result -->
+      <div id="ping-panel" style="width:100%;max-width:480px;margin:0 auto 16px;">
+        <div id="ping-status" style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text-muted);">
+          <span class="spinner" style="width:14px;height:14px;border-width:2px;"></span>
+          Verifying connection…
+        </div>
+        <div id="ping-result" style="display:none;font-size:13px;line-height:1.7;margin-top:8px;"></div>
+      </div>
+      <a href="/dashboard" id="dashboard-cta-btn" class="btn btn-primary" style="font-size:15px;padding:14px 32px;text-decoration:none;display:none;">
+        Go to Dashboard &rarr;
+      </a>
+      <p id="live-cta-sub" style="display:none;margin-top:10px;font-size:13px;color:var(--text-muted);">Start a health check from the dashboard to run all 200+ Oracle checks.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let _connType = 'agent'; // 'agent' | 'direct'
+let _connId = null;
+let _pollTimer = null;
+let _installCmd = '';
+let _privModel = { agent: 'reader', direct: 'reader' }; // per-path privilege model
+let _sqlScript = null; // cached SQL script text
+
+// ── Auth gate ──────────────────────────────────────────────────────────────
+(async () => {
+  const r = await fetch('/api/auth/me', { credentials: 'include' });
+  if (r.status === 401) {
+    window.location.href = '/login?redirect=' + encodeURIComponent('/setup/fresh');
+  }
+})();
+
+// ── URL param auto-advance ─────────────────────────────────────────────────
+// If the user arrived here from the dashboard wizard with a pre-selected method
+// (e.g. ?type=agent), skip Step 1 and jump directly to Step 2.
+(function autoAdvanceFromWizard() {
+    const params = new URLSearchParams(window.location.search);
+    const preType = params.get('type');
+    if (preType === 'agent' || preType === 'direct') {
+        // Pre-select the type (updates the visual card state on Step 1 for consistency)
+        _connType = preType;
+        document.getElementById('opt-agent').classList.toggle('selected', preType === 'agent');
+        document.getElementById('opt-direct').classList.toggle('selected', preType === 'direct');
+        // Jump to Step 2 immediately
+        goToStep2();
+    }
+})();
+
+// ── Privilege model ────────────────────────────────────────────────────────
+function selectPriv(path, model) {
+  _privModel[path] = model;
+  const readerEl = document.getElementById(`${path}-priv-reader`);
+  const sysdbaEl = document.getElementById(`${path}-priv-sysdba`);
+  const callout  = document.getElementById(`${path}-priv-callout`);
+  readerEl.classList.toggle('selected', model === 'reader');
+  sysdbaEl.classList.toggle('selected', model === 'sysdba');
+  callout.classList.toggle('visible', model === 'sysdba');
+}
+
+// Load SQL script once, share across both disclosure panels
+async function loadSqlScript() {
+  if (_sqlScript !== null) return _sqlScript;
+  try {
+    const res = await fetch('/setup/role-script');
+    _sqlScript = res.ok ? await res.text() : '-- Could not load script. Visit /setup/role-script';
+  } catch {
+    _sqlScript = '-- Could not load script. Visit /setup/role-script';
+  }
+  return _sqlScript;
+}
+
+function toggleSql(bodyId, btn) {
+  const body = document.getElementById(bodyId);
+  const isOpen = body.classList.toggle('open');
+  const arrowId = bodyId.replace('-body', '-arrow');
+  const arrow = document.getElementById(arrowId);
+  if (arrow) arrow.textContent = isOpen ? '▾' : '▸';
+  // Load SQL on first open
+  if (isOpen) {
+    const path = bodyId.startsWith('agent') ? 'agent' : 'direct';
+    const codeEl = document.getElementById(`${path}-sql-code`);
+    if (codeEl && codeEl.textContent === 'Loading…') {
+      loadSqlScript().then(sql => { codeEl.textContent = sql; });
+    }
+  }
+}
+
+async function copySqlDisclosure(path) {
+  const sql = await loadSqlScript();
+  try {
+    await navigator.clipboard.writeText(sql);
+    const btn = event.target;
+    btn.textContent = '✓ Copied';
+    btn.style.color = 'var(--green)';
+    setTimeout(() => { btn.textContent = 'Copy'; btn.style.color = ''; }, 2000);
+  } catch { /* ignore */ }
+}
+
+// ── Step 1: type picker ────────────────────────────────────────────────────
+function selectType(type) {
+  _connType = type;
+  document.getElementById('opt-agent').classList.toggle('selected', type === 'agent');
+  document.getElementById('opt-direct').classList.toggle('selected', type === 'direct');
+}
+
+function goToStep2() {
+  // Mark step 1 done
+  document.getElementById('s1-num').className = 'step-num done';
+  document.getElementById('s1-num').textContent = '✓';
+  document.getElementById('s1-label').className = 'step-label done';
+  document.getElementById('line-1').classList.add('done');
+  document.getElementById('s2-num').className = 'step-num active';
+  document.getElementById('s2-label').className = 'step-label active';
+
+  document.getElementById('step1').classList.remove('active');
+
+  if (_connType === 'agent') {
+    document.getElementById('step2-agent').classList.add('active');
+    document.getElementById('s2-label').textContent = 'Configure';
+    document.getElementById('s3-num').className = 'step-num';
+    document.getElementById('s3-label').className = 'step-label';
+  } else {
+    document.getElementById('step2-direct').classList.add('active');
+    // For direct connection: step 2 IS the last step — relabel step 3 to Connect
+    document.getElementById('s3-label').textContent = 'Connect';
+  }
+}
+
+function backToStep1() {
+  document.getElementById('s1-num').className = 'step-num active';
+  document.getElementById('s1-num').textContent = '1';
+  document.getElementById('s1-label').className = 'step-label active';
+  document.getElementById('line-1').classList.remove('done');
+  document.getElementById('s2-num').className = 'step-num';
+  document.getElementById('s2-label').className = 'step-label';
+
+  document.getElementById('step2-agent').classList.remove('active');
+  document.getElementById('step2-direct').classList.remove('active');
+  document.getElementById('step1').classList.add('active');
+}
+
+// ── Name duplicate validation ──────────────────────────────────────────────
+async function validateAgentName() {
+  const name = document.getElementById('f-agent-name').value.trim();
+  if (!name) {
+    document.getElementById('f-agent-name-error').style.display = 'none';
+    return;
+  }
+  try {
+    const res = await fetch(`/api/connections/check-name?name=${encodeURIComponent(name)}`, { credentials: 'include' });
+    const data = await res.json();
+    if (res.ok && !data.available) {
+      const errEl = document.getElementById('f-agent-name-error');
+      errEl.textContent = `A connection named '${name}' already exists. Choose a different name, or edit the existing one.`;
+      errEl.style.display = 'block';
+      document.getElementById('f-agent-name').classList.add('input-error-border');
+    } else {
+      const errEl = document.getElementById('f-agent-name-error');
+      errEl.style.display = 'none';
+      document.getElementById('f-agent-name').classList.remove('input-error-border');
+    }
+  } catch {
+    // Network error — skip validation, let submit handle it
+  }
+}
+
+async function validateDirectName() {
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) {
+    document.getElementById('f-name-error').style.display = 'none';
+    return;
+  }
+  try {
+    const res = await fetch(`/api/connections/check-name?name=${encodeURIComponent(name)}`, { credentials: 'include' });
+    const data = await res.json();
+    if (res.ok && !data.available) {
+      const errEl = document.getElementById('f-name-error');
+      errEl.textContent = `A connection named '${name}' already exists. Choose a different name, or edit the existing one.`;
+      errEl.style.display = 'block';
+      document.getElementById('f-name').classList.add('input-error-border');
+    } else {
+      const errEl = document.getElementById('f-name-error');
+      errEl.style.display = 'none';
+      document.getElementById('f-name').classList.remove('input-error-border');
+    }
+  } catch {
+    // Network error — skip validation, let submit handle it
+  }
+}
+
+// ── Step 2 (Agent): submit ─────────────────────────────────────────────────
+async function submitAgentSetup() {
+  const btn = document.getElementById('s2-agent-btn');
+  const spin = document.getElementById('s2-agent-spin');
+  const errEl = document.getElementById('s2-agent-error');
+
+  btn.disabled = true;
+  spin.style.display = 'inline';
+  errEl.classList.remove('visible');
+  document.getElementById('f-agent-name-error').style.display = 'none';
+  document.getElementById('f-agent-name').classList.remove('input-error-border');
+
+  const name = document.getElementById('f-agent-name').value.trim();
+  const hostIp = document.getElementById('f-agent-host').value.trim();
+  const sshUser = document.getElementById('f-agent-ssh-user').value.trim() || 'oracle';
+
+  if (!hostIp) {
+    errEl.textContent = 'Host IP or hostname is required so TuneVault can reach the agent.';
+    errEl.classList.add('visible');
+    btn.disabled = false;
+    spin.style.display = 'none';
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/agent/mint-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ name, host_ip: hostIp, ssh_user: sshUser, privilege_model: _privModel.agent }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.error || 'Failed to generate install token.';
+      errEl.classList.add('visible');
+      btn.disabled = false;
+      spin.style.display = 'none';
+      return;
+    }
+
+    _connId = data.connection_id;
+    _installCmd = data.install_cmd;
+
+    goToStep3();
+  } catch {
+    errEl.textContent = 'Network error — please try again.';
+    errEl.classList.add('visible');
+    btn.disabled = false;
+    spin.style.display = 'none';
+  }
+}
+
+// ── Step 2 (Direct): submit ────────────────────────────────────────────────
+async function submitDirectConn(e) {
+  e.preventDefault();
+  const btn = document.getElementById('s2-direct-btn');
+  const spin = document.getElementById('s2-direct-spin');
+  const errEl = document.getElementById('s2-direct-error');
+
+  btn.disabled = true;
+  spin.style.display = 'inline';
+  errEl.classList.remove('visible');
+  document.getElementById('f-name-error').style.display = 'none';
+  document.getElementById('f-name').classList.remove('input-error-border');
+
+  const payload = {
+    name:            document.getElementById('f-name').value.trim(),
+    host:            document.getElementById('f-host').value.trim(),
+    port:            document.getElementById('f-port').value.trim(),
+    service_name:    document.getElementById('f-service').value.trim(),
+    username:        document.getElementById('f-user').value.trim(),
+    password:        document.getElementById('f-pass').value,
+    connection_type: 'direct',
+    privilege_model: _privModel.direct,
+  };
+
+  try {
+    const res = await fetch('/api/agent/mint-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.error || 'Failed to create connection.';
+      errEl.classList.add('visible');
+      btn.disabled = false;
+      spin.style.display = 'none';
+      return;
+    }
+
+    _connId = data.connection_id;
+
+    // Direct connection: if no install cmd needed, go to dashboard
+    if (!data.install_cmd) {
+      window.location.href = '/dashboard';
+      return;
+    }
+    _installCmd = data.install_cmd;
+    goToStep3();
+  } catch {
+    errEl.textContent = 'Network error — please try again.';
+    errEl.classList.add('visible');
+    btn.disabled = false;
+    spin.style.display = 'none';
+  }
+}
+
+// ── Step 3 setup ───────────────────────────────────────────────────────────
+function goToStep3() {
+  // Progress: step 2 done
+  document.getElementById('s2-num').className = 'step-num done';
+  document.getElementById('s2-num').textContent = '✓';
+  document.getElementById('s2-label').className = 'step-label done';
+  document.getElementById('line-2').classList.add('done');
+  document.getElementById('s3-num').className = 'step-num active';
+  document.getElementById('s3-label').className = 'step-label active';
+
+  document.getElementById('step2-agent').classList.remove('active');
+  document.getElementById('step2-direct').classList.remove('active');
+  document.getElementById('step3').classList.add('active');
+
+  // Render install command
+  document.getElementById('cmd-display').textContent = _installCmd;
+
+  // Start polling
+  startPoll();
+}
+
+function copyCmd() {
+  navigator.clipboard.writeText(_installCmd).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = '✓ Copied';
+    btn.style.color = 'var(--green)';
+    setTimeout(() => { btn.textContent = 'Copy command'; btn.style.color = ''; }, 2000);
+  }).catch(() => {});
+}
+
+// ── Polling ────────────────────────────────────────────────────────────────
+function startPoll() {
+  if (_pollTimer) clearInterval(_pollTimer);
+  doPoll();
+  _pollTimer = setInterval(doPoll, 3000);
+}
+
+async function doPoll() {
+  if (!_connId) return;
+  try {
+    const r = await fetch(`/api/agent/status/${_connId}`, { credentials: 'include' });
+    if (!r.ok) return;
+    const d = await r.json();
+
+    updateProgress(d);
+
+    if (d.live) {
+      setLive(d);
+    }
+  } catch { /* ignore transient errors */ }
+}
+
+function updateProgress(d) {
+  const steps = document.getElementById('install-steps');
+  const status = d.status || 'pending';
+
+  if (status === 'pending') return;
+  steps.style.display = 'flex';
+
+  const tunnelDone = ['provisioned', 'confirmed', 'active'].includes(status);
+  const proxyDone = ['confirmed', 'active'].includes(status);
+  const confirmedDone = status === 'active' || d.live;
+
+  setStep('ps-tunnel', tunnelDone ? 'done' : 'active');
+  setStep('ps-proxy', proxyDone ? 'done' : (tunnelDone ? 'active' : 'pending'));
+  setStep('ps-confirmed', confirmedDone ? 'done' : (proxyDone ? 'active' : 'pending'));
+}
+
+function setStep(id, state) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const icon = el.querySelector('.step-icon');
+  el.className = 'install-step ' + state;
+  if (state === 'done') { icon.textContent = '✓'; }
+  else if (state === 'active') { icon.textContent = '⟳'; }
+  else { icon.textContent = '·'; }
+}
+
+let _selectedSid = null;
+// Authoritative SIDs from the tunnel record (set by the installer's confirm call).
+// Preferred over the agent's live detection which may return stale/truncated values.
+let _storedSids = [];
+
+function setLive(d) {
+  if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+  document.getElementById('status-dot').className = 'status-dot live';
+  document.getElementById('status-title').textContent = '✓ Agent is live';
+  const sids = (d.oracle_sids || []).filter(Boolean);
+  _storedSids = sids; // cache installer-confirmed SIDs for the ping display
+  const sub = d.dns_hostname
+    ? `Connected via ${d.dns_hostname}` + (sids.length ? ` · SIDs: ${sids.join(', ')}` : '')
+    : 'Connected and ready' + (sids.length ? ` · SIDs: ${sids.join(', ')}` : '');
+  document.getElementById('status-sub').textContent = sub;
+
+  setStep('ps-tunnel', 'done');
+  setStep('ps-proxy', 'done');
+  setStep('ps-confirmed', 'done');
+  document.getElementById('install-steps').style.display = 'flex';
+
+  // Show SID picker if multiple SIDs detected; auto-select if only one
+  if (sids.length > 1) {
+    showSidPicker(sids);
+  } else if (sids.length === 1) {
+    // Single SID — save it automatically and show the CTA
+    saveSidSelection(sids[0]).then(() => {
+      _showLiveCtaWithPing();
+    }).catch(() => {
+      _showLiveCtaWithPing();
+    });
+  } else {
+    // No SIDs detected — show CTA anyway, proxy will auto-detect from oratab
+    _showLiveCtaWithPing();
+  }
+}
+
+// Show the live CTA section and kick off an auto-ping to verify the agent works.
+// Updates the ping panel inline — completes in ~2s for a healthy agent.
+function _showLiveCtaWithPing() {
+  document.getElementById('live-cta').classList.add('visible');
+  if (!_connId) return;
+  _runWizardPing(_connId);
+}
+
+async function _runWizardPing(connId) {
+  const statusEl = document.getElementById('ping-status');
+  const resultEl = document.getElementById('ping-result');
+  const ctaBtn   = document.getElementById('dashboard-cta-btn');
+  const ctaSub   = document.getElementById('live-cta-sub');
+
+  if (!statusEl || !resultEl || !ctaBtn) return;
+
+  statusEl.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;display:inline-block;vertical-align:middle;"></span> <span style="vertical-align:middle;">Verifying connection…</span>';
+  statusEl.style.display = 'flex';
+  resultEl.style.display = 'none';
+
+  try {
+    const t0 = performance.now();
+    const res = await fetch('/api/connections/' + connId + '/ping', {
+      method: 'POST',
+      credentials: 'include',
+    });
+    const elapsed = Math.round(performance.now() - t0);
+    const data = await res.json();
+
+    statusEl.style.display = 'none';
+
+    if (!data.ok) {
+      // Agent connected but ping failed — show partial success + dashboard link anyway
+      resultEl.style.display = 'block';
+      resultEl.innerHTML = `
+        <div style="color:#fb923c;margin-bottom:6px;">&#9888; Agent reachable but connection check failed: ${data.message || 'unknown error'}</div>
+        <div style="font-size:12px;color:var(--text-muted);">You can still run a full health check from the dashboard — it may succeed once Oracle credentials are configured.</div>
+      `;
+      ctaBtn.style.display = 'inline-block';
+      if (ctaSub) ctaSub.style.display = 'block';
+      return;
+    }
+
+    // Prefer stored SIDs from the tunnel record (installer ground truth) over
+    // live agent detection, which may return stale/truncated values from an
+    // older proxy process or cached ps output.
+    const sids = (_storedSids.length ? _storedSids : (data.detected_sids || [])).join(', ') || '—';
+    const listenerOk = !!data.oracle_listener_up;
+    const listenerLine = listenerOk
+      ? `<div style="color:#34d399;">&#10003; Listener up</div>`
+      : `<div style="color:#f87171;">&#10007; Listener not responding</div>`;
+    const queryLine = data.sample_query_ms != null
+      ? `<div style="color:#34d399;">&#10003; SELECT 1 FROM DUAL: ${data.sample_query_ms}ms</div>`
+      : `<div style="color:var(--text-muted);">&#9675; SELECT 1 skipped (no Oracle credentials yet)</div>`;
+
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = `
+      <div style="color:#34d399;font-weight:600;margin-bottom:6px;">&#10003; Agent v${data.agent_version || '?'} reachable (${elapsed}ms roundtrip)</div>
+      ${listenerLine}
+      <div style="color:var(--text-muted);">Detected SIDs: <strong style="color:var(--text);">${sids}</strong></div>
+      ${queryLine}
+    `;
+    ctaBtn.style.display = 'inline-block';
+    // Gate "Verified" on ALL checks passing — if listener is down, show warning state
+    if (listenerOk) {
+      ctaBtn.textContent = '✓ Verified — Go to Dashboard →';
+      ctaBtn.style.background = '#059669';
+    } else {
+      ctaBtn.textContent = 'Issues Detected — Go to Dashboard →';
+      ctaBtn.style.background = '#b45309';
+    }
+    if (ctaSub) ctaSub.style.display = 'block';
+  } catch (_) {
+    // Network error — just show the dashboard link silently
+    statusEl.style.display = 'none';
+    ctaBtn.style.display = 'inline-block';
+    if (ctaSub) ctaSub.style.display = 'block';
+  }
+}
+
+function showSidPicker(sids) {
+  const picker = document.getElementById('sid-picker');
+  const container = document.getElementById('sid-options');
+  picker.style.display = 'block';
+
+  container.innerHTML = sids.map(sid => `
+    <label style="display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--bg); border:2px solid var(--border); border-radius:7px; cursor:pointer; transition: border-color 0.15s;" class="sid-option" onclick="selectSid('${sid}', this)">
+      <input type="radio" name="sid-choice" value="${sid}" style="accent-color:var(--accent);"/>
+      <span style="font-family:'Courier New',monospace; font-size:14px; font-weight:600;">${sid}</span>
+    </label>
+  `).join('');
+}
+
+function selectSid(sid, el) {
+  _selectedSid = sid;
+  document.querySelectorAll('.sid-option').forEach(opt => {
+    opt.style.borderColor = 'var(--border)';
+  });
+  el.style.borderColor = 'var(--accent)';
+  document.getElementById('sid-confirm-btn').disabled = false;
+}
+
+async function confirmSid() {
+  if (!_selectedSid || !_connId) return;
+  const btn = document.getElementById('sid-confirm-btn');
+  const spin = document.getElementById('sid-spin');
+  const errEl = document.getElementById('sid-error');
+
+  btn.disabled = true;
+  spin.style.display = 'inline';
+  errEl.classList.remove('visible');
+
+  try {
+    await saveSidSelection(_selectedSid);
+    document.getElementById('sid-picker').style.display = 'none';
+    _showLiveCtaWithPing();
+  } catch (err) {
+    errEl.textContent = err.message || 'Failed to save SID selection.';
+    errEl.classList.add('visible');
+    btn.disabled = false;
+    spin.style.display = 'none';
+  }
+}
+
+async function saveSidSelection(sid) {
+  const res = await fetch('/api/agent/select-sid', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ connection_id: _connId, sid }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to save SID');
+  }
+}
+</script>
+</body>
+</html>

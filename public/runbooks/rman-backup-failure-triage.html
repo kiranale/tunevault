@@ -1,0 +1,329 @@
+<\!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RMAN Backup Failure Triage Runbook — ORA-19566, ORA-27030 | TuneVault</title>
+    <meta name="description" content="RMAN backup failed? Systematic triage covering ORA-19566, ORA-27030, ORA-19809, channel errors, catalog issues, expired backups, and recovery validation for Oracle 11g, 12c, and 19c.">
+    <meta name="author" content="TuneVault">
+    <link rel="canonical" href="https://tunevault.app/resources/runbooks/rman-backup-failure-triage">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <meta property="og:title" content="RMAN Backup Failure Triage Runbook — TuneVault">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://tunevault.app/resources/runbooks/rman-backup-failure-triage">
+    <meta property="og:site_name" content="TuneVault">
+    <meta property="og:image" content="https://tunevault.app/og/runbook.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="Oracle DBA Runbook — TuneVault production-tested recovery guide">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://tunevault.app/og/runbook.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        { "@type": "Organization", "@id": "https://tunevault.app/#organization", "name": "TuneVault", "url": "https://tunevault.app", "logo": { "@type": "ImageObject", "url": "https://tunevault.app/logo.png" }, "foundingDate": "2026", "founder": { "@type": "Person", "name": "Kiran Kumar Ale", "url": "https://tunevault.app/about" }, "contactPoint": { "@type": "ContactPoint", "email": "hello@tunevault.app", "contactType": "customer support" } },
+        { "@type": "TechArticle", "@id": "https://tunevault.app/resources/runbooks/rman-backup-failure-triage#article", "headline": "RMAN Backup Failure Triage Runbook", "description": "Systematic RMAN backup failure triage: ORA-19566, ORA-27030, channel errors, catalog issues, expired backups, and recovery validation.", "url": "https://tunevault.app/resources/runbooks/rman-backup-failure-triage", "datePublished": "2026-05-15", "dateModified": "2026-05-15", "author": { "@type": "Person", "name": "Kiran Kumar Ale", "url": "https://tunevault.app/about" }, "publisher": { "@id": "https://tunevault.app/#organization" }, "about": [{ "@type": "Thing", "name": "Oracle RMAN" }, { "@type": "Thing", "name": "Database Backup" }, { "@type": "Thing", "name": "ORA-19566" }] }
+      ]
+    }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+    <style>
+        :root{--bg:#0a0a0c;--surface:#111114;--surface2:#18181c;--border:#2a2a30;--text:#e8e8ed;--text-dim:#9898a8;--accent:#f0a830;--accent-dim:rgba(240,168,48,0.12);--red:#f87171;--red-dim:rgba(248,113,113,0.1);--green:#4ade80;--green-dim:rgba(74,222,128,0.1);--blue:#60a5fa;--blue-dim:rgba(96,165,250,0.1);}
+        *{box-sizing:border-box;margin:0;padding:0;}body{background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif;line-height:1.7;}a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
+        nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+        .nav-logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;color:var(--text);text-decoration:none;}
+        .nav-logo-icon{width:28px;height:28px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:13px;color:#0a0a0c;font-weight:700;}
+        .nav-links{display:flex;align-items:center;gap:20px;}.nav-links a{font-size:13px;color:var(--text-dim);transition:color 0.15s;}.nav-links a:hover{color:var(--text);text-decoration:none;}
+        .nav-cta{background:var(--accent);color:#0a0a0c \!important;padding:6px 16px;border-radius:6px;font-weight:600;font-size:13px \!important;}
+        .page-wrap{max-width:820px;margin:0 auto;padding:48px 24px 80px;}
+        .breadcrumb{font-size:13px;color:var(--text-dim);margin-bottom:32px;}.breadcrumb a{color:var(--text-dim);}.breadcrumb a:hover{color:var(--accent);}.breadcrumb span{margin:0 6px;}
+        .article-tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:3px 10px;border-radius:20px;background:rgba(96,165,250,0.1);color:#60a5fa;margin-bottom:16px;}
+        h1{font-size:clamp(26px,4vw,40px);font-weight:700;line-height:1.2;margin-bottom:16px;}
+        .article-meta{display:flex;gap:20px;flex-wrap:wrap;font-size:13px;color:var(--text-dim);margin-bottom:40px;}
+        .toc{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 24px;margin-bottom:40px;}
+        .toc-title{font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-dim);margin-bottom:12px;}
+        .toc ol{padding-left:20px;}.toc li{margin-bottom:6px;}.toc a{font-size:14px;color:var(--text-dim);}.toc a:hover{color:var(--accent);}
+        h2{font-size:22px;font-weight:700;margin:48px 0 16px;padding-top:32px;border-top:1px solid var(--border);}h3{font-size:17px;font-weight:600;margin:28px 0 12px;}
+        p{margin-bottom:16px;font-size:15px;}ul,ol{padding-left:22px;margin-bottom:16px;}li{margin-bottom:8px;font-size:15px;}
+        pre{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:18px 20px;overflow-x:auto;margin:16px 0 24px;}
+        code{font-family:'JetBrains Mono',monospace;font-size:13px;color:#93c5fd;line-height:1.6;}p code,li code{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:12.5px;color:#93c5fd;}
+        .comment{color:#6b7280;}.keyword{color:#f0a830;}.string{color:#4ade80;}
+        .callout{border-radius:10px;padding:18px 20px;margin:20px 0;font-size:14px;}
+        .callout-critical{background:var(--red-dim);border:1px solid rgba(248,113,113,0.3);}.callout-warning{background:var(--accent-dim);border:1px solid rgba(240,168,48,0.3);}.callout-info{background:var(--blue-dim);border:1px solid rgba(96,165,250,0.3);}.callout-success{background:var(--green-dim);border:1px solid rgba(74,222,128,0.3);}
+        .callout-title{font-weight:700;margin-bottom:6px;}.callout-critical .callout-title{color:var(--red);}.callout-warning .callout-title{color:var(--accent);}.callout-info .callout-title{color:var(--blue);}.callout-success .callout-title{color:var(--green);}
+        .cta-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:32px;text-align:center;margin:48px 0;}
+        .cta-box h3{font-size:20px;margin-bottom:8px;}.cta-box p{color:var(--text-dim);margin-bottom:20px;font-size:14px;}
+        .cta-btn{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#0a0a0c;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;}
+        .cta-btn:hover{background:#e09820;text-decoration:none;}
+        .nav-footer{display:flex;justify-content:space-between;gap:16px;margin-top:48px;padding-top:32px;border-top:1px solid var(--border);flex-wrap:wrap;}
+        .nav-footer a{font-size:14px;font-weight:500;color:var(--text-dim);}.nav-footer a:hover{color:var(--accent);text-decoration:none;}
+        footer{border-top:1px solid var(--border);padding:32px 24px;text-align:center;font-size:13px;color:var(--text-dim);}
+        .footer-links{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin-bottom:12px;}.footer-links a{color:var(--text-dim);}
+        @media(max-width:600px){.page-wrap{padding:32px 16px 60px;}}
+    </style>
+</head>
+<body>
+
+<nav>
+    <a href="/" class="nav-logo"><div class="nav-logo-icon">TV</div>TuneVault</a>
+    <div class="nav-links">
+        <a href="/resources/runbooks">Runbooks</a>
+        <a href="/blog">Blog</a>
+        <a href="/signup?path=health-check&redirect=/dashboard" class="nav-cta">Start Free</a>
+    </div>
+</nav>
+
+<div class="page-wrap">
+
+    <div class="breadcrumb">
+        <a href="/">TuneVault</a><span>›</span>
+        <a href="/resources/runbooks">Runbooks</a><span>›</span>
+        RMAN Backup Failure Triage
+    </div>
+
+    <div class="article-tag">💾 Backup</div>
+    <h1>RMAN Backup Failure Triage Runbook</h1>
+    <div class="article-meta">
+        <span>⏱ 30–90 min</span>
+        <span>Oracle 11g / 12c / 19c</span>
+        <span>Updated 2026-05-15</span>
+    </div>
+
+    <div class="callout callout-critical">
+        <div class="callout-title">🔴 Not sure if you have a valid backup?</div>
+        Jump to <strong>Step 6: Validate Recoverability</strong> first. Knowing whether you have a usable backup is more important than understanding why the last job failed.
+    </div>
+
+    <div class="toc">
+        <div class="toc-title">In this runbook</div>
+        <ol>
+            <li><a href="#read-error">Read the RMAN error correctly</a></li>
+            <li><a href="#common-errors">Common errors and their fixes</a></li>
+            <li><a href="#channel-errors">Channel and device errors</a></li>
+            <li><a href="#catalog-issues">Catalog and crosscheck issues</a></li>
+            <li><a href="#space-issues">Space-related failures</a></li>
+            <li><a href="#validate">Validate recoverability</a></li>
+            <li><a href="#prevention">Prevention and monitoring</a></li>
+        </ol>
+    </div>
+
+    <h2 id="read-error">1. Read the RMAN Error Correctly</h2>
+
+    <p>RMAN error messages are hierarchical. The root cause is almost always the <strong>last error in the stack</strong>, not the first. When you see a wall of ORA- errors, scroll to the bottom of the RMAN output.</p>
+
+    <pre><code><span class="comment">-- Find the last RMAN job status and error</span>
+<span class="keyword">SELECT</span>
+  j.session_key,
+  j.start_time,
+  j.end_time,
+  j.status,
+  j.input_bytes_display,
+  j.output_bytes_display,
+  j.output_device_type
+<span class="keyword">FROM</span> v$rman_backup_job_details j
+<span class="keyword">ORDER BY</span> j.start_time <span class="keyword">DESC</span>
+<span class="keyword">FETCH FIRST</span> 5 <span class="keyword">ROWS ONLY</span>;
+
+<span class="comment">-- Check RMAN output log (find from v$rman_output)</span>
+<span class="keyword">SELECT</span> output
+<span class="keyword">FROM</span> v$rman_output
+<span class="keyword">WHERE</span> session_key = (
+  <span class="keyword">SELECT</span> MAX(session_key) <span class="keyword">FROM</span> v$rman_backup_job_details
+  <span class="keyword">WHERE</span> status = <span class="string">'FAILED'</span>
+)
+<span class="keyword">ORDER BY</span> recid;</code></pre>
+
+    <h2 id="common-errors">2. Common Errors and Their Fixes</h2>
+
+    <h3>ORA-19809 / ORA-19804: FRA full</h3>
+    <p>The Fast Recovery Area is full. See the <a href="/resources/runbooks/archive-log-destination-full">Archive Log Destination Full runbook</a> for the full fix.</p>
+    <pre><code><span class="comment">-- Quick check: FRA usage</span>
+<span class="keyword">SELECT</span> ROUND(space_used/space_limit*100,1) AS pct_full
+<span class="keyword">FROM</span> v$recovery_file_dest;
+
+<span class="comment">-- Quick fix: delete backed-up archive logs</span>
+<span class="comment">-- RMAN> DELETE NOPROMPT ARCHIVELOG ALL BACKED UP 1 TIMES TO DISK;</span></code></pre>
+
+    <h3>ORA-19566: exceeded limit of corrupt blocks</h3>
+    <pre><code><span class="comment">-- RMAN hit more corrupt blocks than MAXCORRUPT allows</span>
+<span class="comment">-- Default MAXCORRUPT = 0 (zero tolerance)</span>
+
+<span class="comment">-- Find which datafiles have corrupt blocks</span>
+<span class="keyword">SELECT</span> file#, block#, blocks, corruption_type, marked_corrupt
+<span class="keyword">FROM</span> v$database_block_corruption
+<span class="keyword">ORDER BY</span> file#;
+
+<span class="comment">-- Try to recover corrupt blocks (if media recovery is available)</span>
+<span class="comment">-- RMAN> BLOCKRECOVER CORRUPTION LIST;</span>
+
+<span class="comment">-- If only datafile header corruption, try resetting:</span>
+<span class="comment">-- RMAN> RECOVER DATAFILE 7;</span>
+
+<span class="comment">-- As a temporary workaround to complete backup (NOT a fix):</span>
+<span class="comment">-- RMAN> BACKUP DATABASE MAXCORRUPT 1000;</span>
+<span class="comment">-- Warning: this may mean your backup can't be used for full recovery</span></code></pre>
+
+    <h3>ORA-27030: skgfwrt: sbtwrite2 returned error</h3>
+    <pre><code><span class="comment">-- Media management layer (tape/NFS/cloud) write error</span>
+<span class="comment">-- Check: is the target backup device reachable?</span>
+<span class="comment">-- For NFS: df -h /backup/rman_dest</span>
+<span class="comment">-- For tape: check MML (NetBackup, DataDomain, etc.) connectivity</span>
+
+<span class="comment">-- Retry with backup to disk if tape is unavailable</span>
+<span class="comment">-- RMAN> BACKUP DATABASE FORMAT '/u02/rman_backup/%d_%T_%U.bkp';</span></code></pre>
+
+    <h3>RMAN-06059: expected archived log not found</h3>
+    <pre><code><span class="comment">-- Archive log in catalog but not on disk (deleted manually?)</span>
+CROSSCHECK ARCHIVELOG ALL;
+DELETE NOPROMPT EXPIRED ARCHIVELOG ALL;
+
+<span class="comment">-- Then retry backup. RMAN will skip missing arclogs</span>
+<span class="comment">-- and backup will complete (may have gap in recovery window)</span></code></pre>
+
+    <h2 id="channel-errors">3. Channel and Device Errors</h2>
+
+    <h3>Channel timeout or connection drop</h3>
+    <pre><code><span class="comment">-- Increase channel timeout (default 300 seconds)</span>
+<span class="comment">-- RMAN> CONFIGURE CHANNEL DEVICE TYPE DISK MAXOPENFILES 8;</span>
+
+<span class="comment">-- Add explicit timeout to RMAN script</span>
+<span class="comment">-- RUN {</span>
+<span class="comment">--   ALLOCATE CHANNEL c1 DEVICE TYPE DISK FORMAT '/u02/rman/%U';</span>
+<span class="comment">--   SET COMMAND ID TO 'backup_db';</span>
+<span class="comment">--   BACKUP DATABASE PLUS ARCHIVELOG;</span>
+<span class="comment">--   RELEASE CHANNEL c1;</span>
+<span class="comment">-- }</span></code></pre>
+
+    <h3>ORA-15041: diskgroup space exhausted (ASM)</h3>
+    <pre><code><span class="comment">-- ASM FRA diskgroup is full</span>
+<span class="keyword">SELECT</span>
+  name,
+  ROUND(total_mb/1024, 1) AS total_gb,
+  ROUND(free_mb/1024, 1) AS free_gb,
+  ROUND((1 - free_mb/total_mb)*100, 1) AS pct_used
+<span class="keyword">FROM</span> v$asm_diskgroup;
+
+<span class="comment">-- Delete old backups from ASM FRA using RMAN</span>
+<span class="comment">-- RMAN> DELETE NOPROMPT BACKUP COMPLETED BEFORE 'SYSDATE-7';</span></code></pre>
+
+    <h2 id="catalog-issues">4. Catalog and Crosscheck Issues</h2>
+
+    <pre><code><span class="comment">-- Full crosscheck and cleanup of expired objects</span>
+CROSSCHECK BACKUP;
+CROSSCHECK ARCHIVELOG ALL;
+CROSSCHECK COPY;
+
+DELETE NOPROMPT EXPIRED BACKUP;
+DELETE NOPROMPT EXPIRED COPY;
+DELETE NOPROMPT EXPIRED ARCHIVELOG ALL;
+
+<span class="comment">-- List backups RMAN knows about</span>
+LIST BACKUP SUMMARY;
+
+<span class="comment">-- List backups completed in the last 7 days</span>
+LIST BACKUP COMPLETED AFTER 'SYSDATE-7';
+
+<span class="comment">-- Resync from controlfile (if catalog is out of sync)</span>
+<span class="comment">-- RMAN> RESYNC CATALOG;</span></code></pre>
+
+    <h2 id="space-issues">5. Space-Related Failures</h2>
+
+    <pre><code><span class="comment">-- Check all backup-related space in one query</span>
+<span class="keyword">SELECT</span>
+  <span class="string">'FRA'</span> AS location,
+  ROUND(space_limit/1073741824, 1) AS total_gb,
+  ROUND(space_used/1073741824, 1) AS used_gb,
+  ROUND(space_reclaimable/1073741824, 1) AS reclaimable_gb,
+  ROUND(space_used/space_limit*100, 1) AS pct_used
+<span class="keyword">FROM</span> v$recovery_file_dest;
+
+<span class="comment">-- Check backup destination filesystem (OS-level check)</span>
+<span class="comment">-- df -h /u02/rman_backup</span>
+
+<span class="comment">-- Clean up old backups that exceed retention policy</span>
+DELETE NOPROMPT OBSOLETE;</code></pre>
+
+    <h2 id="validate">6. Validate Recoverability</h2>
+
+    <div class="callout callout-warning">
+        <div class="callout-title">⚠️ This is the most important step</div>
+        A backup that exists but cannot be used for recovery is useless. Run RESTORE VALIDATE monthly to confirm your backups are intact.
+    </div>
+
+    <pre><code><span class="comment">-- Validate backup without actually restoring (checks all backup pieces)</span>
+RESTORE DATABASE VALIDATE;
+
+<span class="comment">-- Validate just the last full backup (faster)</span>
+RESTORE DATABASE FROM TAG '&BACKUP_TAG' VALIDATE;
+
+<span class="comment">-- Validate specific tablespace backup</span>
+RESTORE TABLESPACE SYSTEM VALIDATE;
+RESTORE TABLESPACE SYSAUX VALIDATE;
+
+<span class="comment">-- Check validation results</span>
+<span class="keyword">SELECT</span>
+  file#, blocks, blocks_examined, blocks_skipped,
+  blocks_corrupt, marked_corrupt,
+  high_scn
+<span class="keyword">FROM</span> v$database_block_corruption;
+
+<span class="comment">-- Check RMAN validation report</span>
+<span class="keyword">SELECT</span> object_type, status, object_name
+<span class="keyword">FROM</span> v$rman_status
+<span class="keyword">WHERE</span> operation = <span class="string">'RESTORE'</span>
+  <span class="keyword">AND</span> start_time > SYSDATE - 1
+<span class="keyword">ORDER BY</span> start_time <span class="keyword">DESC</span>;</code></pre>
+
+    <h2 id="prevention">7. Prevention and Monitoring</h2>
+
+    <div class="callout callout-success">
+        <div class="callout-title">✅ RMAN health checklist</div>
+        <ul style="margin:8px 0 0 20px;">
+            <li>RMAN retention policy configured (recovery window recommended)</li>
+            <li>FRA sized at 3× database size</li>
+            <li>Monitor RMAN job status daily: alert on FAILED or COMPLETED WITH WARNINGS</li>
+            <li>Run RESTORE DATABASE VALIDATE monthly</li>
+            <li>Crosscheck and DELETE OBSOLETE weekly</li>
+            <li>Test recovery quarterly in a non-production environment</li>
+            <li>TuneVault health check monitors RMAN job status and last successful backup age</li>
+        </ul>
+    </div>
+
+    <pre><code><span class="comment">-- Monitor: check when last successful backup ran</span>
+<span class="keyword">SELECT</span>
+  MAX(end_time) AS last_successful_backup,
+  ROUND(SYSDATE - MAX(end_time), 1) AS days_since_backup
+<span class="keyword">FROM</span> v$rman_backup_job_details
+<span class="keyword">WHERE</span> status = <span class="string">'COMPLETED'</span>
+  <span class="keyword">AND</span> input_type = <span class="string">'DB FULL'</span>;</code></pre>
+
+    <div class="cta-box">
+        <h3>Know your backup status before 3am</h3>
+        <p>TuneVault monitors RMAN job status, last successful backup age, and FRA utilisation. Get alerted when a backup fails or hasn't run in 24 hours.</p>
+        <a href="/signup?path=health-check&redirect=/dashboard" class="cta-btn">Run a Free Health Check →</a>
+    </div>
+
+    <div class="nav-footer">
+        <a href="/resources/runbooks/workflow-mailer-smtp-recovery">← Workflow Mailer Recovery</a>
+        <a href="/resources/runbooks/adop-cutover-rollback">ADOP Cutover Rollback →</a>
+    </div>
+
+</div>
+
+<footer>
+    <div class="footer-links">
+        <a href="/">TuneVault</a>
+        <a href="/resources/runbooks">Runbooks</a>
+        <a href="/blog">Blog</a>
+        <a href="/compare">Compare Tools</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/about">About</a>
+    </div>
+    <p style="margin-top:12px;">© 2026 TuneVault · <a href="mailto:hello@tunevault.app">hello@tunevault.app</a></p>
+</footer>
+
+</body>
+</html>

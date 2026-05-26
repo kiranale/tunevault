@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EBS Control — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c;
+      --surface: #111114;
+      --surface-2: #1a1a1f;
+      --border: #2a2a30;
+      --text: #e8e8ed;
+      --text-dim: #b8b8c8;
+      --accent: #f0a830;
+      --accent-dim: rgba(240,168,48,0.12);
+      --green: #34d399;
+      --green-dim: rgba(52,211,153,0.12);
+      --red: #f87171;
+      --red-dim: rgba(248,113,113,0.12);
+      --yellow: #fbbf24;
+      --yellow-dim: rgba(251,191,36,0.12);
+      --blue: #60a5fa;
+      --blue-dim: rgba(96,165,250,0.12);
+      --orange: #fb923c;
+      --orange-dim: rgba(251,146,60,0.12);
+      --purple: #a78bfa;
+      --purple-dim: rgba(167,139,250,0.12);
+    }
+    body {
+      font-family: 'Space Grotesk', -apple-system, sans-serif;
+      background: var(--bg); color: var(--text);
+      line-height: 1.6; min-height: 100vh; overflow-x: hidden;
+    }
+    .grain {
+      position: fixed; top:0; left:0; right:0; bottom:0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 999;
+    }
+    nav { background: rgba(10,10,12,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 9999; }
+    .page-wrap { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    /* ── Toolbar ── */
+    .toolbar { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
+    .toolbar h1 { font-size: 22px; font-weight: 700; flex: 1; display: flex; align-items: center; gap: 10px; }
+    .conn-select {
+      background: var(--surface); border: 1px solid var(--border); color: var(--text);
+      font-family: inherit; font-size: 13px; padding: 8px 12px; border-radius: 8px;
+      min-width: 240px; cursor: pointer;
+    }
+    .conn-select:focus { outline: none; border-color: var(--accent); }
+    .conn-type-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px;
+      background: var(--surface); border: 1px solid var(--border); color: var(--text-dim);
+    }
+    .conn-type-badge.proxy { background: var(--green-dim); color: var(--green); border-color: transparent; }
+    .conn-type-badge.direct { background: var(--blue-dim); color: var(--blue); border-color: transparent; }
+
+    /* ── Banner ── */
+    .banner {
+      border-radius: 10px; padding: 16px 20px; margin-bottom: 28px;
+      display: none; align-items: flex-start; gap: 14px;
+    }
+    .banner.visible { display: flex; }
+    .banner .icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+    .banner .msg { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+    .banner a { color: var(--blue); text-decoration: none; }
+    .banner a:hover { text-decoration: underline; }
+    .banner-proxy { background: var(--surface); border: 1px solid rgba(52,211,153,0.3); }
+    .banner-warn  { background: var(--surface); border: 1px solid rgba(251,191,36,0.3); }
+    .banner-info  { background: var(--surface); border: 1px solid rgba(96,165,250,0.3); }
+
+    /* ── Section ── */
+    .section { margin-bottom: 40px; }
+    .section-header {
+      display: flex; align-items: center; gap: 12px;
+      padding-bottom: 14px; border-bottom: 1px solid var(--border); margin-bottom: 20px;
+    }
+    .section-icon {
+      width: 36px; height: 36px; border-radius: 9px;
+      display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;
+    }
+    .section-title { font-size: 15px; font-weight: 700; }
+    .section-desc { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+
+    /* ── Command grid ── */
+    .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+
+    /* ── Command card ── */
+    .cmd-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px;
+      transition: border-color 0.15s;
+    }
+    .cmd-card:hover { border-color: rgba(240,168,48,0.3); }
+    .cmd-card.running { border-color: var(--accent); }
+    .cmd-card-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+    .cmd-icon {
+      width: 34px; height: 34px; border-radius: 8px; background: var(--surface-2);
+      display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0;
+    }
+    .cmd-title { font-size: 14px; font-weight: 600; line-height: 1.3; }
+    .cmd-desc { font-size: 12px; color: var(--text-dim); margin-top: 2px; line-height: 1.4; }
+    .cmd-id {
+      font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dim);
+      background: var(--surface-2); border: 1px solid var(--border);
+      padding: 2px 7px; border-radius: 4px; display: inline-block; margin-bottom: 12px;
+    }
+
+    /* ── Risk badges ── */
+    .risk-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 4px;
+      text-transform: uppercase; letter-spacing: .04em; margin-bottom: 12px;
+    }
+    .risk-read { background: var(--green-dim); color: var(--green); }
+    .risk-warn { background: var(--yellow-dim); color: var(--yellow); }
+    .risk-danger { background: var(--red-dim); color: var(--red); }
+
+    /* ── Buttons ── */
+    .btn {
+      padding: 7px 14px; border-radius: 7px; font-size: 12px; font-weight: 600;
+      border: none; cursor: pointer; transition: all 0.15s; font-family: inherit;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-run { background: var(--accent); color: #0a0a0c; }
+    .btn-run:hover { background: #e09820; }
+    .btn-run:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-danger { background: var(--red-dim); color: var(--red); border: 1px solid rgba(248,113,113,0.3); }
+    .btn-danger:hover { border-color: var(--red); }
+    .btn-danger:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-outline { background: none; border: 1px solid var(--border); color: var(--text-dim); }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    /* ── Spinner ── */
+    .spinner {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.2); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Result panel ── */
+    .result-panel {
+      margin-top: 14px; display: none;
+      border-top: 1px solid var(--border); padding-top: 14px;
+    }
+    .result-panel.visible { display: block; }
+    .result-meta {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;
+    }
+    .result-status {
+      font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px;
+    }
+    .status-ok { color: var(--green); }
+    .status-err { color: var(--red); }
+    .result-stat {
+      font-size: 11px; color: var(--text-dim);
+      background: var(--surface-2); border: 1px solid var(--border);
+      padding: 2px 8px; border-radius: 4px; font-family: 'JetBrains Mono', monospace;
+    }
+    .result-stdout {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text);
+      background: #0d0d10; border: 1px solid var(--border); border-radius: 6px;
+      padding: 12px; white-space: pre-wrap; word-break: break-all;
+      max-height: 300px; overflow-y: auto; margin-bottom: 8px;
+    }
+    .result-stderr {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--red);
+      background: rgba(248,113,113,0.05); border: 1px solid rgba(248,113,113,0.2); border-radius: 6px;
+      padding: 12px; white-space: pre-wrap; word-break: break-all;
+      max-height: 150px; overflow-y: auto; margin-bottom: 8px;
+    }
+    .result-label { font-size: 10px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+
+    /* ── Args input ── */
+    .arg-input {
+      background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+      font-family: 'JetBrains Mono', monospace; font-size: 12px;
+      padding: 6px 10px; border-radius: 6px; width: 100%; margin-bottom: 10px;
+    }
+    .arg-input:focus { outline: none; border-color: var(--accent); }
+    .arg-label { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; display: block; }
+
+    /* ── Confirm modal ── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+      z-index: 1000; display: none; align-items: center; justify-content: center; padding: 24px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      padding: 28px 32px; max-width: 560px; width: 100%; box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+    }
+    .modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .modal p { font-size: 13px; color: var(--text-dim); margin-bottom: 16px; line-height: 1.5; }
+    .modal-cmd {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      background: #0d0d10; border: 1px solid rgba(248,113,113,0.2); border-radius: 8px;
+      padding: 14px; margin-bottom: 20px; white-space: pre-wrap; word-break: break-all; color: var(--red);
+    }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+    /* ── History panel ── */
+    .history-section { margin-top: 48px; }
+    .history-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-bottom: 12px; border-bottom: 1px solid var(--border); margin-bottom: 16px;
+    }
+    .history-title { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .history-table-wrap { overflow-x: auto; }
+    .history-table {
+      width: 100%; border-collapse: collapse; font-size: 12px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .history-table th {
+      text-align: left; padding: 8px 12px; background: var(--surface);
+      border-bottom: 1px solid var(--border); color: var(--text-dim); font-size: 11px;
+      white-space: nowrap; font-family: 'Space Grotesk', sans-serif; font-weight: 600;
+    }
+    .history-table td {
+      padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.04);
+      color: var(--text); white-space: nowrap;
+    }
+    .history-table tr:last-child td { border-bottom: none; }
+    .history-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .exit-ok { color: var(--green); font-weight: 600; }
+    .exit-err { color: var(--red); font-weight: 600; }
+    .history-empty {
+      text-align: center; padding: 40px; color: var(--text-dim); font-size: 13px;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+
+    /* ── No-proxy state ── */
+    .no-proxy-state { text-align: center; padding: 80px 24px; color: var(--text-dim); }
+    .no-proxy-state .icon { font-size: 48px; margin-bottom: 16px; display: block; }
+    .no-proxy-state h3 { font-size: 18px; color: var(--text); margin-bottom: 8px; font-weight: 700; }
+    .no-proxy-state p { font-size: 13px; max-width: 460px; margin: 0 auto 20px; line-height: 1.6; }
+    .no-proxy-state a {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--accent); color: #0a0a0c; padding: 10px 20px;
+      border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 13px;
+    }
+
+    @media (max-width: 640px) {
+      .cmd-grid { grid-template-columns: 1fr; }
+      .toolbar { gap: 10px; }
+      .conn-select { min-width: 0; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<div class="grain"></div>
+<nav>
+  <div id="nav-root"></div>
+</nav>
+
+<div class="page-wrap">
+  <div class="toolbar">
+    <h1>⚡ EBS Control</h1>
+    <select class="conn-select" id="conn-select" onchange="onConnChange()">
+      <option value="">— Select connection —</option>
+    </select>
+    <div id="conn-type-badge"></div>
+  </div>
+
+  <!-- Proxy-connected banner -->
+  <div class="banner banner-proxy" id="banner-proxy">
+    <span class="icon">🔒</span>
+    <span class="msg">
+      Commands run through the TuneVault Agent tunnel (HTTPS) — no SSH required.
+      All executions are logged to <strong>Command History</strong> below.
+    </span>
+  </div>
+
+  <!-- Non-proxy warning -->
+  <div class="banner banner-warn" id="banner-direct">
+    <span class="icon">⚠️</span>
+    <span class="msg">
+      This connection uses Direct TCP. Proxy exec requires the
+      <a href="/install.sh" target="_blank">TuneVault agent</a> installed and a proxy connection configured.
+    </span>
+  </div>
+
+  <!-- Main content -->
+  <div id="main-content"></div>
+
+  <!-- Command History -->
+  <div class="history-section" id="history-section" style="display:none">
+    <div class="history-header">
+      <div class="history-title">🕓 Command History</div>
+      <button class="btn btn-outline" style="font-size:11px;padding:5px 12px" onclick="loadHistory()">↺ Refresh</button>
+    </div>
+    <div id="history-content">
+      <div class="history-empty">Loading…</div>
+    </div>
+  </div>
+</div>
+
+<!-- Confirmation modal -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h3>⚠️ Confirm Control Operation</h3>
+    <p>This will execute an EBS control command on your production Oracle instance through the agent tunnel. Review the command before confirming.</p>
+    <div class="modal-cmd" id="modal-cmd-text"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" id="modal-confirm-btn" onclick="executeConfirmed()">Execute</button>
+    </div>
+  </div>
+</div>
+
+<script src="/connection-state.js"></script>
+<script src="/nav-component.js"></script>
+<script>
+window.tvNav.init('ebs-control-exec');
+
+// ── Command catalog ─────────────────────────────────────────────────────────
+// Maps command_id to display metadata. All commands routed to POST /api/connections/:id/exec.
+const COMMANDS = [
+  // ── Concurrent Manager
+  {
+    id: 'adcmctl_status',
+    title: 'CM Status',
+    desc: 'Check Concurrent Manager status (adcmctl.sh status)',
+    icon: '📊',
+    section: 'cm',
+    risk: 'read',
+    riskLabel: 'Read-only',
+    confirmRequired: false,
+  },
+  {
+    id: 'adcmctl_start',
+    title: 'Start Concurrent Manager',
+    desc: 'Start all Concurrent Managers (adcmctl.sh start)',
+    icon: '▶️',
+    section: 'cm',
+    risk: 'warn',
+    riskLabel: 'Control',
+    confirmRequired: true,
+    confirmDesc: 'This will start all EBS Concurrent Managers. Confirm to proceed.',
+  },
+  {
+    id: 'adcmctl_stop',
+    title: 'Stop Concurrent Manager',
+    desc: 'Stop all Concurrent Managers (adcmctl.sh stop)',
+    icon: '⏹️',
+    section: 'cm',
+    risk: 'danger',
+    riskLabel: 'Destructive',
+    confirmRequired: true,
+    confirmDesc: 'This will stop all EBS Concurrent Managers. This disrupts active concurrent requests. Confirm to proceed.',
+  },
+
+  // ── OPMNCTL
+  {
+    id: 'opmnctl_status',
+    title: 'OPMNCTL Status',
+    desc: 'Show OPMN process status (opmnctl status)',
+    icon: '📡',
+    section: 'opmn',
+    risk: 'read',
+    riskLabel: 'Read-only',
+    confirmRequired: false,
+  },
+
+  // ── ADOP
+  {
+    id: 'adop_status',
+    title: 'ADOP Status',
+    desc: 'Check active patch cycle status (adop phase=status)',
+    icon: '🔬',
+    section: 'adop',
+    risk: 'read',
+    riskLabel: 'Read-only',
+    confirmRequired: false,
+  },
+
+  // ── Listener
+  {
+    id: 'listener_status',
+    title: 'Listener Status',
+    desc: 'Check TNS listener status (lsnrctl status)',
+    icon: '📡',
+    section: 'listener',
+    risk: 'read',
+    riskLabel: 'Read-only',
+    confirmRequired: false,
+  },
+];
+
+const SECTIONS = [
+  { id: 'cm',       label: 'Concurrent Manager', icon: '⚙️', iconBg: 'var(--accent-dim)',  desc: 'CM start, stop, status via adcmctl.sh' },
+  { id: 'opmn',     label: 'OPMNCTL',            icon: '🌐', iconBg: 'var(--blue-dim)',    desc: 'Oracle Process Manager status' },
+  { id: 'adop',     label: 'ADOP / Patching',    icon: '🔬', iconBg: 'var(--purple-dim)',  desc: 'Patch cycle and ADOP session status' },
+  { id: 'listener', label: 'DB Listener',        icon: '📡', iconBg: 'var(--green-dim)',   desc: 'TNS listener status' },
+];
+
+// ── State ──────────────────────────────────────────────────────────────────
+let connections = [];
+let selectedConn = null;
+let pendingConfirm = null;
+
+// ── Bootstrap ──────────────────────────────────────────────────────────────
+(async function init() {
+  await loadConnections();
+})();
+
+async function loadConnections() {
+  const r = await fetch('/api/connections', { credentials: 'include' });
+  if (!r.ok) return;
+  connections = tvConn.parseList(await r.json());
+  const sel = document.getElementById('conn-select');
+  connections.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.name || (c.host + ':' + c.port);
+    sel.appendChild(opt);
+  });
+  tvConn.bind(sel, connections);
+  if (sel.value) await onConnChange();
+  else if (connections.length === 1) { sel.value = connections[0].id; tvConn.save(connections[0].id); await onConnChange(); }
+}
+
+async function onConnChange() {
+  const connId = document.getElementById('conn-select').value;
+  if (connId) tvConn.save(connId);
+  selectedConn = connections.find(c => String(c.id) === String(connId)) || null;
+  renderBanners();
+  renderContent();
+  if (selectedConn) {
+    document.getElementById('history-section').style.display = 'block';
+    loadHistory();
+  } else {
+    document.getElementById('history-section').style.display = 'none';
+  }
+}
+
+function renderBanners() {
+  const isProxy = selectedConn && selectedConn.connection_type === 'proxy';
+  const badge = document.getElementById('conn-type-badge');
+  document.getElementById('banner-proxy').classList.toggle('visible', !!isProxy);
+  document.getElementById('banner-direct').classList.toggle('visible', !!selectedConn && !isProxy);
+  if (selectedConn) {
+    badge.innerHTML = `<span class="conn-type-badge ${isProxy ? 'proxy' : 'direct'}">${isProxy ? '🔒 Proxy Agent' : '🔌 Direct TCP'}</span>`;
+  } else {
+    badge.innerHTML = '';
+  }
+}
+
+function renderContent() {
+  const el = document.getElementById('main-content');
+
+  if (!selectedConn) {
+    el.innerHTML = `<div class="no-proxy-state">
+      <span class="icon">🔌</span>
+      <h3>Select a connection</h3>
+      <p>Choose an Oracle connection above to view and execute EBS control commands.</p>
+    </div>`;
+    return;
+  }
+
+  if (selectedConn.connection_type !== 'proxy') {
+    el.innerHTML = `<div class="no-proxy-state">
+      <span class="icon">🔒</span>
+      <h3>Agent required</h3>
+      <p>EBS control commands run through the TuneVault proxy agent via the TuneVault managed HTTPS tunnel.
+         This connection uses Direct TCP — install the agent to enable control operations.</p>
+      <a href="https://tunevault.app/install.sh" target="_blank">↓ Get Install Script</a>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = '';
+  SECTIONS.forEach(sec => {
+    const cmds = COMMANDS.filter(c => c.section === sec.id);
+    if (!cmds.length) return;
+
+    const section = document.createElement('div');
+    section.className = 'section';
+    section.innerHTML = `
+      <div class="section-header">
+        <div class="section-icon" style="background:${sec.iconBg}">${sec.icon}</div>
+        <div>
+          <div class="section-title">${escHtml(sec.label)}</div>
+          <div class="section-desc">${escHtml(sec.desc)}</div>
+        </div>
+      </div>
+    `;
+
+    const grid = document.createElement('div');
+    grid.className = 'cmd-grid';
+    cmds.forEach(cmd => grid.appendChild(buildCmdCard(cmd)));
+    section.appendChild(grid);
+    el.appendChild(section);
+  });
+}
+
+function buildCmdCard(cmd) {
+  const card = document.createElement('div');
+  card.className = 'cmd-card';
+  card.id = 'card-' + cmd.id;
+
+  const riskCls = cmd.risk === 'danger' ? 'risk-danger' : cmd.risk === 'warn' ? 'risk-warn' : 'risk-read';
+  const btnCls  = cmd.risk === 'danger' ? 'btn-danger' : 'btn-run';
+
+  card.innerHTML = `
+    <div class="cmd-card-header">
+      <div class="cmd-icon">${cmd.icon}</div>
+      <div>
+        <div class="cmd-title">${escHtml(cmd.title)}</div>
+        <div class="cmd-desc">${escHtml(cmd.desc)}</div>
+      </div>
+    </div>
+    <span class="cmd-id">${escHtml(cmd.id)}</span>
+    <br>
+    <span class="risk-badge ${riskCls}">${escHtml(cmd.riskLabel)}</span>
+    <div class="btn-actions">
+      <button class="btn ${btnCls}" id="btn-${cmd.id}" onclick="runCmd('${cmd.id}')">▶ Run</button>
+    </div>
+    <div class="result-panel" id="result-${cmd.id}"></div>
+  `;
+  return card;
+}
+
+// ── Run command ─────────────────────────────────────────────────────────────
+async function runCmd(cmdId, confirmed) {
+  if (!selectedConn) return;
+
+  const cmd = COMMANDS.find(c => c.id === cmdId);
+  if (!cmd) return;
+
+  // Confirmation gate for destructive ops
+  if (cmd.confirmRequired && !confirmed) {
+    pendingConfirm = cmdId;
+    document.getElementById('modal-cmd-text').textContent =
+      `command_id: ${cmdId}\nconnection: ${selectedConn.name || selectedConn.host}\n\n${cmd.confirmDesc || ''}`;
+    document.getElementById('modal-overlay').classList.add('open');
+    return;
+  }
+
+  const btn     = document.getElementById('btn-' + cmdId);
+  const resultEl = document.getElementById('result-' + cmdId);
+  const card    = document.getElementById('card-' + cmdId);
+
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Running…';
+  resultEl.innerHTML = '';
+  resultEl.classList.add('visible');
+  card.classList.add('running');
+
+  const startTime = Date.now();
+
+  try {
+    const r = await fetch('/api/connections/' + selectedConn.id + '/exec', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command_id: cmdId, timeout_s: 30 }),
+      signal: AbortSignal.timeout(40000),
+    });
+
+    const data = await r.json();
+    const elapsed = Date.now() - startTime;
+
+    if (!r.ok) {
+      // Proxy offline / agent not reachable
+      const agentOffline = !r.ok && (data.code === 'PROXY_OUTDATED' || r.status === 502 || r.status === 504);
+      resultEl.innerHTML = buildErrorPanel(data, r.status, agentOffline);
+    } else {
+      resultEl.innerHTML = buildResultPanel(data, elapsed);
+      // Refresh history after successful exec
+      loadHistory();
+    }
+  } catch (err) {
+    const elapsed = Date.now() - startTime;
+    resultEl.innerHTML = `
+      <div class="result-meta">
+        <div class="result-status status-err">✗ Network error</div>
+        <span class="result-stat">${elapsed}ms</span>
+      </div>
+      <div class="result-label">Error</div>
+      <div class="result-stderr">${escHtml(err.message)}</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:8px">
+        Agent may be offline. <a href="/agent-status" style="color:var(--blue)">Check agent status →</a>
+      </div>
+    `;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '▶ Run';
+    card.classList.remove('running');
+  }
+}
+
+function buildResultPanel(data, elapsedMs) {
+  const exitOk = data.exit_code === 0;
+  const ts = new Date().toLocaleTimeString();
+  let html = `
+    <div class="result-meta">
+      <div class="result-status ${exitOk ? 'status-ok' : 'status-err'}">${exitOk ? '✓ Success' : '✗ Non-zero exit'}</div>
+      <span class="result-stat">exit: ${data.exit_code ?? '—'}</span>
+      <span class="result-stat">${data.duration_ms != null ? data.duration_ms + 'ms' : elapsedMs + 'ms'}</span>
+      <span class="result-stat">${ts}</span>
+    </div>
+  `;
+  if (data.stdout && data.stdout.trim()) {
+    html += `<div class="result-label">stdout</div><div class="result-stdout">${escHtml(data.stdout)}</div>`;
+  }
+  if (data.stderr && data.stderr.trim()) {
+    html += `<div class="result-label">stderr</div><div class="result-stderr">${escHtml(data.stderr)}</div>`;
+  }
+  if (!data.stdout && !data.stderr) {
+    html += `<div style="font-size:12px;color:var(--text-dim);margin-top:4px">No output returned.</div>`;
+  }
+  return html;
+}
+
+function buildErrorPanel(data, status, agentOffline) {
+  let html = `
+    <div class="result-meta">
+      <div class="result-status status-err">✗ ${agentOffline ? 'Agent not reachable' : 'Error'}</div>
+      <span class="result-stat">HTTP ${status}</span>
+    </div>
+    <div class="result-label">Error</div>
+    <div class="result-stderr">${escHtml(data.error || 'Unknown error')}</div>
+  `;
+  if (agentOffline) {
+    html += `
+      <div style="margin-top:10px;font-size:12px;color:var(--text-dim)">
+        The agent on this server is offline or not responding.
+        <a href="/agent-status?conn=${selectedConn ? selectedConn.id : ''}" style="color:var(--blue)">Check agent status →</a>
+      </div>
+    `;
+  }
+  if (data.code === 'PROXY_REQUIRED') {
+    html += `<div style="margin-top:8px;font-size:12px;color:var(--text-dim)">Switch this connection to Proxy type and install the agent first.</div>`;
+  }
+  if (data.upgrade) {
+    html += `<div style="margin-top:8px;font-size:12px;color:var(--yellow)">⬆ Upgrade your proxy agent to v3.5.6+ to enable /exec support.</div>`;
+  }
+  return html;
+}
+
+// ── Modal ───────────────────────────────────────────────────────────────────
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  pendingConfirm = null;
+}
+document.getElementById('modal-overlay').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+function executeConfirmed() {
+  const cmdId = pendingConfirm;
+  closeModal();
+  if (cmdId) runCmd(cmdId, true);
+}
+
+// ── Command History ─────────────────────────────────────────────────────────
+async function loadHistory() {
+  if (!selectedConn) return;
+  const el = document.getElementById('history-content');
+  el.innerHTML = '<div class="history-empty"><div style="display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.2);border-top-color:var(--accent);border-radius:50%;animation:spin 0.6s linear infinite"></div> Loading…</div>';
+  try {
+    const r = await fetch('/api/connections/' + selectedConn.id + '/exec/audit?limit=30', { credentials: 'include' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const { rows } = await r.json();
+    if (!rows || !rows.length) {
+      el.innerHTML = '<div class="history-empty">No commands executed yet for this connection.</div>';
+      return;
+    }
+    let html = '<div class="history-table-wrap"><table class="history-table"><thead><tr>';
+    ['Timestamp', 'Command', 'Exit', 'Duration', 'Stdout (preview)'].forEach(h => { html += `<th>${h}</th>`; });
+    html += '</tr></thead><tbody>';
+    rows.forEach(row => {
+      const exitOk = row.exit_code === 0;
+      const ts = row.executed_at ? new Date(row.executed_at).toLocaleString() : '—';
+      const preview = (row.stdout_bytes > 0 ? '(stdout)' : '') + (row.stderr_bytes > 0 ? ' (stderr)' : '');
+      html += `<tr>
+        <td>${escHtml(ts)}</td>
+        <td><code>${escHtml(row.command_id || '—')}</code></td>
+        <td class="${exitOk ? 'exit-ok' : 'exit-err'}">${row.exit_code != null ? row.exit_code : '—'}</td>
+        <td>${row.duration_ms != null ? row.duration_ms + 'ms' : '—'}</td>
+        <td>${escHtml(preview || '—')}</td>
+      </tr>`;
+    });
+    html += '</tbody></table></div>';
+    el.innerHTML = html;
+  } catch (err) {
+    el.innerHTML = `<div class="history-empty" style="color:var(--red)">Failed to load history: ${escHtml(err.message)}</div>`;
+  }
+}
+
+function escHtml(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+</script>
+<div style="text-align:center;padding:24px 16px 16px;border-top:1px solid rgba(255,255,255,0.05);margin-top:32px;">
+  <span style="font-size:12px;color:#9898a8;">Need help? <a href="mailto:support@tunevault.app" style="color:#f0a830;text-decoration:none;">support@tunevault.app</a></span>
+</div>
+<script src="/tunebot.js"></script>
+</body>
+</html>

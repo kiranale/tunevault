@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL Console — TuneVault</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="apple-touch-icon" href="/favicon.svg">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/codemirror@5.65.16/lib/codemirror.min.css">
+    <script src="https://unpkg.com/codemirror@5.65.16/lib/codemirror.min.js"></script>
+    <script src="https://unpkg.com/codemirror@5.65.16/mode/sql/sql.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0a0a0c;
+            --surface: #111114;
+            --surface-2: #1a1a1f;
+            --surface-3: #222228;
+            --border: #2a2a30;
+            --text: #e8e8ed;
+            --text-dim: #b8b8c8;
+            --accent: #f0a830;
+            --accent-dim: rgba(240, 168, 48, 0.12);
+            --green: #34d399;
+            --red: #f87171;
+            --yellow: #fbbf24;
+            --blue: #60a5fa;
+            --cyan: #22d3ee;
+        }
+        body {
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        /* Nav rendered by nav-component.js */
+        #nav-root { border-bottom: 1px solid var(--border); background: var(--surface); }
+
+        /* ── Main layout ── */
+        .console-layout {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px 28px 28px;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+            gap: 14px;
+        }
+
+        /* ── Connection bar ── */
+        .conn-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 18px;
+            flex-wrap: wrap;
+        }
+        .conn-bar label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            flex-shrink: 0;
+        }
+        .conn-select {
+            flex: 1;
+            min-width: 200px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 13px;
+            padding: 8px 12px;
+            outline: none;
+        }
+        .conn-status {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 5px;
+            flex-shrink: 0;
+        }
+        .conn-status.ok { background: rgba(52,211,153,0.1); color: var(--green); border: 1px solid rgba(52,211,153,0.2); }
+        .conn-status.idle { background: rgba(136,136,160,0.1); color: var(--text-dim); border: 1px solid var(--border); }
+
+        /* ── Editor panel ── */
+        .editor-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .editor-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 18px;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface-2);
+        }
+        .editor-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .editor-actions {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .btn-sm {
+            font-size: 11px;
+            color: var(--text-dim);
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-family: 'Space Grotesk', sans-serif;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .btn-sm:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+        .btn-run {
+            font-size: 12px;
+            font-weight: 600;
+            color: #000;
+            background: var(--accent);
+            border: none;
+            border-radius: 6px;
+            padding: 6px 16px;
+            cursor: pointer;
+            font-family: 'Space Grotesk', sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.15s;
+        }
+        .btn-run:hover { background: #d4921e; transform: translateY(-1px); }
+        .btn-run:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-explain {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--cyan);
+            background: rgba(34,211,238,0.08);
+            border: 1px solid rgba(34,211,238,0.25);
+            border-radius: 6px;
+            padding: 6px 14px;
+            cursor: pointer;
+            font-family: 'Space Grotesk', sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.15s;
+        }
+        .btn-explain:hover { background: rgba(34,211,238,0.15); }
+        .btn-explain:disabled { opacity: 0.5; cursor: not-allowed; }
+        .sql-editor {
+            width: 100%;
+            min-height: 160px;
+            max-height: 360px;
+            background: var(--surface);
+            border: none;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            padding: 14px 18px;
+            resize: vertical;
+            outline: none;
+            tab-size: 4;
+        }
+        .sql-editor::placeholder { color: rgba(184,184,200,0.4); }
+
+        /* ── CodeMirror dark theme ── */
+        .cm-editor {
+            background: var(--surface) !important;
+            color: var(--text);
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            min-height: 160px;
+            max-height: 360px;
+            overflow-y: auto;
+        }
+        .cm-editor .cm-content {
+            padding: 14px 18px;
+            caret-color: var(--accent);
+        }
+        .cm-editor .cm-line { padding: 0; }
+        .cm-editor .cm-cursor { border-left-color: var(--accent); border-left-width: 2px; }
+        .cm-editor .cm-selectionBackground { background: rgba(240,168,48,0.25) !important; }
+        .cm-editor .cm-gutters { background: var(--surface-2); border-right: 1px solid var(--border); color: var(--text-dim); }
+        .cm-editor .cm-activeLineGutter { background: var(--surface-3); }
+        .cm-editor .cm-activeLine { background: rgba(255,255,255,0.03); }
+        /* SQL keyword highlighting */
+        .cm-editor .cm-keyword { color: #c084fc; font-weight: 600; }
+        .cm-editor .cm-atom { color: #60a5fa; }
+        .cm-editor .cm-string { color: #86efac; }
+        .cm-editor .cm-number { color: var(--cyan); }
+        .cm-editor .cm-comment { color: #6b7280; font-style: italic; }
+        .cm-editor .cm-operator { color: #fb923c; }
+        .cm-editor .cm-variableName { color: var(--text); }
+        .cm-editor .cm-def { color: #fbbf24; }
+        .cm-editor .cm-type { color: #a78bfa; }
+        /* Tooltip / autocomplete */
+        .cm-editor .cm-completionIcon-text { color: var(--text); }
+        .CodeMirror-hints {
+            background: var(--surface-2) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        }
+        .CodeMirror-hint {
+            color: var(--text) !important;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            padding: 4px 10px;
+        }
+        .CodeMirror-hint-active { background: var(--accent-dim) !important; color: var(--accent) !important; }
+        /* Make the editor container same size as textarea was */
+        #cmEditor { background: var(--surface); border: none; }
+        .editor-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 7px 18px;
+            border-top: 1px solid var(--border);
+            background: var(--surface-2);
+        }
+        .editor-hint { font-size: 10px; color: var(--text-dim); }
+        kbd {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            background: var(--surface-3);
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            padding: 1px 4px;
+            color: var(--text-dim);
+        }
+
+        /* ── Prefill banner ── */
+        .prefill-banner {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px 14px;
+            background: rgba(240, 168, 48, 0.07);
+            border: 1px solid rgba(240, 168, 48, 0.25);
+            border-radius: 8px;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        .prefill-banner-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+        .prefill-banner-text { color: var(--text-dim); }
+        .prefill-banner-text strong { color: var(--accent); }
+
+        /* ── Tabs ── */
+        .tab-bar {
+            display: flex;
+            gap: 0;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface-2);
+            flex-shrink: 0;
+        }
+        .tab-btn {
+            padding: 10px 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-dim);
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-family: 'Space Grotesk', sans-serif;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .tab-btn:hover { color: var(--text); background: rgba(255,255,255,0.02); }
+        .tab-btn.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+        .tab-count {
+            font-size: 10px;
+            background: var(--surface-3);
+            border-radius: 8px;
+            padding: 1px 6px;
+            min-width: 18px;
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* ── Results panel ── */
+        .results-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            flex: 1;
+            min-height: 240px;
+            display: flex;
+            flex-direction: column;
+        }
+        .results-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 18px 0 0;
+            flex-shrink: 0;
+        }
+        .results-meta {
+            font-size: 11px;
+            color: var(--text-dim);
+            font-family: 'JetBrains Mono', monospace;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .tab-content {
+            flex: 1;
+            overflow: auto;
+            display: none;
+        }
+        .tab-content.active { display: block; }
+        .results-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 48px 24px;
+            color: var(--text-dim);
+            font-size: 13px;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .results-placeholder-icon { font-size: 28px; }
+
+        /* ── Results table ── */
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .results-table th {
+            text-align: left;
+            padding: 8px 12px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            color: var(--text-dim);
+            background: var(--surface-2);
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+            cursor: pointer;
+            user-select: none;
+        }
+        .results-table th:hover { color: var(--text); }
+        .sort-arrow { font-size: 9px; margin-left: 3px; opacity: 0.5; }
+        .results-table td {
+            padding: 6px 12px;
+            border-bottom: 1px solid rgba(42,42,48,0.7);
+            color: var(--text);
+            max-width: 400px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .results-table tr:last-child td { border-bottom: none; }
+        .results-table tr:hover td { background: rgba(255,255,255,0.025); }
+        .td-null { color: var(--text-dim); font-style: italic; }
+        .td-num { color: var(--cyan); }
+
+        /* ── Explain plan ── */
+        .plan-output {
+            padding: 16px 18px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            white-space: pre;
+            color: var(--text);
+            overflow-x: auto;
+        }
+        .plan-output .plan-header { color: var(--cyan); font-weight: 600; }
+        .plan-output .plan-separator { color: var(--border); }
+
+        /* ── History table ── */
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        .history-table th {
+            text-align: left;
+            padding: 8px 12px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-dim);
+            background: var(--surface-2);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+        }
+        .history-table td {
+            padding: 7px 12px;
+            border-bottom: 1px solid rgba(42,42,48,0.5);
+            color: var(--text);
+            font-size: 12px;
+        }
+        .history-table tr { cursor: pointer; }
+        .history-table tr:hover td { background: rgba(255,255,255,0.03); }
+        .history-sql {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            max-width: 600px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .badge-ok { color: var(--green); font-size: 10px; font-weight: 600; }
+        .badge-fail { color: var(--red); font-size: 10px; font-weight: 600; }
+
+        /* ── Status messages ── */
+        .results-error {
+            margin: 16px;
+            padding: 12px 16px;
+            background: rgba(248,113,113,0.08);
+            border: 1px solid rgba(248,113,113,0.25);
+            border-radius: 8px;
+            color: var(--red);
+            font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            line-height: 1.5;
+        }
+        .results-success {
+            margin: 16px;
+            padding: 12px 16px;
+            background: rgba(52,211,153,0.08);
+            border: 1px solid rgba(52,211,153,0.25);
+            border-radius: 8px;
+            color: var(--green);
+            font-size: 13px;
+        }
+        .results-running {
+            padding: 32px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text-dim);
+            font-size: 13px;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .spinner-sm {
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            flex-shrink: 0;
+        }
+
+        /* ── Safety notice ── */
+        .safety-notice {
+            font-size: 10px;
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-left: auto;
+        }
+        .safety-notice::before {
+            content: "⚠";
+            color: var(--yellow);
+            font-size: 11px;
+        }
+
+        /* ── Starter hint ── */
+        .starter-hint {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px 16px;
+            background: rgba(251,191,36,0.05);
+            border: 1px solid rgba(251,191,36,0.18);
+            border-radius: 8px;
+            font-size: 12px;
+            color: var(--text-dim);
+            line-height: 1.55;
+            margin-top: -4px;
+        }
+        .starter-hint-icon {
+            font-size: 15px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .starter-hint-title {
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .starter-hint code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            background: var(--surface-3);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1px 5px;
+            color: var(--text);
+            display: block;
+            margin: 4px 0;
+            white-space: pre;
+        }
+        .starter-hint-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+            color: var(--yellow);
+            background: rgba(251,191,36,0.12);
+            border: 1px solid rgba(251,191,36,0.25);
+            border-radius: 4px;
+            padding: 2px 7px;
+            flex-shrink: 0;
+        }
+        .starter-hint-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 6px;
+        }
+        .starter-hint-actions .btn-run-small {
+            font-size: 10px;
+            font-weight: 600;
+            color: #000;
+            background: var(--accent);
+            border: none;
+            border-radius: 5px;
+            padding: 4px 10px;
+            cursor: pointer;
+            font-family: 'Space Grotesk', sans-serif;
+            transition: all 0.15s;
+        }
+        .starter-hint-actions .btn-run-small:hover { background: #d4921e; }
+        .starter-hint-actions .hint-kbd {
+            font-size: 10px;
+            color: var(--text-dim);
+        }
+
+        @media (max-width: 700px) {
+            .console-layout { padding: 14px; }
+            .tab-btn { padding: 8px 12px; font-size: 11px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="nav-root"></div>
+
+    <div class="console-layout">
+
+        <!-- Connection selector -->
+        <div class="conn-bar">
+            <label>Connection</label>
+            <select class="conn-select" id="connSelect" onchange="onConnChange()">
+                <option value="">— Select connection —</option>
+            </select>
+            <span class="conn-status idle" id="connStatus">No connection</span>
+            <div class="safety-notice">Review before running — changes are immediate</div>
+        </div>
+
+        <!-- Pre-fill notice -->
+        <div class="prefill-banner" id="prefillBanner" style="display:none">
+            <span class="prefill-banner-icon">⚡</span>
+            <div class="prefill-banner-text">
+                <strong>Pre-filled from health check finding.</strong>
+                Review the SQL carefully before running.
+            </div>
+        </div>
+
+        <!-- SQL Editor -->
+        <div class="editor-panel">
+            <div class="editor-header">
+                <div style="display:flex;align-items:center;gap:8px">
+                    <div class="editor-title">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                        SQL Editor
+                    </div>
+                    <span class="starter-hint-label" id="readonlyBadge" title="This tool only executes SELECT/EXPLAIN queries — INSERT/UPDATE/DELETE are blocked">
+                        🔒 Read-only · SELECT only
+                    </span>
+                </div>
+                <div class="editor-actions">
+                    <button class="btn-sm" id="copyBtn" onclick="copySql()" title="Copy SQL to clipboard">📋 Copy</button>
+                    <button class="btn-sm" onclick="clearEditor()">Clear</button>
+                    <button class="btn-explain" id="explainBtn" onclick="explainSql()" title="Show execution plan">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                        Explain
+                    </button>
+                    <button class="btn-run" id="runBtn" onclick="runSql()">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        Run
+                    </button>
+                </div>
+            </div>
+            <div id="cmEditor"></div>
+            <textarea class="sql-editor" id="sqlEditor" style="display:none"
+                placeholder="-- Enter SQL here&#10;-- Ctrl+Enter to run · Ctrl+E for explain plan&#10;-- SELECT, ALTER SYSTEM, ALTER DATABASE..."></textarea>
+            <div class="editor-footer">
+                <div class="editor-hint">
+                    <kbd>Ctrl</kbd>+<kbd>Enter</kbd> run &nbsp;·&nbsp;
+                    <kbd>Ctrl</kbd>+<kbd>E</kbd> explain &nbsp;·&nbsp;
+                    <kbd>Ctrl</kbd>+<kbd>L</kbd> clear
+                </div>
+            </div>
+        </div>
+
+        <!-- First-time user starter hint -->
+        <div class="starter-hint" id="starterHint">
+            <span class="starter-hint-icon">💡</span>
+            <div style="flex:1">
+                <div class="starter-hint-title">
+                    <span>Try a sample query</span>
+                    <span class="starter-hint-label">SELECT only</span>
+                </div>
+                <p style="margin:0 0 6px">This is a read-only query tool — only SELECT/EXPLAIN queries are allowed. DDL and DML statements are blocked.</p>
+                <code id="sampleQuery">SELECT table_name, num_rows, last_analyzed
+FROM user_tables
+ORDER BY num_rows DESC FETCH FIRST 20 ROWS ONLY;</code>
+                <div class="starter-hint-actions">
+                    <button class="btn-run-small" onclick="runSampleQuery()">▶ Try it</button>
+                    <span class="hint-kbd"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> to run</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results panel with tabs -->
+        <div class="results-panel">
+            <div class="results-header">
+                <div class="tab-bar">
+                    <button class="tab-btn active" data-tab="results" onclick="switchTab('results')">
+                        📊 Results <span class="tab-count" id="resultsCount">—</span>
+                    </button>
+                    <button class="tab-btn" data-tab="explain" onclick="switchTab('explain')">
+                        📐 Explain Plan
+                    </button>
+                    <button class="tab-btn" data-tab="history" onclick="switchTab('history')">
+                        🕐 History <span class="tab-count" id="historyCount">—</span>
+                    </button>
+                </div>
+                <div class="results-meta" id="resultsMeta">
+                    <button class="btn-sm" id="exportCsvBtn" onclick="exportCsv()" style="display:none">⬇ CSV</button>
+                </div>
+            </div>
+
+            <!-- Results tab -->
+            <div class="tab-content active" id="tab-results">
+                <div class="results-placeholder">
+                    <span class="results-placeholder-icon">📊</span>
+                    <span>Run a query to see results here</span>
+                </div>
+            </div>
+
+            <!-- Explain Plan tab -->
+            <div class="tab-content" id="tab-explain">
+                <div class="results-placeholder">
+                    <span class="results-placeholder-icon">📐</span>
+                    <span>Click <strong>Explain</strong> to see the execution plan</span>
+                </div>
+            </div>
+
+            <!-- History tab -->
+            <div class="tab-content" id="tab-history">
+                <div class="results-placeholder" id="historyPlaceholder">
+                    <span class="results-placeholder-icon">🕐</span>
+                    <span>Select a connection to view query history</span>
+                </div>
+                <div id="historyContent" style="display:none"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="/connection-state.js"></script>
+    <script src="/nav-component.js"></script>
+    <script>window.tvNav.init('db-ops');</script>
+    <script src="/tunebot.js"></script>
+    <script>
+    // ─── Auth helpers ─────────────────────────────────────────────────────────
+    const COOKIE_NAME = 'tv_session';
+    function getCookie(name) {
+        const v = document.cookie.split(';').map(c => c.trim());
+        for (const c of v) {
+            if (c.startsWith(name + '=')) return c.slice(name.length + 1);
+        }
+        return null;
+    }
+    function authHeaders() {
+        const token = getCookie(COOKIE_NAME);
+        return token ? { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+                     : { 'Content-Type': 'application/json' };
+    }
+    async function authFetch(url, opts = {}) {
+        opts.headers = Object.assign({}, authHeaders(), opts.headers || {});
+        return fetch(url, opts);
+    }
+
+    // ─── State ────────────────────────────────────────────────────────────────
+    let _connections = [];
+    let _running     = false;
+    let _lastResult  = null; // { rows, cols } for CSV export
+    let _sortCol     = null;
+    let _sortAsc     = true;
+    let _cm          = null; // CodeMirror editor instance
+    let _hasRunFirstQuery = false; // hides starter hint after first run
+
+    // ─── Init: CodeMirror + read URL params ───────────────────────────────────
+    const _params    = new URLSearchParams(window.location.search);
+    const _initConnId = _params.get('connection') || (typeof tvConn !== 'undefined' ? tvConn.load() : null);
+    const _initSql   = _params.get('sql') ? decodeURIComponent(_params.get('sql')) : null;
+    const _fromHC    = !!_params.get('sql');
+
+    function initEditor(prefill) {
+        const ta = document.getElementById('sqlEditor');
+        _cm = CodeMirror(document.getElementById('cmEditor'), {
+            value:         ta.value || '',
+            mode:          'text/x-sql',
+            theme:         'default',
+            lineNumbers:   false,
+            lineWrapping:  true,
+            indentUnit:    4,
+            tabSize:       4,
+            indentWithTabs: false,
+            autofocus:     true,
+            extraKeys: {
+                'Ctrl-Enter': runSql,
+                'Ctrl-E':     explainSql,
+                'Ctrl-L':     clearEditor,
+                'Tab':        function(cm) {
+                    var sel = cm.listSelections()[0];
+                    if (sel && sel.head.ch === sel.anchor.ch && sel.head.line === sel.anchor.line && sel.head.ch === 0) {
+                        cm.execCommand('insertSoftTab');
+                    } else {
+                        cm.replaceSelection('    ', 'end');
+                    }
+                },
+                'Up':   function(cm) {
+                    if (cm.getCursor().ch === 0 && cm.getCursor().line === 0) {
+                        cm.setCursor(cm.lastLine(), cm.getLine(cm.lastLine()).length);
+                        e && e.preventDefault();
+                    }
+                },
+                'Ctrl-Up': cycleHistory(-1),
+                'Ctrl-U': cycleHistory(-1),
+            },
+            hintOptions: { completeSingle: false },
+        });
+
+        if (prefill && prefill.length) {
+            document.getElementById('prefillBanner').style.display = 'flex';
+            _cm.setValue(prefill);
+        }
+
+        // Mirror content back to hidden textarea for form compatibility
+        _cm.on('change', function() { ta.value = _cm.getValue(); });
+        ta.value = _cm.getValue();
+
+        // Wire Tab key (extraKeys 'Tab' above handles indent; prevent focus jump)
+        _cm.getWrapperElement().addEventListener('keydown', function(e) {
+            if (e.key === 'Tab') {
+                // Tab handled by CodeMirror extraKeys, stop propagation
+                e.stopPropagation();
+            }
+        });
+    }
+
+    initEditor(_initSql);
+
+    // Hide starter hint if SQL was pre-filled from health check
+    if (_fromHC) {
+        const hint = document.getElementById('starterHint');
+        if (hint) hint.style.display = 'none';
+    }
+
+    function runSampleQuery() {
+        const sample = document.getElementById('sampleQuery').textContent;
+        setEditorSql(sample);
+        focusEditor();
+        runSql();
+    }
+
+    // Expose getValue for other functions
+    function getEditorSql() { return _cm ? _cm.getValue() : document.getElementById('sqlEditor').value; }
+    function setEditorSql(sql) { if (_cm) _cm.setValue(sql || ''); else document.getElementById('sqlEditor').value = sql || ''; }
+    function focusEditor() { if (_cm) _cm.focus(); }
+
+    // ─── Tab switching ────────────────────────────────────────────────────────
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+        document.getElementById(`tab-${tabId}`).classList.add('active');
+
+        // Load history on tab activation
+        if (tabId === 'history') loadHistory();
+    }
+
+    // ─── Load connections ─────────────────────────────────────────────────────
+    async function loadConnections() {
+        try {
+            const res = await authFetch('/api/connections');
+            if (!res.ok) {
+                if (res.status === 401) {
+                    window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
+                    return;
+                }
+                throw new Error('Failed to load connections');
+            }
+            const data = await res.json();
+            _connections = typeof tvConn !== 'undefined' ? tvConn.parseList(data) : (Array.isArray(data) ? data : data.connections || []);
+            populateConnSelect();
+        } catch (err) {
+            console.warn('[sql-console] Failed to load connections:', err.message);
+        }
+    }
+
+    function populateConnSelect() {
+        const sel = document.getElementById('connSelect');
+        sel.innerHTML = '<option value="">— Select connection —</option>';
+        _connections.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.name || (c.host + '/' + c.service_name);
+            if (String(c.id) === String(_initConnId)) opt.selected = true;
+            sel.appendChild(opt);
+        });
+        onConnChange();
+    }
+
+    function onConnChange() {
+        const sel = document.getElementById('connSelect');
+        const statusEl = document.getElementById('connStatus');
+        if (sel.value) {
+            statusEl.textContent = 'Ready';
+            statusEl.className = 'conn-status ok';
+            if (typeof tvConn !== 'undefined') tvConn.save(sel.value);
+        } else {
+            statusEl.textContent = 'No connection';
+            statusEl.className = 'conn-status idle';
+        }
+    }
+
+    // ─── Keyboard shortcuts ───────────────────────────────────────────────────
+    // Ctrl+Enter/Ctrl+E/Ctrl+L handled by CodeMirror extraKeys above.
+    // Tab indent handled by CodeMirror. Up-arrow history handled in extraKeys.
+    // (Keyboard shortcuts now go through CodeMirror's extraKeys map)
+
+    let _historyIdx = -1;
+    let _historyCache = [];
+    function cycleHistory(dir) {
+        if (!_historyCache.length) return;
+        _historyIdx = Math.max(0, Math.min(_historyCache.length - 1, _historyIdx - dir));
+        setEditorSql(_historyCache[_historyIdx].sql_text || '');
+        if (_cm) _cm.focus();
+    }
+
+    // ─── Run SQL ──────────────────────────────────────────────────────────────
+    async function runSql() {
+        if (_running) return;
+        const sel = document.getElementById('connSelect');
+        const sql = getEditorSql().trim();
+        const tab = document.getElementById('tab-results');
+        const meta = document.getElementById('resultsMeta');
+        const runBtn = document.getElementById('runBtn');
+        const exportBtn = document.getElementById('exportCsvBtn');
+
+        if (!sel.value) { showError(tab, 'Select a connection first.'); return; }
+        if (!sql) { showError(tab, 'Enter a SQL statement to run.'); return; }
+
+        _running = true;
+        runBtn.disabled = true;
+        runBtn.innerHTML = '<div class="spinner-sm"></div> Running…';
+        switchTab('results');
+
+        tab.innerHTML = '<div class="results-running"><div class="spinner-sm"></div><span>Executing query…</span></div>';
+        meta.querySelector('#exportCsvBtn').style.display = 'none';
+        document.getElementById('resultsCount').textContent = '…';
+
+        const t0 = Date.now();
+
+        try {
+            const res = await authFetch('/api/sql-console/run', {
+                method: 'POST',
+                body: JSON.stringify({ connection_id: parseInt(sel.value, 10), sql })
+            });
+
+            const data = await res.json();
+            const elapsed = Date.now() - t0;
+
+            if (!res.ok || data.error) {
+                tab.innerHTML = `<div class="results-error">${esc(data.error || 'Query failed')}</div>`;
+                document.getElementById('resultsCount').textContent = '✗';
+            } else if (data.rows && data.cols) {
+                _lastResult = { rows: data.rows, cols: data.cols };
+                _sortCol = null;
+                renderTable(tab, data.rows, data.cols);
+                document.getElementById('resultsCount').textContent = data.rows.length;
+                exportBtn.style.display = 'inline-flex';
+            } else if (data.rowsAffected !== undefined) {
+                tab.innerHTML = `<div class="results-success">✓ ${data.rowsAffected} row${data.rowsAffected !== 1 ? 's' : ''} affected.</div>`;
+                document.getElementById('resultsCount').textContent = data.rowsAffected;
+                _lastResult = null;
+            } else {
+                tab.innerHTML = `<div class="results-success">✓ Statement executed successfully.</div>`;
+                document.getElementById('resultsCount').textContent = '✓';
+                _lastResult = null;
+            }
+        } catch (err) {
+            tab.innerHTML = `<div class="results-error">Network error: ${esc(err.message)}</div>`;
+            document.getElementById('resultsCount').textContent = '✗';
+        }
+
+        _running = false;
+        runBtn.disabled = false;
+
+        // Hide starter hint after first query run
+        if (!_hasRunFirstQuery) {
+            _hasRunFirstQuery = true;
+            const hint = document.getElementById('starterHint');
+            if (hint) hint.style.display = 'none';
+        }
+        runBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> Run';
+    }
+
+    // ─── Explain Plan ─────────────────────────────────────────────────────────
+    async function explainSql() {
+        if (_running) return;
+        const sel = document.getElementById('connSelect');
+        const sql = getEditorSql().trim();
+        const tab = document.getElementById('tab-explain');
+        const explainBtn = document.getElementById('explainBtn');
+
+        if (!sel.value) { showError(tab, 'Select a connection first.'); switchTab('explain'); return; }
+        if (!sql) { showError(tab, 'Enter a SQL statement.'); switchTab('explain'); return; }
+
+        _running = true;
+        explainBtn.disabled = true;
+        switchTab('explain');
+        tab.innerHTML = '<div class="results-running"><div class="spinner-sm"></div><span>Generating explain plan…</span></div>';
+
+        try {
+            const res = await authFetch('/api/sql-console/explain', {
+                method: 'POST',
+                body: JSON.stringify({ connection_id: parseInt(sel.value, 10), sql })
+            });
+            const data = await res.json();
+
+            if (!res.ok || data.error) {
+                tab.innerHTML = `<div class="results-error">${esc(data.error || 'Explain plan failed')}</div>`;
+            } else if (data.plan && data.plan.length) {
+                let html = '<div class="plan-output">';
+                data.plan.forEach(line => {
+                    if (line.startsWith('---') || line.startsWith('===')) {
+                        html += `<span class="plan-separator">${esc(line)}</span>\n`;
+                    } else if (line.startsWith('Plan hash') || line.startsWith('PLAN_TABLE_OUTPUT') || line.includes('Id') && line.includes('Operation')) {
+                        html += `<span class="plan-header">${esc(line)}</span>\n`;
+                    } else {
+                        html += esc(line) + '\n';
+                    }
+                });
+                html += '</div>';
+                tab.innerHTML = html;
+            } else {
+                tab.innerHTML = '<div class="results-placeholder"><span>No plan output returned.</span></div>';
+            }
+        } catch (err) {
+            tab.innerHTML = `<div class="results-error">Network error: ${esc(err.message)}</div>`;
+        }
+
+        _running = false;
+        explainBtn.disabled = false;
+    }
+
+    // ─── Render results table (sortable) ──────────────────────────────────────
+    function renderTable(container, rows, cols) {
+        if (!rows.length) {
+            container.innerHTML = '<div class="results-placeholder"><span class="results-placeholder-icon">✅</span><span>Query returned 0 rows.</span></div>';
+            return;
+        }
+        let html = '<table class="results-table"><thead><tr>';
+        cols.forEach(col => {
+            const arrow = _sortCol === col ? (_sortAsc ? ' ▲' : ' ▼') : '';
+            html += `<th onclick="sortResults('${esc(col)}')" title="${esc(col)}">${esc(col)}<span class="sort-arrow">${arrow}</span></th>`;
+        });
+        html += '</tr></thead><tbody>';
+        rows.forEach(row => {
+            html += '<tr>';
+            cols.forEach(col => {
+                const val = row[col];
+                if (val === null || val === undefined) {
+                    html += '<td class="td-null">NULL</td>';
+                } else {
+                    const s = String(val);
+                    const isNum = typeof val === 'number';
+                    const cls = isNum ? ' class="td-num"' : '';
+                    html += `<td${cls} title="${esc(s)}">${esc(s.length > 120 ? s.substring(0, 120) + '…' : s)}</td>`;
+                }
+            });
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    }
+
+    function sortResults(col) {
+        if (!_lastResult) return;
+        if (_sortCol === col) {
+            _sortAsc = !_sortAsc;
+        } else {
+            _sortCol = col;
+            _sortAsc = true;
+        }
+        const sorted = [..._lastResult.rows].sort((a, b) => {
+            const va = a[col], vb = b[col];
+            if (va === null || va === undefined) return 1;
+            if (vb === null || vb === undefined) return -1;
+            if (typeof va === 'number' && typeof vb === 'number') return _sortAsc ? va - vb : vb - va;
+            return _sortAsc ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+        });
+        renderTable(document.getElementById('tab-results'), sorted, _lastResult.cols);
+    }
+
+    // ─── History ──────────────────────────────────────────────────────────────
+    async function loadHistory() {
+        const connId = document.getElementById('connSelect').value;
+        const placeholder = document.getElementById('historyPlaceholder');
+        const content = document.getElementById('historyContent');
+
+        if (!connId) {
+            placeholder.style.display = 'flex';
+            content.style.display = 'none';
+            return;
+        }
+
+        try {
+            const res = await authFetch(`/api/sql-console/history?connection_id=${connId}&limit=50`);
+            if (!res.ok) throw new Error('Failed');
+            const data = await res.json();
+            const entries = data.entries || [];
+            _historyCache = entries;
+            _historyIdx = -1;
+
+            document.getElementById('historyCount').textContent = entries.length;
+
+            if (!entries.length) {
+                placeholder.innerHTML = '<span class="results-placeholder-icon">🕐</span><span>No query history for this connection yet.</span>';
+                placeholder.style.display = 'flex';
+                content.style.display = 'none';
+                return;
+            }
+
+            placeholder.style.display = 'none';
+            content.style.display = 'block';
+
+            let html = '<table class="history-table"><thead><tr><th>Time</th><th>SQL</th><th>Rows</th><th>Time (ms)</th><th>Status</th></tr></thead><tbody>';
+            entries.forEach(e => {
+                const time = e.executed_at ? new Date(e.executed_at).toLocaleString() : '—';
+                const sqlShort = (e.sql_text || '').substring(0, 100);
+                const badge = e.success ? '<span class="badge-ok">OK</span>' : '<span class="badge-fail">ERR</span>';
+                html += `<tr onclick="loadFromHistory('${esc(btoa(unescape(encodeURIComponent(e.sql_text || ''))))}')">
+                    <td style="white-space:nowrap;font-size:11px;color:var(--text-dim)">${time}</td>
+                    <td class="history-sql" title="${esc(e.sql_text || '')}">${esc(sqlShort)}</td>
+                    <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${e.rows_returned ?? '—'}</td>
+                    <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${e.elapsed_ms ?? '—'}</td>
+                    <td>${badge}</td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            content.innerHTML = html;
+        } catch (err) {
+            placeholder.innerHTML = '<span class="results-placeholder-icon">⚠️</span><span>Failed to load history.</span>';
+            placeholder.style.display = 'flex';
+            content.style.display = 'none';
+        }
+    }
+
+    function loadFromHistory(b64sql) {
+        try {
+            const sql = decodeURIComponent(escape(atob(b64sql)));
+            setEditorSql(sql);
+            switchTab('results');
+            focusEditor();
+        } catch (_) {}
+    }
+
+    // ─── Export CSV ───────────────────────────────────────────────────────────
+    async function exportCsv() {
+        if (!_lastResult || !_lastResult.rows || !_lastResult.cols) return;
+
+        try {
+            const res = await authFetch('/api/sql-console/export', {
+                method: 'POST',
+                body: JSON.stringify({ rows: _lastResult.rows, cols: _lastResult.cols, format: 'csv' })
+            });
+            if (!res.ok) throw new Error('Export failed');
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'query-results.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            alert('Export failed: ' + err.message);
+        }
+    }
+
+    // ─── Utils ────────────────────────────────────────────────────────────────
+    function clearEditor() {
+        setEditorSql('');
+        focusEditor();
+    }
+
+    function copySql() {
+        const sql = getEditorSql();
+        if (!sql.trim()) return;
+        navigator.clipboard.writeText(sql).then(() => {
+            const btn = document.getElementById('copyBtn');
+            const orig = btn.textContent;
+            btn.textContent = '✓ Copied';
+            btn.style.color = 'var(--green)';
+            setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 1500);
+        });
+    }
+
+    function showError(container, msg) {
+        container.innerHTML = `<div class="results-error">⚠ ${esc(msg)}</div>`;
+    }
+
+    function esc(s) {
+        const d = document.createElement('div');
+        d.textContent = String(s || '');
+        return d.innerHTML;
+    }
+
+    // ─── Bootstrap ────────────────────────────────────────────────────────────
+    loadConnections();
+    </script>
+</body>
+</html>

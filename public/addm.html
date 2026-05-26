@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ADDM Analysis — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <script src="/nav-component.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    :root{
+      --bg:#0a0a0c;--surface:#111114;--surface-2:#1a1a1f;--border:#2a2a30;
+      --text:#e8e8ed;--text-dim:#b8b8c8;
+      --accent:#f0a830;--accent-dim:rgba(240,168,48,0.12);
+      --green:#34d399;--green-dim:rgba(52,211,153,0.12);
+      --red:#f87171;--red-dim:rgba(248,113,113,0.12);
+      --yellow:#fbbf24;--yellow-dim:rgba(251,191,36,0.12);
+      --blue:#60a5fa;--blue-dim:rgba(96,165,250,0.12);
+      --amber:#f59e0b;--amber-dim:rgba(245,158,11,0.12);
+      --purple:#a78bfa;--purple-dim:rgba(167,139,250,0.12);
+      --indigo:#818cf8;--indigo-dim:rgba(129,140,248,0.12);
+    }
+    body{font-family:'Space Grotesk',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh;overflow-x:hidden;}
+    .grain{position:fixed;top:0;left:0;width:100vw;height:100vh;overflow:hidden;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");pointer-events:none;z-index:999;}
+
+    /* Layout */
+    .page-wrapper{max-width:1300px;margin:0 auto;padding:48px 48px 80px;}
+    .page-header{padding:36px 0 0;display:flex;align-items:flex-start;justify-content:space-between;gap:24px;flex-wrap:wrap;}
+    .page-header h1{font-size:24px;font-weight:700;letter-spacing:-0.5px;display:flex;align-items:center;gap:10px;}
+    .page-header p{margin-top:6px;color:var(--text-dim);font-size:14px;max-width:620px;}
+    .header-badge{display:inline-flex;align-items:center;gap:6px;background:var(--indigo-dim);color:var(--indigo);border:1px solid rgba(129,140,248,0.2);border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;}
+    .header-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+
+    /* Connection bar */
+    .conn-bar{display:flex;align-items:center;gap:12px;margin-top:20px;flex-wrap:wrap;}
+    .conn-bar label{font-size:13px;color:var(--text-dim);white-space:nowrap;}
+    .conn-select{background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 12px;font-size:13px;font-family:inherit;min-width:220px;cursor:pointer;outline:none;}
+    .conn-select:focus{border-color:var(--accent);}
+
+    /* Buttons */
+    .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;border:none;transition:all 0.18s;}
+    .btn-primary{background:var(--indigo);color:#fff;}
+    .btn-primary:hover{opacity:0.88;}
+    .btn-primary:disabled{opacity:0.45;cursor:not-allowed;}
+    .btn-secondary{background:var(--surface-2);color:var(--text);border:1px solid var(--border);}
+    .btn-secondary:hover{background:var(--border);}
+    .btn-sm{padding:5px 12px;font-size:12px;}
+
+    /* Tabs */
+    .tab-row{display:flex;align-items:center;gap:4px;border-bottom:1px solid var(--border);margin-top:28px;overflow-x:auto;}
+    .tab{padding:10px 16px;font-size:13px;font-weight:600;color:var(--text-dim);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:color 0.18s,border-color 0.18s;background:none;border-top:none;border-left:none;border-right:none;font-family:inherit;}
+    .tab:hover{color:var(--text);}
+    .tab.active{color:var(--indigo);border-bottom-color:var(--indigo);}
+
+    /* Run ADDM modal */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);z-index:200;display:flex;align-items:center;justify-content:center;padding:24px;}
+    .modal-overlay.hidden{display:none;}
+    .modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;}
+    .modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 16px;border-bottom:1px solid var(--border);}
+    .modal-title{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px;}
+    .modal-close{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:18px;padding:4px;line-height:1;}
+    .modal-close:hover{color:var(--text);}
+    .modal-body{padding:20px 24px;}
+    .modal-footer{display:flex;align-items:center;gap:10px;justify-content:flex-end;padding:16px 24px;border-top:1px solid var(--border);}
+
+    /* Form fields */
+    .form-group{margin-bottom:18px;}
+    .form-label{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);margin-bottom:8px;display:block;}
+    .form-hint{font-size:12px;color:var(--text-dim);margin-top:5px;}
+    .preset-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+    .preset-btn{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;color:var(--text-dim);cursor:pointer;font-family:inherit;text-align:left;transition:all 0.18s;}
+    .preset-btn:hover{border-color:var(--indigo);color:var(--text);}
+    .preset-btn.selected{border-color:var(--indigo);color:var(--indigo);background:var(--indigo-dim);}
+    .snap-select{background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 12px;font-size:13px;font-family:'JetBrains Mono',monospace;width:100%;cursor:pointer;outline:none;}
+    .snap-select:focus{border-color:var(--indigo);}
+    .container-select{background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 12px;font-size:13px;font-family:inherit;width:100%;cursor:pointer;outline:none;}
+    .container-select:focus{border-color:var(--indigo);}
+    .divider{border:none;border-top:1px solid var(--border);margin:16px 0;}
+    .mode-toggle{display:flex;gap:6px;margin-bottom:12px;}
+    .mode-btn{flex:1;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;border:1px solid var(--border);background:var(--surface-2);color:var(--text-dim);transition:all 0.18s;}
+    .mode-btn.active{background:var(--indigo-dim);border-color:var(--indigo);color:var(--indigo);}
+
+    /* Spinner section */
+    .running-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:32px;margin-top:24px;text-align:center;}
+    .running-card.hidden{display:none;}
+    .spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--indigo);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .running-title{font-size:15px;font-weight:700;margin-bottom:4px;}
+    .running-elapsed{font-size:13px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;}
+
+    /* Results */
+    .results-section{margin-top:24px;}
+    .results-section.hidden{display:none;}
+    .results-meta{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;}
+    .meta-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-top:12px;}
+    .meta-item{background:var(--surface-2);border-radius:8px;padding:10px 14px;}
+    .meta-label{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;font-weight:600;}
+    .meta-value{font-size:15px;font-weight:700;margin-top:2px;font-family:'JetBrains Mono',monospace;}
+
+    /* Findings */
+    .finding-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:10px;}
+    .finding-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;cursor:pointer;gap:12px;}
+    .finding-header:hover{background:var(--surface-2);}
+    .finding-left{display:flex;align-items:center;gap:12px;min-width:0;}
+    .severity-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+    .severity-dot.critical{background:var(--red);}
+    .severity-dot.warning{background:var(--yellow);}
+    .severity-dot.info{background:var(--blue);}
+    .finding-name{font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .finding-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+    .impact-badge{font-size:12px;font-weight:700;padding:2px 8px;border-radius:5px;font-family:'JetBrains Mono',monospace;}
+    .impact-badge.critical{background:var(--red-dim);color:var(--red);}
+    .impact-badge.warning{background:var(--yellow-dim);color:var(--yellow);}
+    .impact-badge.info{background:var(--blue-dim);color:var(--blue);}
+    .chevron{font-size:12px;color:var(--text-dim);transition:transform 0.2s;}
+    .finding-body{padding:0 18px 18px;border-top:1px solid var(--border);display:none;}
+    .finding-body.open{display:block;}
+    .finding-message{font-size:13px;color:var(--text-dim);line-height:1.6;margin-top:12px;}
+    .rec-list{margin-top:14px;}
+    .rec-item{background:var(--surface-2);border-radius:8px;padding:10px 14px;margin-bottom:8px;}
+    .rec-type{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--accent);margin-bottom:4px;}
+    .rec-msg{font-size:13px;color:var(--text-dim);line-height:1.55;}
+    .action-sql{background:#0d0d10;border:1px solid var(--border);border-radius:6px;padding:8px 12px;margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--green);word-break:break-all;white-space:pre-wrap;}
+
+    /* AI Commentary */
+    .ai-card{background:linear-gradient(135deg,rgba(129,140,248,0.08) 0%,rgba(240,168,48,0.04) 100%);border:1px solid rgba(129,140,248,0.25);border-radius:12px;padding:20px;margin-bottom:16px;}
+    .ai-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--indigo);margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+    .ai-text{font-size:14px;line-height:1.7;color:var(--text);white-space:pre-wrap;}
+
+    /* Idle state */
+    .idle-card{background:var(--amber-dim);border:1px solid rgba(245,158,11,0.3);border-radius:12px;padding:24px;margin-bottom:16px;}
+    .idle-icon{font-size:22px;margin-bottom:10px;}
+    .idle-title{font-size:15px;font-weight:700;color:var(--amber);margin-bottom:6px;}
+    .idle-body{font-size:13px;color:var(--text-dim);line-height:1.65;}
+
+    /* Not licensed */
+    .unlicensed-card{background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:24px;margin-top:24px;}
+    .unlicensed-title{font-size:15px;font-weight:700;margin-bottom:8px;}
+    .unlicensed-body{font-size:13px;color:var(--text-dim);line-height:1.65;}
+    .grant-sql-block{background:#0d0d10;border:1px solid var(--border);border-radius:6px;padding:10px 14px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--yellow);margin-top:10px;}
+
+    /* Raw report toggle */
+    .raw-toggle{margin-top:16px;}
+    .raw-toggle-btn{background:none;border:none;color:var(--indigo);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;padding:0;}
+    .raw-toggle-btn:hover{text-decoration:underline;}
+    .raw-report{background:#0d0d10;border:1px solid var(--border);border-radius:8px;padding:16px;margin-top:10px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.7;color:#ccc;white-space:pre-wrap;word-break:break-all;max-height:400px;overflow-y:auto;display:none;}
+    .raw-report.open{display:block;}
+
+    /* History tab */
+    .history-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:16px;}
+    .history-table th{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);padding:8px 12px;text-align:left;border-bottom:1px solid var(--border);}
+    .history-table td{padding:10px 12px;border-bottom:1px solid rgba(42,42,48,0.5);vertical-align:top;}
+    .history-table tr:hover td{background:var(--surface-2);}
+    .history-table tr.clickable{cursor:pointer;}
+    .tag{display:inline-flex;align-items:center;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;}
+    .tag-critical{background:var(--red-dim);color:var(--red);}
+    .tag-warning{background:var(--yellow-dim);color:var(--yellow);}
+    .tag-info{background:var(--blue-dim);color:var(--blue);}
+    .tag-idle{background:var(--amber-dim);color:var(--amber);}
+    .tag-ok{background:var(--green-dim);color:var(--green);}
+    .mono{font-family:'JetBrains Mono',monospace;}
+
+    /* States */
+    .state-panel{padding:40px 24px;text-align:center;color:var(--text-dim);}
+    .state-icon{font-size:32px;margin-bottom:12px;}
+    .state-title{font-size:15px;font-weight:600;margin-bottom:6px;color:var(--text);}
+    .state-body{font-size:13px;line-height:1.6;}
+
+    /* Notification toast */
+    .toast{position:fixed;bottom:24px;right:24px;z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 18px;font-size:13px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.4);transform:translateY(20px);opacity:0;transition:all 0.25s;pointer-events:none;}
+    .toast.visible{transform:translateY(0);opacity:1;}
+    .toast.success{border-color:var(--green);color:var(--green);}
+    .toast.error{border-color:var(--red);color:var(--red);}
+
+    @media(max-width:768px){
+      nav{padding:12px 20px;}
+      .page-wrapper{padding:48px 20px 60px;}
+      .preset-grid{grid-template-columns:1fr;}
+    }
+  </style>
+</head>
+<body>
+<div class="grain"></div>
+
+<div id="nav-root"></div>
+
+<div class="page-wrapper">
+  <div class="page-header">
+    <div>
+      <h1>
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="16" height="16" rx="3" stroke="var(--indigo)" stroke-width="1.5"/><path d="M7 14l2.5-3.5L12 13l3-5" stroke="var(--indigo)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        ADDM Analysis
+        <span class="header-badge">EE + Diagnostics Pack</span>
+      </h1>
+      <p>Run Oracle's Automatic Database Diagnostic Monitor natively from your browser. Pick a snapshot range, execute, and see findings in under 60 seconds.</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-primary" id="run-addm-btn" disabled onclick="openRunModal()">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polygon points="3,2 11,7 3,12" fill="currentColor"/></svg>
+        Run ADDM
+      </button>
+    </div>
+  </div>
+
+  <!-- Connection selector -->
+  <div class="conn-bar">
+    <label for="conn-select">Connection:</label>
+    <select class="conn-select" id="conn-select" onchange="onConnectionChange()">
+      <option value="">— select a connection —</option>
+    </select>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-row">
+    <button class="tab active" onclick="showTab('results')" id="tab-results">Results</button>
+    <button class="tab" onclick="showTab('history')" id="tab-history">History</button>
+  </div>
+
+  <!-- RESULTS TAB -->
+  <div id="panel-results">
+    <!-- Running spinner -->
+    <div class="running-card hidden" id="running-card">
+      <div class="spinner"></div>
+      <div class="running-title">Running ADDM analysis…</div>
+      <div class="running-elapsed" id="running-elapsed">0s elapsed</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:6px;">Takes 5–30 seconds on most databases</div>
+    </div>
+
+    <!-- Idle placeholder (no run yet) -->
+    <div id="state-idle" style="margin-top:24px;">
+      <div class="state-panel">
+        <div class="state-icon">📊</div>
+        <div class="state-title">Select a connection and click "Run ADDM"</div>
+        <div class="state-body">Choose a snapshot range or use a quick preset.<br>Results appear inline — no sqlplus required.</div>
+      </div>
+    </div>
+
+    <!-- Actual results -->
+    <div class="results-section hidden" id="results-section">
+      <!-- Not licensed -->
+      <div id="unlicensed-panel" class="unlicensed-card hidden">
+        <div class="unlicensed-title">⚠️ ADDM Not Available</div>
+        <div class="unlicensed-body" id="unlicensed-reason"></div>
+      </div>
+
+      <!-- Licensed + has findings or idle -->
+      <div id="licensed-panel">
+        <!-- Analysis metadata -->
+        <div class="results-meta" id="results-meta">
+          <div style="font-size:13px;font-weight:700;margin-bottom:4px;">Analysis Period</div>
+          <div class="meta-grid" id="meta-grid"></div>
+        </div>
+
+        <!-- Idle / no findings card -->
+        <div id="idle-card" class="idle-card hidden">
+          <div class="idle-icon">🟡</div>
+          <div class="idle-title">No significant activity detected</div>
+          <div class="idle-body" id="idle-body">The analysis window was idle. ADDM only surfaces issues when there's measurable workload to diagnose.</div>
+        </div>
+
+        <!-- AI Commentary -->
+        <div id="ai-card" class="ai-card hidden">
+          <div class="ai-label">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="var(--indigo)" stroke-width="1.5"/><path d="M5 7.5l1.5 1.5L9.5 5" stroke="var(--indigo)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            AI Commentary
+          </div>
+          <div class="ai-text" id="ai-text"></div>
+        </div>
+
+        <!-- Findings list -->
+        <div id="findings-list"></div>
+
+        <!-- Missing privilege notice -->
+        <div id="priv-card" class="unlicensed-card hidden" style="margin-top:16px;">
+          <div class="unlicensed-title">🔑 Missing ADVISOR Privilege</div>
+          <div class="unlicensed-body">The database user lacks the ADVISOR privilege required to create and execute ADDM tasks. Run the following as SYSDBA:</div>
+          <div class="grant-sql-block" id="grant-sql"></div>
+        </div>
+
+        <!-- Raw report toggle -->
+        <div class="raw-toggle" id="raw-toggle" style="display:none;">
+          <button class="raw-toggle-btn" onclick="toggleRaw()">▶ View raw Oracle report</button>
+          <div class="raw-report" id="raw-report"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY TAB -->
+  <div id="panel-history" style="display:none;margin-top:24px;">
+    <div id="history-state-idle" class="state-panel">
+      <div class="state-icon">🗂</div>
+      <div class="state-title">No runs yet</div>
+      <div class="state-body">Run ADDM for the selected connection to see history here.</div>
+    </div>
+    <div id="history-state-loading" class="state-panel hidden">
+      <div class="spinner" style="margin:0 auto 8px;width:28px;height:28px;border-width:2px;"></div>
+      <div style="font-size:13px;color:var(--text-dim);">Loading history…</div>
+    </div>
+    <div id="history-table-wrap" style="display:none;">
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th>Date / Time</th>
+            <th>Snaps</th>
+            <th>Container</th>
+            <th>Findings</th>
+            <th>Status</th>
+            <th>Duration</th>
+          </tr>
+        </thead>
+        <tbody id="history-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div><!-- /page-wrapper -->
+
+<!-- Run ADDM Modal -->
+<div class="modal-overlay hidden" id="run-modal-overlay" onclick="handleModalClick(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><polygon points="3,2 13,8 3,14" fill="var(--indigo)"/></svg>
+        Run ADDM
+      </div>
+      <button class="modal-close" onclick="closeRunModal()">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Snapshot range mode toggle -->
+      <div class="form-group">
+        <label class="form-label">Snapshot range</label>
+        <div class="mode-toggle">
+          <button class="mode-btn active" id="mode-preset" onclick="setMode('preset')">Quick presets</button>
+          <button class="mode-btn" id="mode-manual" onclick="setMode('manual')">Manual snap IDs</button>
+        </div>
+      </div>
+
+      <!-- Preset grid -->
+      <div id="preset-panel" class="form-group">
+        <div class="preset-grid">
+          <button class="preset-btn selected" id="preset-last_1h"  onclick="selectPreset('last_1h')">Last 1 hour</button>
+          <button class="preset-btn"           id="preset-last_4h"  onclick="selectPreset('last_4h')">Last 4 hours</button>
+          <button class="preset-btn"           id="preset-last_24h" onclick="selectPreset('last_24h')">Last 24 hours</button>
+          <button class="preset-btn"           id="preset-last_bounce" onclick="selectPreset('last_bounce')">Since last bounce</button>
+        </div>
+        <div class="form-hint">Snaps are resolved automatically from DBA_HIST_SNAPSHOT.</div>
+      </div>
+
+      <!-- Manual snap IDs -->
+      <div id="manual-panel" class="form-group" style="display:none;">
+        <div id="snap-loading" style="font-size:13px;color:var(--text-dim);display:flex;align-items:center;gap:8px;">
+          <div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>Loading snapshots…
+        </div>
+        <div id="snap-pickers" style="display:none;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div>
+              <label class="form-label">Begin snapshot</label>
+              <select class="snap-select" id="begin-snap-select"></select>
+            </div>
+            <div>
+              <label class="form-label">End snapshot</label>
+              <select class="snap-select" id="end-snap-select"></select>
+            </div>
+          </div>
+        </div>
+        <div id="snap-error" style="display:none;font-size:13px;color:var(--red);margin-top:6px;"></div>
+        <div class="form-hint" style="margin-top:6px;">Showing last 48 AWR snapshots from DBA_HIST_SNAPSHOT.</div>
+      </div>
+
+      <hr class="divider">
+
+      <!-- Container picker (shown for multitenant DBs) -->
+      <div class="form-group" id="container-group">
+        <label class="form-label">Container</label>
+        <select class="container-select" id="container-select">
+          <option value="">— auto (current session container) —</option>
+        </select>
+        <div class="form-hint">For CDB installations: CDB$ROOT runs as SYSDBA across all PDBs. Default uses the container your connection lands in.</div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeRunModal()">Cancel</button>
+      <button class="btn btn-primary" id="modal-run-btn" onclick="executeRun()">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polygon points="3,2 11,7 3,12" fill="currentColor"/></svg>
+        Run Analysis
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+// ── State ─────────────────────────────────────────────────────────────────────
+var _connId     = null;
+var _mode       = 'preset';   // 'preset' | 'manual'
+var _preset     = 'last_1h';
+var _beginSnap  = null;
+var _endSnap    = null;
+var _snapshots  = [];
+var _containers = [];
+var _runStart   = null;
+var _timerInterval = null;
+var _currentRunId  = null;
+var _activeTab  = 'results';
+var _rawReport  = null;
+
+// ── Auth helpers ──────────────────────────────────────────────────────────────
+function authHeaders() {
+  var cookies = document.cookie.split(';').reduce(function(acc, c) {
+    var p = c.trim().split('='); acc[decodeURIComponent(p[0])] = decodeURIComponent(p[1]||''); return acc;
+  }, {});
+  var token = cookies['tv_session'];
+  return token ? { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  window.tvNav.init('dashboard');
+  var params = new URLSearchParams(window.location.search);
+  var preselect = params.get('conn') ? parseInt(params.get('conn')) : null;
+  loadConnections(preselect);
+});
+
+function loadConnections(preselect) {
+  fetch('/api/connections', { headers: authHeaders() })
+    .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+    .then(function(data) {
+      var sel = document.getElementById('conn-select');
+      var conns = data.connections || data || [];
+      conns.forEach(function(c) {
+        var opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.name || (c.host + ':' + (c.port||1521) + '/' + c.service_name);
+        sel.appendChild(opt);
+      });
+      if (preselect) {
+        sel.value = preselect;
+        onConnectionChange();
+      }
+    })
+    .catch(function() {
+      // Non-critical — user can still select a connection if the list fails
+    });
+}
+
+function onConnectionChange() {
+  var sel = document.getElementById('conn-select');
+  _connId = sel.value ? parseInt(sel.value) : null;
+  document.getElementById('run-addm-btn').disabled = !_connId;
+  // Reset results panel
+  document.getElementById('state-idle').style.display = 'block';
+  document.getElementById('results-section').classList.add('hidden');
+  // Reload history if that tab is open
+  if (_activeTab === 'history' && _connId) loadHistory();
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function showTab(name) {
+  _activeTab = name;
+  ['results','history'].forEach(function(t) {
+    document.getElementById('tab-' + t).classList.toggle('active', t === name);
+    document.getElementById('panel-' + t).style.display = t === name ? 'block' : 'none';
+  });
+  if (name === 'history' && _connId) loadHistory();
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+function openRunModal() {
+  if (!_connId) return;
+  document.getElementById('run-modal-overlay').classList.remove('hidden');
+  if (_mode === 'manual' && _snapshots.length === 0) fetchSnapshots();
+}
+
+function closeRunModal() {
+  document.getElementById('run-modal-overlay').classList.add('hidden');
+}
+
+function handleModalClick(e) {
+  if (e.target === document.getElementById('run-modal-overlay')) closeRunModal();
+}
+
+// ── Mode toggle ───────────────────────────────────────────────────────────────
+function setMode(m) {
+  _mode = m;
+  document.getElementById('mode-preset').classList.toggle('active', m === 'preset');
+  document.getElementById('mode-manual').classList.toggle('active', m === 'manual');
+  document.getElementById('preset-panel').style.display  = m === 'preset'  ? 'block' : 'none';
+  document.getElementById('manual-panel').style.display  = m === 'manual'  ? 'block' : 'none';
+  if (m === 'manual' && _snapshots.length === 0) fetchSnapshots();
+}
+
+// ── Preset ────────────────────────────────────────────────────────────────────
+function selectPreset(p) {
+  _preset = p;
+  ['last_1h','last_4h','last_24h','last_bounce'].forEach(function(x) {
+    document.getElementById('preset-' + x).classList.toggle('selected', x === p);
+  });
+}
+
+// ── Snapshot picker ───────────────────────────────────────────────────────────
+function fetchSnapshots() {
+  if (!_connId) return;
+  document.getElementById('snap-loading').style.display = 'flex';
+  document.getElementById('snap-pickers').style.display = 'none';
+  document.getElementById('snap-error').style.display   = 'none';
+
+  fetch('/api/connections/' + _connId + '/addm/snapshots', { headers: authHeaders() })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      _snapshots  = data.snapshots  || [];
+      _containers = data.containers || [];
+
+      document.getElementById('snap-loading').style.display = 'none';
+
+      if (data.proxy_outdated) {
+        document.getElementById('snap-error').style.display  = 'block';
+        document.getElementById('snap-error').textContent    = 'Proxy agent is outdated — snapshot list unavailable. Use a quick preset or upgrade the proxy.';
+        return;
+      }
+
+      if (_snapshots.length === 0) {
+        document.getElementById('snap-error').style.display  = 'block';
+        document.getElementById('snap-error').textContent    = 'No AWR snapshots found. AWR snapshots are created automatically by Oracle (default every 1 hour). Wait for the next snapshot or check the AWR retention policy.';
+        return;
+      }
+
+      var beginSel = document.getElementById('begin-snap-select');
+      var endSel   = document.getElementById('end-snap-select');
+      beginSel.innerHTML = '';
+      endSel.innerHTML   = '';
+
+      _snapshots.forEach(function(s, i) {
+        var label = 'Snap ' + s.snap_id + ' — ' + fmtSnapTime(s.begin_interval_time) + (s.container ? ' [' + s.container + ']' : '');
+        var optB = document.createElement('option');
+        optB.value = s.snap_id;
+        optB.textContent = label;
+        var optE = document.createElement('option');
+        optE.value = s.snap_id;
+        optE.textContent = label;
+        beginSel.appendChild(optB);
+        endSel.appendChild(optE);
+      });
+
+      // Default: begin = second-to-last, end = last
+      if (_snapshots.length >= 2) {
+        beginSel.value = _snapshots[1].snap_id;
+        endSel.value   = _snapshots[0].snap_id;
+      } else {
+        beginSel.value = endSel.value = _snapshots[0].snap_id;
+      }
+
+      document.getElementById('snap-pickers').style.display = 'grid';
+
+      // Populate container picker
+      populateContainers();
+    })
+    .catch(function(e) {
+      document.getElementById('snap-loading').style.display = 'none';
+      document.getElementById('snap-error').style.display   = 'block';
+      document.getElementById('snap-error').textContent     = 'Failed to load snapshots: ' + e.message;
+    });
+}
+
+function populateContainers() {
+  var sel = document.getElementById('container-select');
+  sel.innerHTML = '<option value="">— auto (current session container) —</option>';
+  (_containers || []).forEach(function(c) {
+    if (c.name === 'CDB$ROOT' || c.open_mode === 'READ WRITE') {
+      var opt = document.createElement('option');
+      opt.value = c.name;
+      opt.textContent = c.name + (c.name === 'CDB$ROOT' ? ' (root)' : '');
+      sel.appendChild(opt);
+    }
+  });
+  document.getElementById('container-group').style.display = _containers.length > 1 ? 'block' : 'none';
+}
+
+function fmtSnapTime(t) {
+  if (!t) return '—';
+  try {
+    return new Date(t).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  } catch(e) { return String(t).slice(0, 16); }
+}
+
+// ── Execute run ───────────────────────────────────────────────────────────────
+function executeRun() {
+  if (!_connId) return;
+
+  var body = {};
+
+  if (_mode === 'preset') {
+    body.preset = _preset;
+  } else {
+    var beginVal = parseInt(document.getElementById('begin-snap-select').value);
+    var endVal   = parseInt(document.getElementById('end-snap-select').value);
+    if (!beginVal || !endVal) { showToast('Select begin and end snapshots', 'error'); return; }
+    if (beginVal >= endVal)   { showToast('Begin snap must be before end snap', 'error'); return; }
+    body.begin_snap = beginVal;
+    body.end_snap   = endVal;
+  }
+
+  var container = document.getElementById('container-select').value;
+  if (container) body.container = container;
+
+  closeRunModal();
+  startRunUI();
+
+  fetch('/api/connections/' + _connId + '/addm/run', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(body),
+  })
+  .then(function(r) {
+    return r.json().then(function(d) { return { ok: r.ok, status: r.status, data: d }; });
+  })
+  .then(function(res) {
+    stopRunTimer();
+    if (!res.ok) {
+      renderError(res.data.error || 'Run failed');
+    } else {
+      renderResult(res.data);
+    }
+  })
+  .catch(function(e) {
+    stopRunTimer();
+    renderError('Network error: ' + e.message);
+  });
+}
+
+// ── Run UI lifecycle ──────────────────────────────────────────────────────────
+function startRunUI() {
+  _runStart = Date.now();
+  document.getElementById('state-idle').style.display  = 'none';
+  document.getElementById('results-section').classList.add('hidden');
+  document.getElementById('running-card').classList.remove('hidden');
+  document.getElementById('run-addm-btn').disabled = true;
+
+  _timerInterval = setInterval(function() {
+    var secs = Math.floor((Date.now() - _runStart) / 1000);
+    document.getElementById('running-elapsed').textContent = secs + 's elapsed';
+  }, 500);
+}
+
+function stopRunTimer() {
+  clearInterval(_timerInterval);
+  document.getElementById('running-card').classList.add('hidden');
+  document.getElementById('run-addm-btn').disabled = false;
+}
+
+// ── Render result ─────────────────────────────────────────────────────────────
+function renderResult(data) {
+  document.getElementById('state-idle').style.display = 'none';
+  var section = document.getElementById('results-section');
+  section.classList.remove('hidden');
+
+  var unlicPanel = document.getElementById('unlicensed-panel');
+  var licPanel   = document.getElementById('licensed-panel');
+
+  if (!data.licensed) {
+    unlicPanel.classList.remove('hidden');
+    licPanel.style.display = 'none';
+    document.getElementById('unlicensed-reason').textContent = data.not_licensed_reason || 'License check failed.';
+    return;
+  }
+
+  unlicPanel.classList.add('hidden');
+  licPanel.style.display = 'block';
+
+  // Check for missing privilege error
+  var privCard = document.getElementById('priv-card');
+  if (data.missing_privilege) {
+    privCard.classList.remove('hidden');
+    document.getElementById('grant-sql').textContent = data.grant_sql || 'GRANT ADVISOR TO <user>;';
+    document.getElementById('findings-list').innerHTML = '';
+    document.getElementById('ai-card').classList.add('hidden');
+    document.getElementById('idle-card').classList.add('hidden');
+    document.getElementById('results-meta').style.display = 'none';
+    renderRawReport(null);
+    showToast('Missing ADVISOR privilege — see grant SQL below', 'error');
+    return;
+  }
+  privCard.classList.add('hidden');
+
+  // Metadata grid
+  document.getElementById('results-meta').style.display = 'block';
+  var metaItems = [];
+  metaItems.push({ label: 'Task', value: data.task_name || (data.task_id ? '#' + data.task_id : '—') });
+  if (data.begin_snap_time) metaItems.push({ label: 'Begin', value: fmtSnapTime(data.begin_snap_time) });
+  if (data.end_snap_time)   metaItems.push({ label: 'End',   value: fmtSnapTime(data.end_snap_time)   });
+  if (data.begin_snap || data.begin_snap_id) metaItems.push({ label: 'Snap range', value: (data.begin_snap || data.begin_snap_id) + ' → ' + (data.end_snap || data.end_snap_id) });
+  if (data.db_time_seconds  != null) metaItems.push({ label: 'DB Time',  value: data.db_time_seconds.toFixed(1) + 's' });
+  if (data.avg_active_sessions != null) metaItems.push({ label: 'Avg Active Sessions', value: data.avg_active_sessions.toFixed(2) });
+  if (data.container) metaItems.push({ label: 'Container', value: data.container });
+  if (data.run_info && data.run_info.total_ms) metaItems.push({ label: 'Analysis time', value: Math.round(data.run_info.total_ms / 1000) + 's' });
+
+  var grid = document.getElementById('meta-grid');
+  grid.innerHTML = metaItems.map(function(m) {
+    return '<div class="meta-item"><div class="meta-label">' + esc(m.label) + '</div><div class="meta-value">' + esc(String(m.value)) + '</div></div>';
+  }).join('');
+
+  var findings = data.findings || [];
+  var isIdle = data.is_idle || findings.length === 0;
+
+  // Idle card
+  var idleCard = document.getElementById('idle-card');
+  if (isIdle) {
+    idleCard.classList.remove('hidden');
+    var idleMsg = data.no_findings_reason || 'The analysis window showed no significant database activity. ADDM only surfaces issues when there\'s measurable workload to diagnose. Try re-running during peak hours or widening the snapshot range.';
+    document.getElementById('idle-body').textContent = idleMsg;
+  } else {
+    idleCard.classList.add('hidden');
+  }
+
+  // AI commentary
+  var aiCard = document.getElementById('ai-card');
+  if (data.ai_commentary) {
+    aiCard.classList.remove('hidden');
+    document.getElementById('ai-text').textContent = data.ai_commentary;
+  } else {
+    aiCard.classList.add('hidden');
+  }
+
+  // Findings
+  renderFindings(findings);
+
+  // Raw report
+  renderRawReport(data.raw_report_text);
+
+  // Store run id for history refresh
+  _currentRunId = data.run_id;
+
+  var critCount = findings.filter(function(f) { return f.severity === 'critical'; }).length;
+  var warnCount = findings.filter(function(f) { return f.severity === 'warning';  }).length;
+  if (isIdle) {
+    showToast('Analysis complete — no findings (idle window)', 'success');
+  } else {
+    showToast('Analysis complete — ' + findings.length + ' finding' + (findings.length !== 1 ? 's' : '') + (critCount ? ' · ' + critCount + ' critical' : '') + (warnCount ? ' · ' + warnCount + ' warning' : ''), 'success');
+  }
+}
+
+function renderError(msg) {
+  document.getElementById('state-idle').style.display = 'none';
+  var section = document.getElementById('results-section');
+  section.classList.remove('hidden');
+  document.getElementById('unlicensed-panel').classList.remove('hidden');
+  document.getElementById('licensed-panel').style.display = 'none';
+  document.getElementById('unlicensed-reason').innerHTML = '<strong style="color:var(--red)">Run failed:</strong> ' + esc(msg);
+  showToast('ADDM run failed — see details', 'error');
+}
+
+// ── Findings rendering ────────────────────────────────────────────────────────
+function renderFindings(findings) {
+  var list = document.getElementById('findings-list');
+  if (!findings || findings.length === 0) {
+    list.innerHTML = '';
+    return;
+  }
+
+  list.innerHTML = findings.map(function(f, i) {
+    var sev = f.severity || 'info';
+    var recHtml = '';
+    if (f.recommendations && f.recommendations.length > 0) {
+      recHtml = '<div class="rec-list">' + f.recommendations.map(function(r) {
+        var actionsHtml = r.actions && r.actions.length > 0
+          ? r.actions.filter(function(a) { return a.attr1; }).map(function(a) {
+              return '<div class="action-sql">' + esc(a.attr1 + (a.attr2 ? ' ' + a.attr2 : '')) + '</div>';
+            }).join('')
+          : '';
+        return '<div class="rec-item"><div class="rec-type">' + esc(r.type) + (r.benefit_pct ? ' · ' + r.benefit_pct.toFixed(1) + '% benefit' : '') + '</div><div class="rec-msg">' + esc(r.message) + '</div>' + actionsHtml + '</div>';
+      }).join('') + '</div>';
+    }
+
+    return '<div class="finding-card">' +
+      '<div class="finding-header" onclick="toggleFinding(' + i + ')">' +
+        '<div class="finding-left">' +
+          '<div class="severity-dot ' + sev + '"></div>' +
+          '<div class="finding-name">' + esc(f.name || f.type || 'Finding') + '</div>' +
+        '</div>' +
+        '<div class="finding-right">' +
+          '<span class="impact-badge ' + sev + '">' + (f.impact_pct != null ? f.impact_pct.toFixed(1) + '%' : sev.toUpperCase()) + '</span>' +
+          '<span class="chevron" id="chev-' + i + '">▶</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="finding-body" id="fb-' + i + '">' +
+        '<div class="finding-message">' + esc(f.message || '') + '</div>' +
+        (f.sql_id ? '<div style="font-size:11px;color:var(--text-dim);margin-top:8px;font-family:monospace;">SQL ID: ' + esc(f.sql_id) + '</div>' : '') +
+        recHtml +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function toggleFinding(i) {
+  var body = document.getElementById('fb-' + i);
+  var chev = document.getElementById('chev-' + i);
+  if (!body) return;
+  var open = body.classList.toggle('open');
+  chev.textContent = open ? '▼' : '▶';
+}
+
+// ── Raw report ────────────────────────────────────────────────────────────────
+function renderRawReport(text) {
+  _rawReport = text;
+  var toggle = document.getElementById('raw-toggle');
+  var report = document.getElementById('raw-report');
+  if (text) {
+    toggle.style.display = 'block';
+    report.textContent = text;
+    report.classList.remove('open');
+    // Reset toggle button text
+    toggle.querySelector('.raw-toggle-btn').textContent = '▶ View raw Oracle report';
+  } else {
+    toggle.style.display = 'none';
+    report.classList.remove('open');
+  }
+}
+
+function toggleRaw() {
+  var report = document.getElementById('raw-report');
+  var btn    = document.querySelector('.raw-toggle-btn');
+  var open   = report.classList.toggle('open');
+  btn.textContent = open ? '▼ Hide raw report' : '▶ View raw Oracle report';
+}
+
+// ── History ───────────────────────────────────────────────────────────────────
+function loadHistory() {
+  if (!_connId) return;
+  document.getElementById('history-state-idle').style.display    = 'none';
+  document.getElementById('history-state-loading').classList.remove('hidden');
+  document.getElementById('history-table-wrap').style.display    = 'none';
+
+  fetch('/api/connections/' + _connId + '/addm/runs', { headers: authHeaders() })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      document.getElementById('history-state-loading').classList.add('hidden');
+      var runs = data.runs || [];
+      if (runs.length === 0) {
+        document.getElementById('history-state-idle').style.display = 'block';
+        return;
+      }
+
+      var tbody = document.getElementById('history-tbody');
+      tbody.innerHTML = runs.map(function(r) {
+        var critCount = (r.finding_count || 0);
+        var statusTag = r.run_error ? '<span class="tag tag-critical">Error</span>'
+          : r.is_idle ? '<span class="tag tag-idle">Idle</span>'
+          : critCount > 0 ? '<span class="tag tag-warning">' + critCount + ' findings</span>'
+          : '<span class="tag tag-ok">Clean</span>';
+        var snaps = (r.begin_snap_id && r.end_snap_id) ? r.begin_snap_id + ' → ' + r.end_snap_id : '—';
+        var dur   = r.total_ms ? Math.round(r.total_ms / 1000) + 's' : '—';
+        return '<tr class="clickable" onclick="loadRunDetail(' + r.id + ')">' +
+          '<td>' + esc(new Date(r.created_at).toLocaleString()) + '</td>' +
+          '<td class="mono">' + esc(snaps) + '</td>' +
+          '<td>' + esc(r.container || '—') + '</td>' +
+          '<td>' + esc(String(r.finding_count || 0)) + '</td>' +
+          '<td>' + statusTag + '</td>' +
+          '<td class="mono">' + esc(dur) + '</td>' +
+        '</tr>';
+      }).join('');
+
+      document.getElementById('history-table-wrap').style.display = 'block';
+    })
+    .catch(function() {
+      document.getElementById('history-state-loading').classList.add('hidden');
+      document.getElementById('history-state-idle').style.display = 'block';
+    });
+}
+
+function loadRunDetail(runId) {
+  showTab('results');
+  startRunUI();
+
+  fetch('/api/connections/' + _connId + '/addm/runs/' + runId, { headers: authHeaders() })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      stopRunTimer();
+      if (!data.run) { renderError('Run not found'); return; }
+      var run = data.run;
+      // Shape the run data to match the result shape
+      renderResult({
+        licensed:          true,
+        task_name:         run.task_name,
+        task_id:           run.task_id,
+        container:         run.container,
+        begin_snap:        run.begin_snap_id,
+        end_snap:          run.end_snap_id,
+        begin_snap_time:   run.begin_snap_time,
+        end_snap_time:     run.end_snap_time,
+        db_time_seconds:   run.db_time_seconds != null ? parseFloat(run.db_time_seconds) : null,
+        avg_active_sessions: run.avg_active_sessions != null ? parseFloat(run.avg_active_sessions) : null,
+        findings:          run.findings || [],
+        raw_report_text:   run.raw_report_text,
+        ai_commentary:     run.ai_commentary,
+        is_idle:           run.is_idle,
+        run_error:         run.run_error,
+        run_id:            run.id,
+        run_info:          run.total_ms ? { total_ms: run.total_ms } : null,
+      });
+    })
+    .catch(function(e) {
+      stopRunTimer();
+      renderError('Failed to load run: ' + e.message);
+    });
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg, type) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + (type || '');
+  t.classList.add('visible');
+  setTimeout(function() { t.classList.remove('visible'); }, 4000);
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

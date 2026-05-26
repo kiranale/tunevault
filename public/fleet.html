@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fleet Overview — TuneVault</title>
+  <meta name="description" content="Fleet overview — aggregate health status across all Oracle DB and EBS connections. Score distribution, critical findings, and last-run timestamps at a glance.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://tunevault.app/fleet">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c;
+      --surface: #111114;
+      --surface-2: #1a1a1f;
+      --border: #2a2a30;
+      --text: #e8e8ed;
+      --text-dim: #b8b8c8;
+      --accent: #f0a830;
+      --accent-dim: rgba(240, 168, 48, 0.12);
+      --green: #34d399;
+      --green-dim: rgba(52, 211, 153, 0.12);
+      --red: #f87171;
+      --red-dim: rgba(248, 113, 113, 0.12);
+      --yellow: #fbbf24;
+      --yellow-dim: rgba(251, 191, 36, 0.12);
+      --blue: #60a5fa;
+      --blue-dim: rgba(96, 165, 250, 0.12);
+    }
+    body {
+      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    .grain {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 999;
+    }
+
+    /* ── Nav ─────────────────────────────────────────────────── */
+    .nav-wrapper {
+      border-bottom: 1px solid var(--border);
+      background: rgba(10,10,12,0.95);
+      backdrop-filter: blur(12px);
+      position: sticky; top: 0; z-index: 9999;
+    }
+    #nav-root {
+      max-width: 1400px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 48px; gap: 16px;
+    }
+
+    /* ── Page layout ─────────────────────────────────────────── */
+    .page-wrapper { max-width: 1400px; margin: 0 auto; padding: 48px 48px 80px; }
+
+    /* ── Page header ─────────────────────────────────────────── */
+    .page-header { padding: 28px 0 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .page-title { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
+    .page-subtitle { color: var(--text-dim); font-size: 14px; margin-top: 4px; }
+
+    /* ── KPI strip ───────────────────────────────────────────── */
+    .kpi-strip {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+      margin: 20px 0;
+    }
+    .kpi-tile {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 16px 20px;
+      cursor: pointer; transition: border-color 0.2s, background 0.2s;
+      position: relative; overflow: hidden;
+    }
+    .kpi-tile:hover { border-color: var(--accent); background: var(--surface-2); }
+    .kpi-tile.active { border-color: var(--accent); background: var(--accent-dim); }
+    .kpi-tile.active-red { border-color: var(--red); background: var(--red-dim); }
+    .kpi-tile.active-stale { border-color: var(--yellow); background: var(--yellow-dim); }
+    .kpi-tile.active-ebs { border-color: var(--blue); background: var(--blue-dim); }
+    .kpi-label { font-size: 11px; font-weight: 600; letter-spacing: 0.8px; color: var(--text-dim); text-transform: uppercase; }
+    .kpi-value { font-size: 28px; font-weight: 700; margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
+    .kpi-tile.active .kpi-value { color: var(--accent); }
+    .kpi-tile.active-red .kpi-value { color: var(--red); }
+    .kpi-tile.active-stale .kpi-value { color: var(--yellow); }
+    .kpi-tile.active-ebs .kpi-value { color: var(--blue); }
+
+    /* ── Toolbar ─────────────────────────────────────────────── */
+    .toolbar {
+      display: flex; align-items: center; gap: 8px; margin: 0 0 16px;
+      flex-wrap: wrap;
+    }
+    .search-box {
+      flex: 1; min-width: 180px; max-width: 280px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 12px; color: var(--text);
+      font-size: 13px; font-family: inherit; outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-box:focus { border-color: var(--accent); }
+    .search-box::placeholder { color: var(--text-dim); }
+    .filter-btn {
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text-dim); border-radius: 7px; padding: 7px 14px;
+      font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit;
+      transition: all 0.18s; white-space: nowrap;
+    }
+    .filter-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.25); }
+    .filter-btn.on { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
+    .run-all-btn {
+      background: var(--accent); color: #0a0a0c; border: none;
+      border-radius: 8px; padding: 8px 18px; font-size: 13px;
+      font-weight: 700; cursor: pointer; font-family: inherit;
+      transition: opacity 0.2s; white-space: nowrap; margin-left: auto;
+    }
+    .run-all-btn:hover { opacity: 0.88; }
+    .run-all-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Table ───────────────────────────────────────────────── */
+    .table-wrap {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden;
+    }
+    .fleet-table { width: 100%; border-collapse: collapse; }
+    .fleet-table th {
+      text-align: left; font-size: 10px; font-weight: 700;
+      letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-dim);
+      padding: 10px 14px; border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+      cursor: pointer; user-select: none; white-space: nowrap;
+    }
+    .fleet-table th:hover { color: var(--text); }
+    .fleet-table th.sorted-asc::after { content: ' ▲'; font-size: 9px; }
+    .fleet-table th.sorted-desc::after { content: ' ▼'; font-size: 9px; }
+    .fleet-table td {
+      padding: 10px 14px; font-size: 13px;
+      border-bottom: 1px solid rgba(42,42,48,0.6);
+      vertical-align: middle;
+    }
+    .fleet-table tr:last-child td { border-bottom: none; }
+    .fleet-table tr { transition: background 0.12s; }
+    .fleet-table tr:hover td { background: rgba(255,255,255,0.025); }
+
+    /* ── Status pill ─────────────────────────────────────────── */
+    .status-pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 8px; border-radius: 100px; font-size: 11px; font-weight: 600;
+    }
+    .status-pill::before { content: ''; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .status-ok    { background: var(--green-dim); color: var(--green); }
+    .status-ok::before { background: var(--green); }
+    .status-amber { background: var(--yellow-dim); color: var(--yellow); }
+    .status-amber::before { background: var(--yellow); box-shadow: 0 0 4px var(--yellow); animation: pulse 2s infinite; }
+    .status-red   { background: var(--red-dim); color: var(--red); }
+    .status-red::before { background: var(--red); box-shadow: 0 0 4px var(--red); animation: pulse 1.5s infinite; }
+    .status-stale { background: rgba(136,136,160,0.12); color: var(--text-dim); }
+    .status-stale::before { background: var(--text-dim); }
+    .status-never { background: rgba(136,136,160,0.08); color: var(--text-dim); }
+    .status-never::before { background: rgba(136,136,160,0.4); }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* ── Env badge ───────────────────────────────────────────── */
+    .env-badge {
+      display: inline-block; padding: 2px 7px; border-radius: 4px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.5px; margin-left: 6px;
+    }
+    .env-PROD { background: rgba(248,113,113,0.15); color: var(--red); }
+    .env-UAT  { background: rgba(251,191,36,0.15); color: var(--yellow); }
+    .env-DEV  { background: rgba(96,165,250,0.15); color: var(--blue); }
+    .env-TEST { background: rgba(96,165,250,0.1); color: var(--blue); }
+    .env-STG  { background: rgba(167,139,250,0.15); color: #a78bfa; }
+
+    /* ── Finding cell ────────────────────────────────────────── */
+    .finding-truncated { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-dim); }
+    .finding-red { color: var(--red); }
+    .finding-amber { color: var(--yellow); }
+
+    /* ── Drift badge ─────────────────────────────────────────── */
+    .drift-cell { font-size: 12px; font-family: 'JetBrains Mono', monospace; white-space: nowrap; }
+    .drift-new  { color: var(--red); }
+    .drift-res  { color: var(--green); }
+    .drift-none { color: var(--text-dim); }
+
+    /* ── Count badges ────────────────────────────────────────── */
+    .count-badge {
+      display: inline-block; padding: 2px 7px; border-radius: 6px;
+      font-size: 11px; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+    }
+    .count-red   { background: var(--red-dim); color: var(--red); }
+    .count-amber { background: var(--yellow-dim); color: var(--yellow); }
+    .count-zero  { color: rgba(136,136,160,0.4); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+
+    /* ── Action buttons ──────────────────────────────────────── */
+    .action-btns { display: flex; align-items: center; gap: 6px; }
+    .action-btn {
+      padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;
+      border: 1px solid var(--border); background: none; cursor: pointer;
+      color: var(--text-dim); font-family: inherit; transition: all 0.18s; white-space: nowrap;
+    }
+    .action-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.3); }
+    .action-btn.run { border-color: var(--accent); color: var(--accent); }
+    .action-btn.run:hover { background: var(--accent); color: #0a0a0c; }
+    .action-btn.running { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Auto icon ───────────────────────────────────────────── */
+    .auto-on  { color: var(--green); font-size: 14px; }
+    .auto-off { color: rgba(136,136,160,0.3); font-size: 14px; }
+
+    /* ── Empty state ─────────────────────────────────────────── */
+    .empty-state {
+      text-align: center; padding: 60px 24px;
+      color: var(--text-dim);
+    }
+    .empty-icon { font-size: 40px; margin-bottom: 16px; }
+    .empty-title { font-size: 17px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+    .empty-desc { font-size: 14px; line-height: 1.7; max-width: 400px; margin: 0 auto 20px; }
+    .empty-cta {
+      display: inline-block; background: var(--accent); color: #0a0a0c;
+      padding: 10px 20px; border-radius: 8px; font-weight: 700;
+      font-size: 14px; text-decoration: none; transition: opacity 0.2s;
+    }
+    .empty-cta:hover { opacity: 0.88; }
+
+    /* ── Loading skeleton ────────────────────────────────────── */
+    .skeleton { animation: shimmer 1.4s infinite; }
+    @keyframes shimmer {
+      0%   { opacity: 0.4; }
+      50%  { opacity: 0.8; }
+      100% { opacity: 0.4; }
+    }
+    .skel-row td { padding: 14px; }
+    .skel-bar { height: 14px; background: var(--surface-2); border-radius: 4px; }
+
+    /* ── Modal overlay ───────────────────────────────────────── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 32px; max-width: 440px; width: 90%;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+    }
+    .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .modal-desc { color: var(--text-dim); font-size: 14px; line-height: 1.6; }
+    .modal-count { font-size: 32px; font-weight: 700; color: var(--accent); margin: 16px 0; font-family: 'JetBrains Mono', monospace; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 24px; }
+    .modal-confirm {
+      flex: 1; background: var(--accent); color: #0a0a0c; border: none;
+      border-radius: 8px; padding: 10px; font-size: 14px; font-weight: 700;
+      cursor: pointer; font-family: inherit; transition: opacity 0.2s;
+    }
+    .modal-confirm:hover { opacity: 0.88; }
+    .modal-cancel {
+      flex: 1; background: none; color: var(--text-dim); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px; font-size: 14px; cursor: pointer;
+      font-family: inherit; transition: all 0.18s;
+    }
+    .modal-cancel:hover { color: var(--text); border-color: rgba(255,255,255,0.3); }
+
+    /* ── Last check time ─────────────────────────────────────── */
+    .time-stale { color: var(--red); }
+    .time-ok { color: var(--text-dim); }
+    .time-none { color: rgba(136,136,160,0.4); font-style: italic; }
+
+    /* ── EBS pill ────────────────────────────────────────────── */
+    .ebs-yes { color: var(--blue); font-size: 12px; font-weight: 600; }
+    .ebs-no  { color: rgba(136,136,160,0.3); font-size: 12px; }
+
+    /* ── Mobile card view ────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .page-wrapper { padding: 48px 16px 60px; }
+      #nav-root { padding: 12px 16px; }
+      .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+      .table-wrap { display: none; }
+      .cards-view { display: block; }
+      .run-all-btn { margin-left: 0; }
+    }
+    @media (min-width: 769px) {
+      .cards-view { display: none; }
+    }
+
+    /* ── Mobile cards ────────────────────────────────────────── */
+    .fleet-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px; margin-bottom: 10px;
+    }
+    .fleet-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .fleet-card-name { font-size: 15px; font-weight: 600; }
+    .fleet-card-body { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; }
+    .fleet-card-field { color: var(--text-dim); font-size: 10px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 2px; }
+    .fleet-card-val { color: var(--text); font-size: 13px; }
+    .fleet-card-actions { display: flex; gap: 8px; margin-top: 14px; }
+    .fleet-card-actions .action-btn { flex: 1; text-align: center; }
+  </style>
+</head>
+<body>
+<div class="grain"></div>
+
+<div class="nav-wrapper">
+  <nav id="nav-root"></nav>
+</div>
+<script src="/adop-banner.js"></script>
+
+<div class="page-wrapper">
+  <!-- ADOP patch-cycle banner — fleet mode, shown when any connection is patching -->
+  <div id="adopBannerRoot" style="display:none;"></div>
+  <!-- Page header -->
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Fleet Overview</h1>
+      <p class="page-subtitle" id="subtitle">All Oracle connections — single-pane status</p>
+    </div>
+    <button class="run-all-btn" id="runAllBtn" disabled>⚡ Run All</button>
+  </div>
+
+  <!-- KPI strip -->
+  <div class="kpi-strip" id="kpiStrip">
+    <div class="kpi-tile" data-filter="all" onclick="setKpiFilter('all', this)">
+      <div class="kpi-label">Total DBs</div>
+      <div class="kpi-value skeleton" id="kpiTotal">—</div>
+    </div>
+    <div class="kpi-tile" data-filter="red" onclick="setKpiFilter('red', this)">
+      <div class="kpi-label">Red Right Now</div>
+      <div class="kpi-value skeleton" id="kpiRed">—</div>
+    </div>
+    <div class="kpi-tile" data-filter="stale" onclick="setKpiFilter('stale', this)">
+      <div class="kpi-label">Stale (&gt;24h)</div>
+      <div class="kpi-value skeleton" id="kpiStale">—</div>
+    </div>
+    <div class="kpi-tile" data-filter="ebs" onclick="setKpiFilter('ebs', this)">
+      <div class="kpi-label">EBS Instances</div>
+      <div class="kpi-value skeleton" id="kpiEbs">—</div>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <input type="text" class="search-box" id="searchBox" placeholder="🔍 Search connections…" oninput="applyFilters()">
+    <button class="filter-btn" id="fAll"   onclick="setEnvFilter('all')">All</button>
+    <button class="filter-btn" id="fPROD"  onclick="setEnvFilter('PROD')">PROD</button>
+    <button class="filter-btn" id="fUAT"   onclick="setEnvFilter('UAT')">UAT</button>
+    <button class="filter-btn" id="fDEV"   onclick="setEnvFilter('DEV')">DEV</button>
+    <button class="filter-btn" id="fEBS"   onclick="toggleFilter('ebs')">EBS only</button>
+    <button class="filter-btn" id="fAuto"  onclick="toggleFilter('auto')">Auto on</button>
+    <button class="run-all-btn" id="runAllBtn2" onclick="openRunAllModal()" disabled>⚡ Run All</button>
+  </div>
+
+  <!-- Desktop table -->
+  <div class="table-wrap" id="tableWrap">
+    <table class="fleet-table" id="fleetTable">
+      <thead>
+        <tr>
+          <th onclick="sortBy('name')">Name</th>
+          <th onclick="sortBy('db_version')">Version</th>
+          <th onclick="sortBy('ebs')">EBS</th>
+          <th onclick="sortBy('last_check_at')">Last Check</th>
+          <th onclick="sortBy('status')">Status</th>
+          <th onclick="sortBy('red_count')">🔴</th>
+          <th onclick="sortBy('amber_count')">🟡</th>
+          <th>Top Finding</th>
+          <th onclick="sortBy('drift')">Δ Since Last</th>
+          <th onclick="sortBy('autonomous_enabled')">Auto</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        <tr class="skel-row skeleton"><td><div class="skel-bar" style="width:140px"></div></td><td><div class="skel-bar" style="width:60px"></div></td><td><div class="skel-bar" style="width:30px"></div></td><td><div class="skel-bar" style="width:80px"></div></td><td><div class="skel-bar" style="width:60px"></div></td><td><div class="skel-bar" style="width:20px"></div></td><td><div class="skel-bar" style="width:20px"></div></td><td><div class="skel-bar" style="width:160px"></div></td><td><div class="skel-bar" style="width:80px"></div></td><td><div class="skel-bar" style="width:20px"></div></td><td><div class="skel-bar" style="width:100px"></div></td></tr>
+        <tr class="skel-row skeleton"><td><div class="skel-bar" style="width:120px"></div></td><td><div class="skel-bar" style="width:50px"></div></td><td><div class="skel-bar" style="width:30px"></div></td><td><div class="skel-bar" style="width:70px"></div></td><td><div class="skel-bar" style="width:60px"></div></td><td><div class="skel-bar" style="width:20px"></div></td><td><div class="skel-bar" style="width:20px"></div></td><td><div class="skel-bar" style="width:140px"></div></td><td><div class="skel-bar" style="width:60px"></div></td><td><div class="skel-bar" style="width:20px"></div></td><td><div class="skel-bar" style="width:100px"></div></td></tr>
+        <tr class="skel-row skeleton"><td><div class="skel-bar" style="width:160px"></div></td><td><div class="skel-bar" style="width:55px"></div></td><td><div class="skel-bar" style="width:30px"></div></td><td><div class="skel-bar" style="width:90px"></div></td><td><div class="skel-bar" style="width:60px"></div></td><td><div class="skel-bar" style="width:20px"></div></td><td><div class="skel-bar" style="width:20px"></div></td><td><div class="skel-bar" style="width:180px"></div></td><td><div class="skel-bar" style="width:70px"></div></td><td><div class="skel-bar" style="width:20px"></div></td><td><div class="skel-bar" style="width:100px"></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Mobile cards -->
+  <div class="cards-view" id="cardsView"></div>
+</div>
+
+<!-- Run-all confirm modal -->
+<div class="modal-overlay" id="runAllModal">
+  <div class="modal">
+    <div class="modal-title">Run checks on all visible connections?</div>
+    <div class="modal-desc">This will kick off health checks in parallel for all filtered connections.</div>
+    <div class="modal-count" id="runAllCount">0</div>
+    <div class="modal-desc" id="runAllNames" style="font-size:12px;max-height:120px;overflow-y:auto;"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeRunAllModal()">Cancel</button>
+      <button class="modal-confirm" onclick="confirmRunAll()">Run All ⚡</button>
+    </div>
+  </div>
+</div>
+
+<script src="/nav-component.js"></script>
+<script>
+(function() {
+  // ── State ──────────────────────────────────────────────────────────────────
+  var allConnections = [];
+  var filteredConnections = [];
+  var sortField = 'red_count';
+  var sortDir   = 'desc';
+  var envFilter = 'all';
+  var filterEbs  = false;
+  var filterAuto = false;
+  var kpiFilter  = 'all'; // all | red | stale | ebs
+
+  // ── Nav init ───────────────────────────────────────────────────────────────
+  window.tvNav.init('fleet');
+
+  // ── Load fleet data ────────────────────────────────────────────────────────
+  fetch('/api/fleet/overview', { credentials: 'include' })
+    .then(function(r) {
+      if (r.status === 401) { window.location.href = '/login?redirect=/fleet'; return null; }
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(data) {
+      if (!data) return;
+      allConnections = data.connections || [];
+      renderKpis();
+      applyFilters();
+    })
+    .catch(function(err) {
+      console.error('[fleet] load error:', err);
+      document.getElementById('tableBody').innerHTML =
+        '<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--red);">Failed to load fleet data. Please refresh.</td></tr>';
+    });
+
+  // ── KPI tiles ──────────────────────────────────────────────────────────────
+  function renderKpis() {
+    var total = allConnections.length;
+    var red   = allConnections.filter(function(c) { return c.status === 'red'; }).length;
+    var stale = allConnections.filter(function(c) { return c.status === 'stale' || c.status === 'never_run'; }).length;
+    var ebs   = allConnections.filter(function(c) { return c.ebs_detected; }).length;
+
+    document.getElementById('kpiTotal').textContent = total;
+    document.getElementById('kpiRed').textContent   = red;
+    document.getElementById('kpiStale').textContent = stale;
+    document.getElementById('kpiEbs').textContent   = ebs;
+
+    ['kpiTotal','kpiRed','kpiStale','kpiEbs'].forEach(function(id) {
+      document.getElementById(id).classList.remove('skeleton');
+    });
+  }
+
+  window.setKpiFilter = function(filter, el) {
+    // Toggle off if same filter clicked again
+    if (kpiFilter === filter && filter !== 'all') {
+      kpiFilter = 'all';
+    } else {
+      kpiFilter = filter;
+    }
+
+    // Update tile visual state
+    document.querySelectorAll('.kpi-tile').forEach(function(t) {
+      t.classList.remove('active','active-red','active-stale','active-ebs');
+    });
+    if (kpiFilter !== 'all') {
+      var cls = kpiFilter === 'red' ? 'active-red' : kpiFilter === 'stale' ? 'active-stale' : kpiFilter === 'ebs' ? 'active-ebs' : 'active';
+      el.classList.add(cls);
+    }
+    applyFilters();
+  };
+
+  // ── Toolbar filters ────────────────────────────────────────────────────────
+  window.setEnvFilter = function(env) {
+    envFilter = env;
+    ['fAll','fPROD','fUAT','fDEV'].forEach(function(id) {
+      document.getElementById(id).classList.remove('on');
+    });
+    document.getElementById('f' + (env === 'all' ? 'All' : env)).classList.add('on');
+    applyFilters();
+  };
+
+  window.toggleFilter = function(which) {
+    if (which === 'ebs') {
+      filterEbs = !filterEbs;
+      document.getElementById('fEBS').classList.toggle('on', filterEbs);
+    } else {
+      filterAuto = !filterAuto;
+      document.getElementById('fAuto').classList.toggle('on', filterAuto);
+    }
+    applyFilters();
+  };
+
+  // Init env filter highlight
+  document.getElementById('fAll').classList.add('on');
+
+  // ── Filter + sort ──────────────────────────────────────────────────────────
+  window.applyFilters = function() {
+    var q = document.getElementById('searchBox').value.trim().toLowerCase();
+
+    filteredConnections = allConnections.filter(function(c) {
+      // KPI filter
+      if (kpiFilter === 'red'   && c.status !== 'red') return false;
+      if (kpiFilter === 'stale' && c.status !== 'stale' && c.status !== 'never_run') return false;
+      if (kpiFilter === 'ebs'   && !c.ebs_detected) return false;
+
+      // Env filter
+      if (envFilter !== 'all' && c.env_tag !== envFilter) return false;
+
+      // Toggle filters
+      if (filterEbs  && !c.ebs_detected) return false;
+      if (filterAuto && !c.autonomous_enabled) return false;
+
+      // Search
+      if (q && !(c.name || '').toLowerCase().includes(q)) return false;
+
+      return true;
+    });
+
+    // Sort
+    filteredConnections.sort(function(a, b) {
+      var av = sortVal(a), bv = sortVal(b);
+      if (av < bv) return sortDir === 'asc' ? -1 : 1;
+      if (av > bv) return sortDir === 'asc' ?  1 : -1;
+      // Secondary sort: stale first within same status
+      return (a.last_check_at || '0') < (b.last_check_at || '0') ? -1 : 1;
+    });
+
+    renderTable();
+    renderCards();
+    updateRunAllBtn();
+  };
+
+  function sortVal(c) {
+    var statusRank = { red: 0, amber: 1, stale: 2, never_run: 3, ok: 4 };
+    switch (sortField) {
+      case 'name':               return (c.name || '').toLowerCase();
+      case 'db_version':         return c.db_version || '';
+      case 'ebs':                return c.ebs_detected ? 0 : 1;
+      case 'last_check_at':      return c.last_check_at || '';
+      case 'status':             return statusRank[c.status] !== undefined ? statusRank[c.status] : 5;
+      case 'red_count':          return -(c.red_count || 0);
+      case 'amber_count':        return -(c.amber_count || 0);
+      case 'drift':              return -((c.drift_since_last_run && c.drift_since_last_run.new) || 0);
+      case 'autonomous_enabled': return c.autonomous_enabled ? 0 : 1;
+      default:                   return 0;
+    }
+  }
+
+  window.sortBy = function(field) {
+    if (sortField === field) {
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortField = field;
+      sortDir = 'desc';
+    }
+    // Update header class
+    document.querySelectorAll('.fleet-table th').forEach(function(th) {
+      th.classList.remove('sorted-asc','sorted-desc');
+    });
+    // Match header text to field — simple approach
+    var headers = document.querySelectorAll('.fleet-table th');
+    headers.forEach(function(th) {
+      var fn = (th.getAttribute('onclick') || '').replace("sortBy('","").replace("')","");
+      if (fn === field) th.classList.add(sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+    });
+    applyFilters();
+  };
+
+  // ── Render table ───────────────────────────────────────────────────────────
+  function renderTable() {
+    var tbody = document.getElementById('tableBody');
+
+    if (allConnections.length < 2) {
+      document.getElementById('tableWrap').innerHTML = renderEmptyState();
+      return;
+    }
+
+    if (filteredConnections.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text-dim);">No connections match the current filters.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = filteredConnections.map(function(c) {
+      return '<tr>' +
+        '<td>' + renderName(c) + '</td>' +
+        '<td><span style="font-family:\'JetBrains Mono\',monospace;font-size:11px;color:var(--text-dim);">' + esc(c.db_version || '—') + '</span></td>' +
+        '<td>' + (c.ebs_detected ? '<span class="ebs-yes">EBS</span>' : '<span class="ebs-no">—</span>') + '</td>' +
+        '<td>' + renderTime(c) + '</td>' +
+        '<td>' + renderStatus(c) + '</td>' +
+        '<td>' + renderCount(c.red_count, 'red') + '</td>' +
+        '<td>' + renderCount(c.amber_count, 'amber') + '</td>' +
+        '<td>' + renderFinding(c) + '</td>' +
+        '<td>' + renderDrift(c) + '</td>' +
+        '<td>' + (c.autonomous_enabled ? '<span class="auto-on" title="Autonomous monitoring on">✓</span>' : '<span class="auto-off">—</span>') + '</td>' +
+        '<td>' + renderActions(c) + '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  // ── Render cards (mobile) ──────────────────────────────────────────────────
+  function renderCards() {
+    var view = document.getElementById('cardsView');
+
+    if (allConnections.length < 2) {
+      view.innerHTML = renderEmptyState();
+      return;
+    }
+
+    if (filteredConnections.length === 0) {
+      view.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim);">No connections match the current filters.</div>';
+      return;
+    }
+
+    view.innerHTML = filteredConnections.map(function(c) {
+      return '<div class="fleet-card">' +
+        '<div class="fleet-card-header">' +
+          '<div class="fleet-card-name">' + esc(c.name) + (c.env_tag ? ' <span class="env-badge env-' + c.env_tag + '">' + c.env_tag + '</span>' : '') + '</div>' +
+          renderStatus(c) +
+        '</div>' +
+        '<div class="fleet-card-body">' +
+          '<div><div class="fleet-card-field">Version</div><div class="fleet-card-val">' + esc(c.db_version || '—') + '</div></div>' +
+          '<div><div class="fleet-card-field">Last Check</div><div class="fleet-card-val">' + renderTime(c) + '</div></div>' +
+          '<div><div class="fleet-card-field">Findings</div><div class="fleet-card-val">' + renderCount(c.red_count,'red') + ' ' + renderCount(c.amber_count,'amber') + '</div></div>' +
+          '<div><div class="fleet-card-field">Δ Since Last</div><div class="fleet-card-val">' + renderDrift(c) + '</div></div>' +
+          '<div><div class="fleet-card-field">Auto</div><div class="fleet-card-val">' + (c.autonomous_enabled ? '<span class="auto-on">✓ On</span>' : '<span style="color:var(--text-dim)">Off</span>') + '</div></div>' +
+          '<div><div class="fleet-card-field">EBS</div><div class="fleet-card-val">' + (c.ebs_detected ? '<span class="ebs-yes">Yes</span>' : '—') + '</div></div>' +
+        '</div>' +
+        (c.top_finding_title ? '<div style="margin-top:10px;font-size:12px;color:var(--text-dim);"><span style="opacity:0.6">Top:</span> ' + esc(truncate(c.top_finding_title, 60)) + '</div>' : '') +
+        '<div class="fleet-card-actions">' + renderActions(c) + '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  // ── Empty state ────────────────────────────────────────────────────────────
+  function renderEmptyState() {
+    return '<div class="empty-state"><div class="empty-icon">🗄️</div>' +
+      '<div class="empty-title">Fleet view shines once you connect 3+ databases.</div>' +
+      '<div class="empty-desc">You have ' + allConnections.length + ' connection' + (allConnections.length === 1 ? '' : 's') + ' right now. Add more to see the single-pane fleet status that enterprise teams use.</div>' +
+      '<a href="/dashboard" class="empty-cta">Add a connection</a></div>';
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function renderName(c) {
+    var html = '<span style="font-weight:600;">' + esc(c.name) + '</span>';
+    if (c.env_tag) html += ' <span class="env-badge env-' + c.env_tag + '">' + c.env_tag + '</span>';
+    if (c.is_demo) html += ' <span style="font-size:10px;font-weight:600;background:rgba(240,168,48,0.15);color:var(--accent);border:1px solid rgba(240,168,48,0.3);padding:1px 6px;border-radius:4px;margin-left:4px;">DEMO</span>';
+    return html;
+  }
+
+  function renderStatus(c) {
+    var labels = { ok: 'OK', amber: 'Amber', red: 'Red', stale: 'Stale', never_run: 'Never run' };
+    var cls = { ok: 'status-ok', amber: 'status-amber', red: 'status-red', stale: 'status-stale', never_run: 'status-never' };
+    return '<span class="status-pill ' + (cls[c.status] || 'status-never') + '">' + (labels[c.status] || c.status) + '</span>';
+  }
+
+  function renderTime(c) {
+    if (!c.last_check_at) return '<span class="time-none">Never</span>';
+    var ago = timeAgo(new Date(c.last_check_at));
+    var isStale = (Date.now() - new Date(c.last_check_at).getTime()) > 24 * 3600 * 1000;
+    return '<span class="' + (isStale ? 'time-stale' : 'time-ok') + '" title="' + new Date(c.last_check_at).toLocaleString() + '">' + ago + '</span>';
+  }
+
+  function renderCount(n, type) {
+    if (!n) return '<span class="count-zero">0</span>';
+    return '<span class="count-badge count-' + type + '">' + n + '</span>';
+  }
+
+  function renderFinding(c) {
+    if (!c.top_finding_title) return '<span class="time-none">—</span>';
+    var cls = c.top_finding_severity === 'red' || c.top_finding_severity === 'critical' ? 'finding-red' :
+              c.top_finding_severity === 'amber' || c.top_finding_severity === 'warning' ? 'finding-amber' : '';
+    return '<span class="finding-truncated ' + cls + '" title="' + esc(c.top_finding_title) + '">' + esc(truncate(c.top_finding_title, 40)) + '</span>';
+  }
+
+  function renderDrift(c) {
+    var d = c.drift_since_last_run;
+    if (!d || (!d.new && !d.resolved && !d.worsened)) {
+      return '<span class="drift-none">—</span>';
+    }
+    var parts = [];
+    if (d.new > 0)      parts.push('<span class="drift-new">+' + d.new + ' new</span>');
+    if (d.resolved > 0) parts.push('<span class="drift-res">-' + d.resolved + ' resolved</span>');
+    if (d.worsened > 0) parts.push('<span class="drift-new">↑' + d.worsened + ' worse</span>');
+    return '<span class="drift-cell">' + parts.join(' ') + '</span>';
+  }
+
+  var runningConnIds = {};
+  function renderActions(c) {
+    if (c.is_demo) {
+      return '<a href="/report/' + c.demo_report_id + '" style="font-size:12px;color:var(--accent);text-decoration:none;font-weight:500;">View Demo</a>';
+    }
+    var isRunning = runningConnIds[c.connection_id];
+    var runLabel = isRunning ? '…' : 'Run now';
+    var runCls = isRunning ? 'action-btn run running' : 'action-btn run';
+    var runDisabled = isRunning ? 'disabled' : '';
+    return '<div class="action-btns">' +
+      '<button class="' + runCls + '" onclick="runCheck(' + c.connection_id + ')" ' + runDisabled + '>' + runLabel + '</button>' +
+      '<a class="action-btn" href="/dashboard?connection_id=' + c.connection_id + '">Open</a>' +
+    '</div>';
+  }
+
+  function timeAgo(date) {
+    var s = Math.floor((Date.now() - date.getTime()) / 1000);
+    if (s < 60)    return s + 's ago';
+    if (s < 3600)  return Math.floor(s/60) + 'm ago';
+    if (s < 86400) return Math.floor(s/3600) + 'h ago';
+    return Math.floor(s/86400) + 'd ago';
+  }
+
+  function truncate(str, n) {
+    if (!str) return '';
+    return str.length > n ? str.slice(0, n) + '…' : str;
+  }
+
+  function esc(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Run now ────────────────────────────────────────────────────────────────
+  window.runCheck = function(connId) {
+    if (runningConnIds[connId]) return;
+    runningConnIds[connId] = true;
+    applyFilters(); // re-render to show spinner state
+
+    fetch('/api/health-checks', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ connection_id: connId, connection_name: 'Fleet Run' })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data && data.id) {
+        // Open the new check in dashboard
+        window.open('/report/' + data.id, '_blank');
+      }
+    })
+    .catch(function(err) { console.error('[fleet] run error:', err); })
+    .finally(function() {
+      delete runningConnIds[connId];
+      // Reload fleet data after 3s to reflect new run
+      setTimeout(reloadFleet, 3000);
+    });
+  };
+
+  function reloadFleet() {
+    fetch('/api/fleet/overview', { credentials: 'include' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        allConnections = data.connections || [];
+        renderKpis();
+        applyFilters();
+      });
+  }
+
+  // ── Run all modal ──────────────────────────────────────────────────────────
+  function updateRunAllBtn() {
+    var n = filteredConnections.length;
+    var disabled = n === 0;
+    document.getElementById('runAllBtn').disabled = disabled;
+    document.getElementById('runAllBtn2').disabled = disabled;
+  }
+
+  window.openRunAllModal = function() {
+    var n = filteredConnections.length;
+    document.getElementById('runAllCount').textContent = n + ' connection' + (n === 1 ? '' : 's');
+    document.getElementById('runAllNames').textContent = filteredConnections.slice(0,8).map(function(c) { return c.name; }).join(', ') + (n > 8 ? ', …' : '');
+    document.getElementById('runAllModal').classList.add('open');
+  };
+
+  window.closeRunAllModal = function() {
+    document.getElementById('runAllModal').classList.remove('open');
+  };
+
+  window.confirmRunAll = function() {
+    closeRunAllModal();
+    var conns = filteredConnections.slice(); // snapshot
+    // Fire all in parallel — non-blocking
+    conns.forEach(function(c) {
+      runCheck(c.connection_id);
+    });
+  };
+
+  // Close modal on overlay click
+  document.getElementById('runAllModal').addEventListener('click', function(e) {
+    if (e.target === this) closeRunAllModal();
+  });
+
+  // Top-level run all button (in page header) triggers same flow
+  document.getElementById('runAllBtn').addEventListener('click', function() {
+    if (!this.disabled) openRunAllModal();
+  });
+
+})();
+</script>
+<script>
+  // ADOP banner — fleet mode polls all EBS connections
+  AdopBanner.init({ fleet: true });
+</script>
+<script src="/tv-tracker.js"></script>
+<div style="text-align:center;padding:24px 16px 16px;border-top:1px solid rgba(255,255,255,0.05);margin-top:32px;">
+  <span style="font-size:12px;color:#9898a8;">Need help? <a href="mailto:support@tunevault.app" style="color:#f0a830;text-decoration:none;">support@tunevault.app</a></span>
+</div>
+<script src="/tunebot.js"></script>
+</body>
+</html>

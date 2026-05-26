@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notification Preferences — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c; --surface: #111114; --surface-2: #1a1a1f;
+      --border: #2a2a30; --text: #e8e8ed; --text-dim: #b8b8c8;
+      --accent: #f0a830; --accent-dim: rgba(240,168,48,.12);
+      --green: #34d399; --green-dim: rgba(52,211,153,.10);
+      --red: #f87171; --red-dim: rgba(248,113,113,.10);
+      --amber: #f59e0b; --amber-dim: rgba(245,158,11,.10);
+      --mono: 'JetBrains Mono', monospace;
+    }
+    body { font-family: 'Space Grotesk', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    main { max-width: 680px; margin: 0 auto; padding: 48px 24px 100px; }
+    h1 { font-size: 26px; font-weight: 700; letter-spacing: -.5px; }
+    .subtitle { color: var(--text-dim); font-size: 14px; margin-top: 6px; line-height: 1.5; }
+    .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: 13px; text-decoration: none; margin-bottom: 28px; transition: color .15s; }
+    .back-link:hover { color: var(--text); }
+    .section { margin-top: 36px; }
+    .section-label { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 14px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .card-row { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; gap: 16px; border-bottom: 1px solid var(--border); }
+    .card-row:last-child { border-bottom: none; }
+    .row-left { flex: 1; min-width: 0; }
+    .row-label { font-size: 14px; font-weight: 600; }
+    .row-meta { font-size: 12px; color: var(--text-dim); margin-top: 5px; line-height: 1.5; }
+    .row-right { flex-shrink: 0; }
+
+    /* Toggle */
+    .toggle { position: relative; display: inline-block; width: 40px; height: 22px; cursor: pointer; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-track { position: absolute; inset: 0; background: var(--border); border-radius: 11px; transition: background .2s; }
+    .toggle input:checked + .toggle-track { background: var(--green); }
+    .toggle-thumb { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; background: #fff; border-radius: 50%; transition: transform .2s; }
+    .toggle input:checked ~ .toggle-thumb { transform: translateX(18px); }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 28px; right: 28px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 18px; font-size: 13px; color: var(--text); display: flex; align-items: center; gap: 8px; opacity: 0; transform: translateY(8px); transition: opacity .2s, transform .2s; pointer-events: none; z-index: 999; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .toast-dot.green { background: var(--green); }
+    .toast-dot.red { background: var(--red); }
+
+    .info-box { background: var(--accent-dim); border: 1px solid rgba(240,168,48,.2); border-radius: 8px; padding: 14px 18px; font-size: 13px; color: var(--text-dim); line-height: 1.6; margin-top: 24px; }
+    .info-box strong { color: var(--accent); }
+
+    .skeleton { height: 14px; background: var(--border); border-radius: 4px; animation: pulse 1.4s infinite; }
+    @keyframes pulse { 0%,100% { opacity:.6 } 50% { opacity:1 } }
+    nav { position: sticky; top: 0; z-index: 9999; background: rgba(10,10,12,.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); }
+  </style>
+</head>
+<body>
+<nav>
+  <div id="nav-root"></div>
+</nav>
+<main>
+  <a href="/settings" class="back-link">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    Back to Settings
+  </a>
+
+  <h1>Notification preferences</h1>
+  <p class="subtitle">Control which emails TuneVault sends you. Changes save immediately.</p>
+
+  <div class="section">
+    <div class="section-label">Email notifications</div>
+    <div class="card">
+      <div class="card-row">
+        <div class="row-left">
+          <div class="row-label">Health check completion</div>
+          <div class="row-meta" id="hcMeta">
+            Email me when a health check finishes — includes score, critical findings, and a link to the full report.
+            <br>If you run several checks in quick succession, we coalesce them into a single digest.
+          </div>
+        </div>
+        <div class="row-right">
+          <label class="toggle" id="hcToggleLabel" title="Toggle health check completion emails">
+            <input type="checkbox" id="hcToggle" disabled>
+            <span class="toggle-track"></span>
+            <span class="toggle-thumb"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-box" id="infoBox" style="display:none;">
+      <strong>Email from TuneVault</strong> — notifications come from your TuneVault account.
+      Each email includes a <em>Manage email preferences</em> link to return here.
+    </div>
+  </div>
+</main>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <span class="toast-dot green" id="toastDot"></span>
+  <span id="toastMsg">Saved</span>
+</div>
+
+<script>
+(async () => {
+  const toggle  = document.getElementById('hcToggle');
+  const infoBox = document.getElementById('infoBox');
+  let saving    = false;
+
+  // Load current preferences
+  try {
+    const res  = await fetch('/api/notifications/preferences', { credentials: 'include' });
+    if (res.status === 401) { location.href = '/signin?redirect=' + encodeURIComponent(location.pathname); return; }
+    const data = await res.json();
+    toggle.checked  = !!data.hc_completion_email;
+    toggle.disabled = false;
+    infoBox.style.display = 'block';
+  } catch (err) {
+    console.error('Failed to load preferences:', err);
+    showToast('Failed to load preferences', false);
+  }
+
+  // Save on toggle change
+  toggle.addEventListener('change', async () => {
+    if (saving) return;
+    saving = true;
+    toggle.disabled = true;
+    try {
+      const res = await fetch('/api/notifications/preferences', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hc_completion_email: toggle.checked })
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      showToast(toggle.checked ? 'Email notifications enabled' : 'Email notifications disabled', true);
+    } catch (err) {
+      toggle.checked = !toggle.checked; // revert
+      showToast('Failed to save — please try again', false);
+    } finally {
+      toggle.disabled = false;
+      saving = false;
+    }
+  });
+
+  function showToast(msg, success) {
+    const toast = document.getElementById('toast');
+    const dot   = document.getElementById('toastDot');
+    const text  = document.getElementById('toastMsg');
+    dot.className  = 'toast-dot ' + (success ? 'green' : 'red');
+    text.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2800);
+  }
+})();
+</script>
+<script src="/nav-component.js"></script>
+<script>window.tvNav.init('settings');</script>
+</body>
+</html>

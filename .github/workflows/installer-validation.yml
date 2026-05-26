@@ -1,0 +1,202 @@
+name: Installer End-to-End Validation
+
+# Proves install.sh + 6-probe self-test stay green on fresh OL7 + OL8 boxes.
+# Results are POSTed back to /api/installer-validation/report and visible at /status/installer.
+#
+# Runs:
+#   - Cron every 6h (all-hours coverage)
+#   - Post-deploy: called via workflow_dispatch from Render deploy webhook or manual trigger
+#   - Manual: trigger button on /admin/status sends workflow_dispatch
+#
+# Secrets required:
+#   CI_REPORT_TOKEN      — shared token to authenticate result POST back to TuneVault server
+#   TUNEVAULT_APP_URL    — e.g. https://tunevault.app
+#   ORACLE_TEST_DSN      — e.g. host:1521/ORCL (used for probes 3–6)
+#   ORACLE_TEST_USER     — test Oracle username
+#   ORACLE_TEST_PASSWORD — test Oracle password
+#   TEST_TENANT_EMAIL    — status-monitor@tunevault.internal (pre-created test account)
+#   TEST_TENANT_API_KEY  — API key for test tenant (issued via /settings/api)
+
+on:
+  schedule:
+    # Every 6h: 00:00, 06:00, 12:00, 18:00 UTC
+    - cron: '0 0,6,12,18 * * *'
+  workflow_dispatch:
+    inputs:
+      trigger_source:
+        description: 'Trigger source (cron | deploy_webhook | manual)'
+        required: false
+        default: 'manual'
+        type: choice
+        options: [cron, deploy_webhook, manual]
+
+env:
+  TUNEVAULT_APP_URL: ${{ secrets.TUNEVAULT_APP_URL || 'https://tunevault.app' }}
+  CI_REPORT_TOKEN:   ${{ secrets.CI_REPORT_TOKEN }}
+
+jobs:
+  validate:
+    name: Validate installer — ${{ matrix.os_label }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false   # run both OS containers even if one fails
+      matrix:
+        include:
+          - image:    oraclelinux:7.9
+            os_label: OracleLinux 7.9
+            os_key:   ol7
+          - image:    oraclelinux:8.9
+            os_label: OracleLinux 8.9
+            os_key:   ol8
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Pre-run: register a pending row so the server can display "running" ──
+      - name: Register pending run
+        id: register
+        run: |
+          RUN_ID="${{ github.run_id }}-${{ matrix.os_key }}"
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          curl -sf -X POST "${TUNEVAULT_APP_URL}/api/installer-validation/report" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"token\": \"${CI_REPORT_TOKEN}\",
+              \"run_id\": \"${RUN_ID}\",
+              \"os\": \"${{ matrix.os_key }}\",
+              \"overall\": \"pending\",
+              \"trigger_source\": \"${{ inputs.trigger_source || 'cron' }}\"
+            }" || echo "Pre-run registration skipped (server may not support yet)"
+
+      # ── Capture install.sh SHA for traceability ───────────────────────────
+      - name: Capture install.sh SHA
+        id: sha
+        run: echo "sha=$(sha256sum install.sh | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
+      # ── Run installer in OS container ─────────────────────────────────────
+      # install.sh --headless skips systemd + API provisioning.
+      # After headless install, we directly invoke the self-test binary and parse JSON output.
+      - name: Run installer + self-test in ${{ matrix.os_label }}
+        id: install
+        continue-on-error: true
+        run: |
+          mkdir -p /tmp/tv-results
+
+          docker run --rm \
+            --privileged \
+            --name tv-validator-${{ matrix.os_key }} \
+            -v "${{ github.workspace }}:/tunevault:ro" \
+            -v "/tmp/tv-results:/results" \
+            -e ORACLE_TEST_DSN="${{ secrets.ORACLE_TEST_DSN }}" \
+            -e ORACLE_TEST_USER="${{ secrets.ORACLE_TEST_USER }}" \
+            -e ORACLE_TEST_PASSWORD="${{ secrets.ORACLE_TEST_PASSWORD }}" \
+            -e TEST_TENANT_EMAIL="${{ secrets.TEST_TENANT_EMAIL }}" \
+            -e TEST_TENANT_API_KEY="${{ secrets.TEST_TENANT_API_KEY }}" \
+            -e TUNEVAULT_APP_URL="${TUNEVAULT_APP_URL}" \
+            "${{ matrix.image }}" \
+            bash /tunevault/scripts/ci-installer-validation.sh \
+            > /tmp/tv-results/install-${{ matrix.os_key }}.log 2>&1
+
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+
+      # ── Parse results ─────────────────────────────────────────────────────
+      - name: Parse probe results
+        id: parse
+        continue-on-error: true
+        run: |
+          LOG_FILE="/tmp/tv-results/install-${{ matrix.os_key }}.log"
+
+          echo "=== Install log ==="
+          cat "$LOG_FILE" || echo "(no log)"
+
+          # Extract JSON summary line (last line starting with {)
+          JSON_LINE=$(grep -E '^\{.*"probes"' "$LOG_FILE" | tail -1 || echo '')
+
+          if [ -z "$JSON_LINE" ]; then
+            echo "json={}" >> "$GITHUB_OUTPUT"
+            echo "parsed=false" >> "$GITHUB_OUTPUT"
+          else
+            # Write to file to avoid shell quoting issues
+            echo "$JSON_LINE" > /tmp/probe-result.json
+            echo "parsed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── Capture container metadata ─────────────────────────────────────────
+      - name: Capture OS + agent metadata
+        id: meta
+        continue-on-error: true
+        run: |
+          KERNEL=$(uname -r || echo 'unknown')
+          echo "kernel=$KERNEL" >> "$GITHUB_OUTPUT"
+
+          AGENT_VER=$(cat /tmp/tv-results/agent-version-${{ matrix.os_key }}.txt 2>/dev/null || echo '')
+          echo "agent_version=$AGENT_VER" >> "$GITHUB_OUTPUT"
+
+      # ── Report results back to TuneVault server ───────────────────────────
+      - name: Report results to TuneVault
+        if: always()
+        run: |
+          RUN_ID="${{ steps.register.outputs.run_id }}"
+          INSTALL_SHA="${{ steps.sha.outputs.sha }}"
+          KERNEL="${{ steps.meta.outputs.kernel }}"
+          AGENT_VER="${{ steps.meta.outputs.agent_version }}"
+          EXIT_CODE="${{ steps.install.outputs.exit_code }}"
+
+          # Read parsed probe JSON if available
+          if [ "${{ steps.parse.outputs.parsed }}" = "true" ] && [ -f /tmp/probe-result.json ]; then
+            PROBE_JSON=$(cat /tmp/probe-result.json)
+          else
+            # Build a minimal failure payload
+            if [ "${EXIT_CODE}" = "0" ]; then
+              PROBE_JSON='{"probes":[],"overall":"pass","duration_total_ms":0}'
+            else
+              PROBE_JSON='{"probes":[{"n":1,"status":"fail","ms":null,"error":"Installer exited non-zero — see CI log"}],"overall":"fail","duration_total_ms":0}'
+            fi
+          fi
+
+          # Inject run metadata into payload
+          PAYLOAD=$(echo "$PROBE_JSON" | node -e "
+            const d = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+            d.token = process.env.CI_REPORT_TOKEN;
+            d.run_id = process.env.RUN_ID;
+            d.os = process.env.OS_KEY;
+            d.install_sha = process.env.INSTALL_SHA;
+            d.agent_version = process.env.AGENT_VER || null;
+            d.kernel_version = process.env.KERNEL || null;
+            d.trigger_source = process.env.TRIGGER_SOURCE || 'cron';
+            console.log(JSON.stringify(d));
+          " RUN_ID="$RUN_ID" OS_KEY="${{ matrix.os_key }}" INSTALL_SHA="$INSTALL_SHA" \
+            AGENT_VER="$AGENT_VER" KERNEL="$KERNEL" \
+            TRIGGER_SOURCE="${{ inputs.trigger_source || 'cron' }}")
+
+          curl -sf -X POST "${TUNEVAULT_APP_URL}/api/installer-validation/report" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            && echo "Results reported to TuneVault" \
+            || echo "WARNING: Failed to report results (server may be temporarily unavailable)"
+
+      # ── Fail the CI job if overall install failed ──────────────────────────
+      - name: Assert install succeeded
+        run: |
+          if [ "${{ steps.install.outcome }}" != "success" ]; then
+            echo "Installer validation FAILED on ${{ matrix.os_label }}"
+            exit 1
+          fi
+          echo "Installer validation PASSED on ${{ matrix.os_label }}"
+
+  # ── Gate: summary job for branch protection ─────────────────────────────────
+  validation-gate:
+    name: Installer Validation Gate
+    runs-on: ubuntu-latest
+    needs: validate
+    if: always()
+    steps:
+      - name: Check all matrix jobs passed
+        run: |
+          if [ "${{ needs.validate.result }}" != "success" ]; then
+            echo "Installer validation failed on one or more OS targets."
+            echo "Result: ${{ needs.validate.result }}"
+            exit 1
+          fi
+          echo "All installer validation runs passed."

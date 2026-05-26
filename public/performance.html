@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Performance — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://tunevault.app/performance">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <script src="/nav-component.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c;
+      --surface: #111114;
+      --surface-2: #1a1a1f;
+      --border: #2a2a30;
+      --text: #e8e8ed;
+      --text-dim: #b8b8c8;
+      --accent: #f0a830;
+      --accent-dim: rgba(240, 168, 48, 0.12);
+      --green: #34d399;
+      --green-dim: rgba(52, 211, 153, 0.12);
+      --red: #f87171;
+      --red-dim: rgba(248, 113, 113, 0.12);
+      --yellow: #fbbf24;
+      --yellow-dim: rgba(251, 191, 36, 0.12);
+      --blue: #60a5fa;
+      --blue-dim: rgba(96, 165, 250, 0.12);
+      --purple: #a78bfa;
+      --purple-dim: rgba(167, 139, 250, 0.12);
+    }
+    body {
+      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    .grain {
+      position: fixed; top: 0; left: 0;
+      width: 100vw; height: 100vh; overflow: hidden;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 999;
+    }
+    /* Layout */
+    .page-wrapper { max-width: 1300px; margin: 0 auto; padding: 48px 48px 80px; }
+    /* Page header */
+    .page-header {
+      padding: 36px 0 0;
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 24px; flex-wrap: wrap;
+    }
+    .page-header h1 {
+      font-size: 24px; font-weight: 700; letter-spacing: -0.5px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .page-header p { margin-top: 6px; color: var(--text-dim); font-size: 14px; max-width: 620px; }
+
+    /* ── Tab strip ── */
+    .tab-strip {
+      display: flex; align-items: center; gap: 2px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 5px; margin-top: 28px;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 9px 16px; border-radius: 7px;
+      font-size: 13px; font-weight: 600; font-family: inherit;
+      color: var(--text-dim); background: transparent; border: none; cursor: pointer;
+      white-space: nowrap; transition: all 0.18s;
+    }
+    .tab-btn:hover { color: var(--text); background: var(--surface-2); }
+    .tab-btn.active { color: var(--accent); background: var(--accent-dim); }
+    .tab-btn .tab-icon { font-size: 14px; }
+
+    /* ── Connection bar ── */
+    .conn-bar {
+      display: flex; align-items: center; gap: 12px;
+      margin-top: 16px; flex-wrap: wrap;
+    }
+    .conn-bar label { font-size: 13px; color: var(--text-dim); white-space: nowrap; }
+    .conn-select {
+      background: var(--surface-2); border: 1px solid var(--border);
+      color: var(--text); border-radius: 8px; padding: 7px 12px;
+      font-size: 13px; font-family: inherit; min-width: 220px; cursor: pointer; outline: none;
+    }
+    .conn-select:focus { border-color: var(--accent); }
+    .btn-fetch {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--accent); border: none; color: #0a0a0c;
+      border-radius: 8px; padding: 7px 14px;
+      font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-fetch:hover { opacity: 0.88; }
+    .btn-fetch:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      color: var(--text); border-radius: 8px; padding: 7px 14px;
+      font-size: 13px; font-family: inherit; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .spinning { animation: spin 0.8s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Demo banner ── */
+    .demo-banner {
+      background: var(--accent-dim); border: 1px solid rgba(240,168,48,0.25);
+      border-radius: 10px; padding: 12px 18px;
+      display: flex; align-items: flex-start; gap: 12px; margin-bottom: 20px;
+    }
+    .demo-banner .icon { font-size: 18px; flex-shrink: 0; margin-top: 2px; }
+    .demo-banner-text strong { display: block; font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 2px; }
+    .demo-banner-text p { font-size: 13px; color: var(--text-dim); }
+
+    /* ── Error banner ── */
+    .error-state {
+      background: var(--red-dim); border: 1px solid rgba(248,113,113,0.25);
+      border-radius: 10px; padding: 16px 20px; margin: 16px 0;
+      color: var(--red); font-size: 13px;
+    }
+
+    /* ── Loading / empty ── */
+    .loading-state {
+      padding: 64px 24px; text-align: center;
+      color: var(--text-dim); font-size: 14px;
+    }
+    .loading-state .spinner { font-size: 28px; display: block; margin-bottom: 16px; animation: spin 1s linear infinite; }
+    .empty-state { padding: 64px 24px; text-align: center; }
+    .empty-state .icon { font-size: 36px; display: block; margin-bottom: 16px; opacity: 0.4; }
+    .empty-state p { color: var(--text-dim); font-size: 14px; }
+
+    /* ── Table ── */
+    .table-wrap {
+      border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-top: 16px;
+    }
+    table.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .data-table thead tr { background: var(--surface-2); }
+    .data-table th {
+      text-align: left; padding: 11px 14px;
+      color: var(--text-dim); font-weight: 600; font-size: 11px;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border); white-space: nowrap;
+      cursor: pointer; user-select: none;
+    }
+    .data-table th:hover { color: var(--text); }
+    .data-table th .sort-arrow { margin-left: 4px; opacity: 0.4; }
+    .data-table th.sorted .sort-arrow { opacity: 1; color: var(--accent); }
+    .data-table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+    .data-table tbody tr:last-child { border-bottom: none; }
+    .data-table tbody tr:hover { background: var(--surface-2); }
+    .data-table tbody tr.expandable { cursor: pointer; }
+    .data-table tbody tr.expanded { background: var(--surface-2); }
+    .data-table td { padding: 11px 14px; vertical-align: middle; }
+    .mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+    .num-cell { text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+    .expand-icon { color: var(--text-dim); font-size: 12px; transition: transform 0.2s; }
+    .data-table tr.expanded .expand-icon { transform: rotate(90deg); }
+
+    /* ── Detail rows ── */
+    .detail-row { display: none; background: #0d0d11; }
+    .detail-row.open { display: table-row; }
+    .detail-row td { padding: 0; border-bottom: 1px solid var(--border); }
+    .detail-inner { padding: 24px 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    @media (max-width: 900px) { .detail-inner { grid-template-columns: 1fr; } }
+    .detail-section h4 {
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
+      color: var(--text-dim); margin-bottom: 10px;
+    }
+
+    /* SQL text */
+    .sql-text-block {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 14px 16px;
+      font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.7;
+      color: var(--text); white-space: pre-wrap; word-break: break-all;
+      max-height: 160px; overflow-y: auto;
+    }
+
+    /* Plan */
+    .plan-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .plan-table th { padding: 6px 10px; background: var(--surface); border-bottom: 1px solid var(--border); color: var(--text-dim); font-weight: 600; font-size: 11px; text-align: left; }
+    .plan-table td { padding: 6px 10px; border-bottom: 1px solid rgba(42,42,48,0.5); font-family: 'JetBrains Mono', monospace; color: var(--text); }
+    .plan-table tr:last-child td { border-bottom: none; }
+    .plan-full { color: var(--red); font-weight: 600; }
+    .plan-obj { color: var(--accent); }
+    .plan-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+
+    /* AI fix */
+    .ai-fix-full { grid-column: 1 / -1; }
+    .ai-fix-block {
+      background: rgba(52, 211, 153, 0.06);
+      border: 1px solid rgba(52, 211, 153, 0.25);
+      border-radius: 10px; padding: 16px 20px;
+    }
+    .ai-fix-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+    .ai-fix-label { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: var(--green); text-transform: uppercase; letter-spacing: 0.5px; }
+    .fix-type-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 100px; letter-spacing: 0.5px; }
+    .fix-type-badge.index  { background: rgba(96,165,250,0.15); color: var(--blue); border: 1px solid rgba(96,165,250,0.3); }
+    .fix-type-badge.hint   { background: rgba(240,168,48,0.15); color: var(--accent); border: 1px solid rgba(240,168,48,0.3); }
+    .fix-type-badge.rewrite { background: rgba(251,191,36,0.15); color: var(--yellow); border: 1px solid rgba(251,191,36,0.3); }
+    .ai-fix-sql {
+      background: #050508; border: 1px solid rgba(52,211,153,0.2);
+      border-radius: 8px; padding: 14px 16px;
+      font-family: 'JetBrains Mono', monospace; font-size: 12.5px; line-height: 1.7;
+      color: var(--green); white-space: pre; overflow-x: auto;
+    }
+    .ai-fix-rationale { margin-top: 10px; font-size: 12px; color: var(--text-dim); font-style: italic; }
+    .ai-fix-rationale strong { color: var(--text); font-style: normal; }
+    .cache-pill {
+      font-size: 10px; font-weight: 600; text-transform: uppercase;
+      background: var(--surface-2); border: 1px solid var(--border);
+      color: var(--text-dim); padding: 2px 7px; border-radius: 100px; letter-spacing: 0.3px;
+    }
+    .btn-copy {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.3);
+      color: var(--green); border-radius: 7px; padding: 5px 12px;
+      font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-copy:hover { background: rgba(52,211,153,0.2); }
+    .btn-copy.copied { color: var(--text-dim); border-color: var(--border); background: transparent; }
+
+    /* ── Wait Events tab ── */
+    .wait-class-section { margin-top: 16px; }
+    .section-label {
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
+      color: var(--text-dim); margin-bottom: 12px;
+    }
+    .wait-bars { display: flex; flex-direction: column; gap: 8px; }
+    .wait-bar-row { display: flex; align-items: center; gap: 12px; }
+    .wait-bar-label { font-size: 12px; color: var(--text-dim); width: 120px; flex-shrink: 0; }
+    .wait-bar-track {
+      flex: 1; height: 12px; background: var(--surface-2);
+      border-radius: 100px; overflow: hidden; position: relative;
+    }
+    .wait-bar-fill { height: 100%; border-radius: 100px; transition: width 0.6s ease; }
+    .wait-bar-pct { font-size: 12px; font-family: 'JetBrains Mono', monospace; color: var(--text); width: 46px; text-align: right; flex-shrink: 0; }
+    /* Wait class colors */
+    .wc-cpu    { background: #f0a830; }
+    .wc-userio { background: #60a5fa; }
+    .wc-conc   { background: #f87171; }
+    .wc-sysio  { background: #34d399; }
+    .wc-commit { background: #a78bfa; }
+    .wc-app    { background: #fbbf24; }
+    .wc-net    { background: #6ee7b7; }
+    .wc-config { background: #fb923c; }
+    .wc-other  { background: #9898a8; }
+    /* Playbook block */
+    .playbook-block {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 14px 16px; margin-top: 10px;
+    }
+    .playbook-title {
+      font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 10px;
+    }
+    .playbook-steps { display: flex; flex-direction: column; gap: 8px; }
+    .playbook-step {
+      display: flex; gap: 10px; align-items: flex-start;
+    }
+    .step-num {
+      flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%;
+      background: var(--accent-dim); border: 1px solid rgba(240,168,48,0.3);
+      color: var(--accent); font-size: 10px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .step-text {
+      font-family: 'JetBrains Mono', monospace; font-size: 11.5px; line-height: 1.6;
+      color: var(--text); white-space: pre-wrap; word-break: break-all;
+    }
+    .window-toggle { display: flex; gap: 4px; }
+    .window-btn {
+      padding: 6px 12px; border-radius: 7px; font-size: 12px; font-weight: 600;
+      font-family: inherit; cursor: pointer; border: 1px solid var(--border);
+      background: var(--surface-2); color: var(--text-dim); transition: all 0.18s;
+    }
+    .window-btn.active { color: var(--accent); border-color: rgba(240,168,48,0.4); background: var(--accent-dim); }
+
+    /* ── Blockers tab ── */
+    .blocker-tree { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+    .blocker-card {
+      background: var(--surface); border: 1px solid rgba(248,113,113,0.3);
+      border-left: 3px solid var(--red); border-radius: 10px; overflow: hidden;
+    }
+    .blocker-header {
+      padding: 14px 18px; display: flex; align-items: flex-start;
+      justify-content: space-between; gap: 12px; flex-wrap: wrap;
+      background: rgba(248,113,113,0.05);
+    }
+    .blocker-header-left { display: flex; flex-direction: column; gap: 4px; }
+    .blocker-sid { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; color: var(--red); }
+    .blocker-sid-label { font-size: 11px; color: var(--text-dim); margin-right: 4px; }
+    .blocker-sql { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); max-width: 600px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+    .blocker-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .meta-chip {
+      font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 100px;
+      border: 1px solid var(--border); background: var(--surface-2); color: var(--text-dim);
+    }
+    .lock-chip { background: rgba(248,113,113,0.1); color: var(--red); border-color: rgba(248,113,113,0.3); }
+    .obj-chip  { background: var(--accent-dim); color: var(--accent); border-color: rgba(240,168,48,0.3); }
+    .waiters-list { padding: 0 18px 14px; display: flex; flex-direction: column; gap: 8px; }
+    .waiter-card {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-left: 3px solid var(--yellow); border-radius: 8px; padding: 10px 14px;
+    }
+    .waiter-card.sev1 { border-left-color: var(--red); border-color: rgba(248,113,113,0.3); }
+    .waiter-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .waiter-sid { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--yellow); font-weight: 600; }
+    .waiter-card.sev1 .waiter-sid { color: var(--red); }
+    .wait-time-badge {
+      font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 100px;
+      background: var(--yellow-dim); color: var(--yellow); border: 1px solid rgba(251,191,36,0.3);
+    }
+    .wait-time-badge.critical {
+      background: var(--red-dim); color: var(--red); border-color: rgba(248,113,113,0.3);
+    }
+    .sev1-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 100px;
+      background: var(--red-dim); color: var(--red); border: 1px solid rgba(248,113,113,0.4);
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .waiter-sql { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sub-waiters { margin-top: 8px; padding-left: 16px; display: flex; flex-direction: column; gap: 6px; border-left: 2px solid rgba(248,113,113,0.3); }
+    .no-blockers {
+      text-align: center; padding: 56px 24px;
+      font-size: 20px; color: var(--green);
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+    }
+    .no-blockers span { font-size: 42px; }
+    .no-blockers p { font-size: 14px; color: var(--text-dim); font-weight: 500; }
+    .kill-cmd {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      background: rgba(248,113,113,0.06); border: 1px solid rgba(248,113,113,0.2);
+      border-radius: 6px; padding: 6px 10px; color: var(--red); margin-top: 6px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .kill-cmd .kill-copy { font-size: 11px; cursor: pointer; color: var(--text-dim); text-decoration: underline; flex-shrink: 0; }
+
+    /* ── Segment hotspots tab ── */
+    .seg-rec {
+      background: rgba(96,165,250,0.06); border: 1px solid rgba(96,165,250,0.25);
+      border-radius: 8px; padding: 10px 14px; margin-top: 4px;
+    }
+    .seg-rec-header { font-size: 11px; font-weight: 700; color: var(--blue); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .seg-rec-sql { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--text); line-height: 1.6; white-space: pre-wrap; word-break: break-all; }
+    .seg-rec-rationale { font-size: 11px; color: var(--text-dim); margin-top: 6px; font-style: italic; }
+    .seg-type-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 100px; }
+    .seg-type-table { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(240,168,48,0.3); }
+    .seg-type-index { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(96,165,250,0.3); }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      nav { padding: 12px 20px; }
+      .page-wrapper { padding: 48px 20px 60px; }
+      .detail-inner { grid-template-columns: 1fr; }
+      .ai-fix-full { grid-column: auto; }
+      .wait-bar-label { width: 80px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="grain"></div>
+
+  <div id="nav-root"></div>
+
+  <div class="page-wrapper">
+    <div class="page-header">
+      <div>
+        <h1>⚡ Performance Lab</h1>
+        <p>Deep Oracle performance analysis — top SQL killers, wait event root causes, live blocking contention, and segment hotspots. All with concrete DBA playbooks.</p>
+      </div>
+    </div>
+
+    <!-- Tab strip -->
+    <div class="tab-strip">
+      <button class="tab-btn active" onclick="switchTab('sql')" id="tab-sql">
+        <span class="tab-icon">🔥</span> Top SQL
+      </button>
+      <button class="tab-btn" onclick="switchTab('waits')" id="tab-waits">
+        <span class="tab-icon">⏱</span> Wait Events
+      </button>
+      <button class="tab-btn" onclick="switchTab('blockers')" id="tab-blockers">
+        <span class="tab-icon">🔒</span> Blockers
+      </button>
+      <button class="tab-btn" onclick="switchTab('segments')" id="tab-segments">
+        <span class="tab-icon">📦</span> Hot Segments
+      </button>
+    </div>
+
+    <!-- Connection bar (shared) -->
+    <div class="conn-bar">
+      <label for="conn-select">Connection:</label>
+      <select class="conn-select" id="conn-select"></select>
+      <button class="btn-fetch" id="btn-fetch" onclick="fetchCurrent()">
+        <span id="fetch-icon">⟳</span> <span id="fetch-label">Fetch Data</span>
+      </button>
+      <span id="fetched-at" style="font-size:12px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;"></span>
+    </div>
+
+    <!-- Demo banner -->
+    <div class="demo-banner" id="demo-banner" style="display:none; margin-top: 16px;">
+      <span class="icon">🎯</span>
+      <div class="demo-banner-text">
+        <strong>Demo Mode — Sample Data</strong>
+        <p>Connect a real Oracle DB via <a href="/dashboard" style="color:var(--accent);">Dashboard → New Connection</a> to see live data.</p>
+      </div>
+    </div>
+
+    <!-- Error banner -->
+    <div class="error-state" id="error-state" style="display:none;"></div>
+
+    <!-- ════════════════ TOP SQL TAB ════════════════ -->
+    <div id="pane-sql">
+      <div class="table-wrap" id="sql-table-wrap" style="display:none;">
+        <table class="data-table" id="sql-table">
+          <thead>
+            <tr>
+              <th style="width:32px;"></th>
+              <th class="sorted" data-col="sql_id" onclick="sortSql('sql_id')">SQL ID <span class="sort-arrow">↕</span></th>
+              <th data-col="executions" onclick="sortSql('executions')">Execs <span class="sort-arrow">↕</span></th>
+              <th data-col="elapsed_per_exec_ms" onclick="sortSql('elapsed_per_exec_ms')">Elapsed/exec <span class="sort-arrow">↕</span></th>
+              <th data-col="buffer_gets_per_exec" onclick="sortSql('buffer_gets_per_exec')">Buf Gets/exec <span class="sort-arrow">↕</span></th>
+              <th data-col="disk_reads_per_exec" onclick="sortSql('disk_reads_per_exec')">Disk Reads/exec <span class="sort-arrow">↕</span></th>
+              <th data-col="cpu_per_exec_ms" onclick="sortSql('cpu_per_exec_ms')">CPU/exec <span class="sort-arrow">↕</span></th>
+              <th>Schema</th>
+            </tr>
+          </thead>
+          <tbody id="sql-tbody"></tbody>
+        </table>
+      </div>
+      <div id="sql-loading" class="loading-state" style="display:none;">
+        <span class="spinner">⟳</span>Querying Oracle + generating AI fixes… 15–30 seconds.
+      </div>
+      <div id="sql-empty" class="empty-state">
+        <span class="icon">📊</span>
+        <p>Select a connection and click <strong>Fetch Data</strong> to see your top 25 SQL killers with AI fixes.</p>
+      </div>
+    </div>
+
+    <!-- ════════════════ WAIT EVENTS TAB ════════════════ -->
+    <div id="pane-waits" style="display:none;">
+      <div style="display:flex; align-items:center; gap:12px; margin-top:16px; flex-wrap:wrap;">
+        <span style="font-size:13px;color:var(--text-dim);">Window:</span>
+        <div class="window-toggle">
+          <button class="window-btn active" id="win-1h" onclick="setWindow(1)">1 Hour</button>
+          <button class="window-btn" id="win-24h" onclick="setWindow(24)">24 Hours</button>
+        </div>
+      </div>
+      <div id="wait-loading" class="loading-state" style="display:none;">
+        <span class="spinner">⟳</span>Querying ASH + generating DBA playbooks…
+      </div>
+      <div id="wait-empty" class="empty-state">
+        <span class="icon">⏱</span>
+        <p>Select a connection and click <strong>Fetch Data</strong> to see wait event distribution.</p>
+      </div>
+      <div id="wait-content" style="display:none;">
+        <!-- Wait class distribution -->
+        <div class="wait-class-section">
+          <div class="section-label">DB Time by Wait Class</div>
+          <div class="wait-bars" id="wait-bars"></div>
+        </div>
+        <!-- Top events table -->
+        <div style="margin-top:28px;">
+          <div class="section-label">Top Wait Events — Click to Expand Playbook</div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width:32px;"></th>
+                  <th>Event</th>
+                  <th>Wait Class</th>
+                  <th class="num-cell" style="text-align:right;">Count</th>
+                  <th class="num-cell" style="text-align:right;">Avg Wait</th>
+                  <th class="num-cell" style="text-align:right;">Total Wait</th>
+                  <th>Top SQL ID</th>
+                </tr>
+              </thead>
+              <tbody id="waits-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════ BLOCKERS TAB ════════════════ -->
+    <div id="pane-blockers" style="display:none;">
+      <div id="blockers-loading" class="loading-state" style="display:none;">
+        <span class="spinner">⟳</span>Querying V$SESSION for live locks…
+      </div>
+      <div id="blockers-empty" class="empty-state">
+        <span class="icon">🔒</span>
+        <p>Select a connection and click <strong>Fetch Data</strong> to check for blocking sessions.</p>
+      </div>
+      <div id="blockers-content" style="display:none;">
+        <div class="blocker-tree" id="blocker-tree"></div>
+      </div>
+    </div>
+
+    <!-- ════════════════ HOT SEGMENTS TAB ════════════════ -->
+    <div id="pane-segments" style="display:none;">
+      <div id="seg-loading" class="loading-state" style="display:none;">
+        <span class="spinner">⟳</span>Querying V$SEGMENT_STATISTICS + generating AI recommendations…
+      </div>
+      <div id="seg-empty" class="empty-state">
+        <span class="icon">📦</span>
+        <p>Select a connection and click <strong>Fetch Data</strong> to find your hottest segments.</p>
+      </div>
+      <div id="seg-content" style="display:none;">
+        <div class="table-wrap">
+          <table class="data-table" id="seg-table">
+            <thead>
+              <tr>
+                <th style="width:32px;"></th>
+                <th>Segment</th>
+                <th>Owner</th>
+                <th>Type</th>
+                <th class="num-cell" style="text-align:right;">Logical Reads</th>
+              </tr>
+            </thead>
+            <tbody id="seg-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div><!-- /page-wrapper -->
+
+  <script src="/connection-state.js"></script>
+  <script>
+    // ── Global state ──────────────────────────────────────────────────────────
+    var _currentTab = 'sql';
+    var _windowH = 1;
+    var _sqlData = [];
+    var _sqlSortCol = 'elapsed_per_exec_ms';
+    var _sqlSortDir = -1;
+    var _sqlExpandedIdx = null;
+    var _waitData = null;
+    var _waitExpandedIdx = null;
+    var _blockersData = null;
+    var _segData = [];
+    var _segExpandedIdx = null;
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    window.tvNav.init('dashboard');
+    (async function init() {
+      // Populate connection selector
+      var sel = document.getElementById('conn-select');
+      var opt0 = document.createElement('option');
+      opt0.value = 'demo';
+      opt0.textContent = 'Demo (sample data)';
+      sel.appendChild(opt0);
+
+      try {
+        var r = await fetch('/api/connections');
+        if (r.ok) {
+          var data = await r.json();
+          var conns = tvConn.parseList(data);
+          conns.forEach(function(c) {
+            var opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.name + ' (' + c.host + ')';
+            sel.appendChild(opt);
+          });
+          tvConn.bind(sel, conns);
+        }
+      } catch (e) { /* demo still works */ }
+
+      // Auto-fetch
+      var params = new URLSearchParams(window.location.search);
+      if (params.get('demo') === '1' || params.get('conn')) {
+        fetchCurrent();
+      }
+    })();
+
+    // ── Tab switching ─────────────────────────────────────────────────────────
+    function switchTab(tab) {
+      _currentTab = tab;
+      ['sql', 'waits', 'blockers', 'segments'].forEach(function(t) {
+        document.getElementById('pane-' + t).style.display = t === tab ? 'block' : 'none';
+        document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+      });
+    }
+
+    // ── Window toggle (wait events) ───────────────────────────────────────────
+    function setWindow(h) {
+      _windowH = h;
+      document.getElementById('win-1h').classList.toggle('active', h === 1);
+      document.getElementById('win-24h').classList.toggle('active', h === 24);
+      // Re-fetch if we already have data or have a connection
+      if (_waitData !== null || document.getElementById('conn-select').value) {
+        _waitData = null;
+        fetchCurrent();
+      }
+    }
+
+    // ── Fetch dispatcher ──────────────────────────────────────────────────────
+    function fetchCurrent() {
+      if (_currentTab === 'sql')       fetchTopSql();
+      else if (_currentTab === 'waits')    fetchWaitEvents();
+      else if (_currentTab === 'blockers') fetchBlockers();
+      else if (_currentTab === 'segments') fetchSegments();
+    }
+
+    function connId() {
+      var id = document.getElementById('conn-select').value || 'demo';
+      if (id !== 'demo') tvConn.save(id);
+      return id;
+    }
+
+    function setBtnLoading(loading) {
+      var btn = document.getElementById('btn-fetch');
+      var icon = document.getElementById('fetch-icon');
+      btn.disabled = loading;
+      if (loading) {
+        icon.classList.add('spinning');
+      } else {
+        icon.classList.remove('spinning');
+      }
+    }
+
+    function setFetchedAt(iso) {
+      var el = document.getElementById('fetched-at');
+      el.textContent = iso ? '· ' + new Date(iso).toLocaleTimeString() : '';
+    }
+
+    function setDemoBanner(show) {
+      document.getElementById('demo-banner').style.display = show ? 'flex' : 'none';
+    }
+
+    function setError(msg) {
+      var el = document.getElementById('error-state');
+      if (msg) {
+        el.textContent = '⚠ ' + msg;
+        el.style.display = 'block';
+      } else {
+        el.style.display = 'none';
+      }
+    }
+
+    // ── TOP SQL ───────────────────────────────────────────────────────────────
+    async function fetchTopSql() {
+      setBtnLoading(true);
+      setError(null);
+      document.getElementById('sql-empty').style.display = 'none';
+      document.getElementById('sql-table-wrap').style.display = 'none';
+      document.getElementById('sql-loading').style.display = 'block';
+      setDemoBanner(false);
+      try {
+        var r = await fetch('/api/performance/' + connId() + '/top-sql');
+        var payload = await r.json();
+        if (!r.ok) throw new Error(payload.error || 'Server error ' + r.status);
+        _sqlData = payload.sql_statements || [];
+        setFetchedAt(payload.fetched_at);
+        setDemoBanner(!!payload.is_demo);
+        renderSqlTable();
+      } catch (e) { setError(e.message); document.getElementById('sql-empty').style.display = 'block'; }
+      finally { setBtnLoading(false); document.getElementById('sql-loading').style.display = 'none'; }
+    }
+
+    function sortSql(col) {
+      if (_sqlSortCol === col) { _sqlSortDir *= -1; } else { _sqlSortCol = col; _sqlSortDir = -1; }
+      document.querySelectorAll('#sql-table th').forEach(function(th) {
+        th.classList.toggle('sorted', th.dataset.col === col);
+      });
+      renderSqlTable();
+    }
+
+    function renderSqlTable() {
+      var tbody = document.getElementById('sql-tbody');
+      if (!_sqlData.length) {
+        document.getElementById('sql-table-wrap').style.display = 'none';
+        document.getElementById('sql-empty').style.display = 'block';
+        return;
+      }
+      var sorted = _sqlData.slice().sort(function(a, b) {
+        var av = a[_sqlSortCol] || 0, bv = b[_sqlSortCol] || 0;
+        return _sqlSortDir * (av < bv ? -1 : av > bv ? 1 : 0);
+      });
+      tbody.innerHTML = '';
+      _sqlExpandedIdx = null;
+      sorted.forEach(function(row, idx) {
+        var tr = document.createElement('tr');
+        tr.className = 'expandable';
+        tr.dataset.idx = idx;
+        tr.onclick = function() { toggleSqlExpand(idx); };
+        tr.innerHTML =
+          '<td><span class="expand-icon">▶</span></td>' +
+          '<td class="mono" style="color:var(--accent);">' + esc(row.sql_id) + '</td>' +
+          '<td class="num-cell">' + fmt(row.executions, 0) + '</td>' +
+          '<td class="num-cell">' + fmt(row.elapsed_per_exec_ms, 1) + ' ms</td>' +
+          '<td class="num-cell">' + fmt(row.buffer_gets_per_exec, 0) + '</td>' +
+          '<td class="num-cell">' + fmt(row.disk_reads_per_exec, 0) + '</td>' +
+          '<td class="num-cell">' + fmt(row.cpu_per_exec_ms, 1) + ' ms</td>' +
+          '<td><span style="display:inline-block;font-size:11px;font-weight:600;background:var(--surface-2);border:1px solid var(--border);padding:2px 8px;border-radius:100px;color:var(--text-dim);">' + esc(row.parsing_schema_name || '') + '</span></td>';
+        var detailTr = document.createElement('tr');
+        detailTr.className = 'detail-row';
+        detailTr.dataset.detail = idx;
+        var planHtml = buildPlanHtml(row.plan);
+        var fixHtml  = buildFixHtml(row.ai_fix, row.from_cache);
+        detailTr.innerHTML = '<td colspan="8"><div class="detail-inner">' +
+          '<div class="detail-section"><h4>Full SQL Text</h4><div class="sql-text-block">' + esc(row.sql_text || '') + '</div></div>' +
+          '<div class="detail-section"><h4>Execution Plan</h4>' + planHtml + '</div>' +
+          fixHtml + '</div></td>';
+        tbody.appendChild(tr);
+        tbody.appendChild(detailTr);
+      });
+      document.getElementById('sql-table-wrap').style.display = 'block';
+    }
+
+    function toggleSqlExpand(idx) {
+      var allTrs = document.querySelectorAll('#sql-tbody tr:not(.detail-row)');
+      var allDetails = document.querySelectorAll('#sql-tbody tr.detail-row');
+      if (_sqlExpandedIdx === idx) {
+        allTrs[idx].classList.remove('expanded');
+        allDetails[idx].classList.remove('open');
+        _sqlExpandedIdx = null;
+      } else {
+        if (_sqlExpandedIdx !== null) { allTrs[_sqlExpandedIdx].classList.remove('expanded'); allDetails[_sqlExpandedIdx].classList.remove('open'); }
+        allTrs[idx].classList.add('expanded');
+        allDetails[idx].classList.add('open');
+        _sqlExpandedIdx = idx;
+      }
+    }
+
+    function buildPlanHtml(plan) {
+      if (!plan || !plan.length) return '<div class="plan-wrap"><p style="padding:12px 14px;color:var(--text-dim);font-size:12px;">Plan unavailable</p></div>';
+      var rows = plan.map(function(p) {
+        var isFull = (p.options || '').toUpperCase().includes('FULL');
+        return '<tr>' +
+          '<td class="plan-op ' + (isFull ? 'plan-full' : '') + '">' + esc(p.operation + (p.options ? ' ' + p.options : '')) + '</td>' +
+          '<td class="plan-obj">' + esc(p.object_name || '—') + '</td>' +
+          '<td style="text-align:right;">' + (p.cost != null ? Number(p.cost).toLocaleString() : '—') + '</td>' +
+          '<td style="text-align:right;">' + (p.cardinality != null ? Number(p.cardinality).toLocaleString() : '—') + '</td>' +
+          '</tr>';
+      }).join('');
+      return '<div class="plan-wrap"><table class="plan-table"><thead><tr><th>Operation</th><th>Object</th><th style="text-align:right;">Cost</th><th style="text-align:right;">Card</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    }
+
+    function buildFixHtml(fix, fromCache) {
+      if (!fix) return '<div class="detail-section ai-fix-full"><h4>AI Fix</h4><div style="color:var(--text-dim);font-size:13px;padding:12px 0;">AI fix not available.</div></div>';
+      var badgeClass = fix.fix_type === 'index' ? 'index' : fix.fix_type === 'hint' ? 'hint' : 'rewrite';
+      var badgeLabel = fix.fix_type === 'index' ? 'CREATE INDEX' : fix.fix_type === 'hint' ? 'Hint Block' : 'Rewrite';
+      var cacheLabel = fromCache ? '<span class="cache-pill">cached</span>' : '';
+      var copyId = 'copy-' + Math.random().toString(36).slice(2);
+      return '<div class="detail-section ai-fix-full"><h4>AI Fix</h4>' +
+        '<div class="ai-fix-block">' +
+          '<div class="ai-fix-header">' +
+            '<div class="ai-fix-label">⚡ Recommended Fix <span class="fix-type-badge ' + badgeClass + '">' + badgeLabel + '</span> ' + cacheLabel + '</div>' +
+            '<button class="btn-copy" id="' + copyId + '" data-copy-text="' + esc(fix.fix_sql) + '" onclick="copyFromData(this)">⎘ Copy</button>' +
+          '</div>' +
+          '<div class="ai-fix-sql">' + esc(fix.fix_sql) + '</div>' +
+          '<div class="ai-fix-rationale"><strong>Why:</strong> ' + esc(fix.rationale || '') + '</div>' +
+        '</div></div>';
+    }
+
+    // ── WAIT EVENTS ───────────────────────────────────────────────────────────
+    async function fetchWaitEvents() {
+      setBtnLoading(true);
+      setError(null);
+      document.getElementById('wait-empty').style.display = 'none';
+      document.getElementById('wait-content').style.display = 'none';
+      document.getElementById('wait-loading').style.display = 'block';
+      setDemoBanner(false);
+      try {
+        var r = await fetch('/api/performance/' + connId() + '/wait-events?window=' + _windowH);
+        var payload = await r.json();
+        if (!r.ok) throw new Error(payload.error || 'Server error ' + r.status);
+        _waitData = payload;
+        setFetchedAt(payload.fetched_at);
+        setDemoBanner(!!payload.is_demo);
+        renderWaitEvents(payload);
+      } catch (e) { setError(e.message); document.getElementById('wait-empty').style.display = 'block'; }
+      finally { setBtnLoading(false); document.getElementById('wait-loading').style.display = 'none'; }
+    }
+
+    var WAIT_CLASS_COLORS = {
+      'CPU': 'wc-cpu', 'User I/O': 'wc-userio', 'Concurrency': 'wc-conc',
+      'System I/O': 'wc-sysio', 'Commit': 'wc-commit', 'Application': 'wc-app',
+      'Network': 'wc-net', 'Configuration': 'wc-config', 'Other': 'wc-other'
+    };
+
+    function renderWaitEvents(data) {
+      // Bars
+      var barsEl = document.getElementById('wait-bars');
+      barsEl.innerHTML = '';
+      (data.wait_classes || []).forEach(function(wc) {
+        var colorClass = WAIT_CLASS_COLORS[wc.wait_class] || 'wc-other';
+        barsEl.innerHTML +=
+          '<div class="wait-bar-row">' +
+            '<div class="wait-bar-label">' + esc(wc.wait_class) + '</div>' +
+            '<div class="wait-bar-track"><div class="wait-bar-fill ' + colorClass + '" style="width:' + Math.min(wc.pct_db_time, 100) + '%"></div></div>' +
+            '<div class="wait-bar-pct">' + wc.pct_db_time.toFixed(1) + '%</div>' +
+          '</div>';
+      });
+
+      // Events table
+      var tbody = document.getElementById('waits-tbody');
+      tbody.innerHTML = '';
+      _waitExpandedIdx = null;
+      (data.top_events || []).forEach(function(ev, idx) {
+        var tr = document.createElement('tr');
+        tr.className = 'expandable';
+        tr.onclick = function() { toggleWaitExpand(idx); };
+        tr.innerHTML =
+          '<td><span class="expand-icon">▶</span></td>' +
+          '<td style="font-size:13px;font-weight:500;">' + esc(ev.event) + '</td>' +
+          '<td><span style="font-size:11px;padding:2px 8px;border-radius:100px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-dim);">' + esc(ev.wait_class) + '</span></td>' +
+          '<td class="num-cell">' + Number(ev.count).toLocaleString() + '</td>' +
+          '<td class="num-cell">' + Number(ev.avg_wait_ms).toFixed(2) + ' ms</td>' +
+          '<td class="num-cell">' + fmtMs(ev.total_wait_ms) + '</td>' +
+          '<td class="mono" style="color:var(--accent);">' + esc(ev.top_sql_id || '—') + '</td>';
+
+        var detailTr = document.createElement('tr');
+        detailTr.className = 'detail-row';
+        detailTr.dataset.detail = idx;
+        var playHtml = buildPlaybookHtml(ev.playbook);
+        detailTr.innerHTML = '<td colspan="7"><div style="padding:20px 24px;">' + playHtml + '</div></td>';
+
+        tbody.appendChild(tr);
+        tbody.appendChild(detailTr);
+      });
+
+      document.getElementById('wait-content').style.display = 'block';
+    }
+
+    function toggleWaitExpand(idx) {
+      var allTrs = document.querySelectorAll('#waits-tbody tr:not(.detail-row)');
+      var allDetails = document.querySelectorAll('#waits-tbody tr.detail-row');
+      if (_waitExpandedIdx === idx) {
+        allTrs[idx].classList.remove('expanded');
+        allDetails[idx].classList.remove('open');
+        _waitExpandedIdx = null;
+      } else {
+        if (_waitExpandedIdx !== null) { allTrs[_waitExpandedIdx].classList.remove('expanded'); allDetails[_waitExpandedIdx].classList.remove('open'); }
+        allTrs[idx].classList.add('expanded');
+        allDetails[idx].classList.add('open');
+        _waitExpandedIdx = idx;
+      }
+    }
+
+    function buildPlaybookHtml(playbook) {
+      if (!playbook) return '<p style="color:var(--text-dim);font-size:13px;">Playbook not available for this event.</p>';
+      var stepsHtml = (playbook.steps || []).map(function(step, i) {
+        var copyId = 'pb-copy-' + Math.random().toString(36).slice(2);
+        return '<div class="playbook-step">' +
+          '<div class="step-num">' + (i + 1) + '</div>' +
+          '<div style="flex:1;">' +
+            '<div style="display:flex;align-items:flex-start;gap:8px;">' +
+              '<div class="step-text">' + esc(step) + '</div>' +
+              '<button class="btn-copy" style="flex-shrink:0;margin-top:0;" id="' + copyId + '" data-copy-text="' + esc(step) + '" onclick="copyFromData(this)">⎘</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      return '<div class="playbook-block">' +
+        '<div class="playbook-title">🎯 ' + esc(playbook.title || 'Tuning Playbook') + '</div>' +
+        '<div class="playbook-steps">' + stepsHtml + '</div>' +
+        '</div>';
+    }
+
+    // ── BLOCKERS ──────────────────────────────────────────────────────────────
+    async function fetchBlockers() {
+      setBtnLoading(true);
+      setError(null);
+      document.getElementById('blockers-empty').style.display = 'none';
+      document.getElementById('blockers-content').style.display = 'none';
+      document.getElementById('blockers-loading').style.display = 'block';
+      setDemoBanner(false);
+      try {
+        var r = await fetch('/api/performance/' + connId() + '/blocking-sessions');
+        var payload = await r.json();
+        if (!r.ok) throw new Error(payload.error || 'Server error ' + r.status);
+        _blockersData = payload;
+        setFetchedAt(payload.fetched_at);
+        setDemoBanner(!!payload.is_demo);
+        renderBlockers(payload);
+      } catch (e) { setError(e.message); document.getElementById('blockers-empty').style.display = 'block'; }
+      finally { setBtnLoading(false); document.getElementById('blockers-loading').style.display = 'none'; }
+    }
+
+    function renderBlockers(data) {
+      var tree = data.blocking_tree || [];
+      var treeEl = document.getElementById('blocker-tree');
+      treeEl.innerHTML = '';
+
+      if (!tree.length) {
+        treeEl.innerHTML = '<div class="no-blockers"><span>✅</span><p>No blocking sessions right now.</p></div>';
+        document.getElementById('blockers-content').style.display = 'block';
+        return;
+      }
+
+      tree.forEach(function(entry) {
+        var b = entry.blocker;
+        var killCmd = 'ALTER SYSTEM KILL SESSION \'' + b.sid + ',' + b.serial_num + '\' IMMEDIATE;';
+        var killId = 'kill-' + b.sid;
+        var card = document.createElement('div');
+        card.className = 'blocker-card';
+        card.innerHTML =
+          '<div class="blocker-header">' +
+            '<div class="blocker-header-left">' +
+              '<div><span class="blocker-sid-label">BLOCKER</span><span class="blocker-sid">SID ' + b.sid + ' / ' + b.serial_num + '</span></div>' +
+              '<div class="blocker-meta">' +
+                '<span class="meta-chip">' + esc(b.username) + '</span>' +
+                '<span class="meta-chip">' + esc(b.status) + '</span>' +
+                (b.object_name ? '<span class="meta-chip obj-chip">' + esc(b.object_name) + '</span>' : '') +
+                (b.lock_mode   ? '<span class="meta-chip lock-chip">🔒 ' + esc(b.lock_mode) + '</span>' : '') +
+              '</div>' +
+              (b.sql_text ? '<div class="blocker-sql">' + esc(b.sql_text) + '</div>' : '') +
+              '<div class="kill-cmd" id="' + killId + '">' +
+                '<span>' + esc(killCmd) + '</span>' +
+                '<span class="kill-copy" data-copy-text="' + esc(killCmd) + '" onclick="copyFromData(this)" id="' + killId + '-btn">Copy KILL</span>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="waiters-list" id="waiters-' + b.sid + '"></div>';
+        treeEl.appendChild(card);
+
+        var waitersEl = card.querySelector('#waiters-' + b.sid);
+        (entry.waiters || []).forEach(function(w) {
+          waitersEl.appendChild(buildWaiterCard(w));
+        });
+      });
+
+      document.getElementById('blockers-content').style.display = 'block';
+    }
+
+    function buildWaiterCard(w) {
+      var div = document.createElement('div');
+      div.className = 'waiter-card' + (w.sev1 ? ' sev1' : '');
+      var critical = w.wait_seconds > 300;
+      var timeBadge = '<span class="wait-time-badge' + (critical ? ' critical' : '') + '">⏱ ' + fmtSeconds(w.wait_seconds) + '</span>';
+      var sev1Badge = w.sev1 ? '<span class="sev1-badge">Sev-1 Chain</span>' : '';
+      div.innerHTML =
+        '<div class="waiter-header">' +
+          '<div><span class="waiter-sid">SID ' + w.sid + ' / ' + w.serial_num + '</span>' +
+          '<span style="font-size:11px;color:var(--text-dim);margin-left:8px;">' + esc(w.username || '') + '</span></div>' +
+          '<div style="display:flex;gap:6px;align-items:center;">' + timeBadge + sev1Badge + '</div>' +
+        '</div>' +
+        (w.sql_text ? '<div class="waiter-sql">' + esc(w.sql_text) + '</div>' : '');
+
+      if (w.sub_waiters && w.sub_waiters.length) {
+        var subDiv = document.createElement('div');
+        subDiv.className = 'sub-waiters';
+        w.sub_waiters.forEach(function(sw) { subDiv.appendChild(buildWaiterCard(sw)); });
+        div.appendChild(subDiv);
+      }
+      return div;
+    }
+
+    // ── SEGMENT HOTSPOTS ──────────────────────────────────────────────────────
+    async function fetchSegments() {
+      setBtnLoading(true);
+      setError(null);
+      document.getElementById('seg-empty').style.display = 'none';
+      document.getElementById('seg-content').style.display = 'none';
+      document.getElementById('seg-loading').style.display = 'block';
+      setDemoBanner(false);
+      try {
+        var r = await fetch('/api/performance/' + connId() + '/segment-hotspots');
+        var payload = await r.json();
+        if (!r.ok) throw new Error(payload.error || 'Server error ' + r.status);
+        _segData = payload.segments || [];
+        setFetchedAt(payload.fetched_at);
+        setDemoBanner(!!payload.is_demo);
+        renderSegments(_segData);
+      } catch (e) { setError(e.message); document.getElementById('seg-empty').style.display = 'block'; }
+      finally { setBtnLoading(false); document.getElementById('seg-loading').style.display = 'none'; }
+    }
+
+    function renderSegments(segments) {
+      var tbody = document.getElementById('seg-tbody');
+      tbody.innerHTML = '';
+      _segExpandedIdx = null;
+      segments.forEach(function(seg, idx) {
+        var isTable = seg.segment_type === 'TABLE';
+        var badgeClass = isTable ? 'seg-type-table' : 'seg-type-index';
+        var tr = document.createElement('tr');
+        tr.className = 'expandable';
+        tr.onclick = function() { toggleSegExpand(idx); };
+        tr.innerHTML =
+          '<td><span class="expand-icon">▶</span></td>' +
+          '<td style="font-size:13px;font-weight:500;font-family:\'JetBrains Mono\',monospace;">' + esc(seg.segment_name) + '</td>' +
+          '<td class="mono" style="color:var(--text-dim);">' + esc(seg.owner) + '</td>' +
+          '<td><span class="seg-type-badge ' + badgeClass + '">' + esc(seg.segment_type) + '</span></td>' +
+          '<td class="num-cell">' + Number(seg.logical_reads).toLocaleString() + '</td>';
+
+        var detailTr = document.createElement('tr');
+        detailTr.className = 'detail-row';
+        detailTr.dataset.detail = idx;
+        var recHtml = seg.ai_recommendation
+          ? '<div class="seg-rec"><div class="seg-rec-header">🤖 AI Recommendation</div><div class="seg-rec-sql">' + esc(seg.ai_recommendation.recommendation || '') + '</div><div class="seg-rec-rationale">' + esc(seg.ai_recommendation.rationale || '') + '</div></div>'
+          : '<div style="color:var(--text-dim);font-size:13px;margin-top:8px;">AI recommendation not available.</div>';
+
+        detailTr.innerHTML = '<td colspan="5"><div style="padding:16px 20px;">' +
+          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-dim);margin-bottom:8px;">Segment Detail</div>' +
+          '<div class="mono" style="color:var(--text-dim);font-size:12px;margin-bottom:8px;">' + esc(seg.owner + '.' + seg.segment_name) + ' &bull; ' + esc(seg.segment_type) + ' &bull; ' + Number(seg.logical_reads).toLocaleString() + ' logical reads</div>' +
+          recHtml +
+          '</div></td>';
+
+        tbody.appendChild(tr);
+        tbody.appendChild(detailTr);
+      });
+      document.getElementById('seg-content').style.display = 'block';
+    }
+
+    function toggleSegExpand(idx) {
+      var allTrs = document.querySelectorAll('#seg-tbody tr:not(.detail-row)');
+      var allDetails = document.querySelectorAll('#seg-tbody tr.detail-row');
+      if (_segExpandedIdx === idx) {
+        allTrs[idx].classList.remove('expanded');
+        allDetails[idx].classList.remove('open');
+        _segExpandedIdx = null;
+      } else {
+        if (_segExpandedIdx !== null) { allTrs[_segExpandedIdx].classList.remove('expanded'); allDetails[_segExpandedIdx].classList.remove('open'); }
+        allTrs[idx].classList.add('expanded');
+        allDetails[idx].classList.add('open');
+        _segExpandedIdx = idx;
+      }
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    function esc(s) {
+      return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function fmt(n, decimals) {
+      if (n == null) return '—';
+      var num = Number(n);
+      if (isNaN(num)) return '—';
+      return decimals > 0 ? num.toFixed(decimals) : num.toLocaleString();
+    }
+    function fmtMs(ms) {
+      var v = Number(ms);
+      if (isNaN(v)) return '—';
+      if (v >= 60000) return (v / 60000).toFixed(1) + ' min';
+      if (v >= 1000) return (v / 1000).toFixed(1) + ' s';
+      return v.toLocaleString() + ' ms';
+    }
+    function fmtSeconds(s) {
+      var v = Number(s);
+      if (isNaN(v)) return '—';
+      if (v >= 3600) return Math.floor(v / 3600) + 'h ' + Math.floor((v % 3600) / 60) + 'm';
+      if (v >= 60) return Math.floor(v / 60) + 'm ' + (v % 60) + 's';
+      return v + 's';
+    }
+    function copyText(btnId, text) {
+      navigator.clipboard.writeText(text).then(function() {
+        var btn = document.getElementById(btnId);
+        if (btn) {
+          var orig = btn.innerHTML;
+          btn.textContent = '✓ Copied';
+          btn.classList.add('copied');
+          setTimeout(function() { btn.innerHTML = orig; btn.classList.remove('copied'); }, 2000);
+        }
+      }).catch(function() {
+        var ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+      });
+    }
+
+    // Safe copy from data-copy-text attribute — avoids JSON injection in onclick handlers
+    function copyFromData(el) {
+      var text = el.getAttribute('data-copy-text') || '';
+      navigator.clipboard.writeText(text).then(function() {
+        var orig = el.innerHTML;
+        el.textContent = '✓ Copied';
+        el.classList.add('copied');
+        setTimeout(function() { el.innerHTML = orig; el.classList.remove('copied'); }, 2000);
+      }).catch(function() {
+        var ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+      });
+    }
+  </script>
+<script src="/tv-tracker.js"></script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

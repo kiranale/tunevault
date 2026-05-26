@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSH Prerequisites — TuneVault Docs</title>
+    <meta name="description" content="SSH access for TuneVault: your infrastructure team configures it once. After that, your DBAs never open a terminal again — all operations run through TuneVault's browser UI.">
+    <link rel="canonical" href="https://tunevault.app/docs/ssh-prereqs">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0c;
+            --surface: #111114;
+            --surface-2: #1a1a1f;
+            --border: #2a2a30;
+            --text: #e8e8ed;
+            --text-dim: #9898a8;
+            --text-muted: #9898a8;
+            --accent: #f0a830;
+            --accent-dim: rgba(240, 168, 48, 0.10);
+            --green: #34d399;
+            --green-dim: rgba(52, 211, 153, 0.10);
+            --red: #f87171;
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .grain {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        .page-wrap {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 48px 80px;
+        }
+
+        /* Breadcrumb */
+        .breadcrumb {
+            padding: 24px 0 0;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        .breadcrumb a {
+            color: var(--text-muted);
+            text-decoration: none;
+        }
+        .breadcrumb a:hover { color: var(--accent); }
+        .breadcrumb span { margin: 0 6px; }
+
+        /* Doc header */
+        .doc-header {
+            padding: 36px 0 40px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 40px;
+        }
+        .doc-eyebrow {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--accent);
+            margin-bottom: 12px;
+        }
+        .doc-header h1 {
+            font-size: clamp(28px, 4vw, 42px);
+            font-weight: 700;
+            letter-spacing: -1.5px;
+            line-height: 1.1;
+            margin-bottom: 16px;
+        }
+        .doc-header p {
+            font-size: 16px;
+            color: var(--text-dim);
+            line-height: 1.7;
+            max-width: 580px;
+        }
+
+        /* Terminal-free callout */
+        .terminal-free-callout {
+            background: linear-gradient(135deg, rgba(52, 211, 153, 0.07), rgba(52, 211, 153, 0.02));
+            border: 1px solid rgba(52, 211, 153, 0.3);
+            border-radius: 10px;
+            padding: 20px 24px;
+            margin-bottom: 40px;
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+        }
+        .callout-icon { font-size: 24px; flex-shrink: 0; margin-top: 2px; }
+        .callout-body h4 {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--green);
+            margin-bottom: 6px;
+        }
+        .callout-body p {
+            font-size: 14px;
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+
+        /* Doc sections */
+        .doc-section {
+            margin-bottom: 40px;
+        }
+        .doc-section h2 {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 12px;
+        }
+        .doc-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-dim);
+            margin: 20px 0 10px;
+        }
+        .doc-section p {
+            font-size: 15px;
+            color: var(--text-dim);
+            line-height: 1.7;
+            margin-bottom: 12px;
+        }
+        .doc-section ul, .doc-section ol {
+            margin-left: 0;
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .doc-section li {
+            display: flex;
+            gap: 10px;
+            font-size: 14px;
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+        .doc-section li .li-icon { flex-shrink: 0; margin-top: 2px; color: var(--accent); }
+
+        /* Code block */
+        .code-block {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 12px 0 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            line-height: 1.8;
+            color: var(--text-dim);
+            overflow-x: auto;
+        }
+        .code-block .comment { color: var(--text-muted); }
+        .code-block .cmd { color: var(--green); }
+        .code-block .param { color: var(--accent); }
+
+        /* Step list */
+        .step-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        .step {
+            display: flex;
+            gap: 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+        }
+        .step-num {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--accent);
+            background: var(--accent-dim);
+            border: 1px solid rgba(240, 168, 48, 0.2);
+            border-radius: 6px;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .step-body h4 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .step-body p {
+            font-size: 13px;
+            color: var(--text-dim);
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        /* Who does what table */
+        .who-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 32px;
+        }
+        .who-table th {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            text-align: left;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .who-table td {
+            padding: 12px 14px;
+            font-size: 13px;
+            border-bottom: 1px solid rgba(42,42,48,0.4);
+            line-height: 1.5;
+        }
+        .who-table td:first-child { color: var(--text-dim); width: 35%; }
+        .who-table td:nth-child(2) { font-weight: 500; }
+        .who-table td:nth-child(3) { color: var(--text-muted); font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+        .badge-infra {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            font-weight: 700;
+            background: rgba(96, 165, 250, 0.1);
+            color: #60a5fa;
+            border: 1px solid rgba(96, 165, 250, 0.2);
+        }
+        .badge-dba {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            font-weight: 700;
+            background: var(--green-dim);
+            color: var(--green);
+            border: 1px solid rgba(52, 211, 153, 0.2);
+        }
+
+        /* Divider */
+        .divider {
+            border: none;
+            border-top: 1px solid rgba(42,42,48,0.4);
+            margin: 40px 0;
+        }
+
+        /* CTA */
+        .doc-cta {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 28px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+        .doc-cta h3 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+        .doc-cta p { font-size: 14px; color: var(--text-dim); }
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 12px 24px;
+            background: var(--accent);
+            color: #fff;
+            border-radius: 7px;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+        .btn-primary:hover { background: #e09820; transform: translateY(-1px); }
+
+        @media (max-width: 768px) {
+            .page-wrap { padding: 0 24px 60px; }
+            .doc-cta { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="grain"></div>
+
+    <nav id="nav-root"></nav>
+
+    <div class="page-wrap">
+
+        <div class="breadcrumb">
+            <a href="/">TuneVault</a>
+            <span>›</span>
+            <a href="/docs/oracle-setup">Docs</a>
+            <span>›</span>
+            <span style="color:var(--text-dim);">SSH Prerequisites</span>
+        </div>
+
+        <div class="doc-header">
+            <div class="doc-eyebrow">Setup Docs</div>
+            <h1>SSH Prerequisites</h1>
+            <p>Your infrastructure team sets up SSH access once. After that, your DBAs never open a terminal again — all operations run through TuneVault's browser UI.</p>
+        </div>
+
+        <!-- Terminal-free callout -->
+        <div class="terminal-free-callout">
+            <div class="callout-icon">🌐</div>
+            <div class="callout-body">
+                <h4>No PuTTY. No SQL*Plus. No terminal sessions — ever.</h4>
+                <p>SSH credential setup is a one-time infrastructure task. Once configured, DBAs interact with TuneVault entirely through the browser. No terminal access is needed for day-to-day Oracle operations — monitoring, EBS ops, SQL tuning, or incident response.</p>
+            </div>
+        </div>
+
+        <!-- Who does what -->
+        <div class="doc-section">
+            <h2>Who configures what</h2>
+            <p>SSH setup is split cleanly between your infrastructure team and your DBA team. The infra team handles it once; DBAs use the browser from day one.</p>
+
+            <table class="who-table">
+                <thead>
+                    <tr>
+                        <th>Task</th>
+                        <th>Owner</th>
+                        <th>Frequency</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Create OS user for TuneVault SSH</td>
+                        <td><span class="badge-infra">Infra team</span></td>
+                        <td>Once per server</td>
+                    </tr>
+                    <tr>
+                        <td>Generate SSH key pair</td>
+                        <td><span class="badge-infra">Infra team</span></td>
+                        <td>Once per server</td>
+                    </tr>
+                    <tr>
+                        <td>Add public key to authorized_keys</td>
+                        <td><span class="badge-infra">Infra team</span></td>
+                        <td>Once per server</td>
+                    </tr>
+                    <tr>
+                        <td>Add SSH target in TuneVault UI</td>
+                        <td><span class="badge-infra">Infra team</span></td>
+                        <td>Once per connection</td>
+                    </tr>
+                    <tr>
+                        <td>Run EBS SSH checks</td>
+                        <td><span class="badge-dba">DBA team</span></td>
+                        <td>On-demand (browser)</td>
+                    </tr>
+                    <tr>
+                        <td>View SSH audit log</td>
+                        <td><span class="badge-dba">DBA team</span></td>
+                        <td>Anytime (browser)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Setup steps -->
+        <div class="doc-section">
+            <h2>Setup steps (infra team)</h2>
+            <p>This is a one-time setup. Estimated time: 15–20 minutes per server.</p>
+
+            <div class="step-list">
+                <div class="step">
+                    <div class="step-num">1</div>
+                    <div class="step-body">
+                        <h4>Create a dedicated OS user</h4>
+                        <p>Create a non-root OS user on the Oracle/EBS application server. This user only needs read access to specific EBS directories (APPL_TOP, log directories). No oracle or apps group membership required for most checks.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-num">2</div>
+                    <div class="step-body">
+                        <h4>Generate an SSH key pair</h4>
+                        <p>Generate an ED25519 or RSA key pair. Keep the private key — you'll paste it into TuneVault's SSH vault (encrypted at rest with AES-256-GCM). Add the public key to the OS user's <code style="font-family:JetBrains Mono,monospace;font-size:12px">~/.ssh/authorized_keys</code>.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-num">3</div>
+                    <div class="step-body">
+                        <h4>Verify connectivity from TuneVault</h4>
+                        <p>In TuneVault Settings → SSH Targets, add the target and use the Test Connection button. This runs a safe identity check only — no filesystem access, no Oracle queries.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-num">4</div>
+                    <div class="step-body">
+                        <h4>Hand off to DBAs</h4>
+                        <p>That's it. DBAs can now run EBS SSH checks, view filesystem usage, check ADOP status, and monitor WLS logs — all from the browser. No terminal access needed.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security note -->
+        <div class="doc-section">
+            <h2>Security model</h2>
+
+            <ul>
+                <li><span class="li-icon">✓</span> <span>All SSH credentials encrypted with AES-256-GCM at rest in TuneVault's database.</span></li>
+                <li><span class="li-icon">✓</span> <span>Only a whitelisted set of commands can execute — no arbitrary shell commands, ever.</span></li>
+                <li><span class="li-icon">✓</span> <span>Every SSH execution is logged to an append-only audit table (command, exit code, duration, who triggered it).</span></li>
+                <li><span class="li-icon">✓</span> <span>Private keys are never returned to the browser after initial upload.</span></li>
+                <li><span class="li-icon">✓</span> <span>The OS user requires no root, no oracle group, no sudo — read access to specific paths only.</span></li>
+            </ul>
+        </div>
+
+        <hr class="divider">
+
+        <div class="doc-cta">
+            <div>
+                <h3>Ready to connect?</h3>
+                <p>Start with a DB health check — no SSH needed. Add SSH targets when you're ready for EBS ops.</p>
+            </div>
+            <a href="/sample-report" class="btn-primary">View Sample Report →</a>
+        </div>
+
+    </div>
+
+    <script src="/nav-component.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        window.tvNav.init('main');
+    });
+    </script>
+    <script src="/tv-tracker.js"></script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

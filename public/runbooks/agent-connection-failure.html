@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TuneVault Agent Connection Failure — Oracle Proxy Troubleshooting Runbook | TuneVault</title>
+    <meta name="description" content="TuneVault agent not connecting? Step-by-step diagnosis and fix for Oracle proxy agent outbound connection failures: service down, poll loop errors, network blocks, and reconnection.">
+    <meta name="author" content="TuneVault">
+    <link rel="canonical" href="https://tunevault.app/resources/runbooks/agent-connection-failure">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <meta property="og:title" content="TuneVault Agent Connection Failure — Oracle Proxy Runbook | TuneVault">
+    <meta property="og:description" content="Fix TuneVault agent outbound connection failures. Covers service restart, poll loop errors, network blocks, Oracle listener checks, and re-registration.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://tunevault.app/resources/runbooks/agent-connection-failure">
+    <meta property="og:site_name" content="TuneVault">
+    <meta property="og:image" content="https://tunevault.app/og/runbook.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="Oracle DBA Runbook — TuneVault production-tested recovery guide">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://tunevault.app/og/runbook.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        { "@type": "Organization", "@id": "https://tunevault.app/#organization", "name": "TuneVault", "url": "https://tunevault.app", "logo": { "@type": "ImageObject", "url": "https://tunevault.app/logo.png" }, "foundingDate": "2026", "founder": { "@type": "Person", "name": "Kiran Kumar Ale", "url": "https://tunevault.app/about" }, "contactPoint": { "@type": "ContactPoint", "email": "hello@tunevault.app", "contactType": "customer support" } },
+        { "@type": "TechArticle", "@id": "https://tunevault.app/resources/runbooks/agent-connection-failure#article", "headline": "TuneVault Agent Connection Failure — Oracle Proxy Troubleshooting Runbook", "description": "Diagnose and fix TuneVault agent outbound connection failures. Covers service restart, long-poll errors, network blocks, Oracle listener checks, and agent re-registration.", "url": "https://tunevault.app/resources/runbooks/agent-connection-failure", "datePublished": "2026-05-17", "dateModified": "2026-05-17", "author": { "@type": "Person", "name": "Kiran Kumar Ale", "url": "https://tunevault.app/about" }, "publisher": { "@id": "https://tunevault.app/#organization" }, "about": [{ "@type": "Thing", "name": "Oracle Database" }, { "@type": "Thing", "name": "Agent Connection" }, { "@type": "Thing", "name": "Oracle Proxy" }] }
+      ]
+    }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+    <style>
+        :root{--bg:#0a0a0c;--surface:#111114;--surface2:#18181c;--border:#2a2a30;--text:#e8e8ed;--text-dim:#9898a8;--accent:#f0a830;--accent-dim:rgba(240,168,48,0.12);--red:#f87171;--red-dim:rgba(248,113,113,0.1);--green:#4ade80;--green-dim:rgba(74,222,128,0.1);--blue:#60a5fa;--blue-dim:rgba(96,165,250,0.1);}
+        *{box-sizing:border-box;margin:0;padding:0;}body{background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif;line-height:1.7;}a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
+        nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+        .nav-logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;color:var(--text);text-decoration:none;}
+        .nav-logo-icon{width:28px;height:28px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:13px;color:#0a0a0c;font-weight:700;}
+        .nav-links{display:flex;align-items:center;gap:20px;}.nav-links a{font-size:13px;color:var(--text-dim);transition:color 0.15s;}.nav-links a:hover{color:var(--text);text-decoration:none;}
+        .nav-cta{background:var(--accent);color:#0a0a0c !important;padding:6px 16px;border-radius:6px;font-weight:600;font-size:13px !important;}
+        .page-wrap{max-width:820px;margin:0 auto;padding:48px 24px 80px;}
+        .breadcrumb{font-size:13px;color:var(--text-dim);margin-bottom:32px;}.breadcrumb a{color:var(--text-dim);}.breadcrumb a:hover{color:var(--accent);}.breadcrumb span{margin:0 6px;}
+        .article-tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:3px 10px;border-radius:20px;background:rgba(96,165,250,0.1);color:#60a5fa;margin-bottom:16px;}
+        h1{font-size:clamp(26px,4vw,40px);font-weight:700;line-height:1.2;margin-bottom:16px;}
+        .article-meta{display:flex;gap:20px;flex-wrap:wrap;font-size:13px;color:var(--text-dim);margin-bottom:40px;}
+        .toc{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 24px;margin-bottom:40px;}
+        .toc-title{font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-dim);margin-bottom:12px;}
+        .toc ol{padding-left:20px;}.toc li{margin-bottom:6px;}.toc a{font-size:14px;color:var(--text-dim);}.toc a:hover{color:var(--accent);}
+        h2{font-size:22px;font-weight:700;margin:48px 0 16px;padding-top:32px;border-top:1px solid var(--border);}h3{font-size:17px;font-weight:600;margin:28px 0 12px;}
+        p{margin-bottom:16px;font-size:15px;}ul,ol{padding-left:22px;margin-bottom:16px;}li{margin-bottom:8px;font-size:15px;}
+        pre{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:18px 20px;overflow-x:auto;margin:16px 0 24px;}
+        code{font-family:'JetBrains Mono',monospace;font-size:13px;color:#93c5fd;line-height:1.6;}p code,li code{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:12.5px;color:#93c5fd;}
+        .comment{color:#6b7280;}.keyword{color:#f0a830;}.string{color:#4ade80;}
+        .callout{border-radius:10px;padding:18px 20px;margin:20px 0;font-size:14px;}
+        .callout-critical{background:var(--red-dim);border:1px solid rgba(248,113,113,0.3);}.callout-warning{background:var(--accent-dim);border:1px solid rgba(240,168,48,0.3);}.callout-info{background:var(--blue-dim);border:1px solid rgba(96,165,250,0.3);}.callout-success{background:var(--green-dim);border:1px solid rgba(74,222,128,0.3);}
+        .callout-title{font-weight:700;margin-bottom:6px;}.callout-critical .callout-title{color:var(--red);}.callout-warning .callout-title{color:var(--accent);}.callout-info .callout-title{color:var(--blue);}.callout-success .callout-title{color:var(--green);}
+        .cta-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:32px;text-align:center;margin:48px 0;}
+        .cta-box h3{font-size:20px;margin-bottom:8px;}.cta-box p{color:var(--text-dim);margin-bottom:20px;font-size:14px;}
+        .cta-btn{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#0a0a0c;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;}
+        .cta-btn:hover{background:#e09820;text-decoration:none;}
+        .nav-footer{display:flex;justify-content:space-between;gap:16px;margin-top:48px;padding-top:32px;border-top:1px solid var(--border);flex-wrap:wrap;}
+        .nav-footer a{font-size:14px;font-weight:500;color:var(--text-dim);}.nav-footer a:hover{color:var(--accent);text-decoration:none;}
+        footer{border-top:1px solid var(--border);padding:32px 24px;text-align:center;font-size:13px;color:var(--text-dim);}
+        .footer-links{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin-bottom:12px;}.footer-links a{color:var(--text-dim);}
+        .diag-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0 24px;}
+        @media(max-width:640px){.diag-grid{grid-template-columns:1fr;}}
+        .diag-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;}
+        .diag-card-label{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;}
+        .diag-card-value{font-size:13px;font-family:'JetBrains Mono',monospace;color:var(--text);}
+        @media(max-width:600px){.page-wrap{padding:32px 16px 60px;}}
+    </style>
+</head>
+<body>
+
+<nav>
+    <a href="/" class="nav-logo"><div class="nav-logo-icon">TV</div>TuneVault</a>
+    <div class="nav-links">
+        <a href="/resources/runbooks">Runbooks</a>
+        <a href="/blog">Blog</a>
+        <a href="/signup?path=health-check&redirect=/dashboard" class="nav-cta">Start Free</a>
+    </div>
+</nav>
+
+<div class="page-wrap">
+
+    <div class="breadcrumb">
+        <a href="/">TuneVault</a><span>›</span>
+        <a href="/resources/runbooks">Runbooks</a><span>›</span>
+        Agent Connection Failure
+    </div>
+
+    <div class="article-tag">🌐 Connectivity</div>
+    <h1>TuneVault Agent Connection Failure — Diagnosis &amp; Recovery Runbook</h1>
+    <div class="article-meta">
+        <span>⏱ 10–30 min</span>
+        <span>oracle-proxy.py + Agent Channel</span>
+        <span>Updated 2026-05-17</span>
+    </div>
+
+    <div class="callout callout-critical">
+        <div class="callout-title">🔴 Agent shows as disconnected in TuneVault</div>
+        TuneVault polls your agent every 10 seconds via an outbound HTTPS long-poll from the Oracle server to <code>tunevault.app</code>. When the agent is disconnected, health checks queue but cannot run. No inbound ports are involved — the issue is always on the outbound side.
+    </div>
+
+    <div class="toc">
+        <div class="toc-title">In this runbook</div>
+        <ol>
+            <li><a href="#architecture">How the agent connection works</a></li>
+            <li><a href="#quick-checks">Quick diagnostic checks</a></li>
+            <li><a href="#service-health">Verify proxy service on the Oracle server</a></li>
+            <li><a href="#outbound-network">Outbound network connectivity</a></li>
+            <li><a href="#oracle-listener">Oracle listener checks</a></li>
+            <li><a href="#reinstall">Re-register or reinstall the agent</a></li>
+            <li><a href="#fallback">Fallback: switch to Direct TCP mode</a></li>
+            <li><a href="#prevention">Prevention</a></li>
+        </ol>
+    </div>
+
+    <h2 id="architecture">1. How the Agent Connection Works</h2>
+
+    <p>TuneVault's architecture is <strong>outbound-only</strong>. The agent on your Oracle server initiates all connections — TuneVault's cloud never opens inbound connections to your network.</p>
+
+    <ul>
+        <li><code>oracle-proxy.py</code> runs as a systemd service (<code>tunevault-proxy</code>) on the Oracle server.</li>
+        <li>The proxy opens a long-poll HTTPS connection to <code>https://tunevault.app/api/agent/poll</code> every 10 seconds.</li>
+        <li>TuneVault sends health check jobs through this channel. The proxy executes them against the local Oracle listener and returns results.</li>
+        <li><strong>No inbound ports required.</strong> No DNS records. No third-party tunnel services.</li>
+    </ul>
+
+    <div class="callout callout-info">
+        <div class="callout-title">ℹ️ What "disconnected" means</div>
+        If no poll from the agent has arrived in the last 30 seconds, TuneVault marks the connection as disconnected. Health checks fail with "Agent not connected." The agent reconnects automatically once it resumes polling — no manual intervention needed if the service recovers on its own.
+    </div>
+
+    <h2 id="quick-checks">2. Quick Diagnostic Checks</h2>
+
+    <p>Run these from the Oracle server to pinpoint the failure mode fast.</p>
+
+    <pre><code><span class="comment"># 1. Check proxy service status</span>
+sudo systemctl status tunevault-proxy
+
+<span class="comment"># 2. Check last 50 log lines</span>
+sudo journalctl -u tunevault-proxy -n 50 --no-pager
+
+<span class="comment"># 3. Confirm outbound connectivity to TuneVault</span>
+curl -sf https://tunevault.app/health
+<span class="comment"># Expected: {"status":"ok",...}</span>
+
+<span class="comment"># 4. Check agent registration status (requires API key from installer)</span>
+curl -sf -H "X-API-Key: YOUR_AGENT_API_KEY" \
+  "https://tunevault.app/api/agent/status?connection_id=YOUR_CONNECTION_ID"
+<span class="comment"># Expected: {"registered":true,"last_poll_at":"..."}</span></code></pre>
+
+    <div class="diag-grid">
+        <div class="diag-card">
+            <div class="diag-card-label">Service: inactive/failed</div>
+            <div class="diag-card-value">Go to Step 3 — restart the service.</div>
+        </div>
+        <div class="diag-card">
+            <div class="diag-card-label">curl tunevault.app fails</div>
+            <div class="diag-card-value">Go to Step 4 — outbound network block.</div>
+        </div>
+        <div class="diag-card">
+            <div class="diag-card-label">Service running, status shows disconnected</div>
+            <div class="diag-card-value">API key may be revoked. Go to Step 6.</div>
+        </div>
+        <div class="diag-card">
+            <div class="diag-card-label">registered:false in status response</div>
+            <div class="diag-card-value">Re-register the agent. Go to Step 6.</div>
+        </div>
+    </div>
+
+    <h2 id="service-health">3. Verify Proxy Service on the Oracle Server</h2>
+
+    <p>SSH to the Oracle server where the agent is installed. All commands run as <code>root</code> or the install user.</p>
+
+    <pre><code><span class="comment"># Check service state</span>
+sudo systemctl status tunevault-proxy
+
+<span class="comment"># If inactive or failed — restart</span>
+sudo systemctl restart tunevault-proxy
+
+<span class="comment"># Re-check after restart</span>
+sudo systemctl status tunevault-proxy
+
+<span class="comment"># Follow logs in real time to see poll loop activity</span>
+sudo journalctl -u tunevault-proxy -f</code></pre>
+
+    <p>A healthy agent logs a poll attempt every 10 seconds. If you see <code>poll loop error</code> repeating, the outbound connection is failing — go to Step 4.</p>
+
+    <h3>Common log errors and their causes</h3>
+
+    <ul>
+        <li><code>ConnectionError: Failed to establish a new connection</code> — outbound HTTPS to tunevault.app is blocked. Go to Step 4.</li>
+        <li><code>401 Unauthorized</code> on the poll endpoint — API key was revoked or is missing. Go to Step 6.</li>
+        <li><code>cx_Oracle.DatabaseError: ORA-12541: TNS:no listener</code> — Oracle listener is down. Go to Step 5.</li>
+        <li><code>cx_Oracle.DatabaseError: ORA-01017: invalid username/password</code> — reader credentials need updating. Regenerate via Settings → Connections.</li>
+        <li><code>SSL: CERTIFICATE_VERIFY_FAILED</code> — system time is wrong. Run <code>timedatectl</code> and sync NTP.</li>
+    </ul>
+
+    <pre><code><span class="comment"># Check system time (clock skew breaks TLS)</span>
+timedatectl status
+
+<span class="comment"># Sync if needed (RHEL/OL)</span>
+sudo chronyc makestep
+
+<span class="comment"># Sync if needed (older systems)</span>
+sudo ntpdate -u pool.ntp.org</code></pre>
+
+    <h2 id="outbound-network">4. Outbound Network Connectivity</h2>
+
+    <p>The agent only needs <strong>outbound HTTPS (port 443)</strong> to <code>tunevault.app</code>. No inbound rules. No special DNS. No third-party services.</p>
+
+    <pre><code><span class="comment"># Confirm outbound 443 works from the Oracle server</span>
+curl -sv https://tunevault.app/health 2>&1 | grep -E "Connected|HTTP|SSL"
+
+<span class="comment"># If curl fails — test raw TCP connectivity</span>
+nc -zv tunevault.app 443
+<span class="comment"># Expected: Connection to tunevault.app 443 port [tcp/https] succeeded!</span>
+
+<span class="comment"># Check local iptables for outbound DROP/REJECT rules</span>
+sudo iptables -L OUTPUT -n | grep -E "DROP|REJECT"
+
+<span class="comment"># On RHEL/OL with firewalld</span>
+sudo firewall-cmd --list-all</code></pre>
+
+    <div class="callout callout-warning">
+        <div class="callout-title">⚠️ Proxy server / corporate firewall</div>
+        If the Oracle server routes outbound traffic through a corporate HTTP proxy, set the <code>HTTPS_PROXY</code> environment variable in the systemd service unit:
+        <pre style="margin:8px 0 0;"><code>sudo systemctl edit tunevault-proxy
+<span class="comment"># Add under [Service]:</span>
+Environment=HTTPS_PROXY=http://proxy.corp.example.com:3128</code></pre>
+        Then: <code>sudo systemctl daemon-reload &amp;&amp; sudo systemctl restart tunevault-proxy</code>
+    </div>
+
+    <h2 id="oracle-listener">5. Oracle Listener Checks</h2>
+
+    <p>The agent connects to Oracle locally. If the listener is down, the agent polls fine but health check jobs fail.</p>
+
+    <pre><code><span class="comment"># Check listener status (run as oracle user)</span>
+lsnrctl status
+
+<span class="comment"># If listener is down</span>
+lsnrctl start
+
+<span class="comment"># Verify connection works with the reader account</span>
+sqlplus tunevault_reader/PASSWORD@//YOUR_DB_HOST:YOUR_DB_PORT/YOURDBSID
+
+<span class="comment"># Check listener log for ORA- errors</span>
+tail -50 $ORACLE_BASE/diag/tnslsnr/$(hostname -s)/listener/alert/log.xml</code></pre>
+
+    <div class="callout callout-info">
+        <div class="callout-title">ℹ️ EBS environments: APPS.DUAL probe</div>
+        For Oracle E-Business Suite connections, the agent runs an additional <code>SELECT 1 FROM APPS.DUAL</code> probe to gate EBS-specific checks. If this fails with ORA-00942 (table not found), the APPS schema is not accessible via the reader account. Verify <code>tunevault_reader</code> has SELECT on APPS.DUAL.
+    </div>
+
+    <h2 id="reinstall">6. Re-register or Reinstall the Agent</h2>
+
+    <p>If the API key is invalid, the connection was deleted, or the agent config is corrupted — re-run the installer with a fresh token.</p>
+
+    <pre><code><span class="comment"># Get a fresh install token from TuneVault:</span>
+<span class="comment"># Settings → Connections → [your connection] → Reinstall Agent → Copy token</span>
+
+<span class="comment"># Re-run the installer — it detects an existing install and upgrades in place</span>
+curl -sSL https://tunevault.app/install.sh | bash -s -- --token YOUR_NEW_TOKEN
+
+<span class="comment"># The installer will:</span>
+<span class="comment"># - Update oracle-proxy.py to the latest version</span>
+<span class="comment"># - Write a new API key to /etc/tunevault/agent.conf</span>
+<span class="comment"># - Restart tunevault-proxy</span>
+<span class="comment"># - Run self-test and print PASS/FAIL for each check</span></code></pre>
+
+    <div class="callout callout-warning">
+        <div class="callout-title">⚠️ Old API keys are invalidated on reinstall</div>
+        A fresh install token generates a new API key. The old key stops working immediately. If you have monitoring scripts that use the old key, update them.
+    </div>
+
+    <h3>Manual re-registration (without full reinstall)</h3>
+
+    <pre><code><span class="comment"># If you only need to re-register (service is running, key is stale):</span>
+curl -sf -X POST https://tunevault.app/api/agent/confirm \
+  -H "Content-Type: application/json" \
+  -d '{"token":"YOUR_INSTALL_TOKEN"}'
+<span class="comment"># Expected: {"ok":true,"connection_id":"..."}</span>
+
+<span class="comment"># Restart the proxy to pick up the new registration</span>
+sudo systemctl restart tunevault-proxy</code></pre>
+
+    <h2 id="fallback">7. Fallback: Switch to Direct TCP Mode</h2>
+
+    <p>If the agent cannot run on the Oracle server (strict egress policy, no Python, no root access), switch to Direct TCP. This bypasses the agent entirely — TuneVault connects directly to the Oracle listener over the network.</p>
+
+    <ol>
+        <li>Go to <strong>Settings → Connections</strong> in TuneVault.</li>
+        <li>Edit the affected connection.</li>
+        <li>Change <strong>Connection Type</strong> to <em>Direct TCP</em>.</li>
+        <li>Enter the Oracle server's public IP (or VPN-accessible IP) and listener port (default 1521).</li>
+        <li>Save and run a new health check to verify connectivity.</li>
+    </ol>
+
+    <div class="callout callout-warning">
+        <div class="callout-title">⚠️ Direct TCP security note</div>
+        Direct TCP requires the Oracle listener port to be reachable from TuneVault's server IPs. Restrict port 1521 to TuneVault's IP range using firewall rules — do not expose it to <code>0.0.0.0/0</code>. The agent (outbound-only) is preferred for production environments because it requires no inbound firewall rules.
+    </div>
+
+    <h2 id="prevention">8. Prevention</h2>
+
+    <div class="callout callout-success">
+        <div class="callout-title">✅ Agent reliability checklist</div>
+        <ul style="margin:8px 0 0 20px;">
+            <li>Ensure <code>tunevault-proxy</code> starts on boot: <code>sudo systemctl enable tunevault-proxy</code></li>
+            <li>Enable TuneVault's autonomous monitoring — it polls the agent every 15 minutes and alerts on disconnect</li>
+            <li>Keep the Oracle listener in <code>auto-start</code> mode so it recovers after server reboots</li>
+            <li>Keep NTP synchronised — clock skew breaks TLS certificate validation</li>
+            <li>Do not revoke the agent API key from the TuneVault dashboard without immediately issuing a new install token</li>
+            <li>Test outbound HTTPS before any corporate firewall change: <code>curl -sf https://tunevault.app/health</code></li>
+        </ul>
+    </div>
+
+    <pre><code><span class="comment"># Enable autostart</span>
+sudo systemctl enable tunevault-proxy
+
+<span class="comment"># Verify enabled</span>
+sudo systemctl is-enabled tunevault-proxy
+<span class="comment"># Expected: enabled</span>
+
+<span class="comment"># Quick connectivity self-test (run anytime)</span>
+curl -sf https://tunevault.app/health | python3 -m json.tool</code></pre>
+
+    <div class="cta-box">
+        <h3>Monitor your Oracle agent health automatically</h3>
+        <p>TuneVault's autonomous monitoring detects agent disconnections within 15 minutes and alerts you before your team notices missing health check data.</p>
+        <a href="/signup?path=health-check&redirect=/dashboard" class="cta-btn">Set Up Monitoring →</a>
+    </div>
+
+    <div class="nav-footer">
+        <a href="/resources/runbooks/adop-cutover-rollback">← ADOP Cutover Rollback</a>
+        <a href="/resources/runbooks">All Runbooks →</a>
+    </div>
+
+</div>
+
+<footer>
+    <div class="footer-links">
+        <a href="/">TuneVault</a>
+        <a href="/resources/runbooks">Runbooks</a>
+        <a href="/blog">Blog</a>
+        <a href="/compare">Compare Tools</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/about">About</a>
+    </div>
+    <p style="margin-top:12px;">© 2026 TuneVault · <a href="mailto:hello@tunevault.app">hello@tunevault.app</a></p>
+</footer>
+
+</body>
+</html>

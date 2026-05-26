@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In to TuneVault — Oracle Database Health Monitoring</title>
+    <meta name="description" content="Sign in to TuneVault and run on-demand Oracle database health checks. Monitor performance, storage, and security across all your Oracle environments.">
+    <meta name="robots" content="noindex, follow">
+    <link rel="canonical" href="https://tunevault.app/signin">
+    <!-- Open Graph -->
+    <meta property="og:title" content="Sign In to TuneVault — Oracle Database Health Monitoring">
+    <meta property="og:description" content="Sign in to TuneVault and run on-demand Oracle database health checks. Monitor performance, storage, and security across all your Oracle environments.">
+    <meta property="og:url" content="https://tunevault.app/signin">
+    <meta property="og:image" content="https://tunevault.app/og/home.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="TuneVault — AI Oracle DBA Agent with 100+ health checks">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="TuneVault">
+    <meta name="keywords" content="Oracle DBA, Oracle database health check, AI DBA, Oracle performance monitoring, Oracle diagnostics">
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Sign In to TuneVault — Oracle Database Health Monitoring">
+    <meta name="twitter:description" content="Sign in to TuneVault and run on-demand Oracle database health checks. Monitor performance, storage, and security.">
+    <meta name="twitter:image" content="https://tunevault.app/og/home.png">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="apple-touch-icon" href="/favicon.svg">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0c;
+            --surface: #111114;
+            --surface-2: #1a1a1f;
+            --border: #2a2a30;
+            --text: #e8e8ed;
+            --text-dim: #b8b8c8;
+            --accent: #f0a830;
+            --accent-dim: rgba(240, 168, 48, 0.12);
+            --green: #34d399;
+            --red: #f87171;
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .grain {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px 48px;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: var(--text);
+        }
+
+        .logo-icon {
+            width: 28px;
+            height: 28px;
+            background: var(--accent);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--bg);
+        }
+
+        .main {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 24px 80px;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 48px;
+            width: 100%;
+            max-width: 440px;
+        }
+
+        h1 {
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 36px;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+
+        input {
+            display: block;
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 14px;
+            font-family: inherit;
+            margin-bottom: 20px;
+            transition: border-color 0.2s;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: var(--accent);
+        }
+
+        input::placeholder {
+            color: var(--text-dim);
+            opacity: 0.6;
+        }
+
+        .btn-submit {
+            display: block;
+            width: 100%;
+            padding: 14px 24px;
+            background: var(--accent);
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 8px;
+        }
+
+        .btn-submit:hover {
+            background: #e09820;
+            transform: translateY(-1px);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .error-msg {
+            background: rgba(248, 113, 113, 0.1);
+            border: 1px solid rgba(248, 113, 113, 0.3);
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 13px;
+            color: var(--red);
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin: 28px 0;
+            color: var(--text-dim);
+            font-size: 12px;
+        }
+
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .signup-link {
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        .signup-link a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .signup-link a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 480px) {
+            .card { padding: 32px 24px; }
+            nav { padding: 20px 24px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="grain"></div>
+
+    <nav id="nav-root"></nav>
+
+    <main class="main">
+        <div class="card">
+            <h1>Welcome back</h1>
+            <p class="subtitle" id="page-subtitle">Sign in to continue.</p>
+
+            <div class="error-msg" id="error-msg"></div>
+
+            <form id="signin-form">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" placeholder="you@company.com" required autocomplete="email">
+
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" placeholder="Your password" required autocomplete="current-password">
+
+                <button type="submit" class="btn-submit" id="submit-btn">Sign in →</button>
+            </form>
+
+            <div class="divider">New to TuneVault?</div>
+
+            <div class="signup-link">
+                <a href="#" id="signup-link">Create a free account</a>
+            </div>
+        </div>
+    </main>
+
+    <script>
+    (function() {
+        const params = new URLSearchParams(window.location.search);
+        const pathParam = params.get('path') || 'health-check';
+        const redirect = params.get('redirect') || '/dashboard';
+        const signupBase = `/signup?path=${encodeURIComponent(pathParam)}&redirect=${encodeURIComponent(redirect)}`;
+
+        document.getElementById('signup-link').href = signupBase;
+
+        document.getElementById('signin-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const errorEl = document.getElementById('error-msg');
+            const submitBtn = document.getElementById('submit-btn');
+
+            errorEl.style.display = 'none';
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Signing in…';
+
+            try {
+                const res = await fetch('/api/auth/signin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    errorEl.textContent = data.error || 'Failed to sign in.';
+                    errorEl.style.display = 'block';
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Sign in →';
+                    return;
+                }
+
+                window.location.href = redirect;
+            } catch (err) {
+                errorEl.textContent = 'Network error. Please try again.';
+                errorEl.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Sign in →';
+            }
+        });
+    })();
+    </script>
+
+    <!-- Navigation component initialization -->
+    <script src="/nav-component.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        window.tvNav.init('auth');
+    });
+    </script>
+    <!-- Funnel analytics: page_view + signup_started + UTM capture -->
+    <script src="/tv-tracker.js"></script>
+</body>
+</html>

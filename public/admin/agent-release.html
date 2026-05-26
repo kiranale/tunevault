@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Release Manifest — TuneVault Admin</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c; --surface: #111114; --surface-2: #1a1a1f; --border: #2a2a30;
+      --text: #e8e8ed; --text-dim: #9898a8; --accent: #f0a830;
+      --green: #34d399; --green-dim: rgba(52,211,153,0.10);
+      --red: #f87171; --red-dim: rgba(248,113,113,0.10);
+      --yellow: #fbbf24; --yellow-dim: rgba(251,191,36,0.10);
+      --mono: 'JetBrains Mono', monospace;
+    }
+    body { font-family: 'Space Grotesk', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    nav { display: flex; align-items: center; gap: 16px; padding: 14px 32px; border-bottom: 1px solid var(--border); background: var(--surface); }
+    nav a { color: var(--text-dim); text-decoration: none; font-size: 14px; }
+    nav a:hover { color: var(--text); }
+    nav .logo { font-weight: 700; font-size: 16px; color: var(--accent); margin-right: 8px; }
+    nav .sep { color: var(--border); }
+    .container { max-width: 900px; margin: 40px auto; padding: 0 24px; }
+    h1 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    .subtitle { color: var(--text-dim); font-size: 14px; margin-bottom: 32px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+    .card-title { font-size: 13px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 16px; }
+    .field-row { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .field-row:last-child { border-bottom: none; }
+    .field-label { width: 140px; flex-shrink: 0; font-size: 13px; color: var(--text-dim); padding-top: 2px; }
+    .field-value { font-family: var(--mono); font-size: 13px; color: var(--text); word-break: break-all; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+    .badge-green { background: var(--green-dim); color: var(--green); }
+    .badge-red   { background: var(--red-dim);   color: var(--red);   }
+    .badge-yellow { background: var(--yellow-dim); color: var(--yellow); }
+    .mismatch-banner { background: var(--red-dim); border: 1px solid var(--red); border-radius: 10px; padding: 16px 20px; margin-bottom: 24px; display: flex; align-items: flex-start; gap: 12px; }
+    .mismatch-banner .icon { font-size: 20px; flex-shrink: 0; }
+    .mismatch-banner p { font-size: 14px; color: var(--red); line-height: 1.5; }
+    .mismatch-banner strong { display: block; font-size: 15px; margin-bottom: 4px; }
+    .ok-banner { background: var(--green-dim); border: 1px solid var(--green); border-radius: 10px; padding: 16px 20px; margin-bottom: 24px; display: flex; align-items: center; gap: 12px; }
+    .ok-banner p { font-size: 14px; color: var(--green); }
+    .refresh-btn { background: var(--surface-2); border: 1px solid var(--border); color: var(--text-dim); padding: 8px 16px; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; }
+    .refresh-btn:hover { color: var(--text); border-color: var(--accent); }
+    .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .compare-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+    .compare-card .label { font-size: 12px; color: var(--text-dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; }
+    .sha-display { font-family: var(--mono); font-size: 12px; color: var(--text); word-break: break-all; line-height: 1.8; }
+    .sha-match { color: var(--green); }
+    .sha-mismatch { color: var(--red); }
+    .loading { color: var(--text-dim); font-size: 14px; }
+    .meta { font-size: 12px; color: var(--text-dim); margin-top: 16px; }
+    @media (max-width: 640px) { .compare-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<nav>
+  <span class="logo">TuneVault</span>
+  <span class="sep">›</span>
+  <a href="/admin/agent-upgrades">Agent Upgrades</a>
+  <span class="sep">›</span>
+  <a href="/admin/agent-installs">Agent Installs</a>
+  <span class="sep">›</span>
+  <span style="color:var(--text)">Release Manifest</span>
+  <div style="flex:1"></div>
+  <button class="refresh-btn" onclick="load()">↺ Refresh</button>
+</nav>
+
+<div class="container">
+  <h1>Agent Release Manifest</h1>
+  <p class="subtitle">Compares the committed <code>agent/release.json</code> sha256 against the tarball bytes actually served by <code>/downloads/agent-pkg.tar.gz</code>. A mismatch means the deploy pipeline served stale bytes.</p>
+
+  <div id="status-banner"></div>
+
+  <div class="compare-grid" id="compare-grid">
+    <div class="compare-card">
+      <div class="label">Committed manifest sha256</div>
+      <div class="sha-display" id="manifest-sha">—</div>
+    </div>
+    <div class="compare-card">
+      <div class="label">Served tarball sha256 (live, cached 60s)</div>
+      <div class="sha-display" id="served-sha">—</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px">
+    <div class="card-title">Release Details</div>
+    <div class="field-row">
+      <span class="field-label">Version</span>
+      <span class="field-value" id="r-version"><span class="loading">loading…</span></span>
+    </div>
+    <div class="field-row">
+      <span class="field-label">Build time</span>
+      <span class="field-value" id="r-build">—</span>
+    </div>
+    <div class="field-row">
+      <span class="field-label">Python min</span>
+      <span class="field-value" id="r-python">—</span>
+    </div>
+    <div class="field-row">
+      <span class="field-label">OEL supported</span>
+      <span class="field-value" id="r-oel">—</span>
+    </div>
+    <div class="field-row">
+      <span class="field-label">Changelog</span>
+      <span class="field-value" id="r-changelog">—</span>
+    </div>
+    <div class="field-row">
+      <span class="field-label">Integrity</span>
+      <span class="field-value" id="r-match">—</span>
+    </div>
+  </div>
+
+  <p class="meta" id="fetched-at"></p>
+</div>
+
+<script>
+async function load() {
+  document.getElementById('r-version').innerHTML = '<span class="loading">loading…</span>';
+  try {
+    const res = await fetch('/api/agent/release');
+    const d = await res.json();
+
+    // Version
+    document.getElementById('r-version').textContent = d.version || '—';
+    document.getElementById('r-build').textContent = d.build_time ? new Date(d.build_time).toLocaleString() : '—';
+    document.getElementById('r-python').textContent = d.python_min ? '>= ' + d.python_min : '—';
+    document.getElementById('r-oel').textContent = Array.isArray(d.oel_supported) ? d.oel_supported.join(', ') : '—';
+    const cl = d.changelog_url ? `<a href="${d.changelog_url}" target="_blank" style="color:var(--accent)">${d.changelog_url}</a>` : '—';
+    document.getElementById('r-changelog').innerHTML = cl;
+
+    // SHA comparison
+    const mSha = d.sha256 || '—';
+    const sSha = d.served_sha256 || '—';
+    const match = d.match;
+
+    const mEl = document.getElementById('manifest-sha');
+    const sEl = document.getElementById('served-sha');
+    mEl.textContent = mSha;
+    sEl.textContent = sSha;
+
+    if (match === true) {
+      mEl.className = 'sha-display sha-match';
+      sEl.className = 'sha-display sha-match';
+      document.getElementById('r-match').innerHTML = '<span class="badge badge-green">✓ MATCH</span>';
+      document.getElementById('status-banner').innerHTML = `
+        <div class="ok-banner">
+          <span>✓</span>
+          <p>Committed manifest sha256 matches served tarball. Deploy is fresh.</p>
+        </div>`;
+    } else if (match === false) {
+      mEl.className = 'sha-display sha-mismatch';
+      sEl.className = 'sha-display sha-mismatch';
+      document.getElementById('r-match').innerHTML = '<span class="badge badge-red">✗ MISMATCH</span>';
+      document.getElementById('status-banner').innerHTML = `
+        <div class="mismatch-banner">
+          <span class="icon">⚠️</span>
+          <p><strong>Tarball mismatch detected</strong>${d.warning || 'Served tarball sha256 does not match committed release.json. The deployment pipeline may have served stale agent bytes.'}<br><br>Fix: trigger a fresh deploy so Render rebuilds from the current commit.</p>
+        </div>`;
+    } else {
+      document.getElementById('r-match').innerHTML = '<span class="badge badge-yellow">? UNKNOWN</span>';
+      document.getElementById('status-banner').innerHTML = `
+        <div class="mismatch-banner" style="border-color:var(--yellow);background:var(--yellow-dim)">
+          <span class="icon">⚠️</span>
+          <p style="color:var(--yellow)"><strong>Could not determine integrity</strong>${d.warning || 'served_sha256 could not be computed.'}</p>
+        </div>`;
+    }
+
+    document.getElementById('fetched-at').textContent = 'Fetched at ' + new Date().toLocaleTimeString() + ' — served_sha256 cached 60s server-side';
+  } catch (e) {
+    document.getElementById('r-version').textContent = 'Error: ' + e.message;
+    document.getElementById('status-banner').innerHTML = `<div class="mismatch-banner"><span class="icon">⚠️</span><p>${e.message}</p></div>`;
+  }
+}
+
+load();
+</script>
+</body>
+</html>

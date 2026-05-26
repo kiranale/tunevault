@@ -1,0 +1,17 @@
+name: Architecture Rules Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check-architecture:
+    name: Enforce Architecture Rules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check architecture rules
+        run: bash scripts/check-architecture-rules.sh

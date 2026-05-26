@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Accept Team Invite — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c; --surface: #111114; --surface-2: #1a1a1f;
+      --border: #2a2a30; --text: #e8e8ed; --text-dim: #b8b8c8;
+      --accent: #f0a830; --accent-dim: rgba(240,168,48,.12);
+      --green: #34d399; --green-dim: rgba(52,211,153,.10);
+      --red: #f87171; --red-dim: rgba(248,113,113,.10);
+      --blue: #60a5fa;
+    }
+    body { font-family: 'Space Grotesk', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; overflow-x: hidden; }
+    .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 40px; text-decoration: none; color: var(--text); }
+    .logo-icon { width: 40px; height: 40px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 14px; color: #0a0a0c; font-weight: 700; }
+    .logo-name { font-size: 20px; font-weight: 700; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 48px 40px; max-width: 480px; width: 100%; text-align: center; }
+    .state { display: none; }
+    .state.active { display: block; }
+    h1 { font-size: 24px; font-weight: 700; margin-bottom: 10px; }
+    .subtitle { color: var(--text-dim); font-size: 14px; line-height: 1.6; margin-bottom: 28px; }
+    .team-chip { display: inline-flex; align-items: center; gap: 8px; background: var(--accent-dim); border: 1px solid rgba(240,168,48,.2); border-radius: 10px; padding: 10px 18px; margin-bottom: 24px; }
+    .team-chip-icon { width: 28px; height: 28px; background: var(--accent); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #0a0a0c; flex-shrink: 0; }
+    .team-chip-info { text-align: left; }
+    .team-chip-name { font-size: 14px; font-weight: 700; color: var(--text); }
+    .team-chip-role { font-size: 12px; color: var(--text-dim); }
+    .role-badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; background: rgba(96,165,250,.10); color: var(--blue); border: 1px solid rgba(96,165,250,.2); }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 13px 28px; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; border: none; transition: opacity .15s; font-family: inherit; width: 100%; margin-bottom: 12px; text-decoration: none; }
+    .btn:hover { opacity: .85; }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-primary { background: var(--accent); color: #000; }
+    .btn-secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+    .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.2); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .icon-circle { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; font-size: 28px; }
+    .icon-success { background: var(--green-dim); border: 1px solid rgba(52,211,153,.2); }
+    .icon-error { background: var(--red-dim); border: 1px solid rgba(248,113,113,.2); }
+    .small-link { color: var(--text-dim); font-size: 13px; text-decoration: none; }
+    .small-link:hover { color: var(--text); }
+  </style>
+</head>
+<body>
+<nav id="nav-root"></nav>
+
+<a href="/" class="logo">
+  <div class="logo-icon">TV</div>
+  <span class="logo-name">TuneVault</span>
+</a>
+
+<div class="card">
+
+  <!-- Loading state -->
+  <div class="state active" id="stateLoading">
+    <div class="spinner" style="margin:0 auto 20px;display:block;"></div>
+    <p style="color:var(--text-dim);font-size:14px;">Validating invite…</p>
+  </div>
+
+  <!-- Valid invite — not logged in -->
+  <div class="state" id="stateLoginRequired">
+    <h1>You're Invited</h1>
+    <div id="inviteChip" class="team-chip" style="display:none;">
+      <div class="team-chip-icon" id="inviteTeamIcon"></div>
+      <div class="team-chip-info">
+        <div class="team-chip-name" id="inviteTeamName"></div>
+        <div class="team-chip-role" id="inviteRoleLabel"></div>
+      </div>
+    </div>
+    <p class="subtitle" id="inviteByLine">Sign in to accept your team invite.</p>
+    <a id="signinBtn" href="/signin" class="btn btn-primary">Sign in to Accept →</a>
+    <a id="signupBtn" href="/signup" class="btn btn-secondary">Create Account</a>
+    <p style="color:var(--text-dim);font-size:12px;margin-top:8px;">You'll be redirected back here after signing in.</p>
+  </div>
+
+  <!-- Valid invite — logged in, ready to accept -->
+  <div class="state" id="stateReady">
+    <h1>Accept Invite</h1>
+    <div id="readyChip" class="team-chip" style="display:none;">
+      <div class="team-chip-icon" id="readyTeamIcon"></div>
+      <div class="team-chip-info">
+        <div class="team-chip-name" id="readyTeamName"></div>
+        <div class="team-chip-role" id="readyRoleLabel"></div>
+      </div>
+    </div>
+    <p class="subtitle" id="readyByLine">You've been invited to join a team on TuneVault.</p>
+    <button class="btn btn-primary" id="acceptBtn" onclick="acceptInvite()">Accept & Join Team</button>
+    <a href="/dashboard" class="btn btn-secondary">Not now</a>
+  </div>
+
+  <!-- Accepting... -->
+  <div class="state" id="stateAccepting">
+    <div class="spinner" style="margin:0 auto 20px;display:block;"></div>
+    <p style="color:var(--text-dim);font-size:14px;">Joining team…</p>
+  </div>
+
+  <!-- Success -->
+  <div class="state" id="stateSuccess">
+    <div class="icon-circle icon-success">✓</div>
+    <h1>You're In!</h1>
+    <p class="subtitle" id="successMsg">You've joined the team. Redirecting to dashboard…</p>
+    <a href="/dashboard" class="btn btn-primary">Go to Dashboard</a>
+  </div>
+
+  <!-- Already a member -->
+  <div class="state" id="stateAlreadyMember">
+    <div class="icon-circle icon-success">✓</div>
+    <h1>Already on This Team</h1>
+    <p class="subtitle">You're already a member of this team.</p>
+    <a href="/dashboard" class="btn btn-primary">Go to Dashboard</a>
+    <a href="/settings/team" class="btn btn-secondary">Team Settings</a>
+  </div>
+
+  <!-- Expired -->
+  <div class="state" id="stateExpired">
+    <div class="icon-circle icon-error">⏱</div>
+    <h1>Invite Expired</h1>
+    <p class="subtitle">This invite has expired. Ask your team admin to send a new one.</p>
+    <a href="/dashboard" class="btn btn-secondary">Go to Dashboard</a>
+  </div>
+
+  <!-- Invalid -->
+  <div class="state" id="stateInvalid">
+    <div class="icon-circle icon-error">✕</div>
+    <h1>Invalid Invite</h1>
+    <p class="subtitle">This invite link is not valid. It may have been revoked or already used.</p>
+    <a href="/dashboard" class="btn btn-secondary">Go to Dashboard</a>
+  </div>
+
+  <!-- Error -->
+  <div class="state" id="stateError">
+    <div class="icon-circle icon-error">!</div>
+    <h1>Something Went Wrong</h1>
+    <p class="subtitle" id="errorMsg">An unexpected error occurred. Please try again later.</p>
+    <a href="/" class="btn btn-secondary">Back to Home</a>
+  </div>
+
+</div>
+
+<script>
+  var token = new URLSearchParams(window.location.search).get('token');
+  var inviteInfo = null;
+  var isLoggedIn = false;
+
+  function setState(id) {
+    document.querySelectorAll('.state').forEach(function(el) { el.classList.remove('active'); });
+    document.getElementById(id).classList.add('active');
+  }
+
+  function populateChip(teamNameEl, teamIconEl, roleLabelEl, chipEl, data) {
+    teamNameEl.textContent = data.teamName;
+    teamIconEl.textContent = data.teamName.substring(0, 2).toUpperCase();
+    roleLabelEl.textContent = 'Role: ' + data.roleLabel;
+    chipEl.style.display = 'inline-flex';
+  }
+
+  async function init() {
+    if (!token) {
+      setState('stateInvalid');
+      return;
+    }
+
+    // Validate token
+    try {
+      var res = await fetch('/api/invite/accept?token=' + encodeURIComponent(token));
+      var data = await res.json();
+
+      if (!res.ok) {
+        if (res.status === 410 && data.error && data.error.includes('expired')) {
+          setState('stateExpired');
+        } else {
+          setState('stateInvalid');
+        }
+        return;
+      }
+
+      inviteInfo = data;
+
+      // Check auth status
+      var meRes = await fetch('/api/auth/me', { credentials: 'include' });
+      if (meRes.ok) {
+        var meData = await meRes.json();
+        if (meData && meData.user) {
+          isLoggedIn = true;
+          // Show ready state
+          populateChip(
+            document.getElementById('readyTeamName'),
+            document.getElementById('readyTeamIcon'),
+            document.getElementById('readyRoleLabel'),
+            document.getElementById('readyChip'),
+            data
+          );
+          document.getElementById('readyByLine').textContent =
+            data.inviterName + ' invited you to join ' + data.teamName + ' as ' + data.roleLabel + '.';
+          setState('stateReady');
+          return;
+        }
+      }
+
+      // Not logged in — show login prompt
+      populateChip(
+        document.getElementById('inviteTeamName'),
+        document.getElementById('inviteTeamIcon'),
+        document.getElementById('inviteRoleLabel'),
+        document.getElementById('inviteChip'),
+        data
+      );
+      document.getElementById('inviteByLine').textContent =
+        data.inviterName + ' invited you to join ' + data.teamName + ' as ' + data.roleLabel + '.';
+
+      var returnUrl = encodeURIComponent('/invite/accept?token=' + token);
+      document.getElementById('signinBtn').href = '/signin?redirect=' + returnUrl;
+      document.getElementById('signupBtn').href = '/signup?redirect=' + returnUrl;
+
+      setState('stateLoginRequired');
+
+    } catch (err) {
+      console.error('Init error:', err);
+      setState('stateError');
+    }
+  }
+
+  async function acceptInvite() {
+    setState('stateAccepting');
+    try {
+      var res = await fetch('/api/invite/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ token: token }),
+      });
+      var data = await res.json();
+
+      if (!res.ok) {
+        if (data.error === 'already_member') {
+          setState('stateAlreadyMember');
+          return;
+        }
+        if (res.status === 410) {
+          setState('stateExpired');
+          return;
+        }
+        document.getElementById('errorMsg').textContent = data.error || 'Failed to accept invite';
+        setState('stateError');
+        return;
+      }
+
+      document.getElementById('successMsg').textContent =
+        'You\'ve joined ' + (inviteInfo ? inviteInfo.teamName : 'the team') + '. Redirecting to dashboard…';
+      setState('stateSuccess');
+      setTimeout(function() {
+        window.location.href = '/dashboard?team_joined=1';
+      }, 1800);
+
+    } catch (err) {
+      document.getElementById('errorMsg').textContent = 'An unexpected error occurred';
+      setState('stateError');
+    }
+  }
+
+  init();
+</script>
+
+<footer style="margin-top:48px;padding-bottom:24px;text-align:center;font-size:12px;color:var(--text-dim);">
+  <a href="/about" style="color:var(--text-dim);text-decoration:none;margin:0 10px;">About</a>
+  <a href="/privacy" style="color:var(--text-dim);text-decoration:none;margin:0 10px;">Privacy</a>
+  <a href="/terms" style="color:var(--text-dim);text-decoration:none;margin:0 10px;">Terms</a>
+  <a href="/security" style="color:var(--text-dim);text-decoration:none;margin:0 10px;">Security</a>
+</footer>
+<script src="/nav-component.js"></script>
+<script>window.tvNav.init('auth');</script>
+</body>
+</html>

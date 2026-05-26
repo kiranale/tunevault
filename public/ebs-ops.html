@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EBS Ops — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://tunevault.app/ebs-ops">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c;
+      --surface: #111114;
+      --surface-2: #1a1a1f;
+      --border: #2a2a30;
+      --text: #e8e8ed;
+      --text-dim: #b8b8c8;
+      --accent: #f0a830;
+      --accent-dim: rgba(240,168,48,0.12);
+      --green: #34d399;
+      --green-dim: rgba(52,211,153,0.12);
+      --red: #f87171;
+      --red-dim: rgba(248,113,113,0.12);
+      --blue: #60a5fa;
+      --blue-dim: rgba(96,165,250,0.12);
+      --purple: #a78bfa;
+      --purple-dim: rgba(167,139,250,0.12);
+    }
+    body {
+      font-family: 'Space Grotesk', -apple-system, sans-serif;
+      background: var(--bg); color: var(--text);
+      line-height: 1.6; min-height: 100vh; overflow-x: hidden;
+    }
+    .grain {
+      position: fixed; top:0; left:0; right:0; bottom:0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 999;
+    }
+    nav {
+      background: rgba(10,10,12,0.95); border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 9999;
+    }
+    .page-wrap { max-width: 1200px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    /* ── Page header ── */
+    .page-header { margin-bottom: 32px; }
+    .page-header h1 { font-size: 24px; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 12px; }
+    .page-header p { font-size: 14px; color: var(--text-dim); max-width: 600px; }
+
+    /* ── Search bar ── */
+    .search-wrap {
+      display: flex; gap: 12px; margin-bottom: 32px; align-items: center; flex-wrap: wrap;
+    }
+    .search-input {
+      flex: 1; min-width: 220px; max-width: 420px;
+      background: var(--surface); border: 1px solid var(--border); color: var(--text);
+      font-family: inherit; font-size: 14px; padding: 10px 16px 10px 40px; border-radius: 8px;
+      transition: border-color 0.15s;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238888a0' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: 14px center;
+    }
+    .search-input:focus { outline: none; border-color: var(--accent); }
+    .search-input::placeholder { color: var(--text-dim); }
+    .search-result-count { font-size: 12px; color: var(--text-dim); }
+
+    /* ── Category picker grid ── */
+    .cat-picker {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+      gap: 12px;
+      margin-bottom: 36px;
+    }
+    .cat-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      padding: 14px 16px; cursor: pointer; transition: all 0.15s;
+      display: flex; flex-direction: column; gap: 6px; user-select: none;
+    }
+    .cat-card:hover { border-color: rgba(240,168,48,0.35); background: rgba(240,168,48,0.04); }
+    .cat-card.active { border-color: var(--accent); background: var(--accent-dim); }
+    .cat-card-top { display: flex; align-items: center; gap: 9px; }
+    .cat-icon {
+      width: 30px; height: 30px; border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; flex-shrink: 0; background: var(--surface-2);
+    }
+    .cat-name { font-size: 13px; font-weight: 600; line-height: 1.2; }
+    .cat-count { font-size: 11px; color: var(--text-dim); font-weight: 500; }
+    .cat-card.active .cat-count { color: rgba(240,168,48,0.7); }
+
+    /* ── Section header ── */
+    .section-header {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 24px;
+      padding-bottom: 14px; border-bottom: 1px solid var(--border);
+    }
+    .section-icon {
+      width: 36px; height: 36px; border-radius: 9px;
+      display: flex; align-items: center; justify-content: center; font-size: 16px;
+    }
+    .section-title { font-size: 17px; font-weight: 700; }
+    .section-desc { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+    .section-back {
+      margin-left: auto; font-size: 12px; color: var(--text-dim); cursor: pointer;
+      padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border);
+      background: none; font-family: inherit; transition: all 0.15s;
+    }
+    .section-back:hover { color: var(--accent); border-color: var(--accent); }
+
+    /* ── Hub cards grid ── */
+    .hub-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+    }
+
+    /* ── Hub card ── */
+    .hub-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 22px 22px 18px; text-decoration: none; color: var(--text);
+      transition: border-color 0.15s, box-shadow 0.15s;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .hub-card:hover {
+      border-color: rgba(240,168,48,0.4);
+      box-shadow: 0 4px 20px rgba(240,168,48,0.07);
+    }
+    .hub-card-top { display: flex; align-items: flex-start; gap: 14px; }
+    .hub-icon {
+      width: 40px; height: 40px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .hub-icon-amber  { background: var(--accent-dim); }
+    .hub-icon-green  { background: var(--green-dim); }
+    .hub-icon-blue   { background: var(--blue-dim); }
+    .hub-icon-purple { background: var(--purple-dim); }
+    .hub-icon-red    { background: var(--red-dim); }
+
+    .hub-title { font-size: 15px; font-weight: 700; }
+    .hub-subtitle { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+    .hub-desc { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+
+    .hub-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+    .hub-tag {
+      padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .04em;
+    }
+    .tag-ssh    { background: var(--blue-dim); color: var(--blue); }
+    .tag-sql    { background: var(--green-dim); color: var(--green); }
+    .tag-live   { background: var(--accent-dim); color: var(--accent); }
+    .tag-ssh12  { background: var(--purple-dim); color: var(--purple); }
+    .tag-control { background: var(--red-dim); color: var(--red); }
+
+    .hub-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-top: 12px; border-top: 1px solid var(--border);
+      font-size: 12px; color: var(--text-dim);
+    }
+    .hub-arrow { font-size: 16px; color: var(--accent); transition: transform 0.15s; }
+    .hub-card:hover .hub-arrow { transform: translateX(4px); }
+
+    /* ── No-results ── */
+    .no-results {
+      text-align: center; padding: 48px; color: var(--text-dim);
+      grid-column: 1 / -1;
+    }
+    .no-results .nr-icon { font-size: 36px; margin-bottom: 10px; }
+    .no-results h3 { font-size: 15px; color: var(--text); margin-bottom: 4px; }
+
+    /* ── Section divider label ── */
+    .section-label {
+      font-size: 10px; font-weight: 700; color: var(--text-dim);
+      letter-spacing: .1em; text-transform: uppercase;
+      margin: 32px 0 14px; padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-label:first-child { margin-top: 0; }
+
+    /* ── Connection status pill ── */
+    .conn-status-banner {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 20px;
+      min-height: 48px; /* reserve space so no layout shift when it populates */
+    }
+    .conn-status-pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      border: 1px solid transparent; transition: all 0.2s;
+    }
+    .conn-status-pill .pill-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    .conn-status-pill.checking {
+      background: var(--surface); border-color: var(--border); color: var(--text-dim);
+    }
+    .conn-status-pill.checking .pill-dot {
+      background: var(--text-dim);
+      animation: pulse-dot 1s ease-in-out infinite;
+    }
+    .conn-status-pill.connected {
+      background: var(--green-dim); border-color: rgba(52,211,153,0.3); color: var(--green);
+    }
+    .conn-status-pill.connected .pill-dot { background: var(--green); }
+    .conn-status-pill.no-ebs {
+      background: var(--accent-dim); border-color: rgba(240,168,48,0.3); color: var(--accent);
+    }
+    .conn-status-pill.no-ebs .pill-dot { background: var(--accent); }
+    .conn-status-pill.disconnected {
+      background: var(--red-dim); border-color: rgba(248,113,113,0.3); color: var(--red);
+    }
+    .conn-status-pill.disconnected .pill-dot { background: var(--red); }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    .conn-status-detail {
+      font-size: 12px; color: var(--text-dim);
+    }
+    .conn-status-detail a { color: var(--blue); text-decoration: none; }
+    .conn-status-detail a:hover { text-decoration: underline; }
+
+    /* ── Contextual banner (no EBS connection) ── */
+    .ebs-no-conn-banner {
+      display: none; align-items: flex-start; gap: 14px;
+      background: var(--surface); border: 1px solid rgba(96,165,250,0.3); border-radius: 10px;
+      padding: 16px 20px; margin-bottom: 28px;
+    }
+    .ebs-no-conn-banner.visible { display: flex; }
+    .ebs-no-conn-banner .banner-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+    .ebs-no-conn-banner .banner-body { flex: 1; }
+    .ebs-no-conn-banner .banner-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .ebs-no-conn-banner .banner-msg { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+    .ebs-no-conn-banner a { color: var(--blue); text-decoration: none; }
+    .ebs-no-conn-banner a:hover { text-decoration: underline; }
+
+    /* ── Hub card action button ── */
+    .hub-card-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 14px; border-radius: 7px; font-size: 12px; font-weight: 600;
+      border: 1px solid var(--accent); color: var(--accent); background: var(--accent-dim);
+      cursor: pointer; transition: all 0.15s; font-family: inherit; text-decoration: none;
+    }
+    .hub-card-btn:hover { background: rgba(240,168,48,0.2); }
+    .hub-card-btn:disabled,
+    .hub-card-btn[disabled] {
+      opacity: 0.4; cursor: not-allowed; pointer-events: none;
+      border-color: var(--border); color: var(--text-dim); background: transparent;
+    }
+
+    /* ── Locked hub card (no EBS) — card stays fully visible, only actions disabled ── */
+    .hub-card.ebs-locked {
+      position: relative;
+    }
+    .hub-card.ebs-locked .hub-arrow { color: var(--text-dim); }
+    .hub-card.ebs-locked:hover {
+      border-color: rgba(240,168,48,0.15);
+      box-shadow: none;
+    }
+
+    /* ── Mobile ── */
+    @media (max-width: 768px) {
+      .cat-picker { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+      .hub-grid { grid-template-columns: 1fr; }
+      .page-header h1 { font-size: 20px; }
+      .search-input { max-width: 100%; }
+    }
+
+    /* ── Breadcrumb ── */
+    .breadcrumb-bar {
+      font-size: 12px; color: var(--text-dim);
+      margin-bottom: 24px; display: flex; align-items: center; gap: 6px;
+    }
+    .breadcrumb-bar a { color: var(--accent); text-decoration: none; }
+    .breadcrumb-bar a:hover { text-decoration: underline; }
+    .bc-sep { color: var(--border); }
+  </style>
+</head>
+<body>
+<div class="grain"></div>
+<nav>
+  <div id="nav-root"></div>
+</nav>
+
+<div class="breadcrumb-bar" id="bc-bar">
+  <a href="/connections">Connections</a>
+  <span class="bc-sep">›</span>
+  <a href="/ebs-ops">EBS Ops</a>
+  <span class="bc-sep">›</span>
+  <span id="bc-conn-name" style="color:var(--text-dim)">—</span>
+</div>
+
+<script src="/adop-banner.js"></script>
+
+<div class="page-wrap">
+
+  <!-- ADOP patch-cycle banner — fleet mode for EBS connections -->
+  <div id="adopBannerRoot" style="display:none;"></div>
+
+  <div class="page-header">
+    <h1>🏗️ EBS Ops Command Center</h1>
+    <p>Oracle E-Business Suite operations — Concurrent Managers, Application Tier, ADOP, SSH checks, and deep EBS health reports.</p>
+  </div>
+
+  <!-- ── Connection status pill — always rendered, state set by JS ── -->
+  <div class="conn-status-banner" id="conn-status-banner">
+    <div class="conn-status-pill checking" id="conn-status-pill">
+      <span class="pill-dot"></span>
+      <span id="conn-status-text">Checking EBS connection…</span>
+    </div>
+    <span class="conn-status-detail" id="conn-status-detail"></span>
+  </div>
+
+  <!-- ── Contextual banner: shown when no EBS connection exists ── -->
+  <div id="ebs-no-conn-banner" class="ebs-no-conn-banner">
+    <span class="banner-icon">🏢</span>
+    <div class="banner-body">
+      <div class="banner-title">EBS operations are locked until you connect an EBS instance</div>
+      <div class="banner-msg">All operations below are visible — they unlock automatically once an Oracle E-Business Suite database is connected and a health check is run.
+        <br><a href="/connections/new">Add Connection →</a>&nbsp;&nbsp;
+        <a href="/connections">View Connections →</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Search ── -->
+  <div class="search-wrap" id="ebs-search-wrap">
+    <input type="text" class="search-input" id="search-input" placeholder="Search EBS operations…"
+      oninput="onSearchChange()" autocomplete="off">
+    <span class="search-result-count" id="search-count"></span>
+  </div>
+
+  <!-- ── Main content (category picker or section view) ── -->
+  <div id="main-content"></div>
+
+</div>
+
+<script src="/nav-component.js"></script>
+<script>
+  window.tvNav.init('ebs-ops');
+
+  // ── Connection/EBS gate ───────────────────────────────────────────────────
+  // Always show the full ops grid immediately. The connection check runs async
+  // and updates a status pill (green/amber/red) without touching card layout.
+  var ebsLocked = false;
+
+  function setConnPill(state, text, detail) {
+    var pill = document.getElementById('conn-status-pill');
+    var textEl = document.getElementById('conn-status-text');
+    var detailEl = document.getElementById('conn-status-detail');
+    pill.className = 'conn-status-pill ' + state;
+    textEl.textContent = text;
+    detailEl.innerHTML = detail || '';
+  }
+
+  (function() {
+    fetch('/api/connections', { credentials: 'include' })
+      .then(function(r) { return r.ok ? r.json() : []; })
+      .then(function(conns) {
+        var hasEbs = conns.some(function(c) { return c.is_ebs; });
+        if (!hasEbs) {
+          ebsLocked = true;
+          if (conns.length === 0) {
+            setConnPill('disconnected', 'No connections', '<a href="/connections/new">Add Connection →</a>');
+          } else {
+            setConnPill('no-ebs', 'No EBS instance connected', '<a href="/connections">View Connections →</a> &nbsp;·&nbsp; <a href="/connections/new">Add Connection →</a>');
+          }
+          // Breadcrumb — no EBS connection
+          var bcName = document.getElementById('bc-conn-name');
+          bcName.textContent = '—';
+          bcName.style.color = 'var(--text-dim)';
+          document.getElementById('ebs-no-conn-banner').classList.add('visible');
+          // Re-render so newly built cards get the locked class applied
+          renderMain();
+        } else {
+          var ebsConns = conns.filter(function(c) { return c.is_ebs; });
+          var names = ebsConns.slice(0, 2).map(function(c) { return c.name || (c.host + ':' + c.port); }).join(', ');
+          var extra = ebsConns.length > 2 ? ' +' + (ebsConns.length - 2) + ' more' : '';
+          setConnPill('connected', 'EBS connected', escHtml(names + extra));
+          // Breadcrumb — show EBS connection name
+          var bcName = document.getElementById('bc-conn-name');
+          bcName.textContent = names + extra;
+          bcName.style.color = 'var(--text)';
+        }
+      })
+      .catch(function() {
+        // Network error — show a warning but keep grid unlocked (fail open)
+        setConnPill('disconnected', 'Connection check failed', 'Could not reach server — try refreshing');
+      });
+  })();
+
+  // ── Priority groups: controls how categories render in the picker ──────────
+  const PRIORITY_GROUPS = [
+    {
+      label: '🔴 Critical / Daily',
+      desc: 'Check these every day',
+      catIds: ['concurrent', 'apptier'],
+    },
+    {
+      label: '🟡 Operations',
+      desc: 'Patching, migration, service control',
+      catIds: ['adop', 'migration'],
+    },
+    {
+      label: '🔵 Monitoring & Analysis',
+      desc: 'Reports, deep checks, patch status',
+      catIds: ['reports', 'ssh', 'patches'],
+    },
+    {
+      label: '🟢 Housekeeping',
+      desc: 'Periodic cleanup and maintenance',
+      catIds: ['housekeeping'],
+    },
+    {
+      label: '⚪ Infrastructure',
+      desc: 'Clone, scale, environment management',
+      catIds: ['clone'],
+    },
+  ];
+
+  // ── Data: category groups ───────────────────────────────────────────────────
+  const CATEGORIES = [
+    {
+      id: 'concurrent',
+      label: 'Concurrent Processing',
+      icon: '⚙️',
+      color: 'amber',
+      desc: 'CM status, OPP, running requests, start/stop nodes',
+    },
+    {
+      id: 'apptier',
+      label: 'App Tier Health',
+      icon: '🌐',
+      color: 'blue',
+      desc: 'WLS, Apache/OHS, Apps Listener, post-bounce sanity',
+    },
+    {
+      id: 'adop',
+      label: 'ADOP & Patching',
+      icon: '📦',
+      color: 'purple',
+      desc: 'ADOP sessions, patch advisor, gap analysis',
+    },
+    {
+      id: 'reports',
+      label: 'Reports & Analysis',
+      icon: '📊',
+      color: 'green',
+      desc: 'EBS full health report, security, performance, control catalog',
+    },
+    {
+      id: 'ssh',
+      label: 'SSH & Deep Checks',
+      icon: '🔬',
+      color: 'purple',
+      desc: '30 SSH checks for EBS 12.2: topology, JVM, filesystem, logs',
+    },
+    {
+      id: 'patches',
+      label: 'EBS Patches',
+      icon: '🩹',
+      color: 'amber',
+      desc: 'All Oracle Homes: FMW, WLS, 10.1.2, Apps, AD/TXK, ETCC',
+    },
+    {
+      id: 'clone',
+      label: 'Clone & Scale',
+      icon: '🔁',
+      color: 'purple',
+      desc: 'Rapid Clone wizard, recipe management, clone history',
+    },
+    {
+      id: 'migration',
+      label: 'Setup Migration',
+      icon: '📤',
+      color: 'green',
+      desc: 'FNDLOAD object migration between EBS instances',
+    },
+    {
+      id: 'housekeeping',
+      label: 'Housekeeping',
+      icon: '🧹',
+      color: 'blue',
+      desc: 'Request purge, WF cleanup, cache invalidation, edition compare',
+    },
+  ];
+
+  const COLOR_MAP = {
+    amber:  { icon: 'rgba(240,168,48,0.15)',  text: 'var(--accent)' },
+    blue:   { icon: 'rgba(96,165,250,0.15)',  text: 'var(--blue)' },
+    green:  { icon: 'rgba(52,211,153,0.15)',  text: 'var(--green)' },
+    purple: { icon: 'rgba(167,139,250,0.15)', text: 'var(--purple)' },
+    red:    { icon: 'rgba(248,113,113,0.15)', text: 'var(--red)' },
+  };
+
+  // ── Cards per category ─────────────────────────────────────────────────────
+  const CARDS = [
+    // ── Concurrent Processing
+    {
+      id: 'cm-status',
+      section: 'concurrent',
+      title: 'Concurrent Managers',
+      subtitle: 'ebs-deep · Live',
+      desc: 'Real-time CM status — RUNNING/INACTIVE/ERROR, queue depth, activate/deactivate controls, OPP queues.',
+      tags: [{ cls: 'tag-live', label: 'Live' }, { cls: 'tag-sql', label: 'SQL' }],
+      href: '/ebs-deep#monitor',
+      checkCount: '5 monitors',
+      icon: '⚙️',
+      iconCls: 'hub-icon-amber',
+    },
+    {
+      id: 'wf-mailer',
+      section: 'concurrent',
+      title: 'Workflow Mailer',
+      subtitle: 'ebs-deep · Live',
+      desc: 'WF Notification Mailer status, queue depth, error log tail, restart controls.',
+      tags: [{ cls: 'tag-live', label: 'Live' }, { cls: 'tag-sql', label: 'SQL' }],
+      href: '/ebs-deep#monitor',
+      checkCount: '3 monitors',
+      icon: '✉️',
+      iconCls: 'hub-icon-amber',
+    },
+    {
+      id: 'running-requests',
+      section: 'concurrent',
+      title: 'Running Requests',
+      subtitle: 'ebs-concurrent',
+      desc: 'Live view of active concurrent requests — SQL query of FND_CONCURRENT_REQUESTS.',
+      tags: [{ cls: 'tag-sql', label: 'SQL' }],
+      href: '/ebs-concurrent',
+      checkCount: '1 query',
+      icon: '📋',
+      iconCls: 'hub-icon-green',
+    },
+    {
+      id: 'start-stop-nodes',
+      section: 'concurrent',
+      title: 'Start / Stop All Nodes',
+      subtitle: 'ebs-concurrent · SSH',
+      desc: 'Run adstrtal.sh or adstpall.sh -mode=allnodes across all EBS app tier nodes.',
+      tags: [{ cls: 'tag-ssh', label: 'SSH' }, { cls: 'tag-control', label: 'Control' }],
+      href: '/ebs-concurrent',
+      checkCount: '2 ops',
+      icon: '🔄',
+      iconCls: 'hub-icon-red',
+    },
+
+    // ── App Tier Health
+    {
+      id: 'wls-admin',
+      section: 'apptier',
+      title: 'WLS Admin Server',
+      subtitle: 'ebs-middleware · SSH',
+      desc: 'WebLogic AdminServer + managed servers — status, start, stop, rolling bounce. SSE-streamed sequential ops.',
+      tags: [{ cls: 'tag-ssh', label: 'SSH' }, { cls: 'tag-live', label: 'SSE' }],
+      href: '/ebs-middleware',
+      checkCount: '6 ops',
+      icon: '🌐',
+      iconCls: 'hub-icon-blue',
+    },
+    {
+      id: 'apache-ohs',
+      section: 'apptier',
+      title: 'Apache / OHS',
+      subtitle: 'ebs-middleware · SSH',
+      desc: 'R12.2 OHS and R12.1 Apache/OPMN — status, start, stop. Adapts to your EBS version automatically.',
+      tags: [{ cls: 'tag-ssh', label: 'SSH' }],
+      href: '/ebs-middleware',
+      checkCount: '4 ops',
+      icon: '🔧',
+      iconCls: 'hub-icon-blue',
+    },
+    {
+      id: 'apps-listener',
+      section: 'apptier',
+      title: 'Apps Listener',
+      subtitle: 'ebs-middleware · SSH',
+      desc: 'Apps-tier TNS listener — lsnrctl status, start, stop for the EBS app tier service.',
+      tags: [{ cls: 'tag-ssh', label: 'SSH' }],
+      href: '/ebs-middleware',
+      checkCount: '3 ops',
+      icon: '📡',
+      iconCls: 'hub-icon-blue',
+    },
+    {
+      id: 'sanity-check',
+      section: 'apptier',
+      title: 'Post-Bounce Sanity Check',
+      subtitle: 'sanity-check',
+      desc: 'After a bounce, verify all services came back up — TNS, EBS HTTP, DB connectivity, file ownership, permissions.',
+      tags: [{ cls: 'tag-ssh', label: 'SSH' }, { cls: 'tag-sql', label: 'SQL' }],
+      href: '/sanity-check',
+      checkCount: '8 checks',
+      icon: '✅',
+      iconCls: 'hub-icon-green',
+    },
+
+    // ── ADOP & Patching
+    {
+      id: 'adop-deep',
+      section: 'adop',
+      title: 'ADOP Session Health',
+      subtitle: 'ebs-deep · Live',
+      desc: 'Patch cycle status, compilation errors, active workers, apply/finalize controls. Alerts on stalled ADOP sessions.',
+      tags: [{ cls: 'tag-live', label: 'Live' }, { cls: 'tag-sql', label: 'SQL' }],
+      href: '/ebs-deep#sanity',
+      checkCount: '4 checks',
+      icon: '🔬',
+      iconCls: 'hub-icon-purple',
+    },
+    {
+      id: 'patch-advisor',
+      section: 'adop',
+      title: 'Patch Advisor',
+      subtitle: 'patches · AI',
+      desc: 'CPU/PSU patch gap analysis — detect missing patches, generate adop apply runbook, compare installed vs current.',
+      tags: [{ cls: 'tag-sql', label: 'SQL' }],
+      href: '/patches',
+      checkCount: 'Gap analysis',
+      icon: '🛡️',
+      iconCls: 'hub-icon-purple',
+    },
+    {
+      id: 'ebs-ssh-adop',
+      section: 'adop',
+      title: 'ADOP SSH Checks',
+      subtitle: 'SSH checks · EBS 12.2',
+      desc: 'SSH-based ADOP health: patch staging size, failed workers, stale sessions, cutover status.',
+      tags: [{ cls: 'tag-ssh', label: 'SSH' }, { cls: 'tag-ssh12', label: 'EBS 12.2' }],
+      href: '/ebs-deep',
+      checkCount: '5 checks',
+      icon: '📦',
+      iconCls: 'hub-icon-purple',
+    },
+
+    // ── Reports & Analysis
+    {
+      id: 'ebs-full-report',
+      section: 'reports',
+      title: 'EBS Full Health Report',
+      subtitle: 'ebs-deep · AI',
+      desc: 'Deep EBS health report — all live status monitors, SSH checks, and AI analysis in a single exportable view.',
+      tags: [{ cls: 'tag-live', label: 'Live' }, { cls: 'tag-sql', label: 'SQL' }],
+      href: '/ebs-deep',
+      checkCount: '30+ checks',
+      icon: '📊',
+      iconCls: 'hub-icon-amber',
+    },
+    {
+      id: 'ebs-security',
+      section: 'reports',
+      title: 'EBS Security Checks',
+      subtitle: 'ebs-deep · SQL',
+      desc: 'CPU patch cadence, APPS password age, sign-on audit, SYSADMIN hygiene, guest lockdown, ICX timeout, SSL/TLS.',
+      tags: [{ cls: 'tag-sql', label: 'SQL' }],
+      href: '/ebs-deep',
+      checkCount: '8 checks',
+      icon: '🔒',
+      iconCls: 'hub-icon-red',
+    },
+    {
+      id: 'ebs-performance',
+      section: 'reports',
+      title: 'EBS Performance Checks',
+      subtitle: 'ebs-deep · SQL',
+      desc: 'Concurrent throughput, WF notification backlog, Forms concurrency, OACore indicators, Apache saturation, DB session pressure.',
+      tags: [{ cls: 'tag-sql', label: 'SQL' }],
+      href: '/ebs-deep',
+      checkCount: '6 checks',
+      icon: '⚡',
+      iconCls: 'hub-icon-amber',
+    },
+    {
+      id: 'ebs-control',
+      section: 'reports',
+      title: 'EBS Control Exec',
+      subtitle: 'ebs-control-exec · Proxy',
+      desc: 'CM start/stop/status, OPMNCTL status, ADOP status, Listener status — executed via TuneVault Agent tunnel (HTTPS). No SSH required.',
+      tags: [{ cls: 'tag-control', label: 'Control' }, { cls: 'tag-live', label: 'Proxy' }],
+      href: '/ebs-control-exec',
+      checkCount: '5 ops',
+      icon: '⚡',
+      iconCls: 'hub-icon-red',
+    },
+
+    // ── SSH & Deep Checks
+    {
+      id: 'ebs-12-2-checks',
+      section: 'ssh',
+      title: 'EBS 12.2 Deep Checks',
+      subtitle: 'ebs-12-2-checks · SSH',
+      desc: '30 SSH-based checks: topology, JVM heap, OS metrics, code levels (AD/TXK), ETCC validation. Requires EBS 12.2.',
+      tags: [{ cls: 'tag-ssh', label: 'SSH' }, { cls: 'tag-ssh12', label: 'EBS 12.2' }],
+      href: '/ebs-12-2-checks',
+      checkCount: '30 checks',
+      icon: '🔬',
+      iconCls: 'hub-icon-purple',
+    },
+    {
+      id: 'fs-checks',
+      section: 'ssh',
+      title: 'Filesystem Checks',
+      subtitle: 'SSH checks',
+      desc: 'App tier + DB tier disk usage: $APPL_TOP, $INST_TOP, $ORACLE_HOME, /tmp, concurrent logs, ADOP staging, archive dest.',
+      tags: [{ cls: 'tag-ssh', label: 'SSH' }],
+      href: '/ebs-deep',
+      checkCount: '10 checks',
+      icon: '💾',
+      iconCls: 'hub-icon-green',
+    },
+    {
+      id: 'wls-checks',
+      section: 'ssh',
+      title: 'WebLogic SSH Checks',
+      subtitle: 'SSH checks',
+      desc: 'WLS AdminServer JVM heap, server state, managed server count, access log tail.',
+      tags: [{ cls: 'tag-ssh', label: 'SSH' }],
+      href: '/ebs-deep',
+      checkCount: '4 checks',
+      icon: '🌐',
+      iconCls: 'hub-icon-blue',
+    },
+    {
+      id: 'logs-checks',
+      section: 'ssh',
+      title: 'Log Analysis',
+      subtitle: 'SSH checks',
+      desc: 'CM log tail, WLS error count from access logs, ADOP log tail, AutoPatch log scan.',
+      tags: [{ cls: 'tag-ssh', label: 'SSH' }],
+      href: '/ebs-deep',
+      checkCount: '4 checks',
+      icon: '📄',
+      iconCls: 'hub-icon-green',
+    },
+    {
+      id: 'ssh-targets',
+      section: 'ssh',
+      title: 'SSH Targets',
+      subtitle: 'settings',
+      desc: 'Manage SSH credentials for EBS ops — apps_tier and db_tier targets, AES-256-GCM encrypted vault.',
+      tags: [],
+      href: '/settings/ssh-targets',
+      checkCount: 'Settings',
+      icon: '🔑',
+      iconCls: 'hub-icon-amber',
+    },
+
+    // ── EBS Patches
+    {
+      id: 'ebs-patches',
+      section: 'patches',
+      title: 'EBS Patch Advisor',
+      subtitle: 'ebs-patches · Multi-Home',
+      desc: 'Full EBS patch inventory across all Oracle Homes: FMW (oracle_common + webtier), WLS, 10.1.2 Forms/Reports, Apps (adpatch/adop), AD/TXK codelevels, ATG/PCU, and ETCC compliance checks.',
+      tags: [{ cls: 'tag-ssh', label: 'SSH' }, { cls: 'tag-sql', label: 'SQL' }],
+      href: '/ebs-patches',
+      checkCount: '7 Oracle Homes',
+      icon: '🩹',
+      iconCls: 'hub-icon-purple',
+    },
+    {
+      id: 'ebs-patches-fmw',
+      section: 'patches',
+      title: 'FMW Patches',
+      subtitle: 'ebs-patches · OPatch',
+      desc: 'Two FMW Oracle Homes patched independently: oracle_common (OPSS, MDS, JRF) and webtier (OHS, mod_wl_ohs). OPatch lsinventory for each.',
+      tags: [{ cls: 'tag-ssh', label: 'SSH' }],
+      href: '/ebs-patches#fmw',
+      checkCount: '2 homes',
+      icon: '🏗️',
+      iconCls: 'hub-icon-blue',
+    },
+    {
+      id: 'ebs-patches-apps',
+      section: 'patches',
+      title: 'Apps Patches (adpatch / adop)',
+      subtitle: 'ebs-patches · SQL',
+      desc: 'Applied patch history from AD_APPLIED_PATCHES and AD_BUGS. ADOP session history, current cycle/phase status, AD/TXK codelevels.',
+      tags: [{ cls: 'tag-sql', label: 'SQL' }],
+      href: '/ebs-patches#apps',
+      checkCount: 'AD_APPLIED_PATCHES',
+      icon: '📦',
+      iconCls: 'hub-icon-amber',
+    },
+    {
+      id: 'ebs-patches-etcc',
+      section: 'patches',
+      title: 'ETCC Compliance',
+      subtitle: 'ebs-patches · SSH',
+      desc: 'Enterprise Technology Codelevel Checker results — checkDBpatch.sh (DB tier) and checkMTpatch.sh (middle tier) pass/fail with drill-down.',
+      tags: [{ cls: 'tag-ssh', label: 'SSH' }, { cls: 'tag-ssh12', label: 'EBS 12.2' }],
+      href: '/ebs-patches#etcc',
+      checkCount: '2 ETCC checks',
+      icon: '✅',
+      iconCls: 'hub-icon-green',
+    },
+
+    // ── Clone & Scale
+    {
+      id: 'clone-wizard',
+      section: 'clone',
+      title: 'Rapid Clone Wizard',
+      subtitle: 'ebs-clone · SSH',
+      desc: 'Step-by-step adpreclone/adcfgclone wizard with pre-checks, recipe recording, and auto-replay. Source → target with validation gates between every step.',
+      tags: [{ cls: 'tag-ssh', label: 'SSH' }, { cls: 'tag-control', label: 'Clone' }],
+      href: '/ebs-clone',
+      checkCount: '5 clone steps',
+      icon: '🔁',
+      iconCls: 'hub-icon-purple',
+    },
+    {
+      id: 'clone-history',
+      section: 'clone',
+      title: 'Clone History',
+      subtitle: 'ebs-clone',
+      desc: 'All EBS clone operations: source, target, recipe, duration, who, when, success/fail. Full audit trail.',
+      tags: [{ cls: 'tag-sql', label: 'Log' }],
+      href: '/ebs-clone',
+      checkCount: 'History',
+      icon: '📋',
+      iconCls: 'hub-icon-green',
+    },
+
+    // ── Setup Migration
+    {
+      id: 'fndload-wizard',
+      section: 'migration',
+      title: 'FNDLOAD Object Migration',
+      subtitle: 'fndload · Functional · Dev',
+      desc: 'Migrate Concurrent Programs, Value Sets, Lookups, Menus, Responsibilities and more between instances. 5-step guided wizard with full audit trail.',
+      tags: [{ cls: 'tag-sql', label: 'SQL' }, { cls: 'tag-ssh', label: 'SSH' }, { cls: 'tag-live', label: 'AI Diff' }],
+      href: '/fndload',
+      checkCount: '10 object types',
+      icon: '📦',
+      iconCls: 'hub-icon-purple',
+    },
+
+    // ── Housekeeping
+    {
+      id: 'wf-notifications-cleanup',
+      section: 'housekeeping',
+      title: 'Stuck WF Notifications Cleanup',
+      subtitle: 'ebs-deep · SQL',
+      desc: 'Identify and cancel stuck Workflow notifications — WF_NOTIFICATIONS rows in OPEN status with no active user process. Query WF_NOTIFICATION_ATTRIBUTES for correlation, then mark as CLOSED via wf_notification.cancel().',
+      tags: [{ cls: 'tag-sql', label: 'SQL' }, { cls: 'tag-control', label: 'Control' }],
+      href: '/ebs-deep#functional',
+      checkCount: 'Functional',
+      icon: '🔔',
+      iconCls: 'hub-icon-amber',
+    },
+    {
+      id: 'concurrent-request-purge',
+      section: 'housekeeping',
+      title: 'Concurrent Request Purge',
+      subtitle: 'ebs-deep · SQL',
+      desc: 'Purge old completed/cancelled concurrent requests — FND_CONCURRENT_REQUESTS rows older than the configured retention window. Reduces table bloat and speeds up CM queries.',
+      tags: [{ cls: 'tag-sql', label: 'SQL' }, { cls: 'tag-control', label: 'Control' }],
+      href: '/ebs-deep#functional',
+      checkCount: 'Functional',
+      icon: '🗑️',
+      iconCls: 'hub-icon-amber',
+    },
+    {
+      id: 'cache-invalidation',
+      section: 'housekeeping',
+      title: 'Cache Invalidation',
+      subtitle: 'ebs-deep · SQL',
+      desc: 'Force ICX session cache purge and FND_PROFILE option cache clear — use after profile option changes or personalizations take effect inconsistently across nodes.',
+      tags: [{ cls: 'tag-sql', label: 'SQL' }],
+      href: '/ebs-deep#functional',
+      checkCount: 'Functional',
+      icon: '♻️',
+      iconCls: 'hub-icon-blue',
+    },
+    {
+      id: 'edition-compare',
+      section: 'housekeeping',
+      title: 'Patch Edition Comparison (RUN vs PATCH)',
+      subtitle: 'ebs-deep · SQL',
+      desc: 'Compare RUN and PATCH editions — object counts, invalid objects per edition, active edition pointer. Detects dangling PATCH edition after incomplete ADOP finalize.',
+      tags: [{ cls: 'tag-sql', label: 'SQL' }],
+      href: '/ebs-deep#functional',
+      checkCount: 'Functional',
+      icon: '🔍',
+      iconCls: 'hub-icon-purple',
+    },
+    {
+      id: 'wf-agent-restart',
+      section: 'housekeeping',
+      title: 'WF Agent Restart',
+      subtitle: 'ebs-deep · Control',
+      desc: 'Restart the Workflow Agent Listener and Deferred Agent Listener from ICM control. Use when WF notification queues are stalled or agents show DEACTIVATED status in CMs.',
+      tags: [{ cls: 'tag-control', label: 'Control' }, { cls: 'tag-live', label: 'Live' }],
+      href: '/ebs-deep#monitor',
+      checkCount: 'Control op',
+      icon: '▶️',
+      iconCls: 'hub-icon-amber',
+    },
+  ];
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  let activeCategory = null;
+  let searchQuery = '';
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  function onSearchChange() {
+    searchQuery = document.getElementById('search-input').value.toLowerCase().trim();
+    document.getElementById('search-count').textContent = '';
+    renderMain();
+  }
+
+  function renderMain() {
+    const content = document.getElementById('main-content');
+    const countEl = document.getElementById('search-count');
+
+    // Search mode: show all matching cards across all categories
+    if (searchQuery) {
+      const matching = CARDS.filter(card => {
+        const hay = (card.title + ' ' + card.subtitle + ' ' + card.desc + ' ' + card.tags.map(t => t.label).join(' ')).toLowerCase();
+        return hay.includes(searchQuery);
+      });
+      if (countEl) countEl.textContent = matching.length + ' result' + (matching.length !== 1 ? 's' : '');
+      if (matching.length === 0) {
+        content.innerHTML = '<div class="hub-grid"><div class="no-results"><div class="nr-icon">🔍</div><h3>No operations match</h3><p>Try a different search term.</p></div></div>';
+      } else {
+        content.innerHTML = '';
+        const grid = document.createElement('div');
+        grid.className = 'hub-grid';
+        matching.forEach(card => grid.appendChild(buildHubCard(card)));
+        content.appendChild(grid);
+      }
+      return;
+    }
+
+    // Category view
+    if (activeCategory) {
+      const catMeta = CATEGORIES.find(c => c.id === activeCategory);
+      const cards = CARDS.filter(c => c.section === activeCategory);
+      const col = COLOR_MAP[catMeta.color] || COLOR_MAP.amber;
+
+      content.innerHTML = '';
+
+      const header = document.createElement('div');
+      header.className = 'section-header';
+      header.innerHTML = `
+        <div class="section-icon" style="background:${col.icon};color:${col.text}">${catMeta.icon}</div>
+        <div>
+          <div class="section-title">${escHtml(catMeta.label)}</div>
+          <div class="section-desc">${escHtml(catMeta.desc)}</div>
+        </div>
+        <button class="section-back" onclick="clearCategory()">← All Groups</button>
+      `;
+      content.appendChild(header);
+
+      if (cards.length === 0) {
+        content.innerHTML += '<div class="hub-grid"><div class="no-results"><div class="nr-icon">📭</div><h3>No operations in this group</h3></div></div>';
+        return;
+      }
+
+      const grid = document.createElement('div');
+      grid.className = 'hub-grid';
+      cards.forEach(card => grid.appendChild(buildHubCard(card)));
+      content.appendChild(grid);
+      return;
+    }
+
+    // Default: category picker grid
+    renderCategoryPicker(content);
+  }
+
+  function clearCategory() {
+    activeCategory = null;
+    searchQuery = '';
+    const si = document.getElementById('search-input');
+    if (si) si.value = '';
+    const countEl = document.getElementById('search-count');
+    if (countEl) countEl.textContent = '';
+    renderMain();
+  }
+
+  function selectCategory(id) {
+    activeCategory = id;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    renderMain();
+  }
+
+  function renderCategoryPicker(container) {
+    container.innerHTML = '';
+
+    // Build category map for quick lookup
+    const catMap = {};
+    CATEGORIES.forEach(c => { catMap[c.id] = c; });
+
+    PRIORITY_GROUPS.forEach(group => {
+      // Filter to categories that have cards
+      const groupCats = group.catIds
+        .map(id => catMap[id])
+        .filter(cat => cat && CARDS.some(c => c.section === cat.id));
+
+      if (groupCats.length === 0) return;
+
+      // Group divider
+      const divider = document.createElement('div');
+      divider.style.cssText = 'margin:28px 0 12px;display:flex;align-items:center;gap:10px';
+      divider.innerHTML = `
+        <span style="font-size:12px;font-weight:700;color:var(--text-dim);letter-spacing:.07em;text-transform:uppercase;white-space:nowrap">${escHtml(group.label)}</span>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <span style="font-size:11px;color:var(--text-dim);white-space:nowrap;font-style:italic">${escHtml(group.desc)}</span>
+      `;
+      container.appendChild(divider);
+
+      const picker = document.createElement('div');
+      picker.className = 'cat-picker';
+
+      groupCats.forEach(cat => {
+        const col = COLOR_MAP[cat.color] || COLOR_MAP.amber;
+        const cardCount = CARDS.filter(c => c.section === cat.id).length;
+        const el = document.createElement('div');
+        el.className = 'cat-card';
+        el.onclick = () => selectCategory(cat.id);
+        el.innerHTML = `
+          <div class="cat-card-top">
+            <div class="cat-icon" style="background:${col.icon};color:${col.text}">${cat.icon}</div>
+            <div class="cat-name">${escHtml(cat.label)}</div>
+          </div>
+          <div class="cat-count">${escHtml(cat.desc)}</div>
+        `;
+        picker.appendChild(el);
+      });
+
+      container.appendChild(picker);
+    });
+  }
+
+  function buildHubCard(card) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'hub-card' + (ebsLocked ? ' ebs-locked' : '');
+    wrapper.dataset.id = card.id;
+
+    const tagHtml = card.tags.map(t => `<span class="hub-tag ${t.cls}">${escHtml(t.label)}</span>`).join('');
+
+    const lockedTitle = ebsLocked ? 'Connect an EBS instance to use this operation' : '';
+
+    wrapper.innerHTML = `
+      <div class="hub-card-top">
+        <div class="hub-icon ${card.iconCls}">${escHtml(card.icon)}</div>
+        <div>
+          <div class="hub-title">${escHtml(card.title)}</div>
+          <div class="hub-subtitle">${escHtml(card.subtitle)}</div>
+        </div>
+      </div>
+      <div class="hub-desc">${escHtml(card.desc)}</div>
+      ${tagHtml ? '<div class="hub-tags">' + tagHtml + '</div>' : ''}
+      <div class="hub-footer">
+        <span>${escHtml(card.checkCount)}</span>
+        ${ebsLocked
+          ? `<span class="hub-card-btn" style="opacity:.35;cursor:not-allowed" title="${escHtml(lockedTitle)}" aria-disabled="true">Open →</span>`
+          : `<a class="hub-card-btn" href="${escHtml(card.href)}">Open →</a>`
+        }
+      </div>
+    `;
+
+    // Make the whole card clickable when connected
+    if (!ebsLocked) {
+      wrapper.style.cursor = 'pointer';
+      wrapper.addEventListener('click', function(e) {
+        if (!e.target.closest('.hub-card-btn')) {
+          window.location.href = card.href;
+        }
+      });
+    }
+
+    return wrapper;
+  }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // Initial render
+  renderMain();
+</script>
+<script>
+  // ADOP banner — fleet mode, surfaces any EBS connection in patch mode
+  AdopBanner.init({ fleet: true });
+</script>
+<div style="text-align:center;padding:24px 16px 16px;border-top:1px solid rgba(255,255,255,0.05);margin-top:32px;">
+  <span style="font-size:12px;color:#9898a8;">Need help? <a href="mailto:support@tunevault.app" style="color:#f0a830;text-decoration:none;">support@tunevault.app</a></span>
+</div>
+<script src="/tunebot.js"></script>
+</body>
+</html>

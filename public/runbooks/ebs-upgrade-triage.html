@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EBS Upgrade Triage Runbook — ADOP, AutoConfig, WebLogic, AD-A-01022 | TuneVault</title>
+    <meta name="description" content="Oracle EBS upgrade failing? Triage guide for EBS 12.1→12.2 migration, adop phase failures, AutoConfig errors, WebLogic/OHS issues, Concurrent Manager post-upgrade problems, and common errors: AD-A-01022, ADZDCLN, OUI-67076.">
+    <meta name="author" content="TuneVault">
+    <link rel="canonical" href="https://tunevault.app/resources/runbooks/ebs-upgrade-triage">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <meta property="og:title" content="EBS Upgrade Triage Runbook — TuneVault">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://tunevault.app/resources/runbooks/ebs-upgrade-triage">
+    <meta property="og:site_name" content="TuneVault">
+    <meta property="og:image" content="https://tunevault.app/og/runbook.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="Oracle DBA Runbook — TuneVault production-tested recovery guide">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://tunevault.app/og/runbook.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        { "@type": "Organization", "@id": "https://tunevault.app/#organization", "name": "TuneVault", "url": "https://tunevault.app", "logo": { "@type": "ImageObject", "url": "https://tunevault.app/logo.png" }, "foundingDate": "2026", "founder": { "@type": "Person", "name": "Kiran Kumar Ale", "url": "https://tunevault.app/about" }, "contactPoint": { "@type": "ContactPoint", "email": "hello@tunevault.app", "contactType": "customer support" } },
+        { "@type": "TechArticle", "@id": "https://tunevault.app/resources/runbooks/ebs-upgrade-triage#article", "headline": "EBS Upgrade / Technology Stack Upgrade Triage Runbook", "description": "Triage guide for Oracle EBS upgrade failures: 12.1→12.2 path, ADOP phase failures, AutoConfig errors, WebLogic/Forms/OHS issues, Concurrent Manager post-upgrade, and common errors AD-A-01022 and ADZDCLN.", "url": "https://tunevault.app/resources/runbooks/ebs-upgrade-triage", "datePublished": "2026-05-15", "dateModified": "2026-05-15", "author": { "@type": "Person", "name": "Kiran Kumar Ale", "url": "https://tunevault.app/about" }, "publisher": { "@id": "https://tunevault.app/#organization" }, "about": [{ "@type": "Thing", "name": "Oracle E-Business Suite" }, { "@type": "Thing", "name": "ADOP" }, { "@type": "Thing", "name": "EBS 12.2" }] }
+      ]
+    }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+    <style>
+        :root{--bg:#0a0a0c;--surface:#111114;--surface2:#18181c;--border:#2a2a30;--text:#e8e8ed;--text-dim:#9898a8;--accent:#f0a830;--accent-dim:rgba(240,168,48,0.12);--red:#f87171;--red-dim:rgba(248,113,113,0.1);--green:#4ade80;--green-dim:rgba(74,222,128,0.1);--blue:#60a5fa;--blue-dim:rgba(96,165,250,0.1);}
+        *{box-sizing:border-box;margin:0;padding:0;}body{background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif;line-height:1.7;}a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
+        nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+        .nav-logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;color:var(--text);text-decoration:none;}
+        .nav-logo-icon{width:28px;height:28px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:13px;color:#0a0a0c;font-weight:700;}
+        .nav-links{display:flex;align-items:center;gap:20px;}.nav-links a{font-size:13px;color:var(--text-dim);transition:color 0.15s;}.nav-links a:hover{color:var(--text);text-decoration:none;}
+        .nav-cta{background:var(--accent);color:#0a0a0c !important;padding:6px 16px;border-radius:6px;font-weight:600;font-size:13px !important;}
+        .page-wrap{max-width:820px;margin:0 auto;padding:48px 24px 80px;}
+        .breadcrumb{font-size:13px;color:var(--text-dim);margin-bottom:32px;}.breadcrumb a{color:var(--text-dim);}.breadcrumb a:hover{color:var(--accent);}.breadcrumb span{margin:0 6px;}
+        .article-tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:3px 10px;border-radius:20px;background:rgba(240,168,48,0.12);color:#f0a830;margin-bottom:16px;}
+        h1{font-size:clamp(26px,4vw,40px);font-weight:700;line-height:1.2;margin-bottom:16px;}
+        .article-meta{display:flex;gap:20px;flex-wrap:wrap;font-size:13px;color:var(--text-dim);margin-bottom:40px;}
+        .toc{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 24px;margin-bottom:40px;}
+        .toc-title{font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-dim);margin-bottom:12px;}
+        .toc ol{padding-left:20px;}.toc li{margin-bottom:6px;}.toc a{font-size:14px;color:var(--text-dim);}.toc a:hover{color:var(--accent);}
+        h2{font-size:22px;font-weight:700;margin:48px 0 16px;padding-top:32px;border-top:1px solid var(--border);}h3{font-size:17px;font-weight:600;margin:28px 0 12px;}
+        p{margin-bottom:16px;font-size:15px;}ul,ol{padding-left:22px;margin-bottom:16px;}li{margin-bottom:8px;font-size:15px;}
+        pre{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:18px 20px;overflow-x:auto;margin:16px 0 24px;}
+        code{font-family:'JetBrains Mono',monospace;font-size:13px;color:#93c5fd;line-height:1.6;}p code,li code{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:12.5px;color:#93c5fd;}
+        .comment{color:#6b7280;}.keyword{color:#f0a830;}.string{color:#4ade80;}
+        .callout{border-radius:10px;padding:18px 20px;margin:20px 0;font-size:14px;}
+        .callout-critical{background:var(--red-dim);border:1px solid rgba(248,113,113,0.3);}.callout-warning{background:var(--accent-dim);border:1px solid rgba(240,168,48,0.3);}.callout-info{background:var(--blue-dim);border:1px solid rgba(96,165,250,0.3);}.callout-success{background:var(--green-dim);border:1px solid rgba(74,222,128,0.3);}
+        .callout-title{font-weight:700;margin-bottom:6px;}.callout-critical .callout-title{color:var(--red);}.callout-warning .callout-title{color:var(--accent);}.callout-info .callout-title{color:var(--blue);}.callout-success .callout-title{color:var(--green);}
+        .phase-table{width:100%;border-collapse:collapse;margin:16px 0 24px;font-size:14px;}
+        .phase-table th{background:var(--surface2);border:1px solid var(--border);padding:10px 14px;text-align:left;font-weight:600;color:var(--text-dim);font-size:12px;text-transform:uppercase;letter-spacing:0.05em;}
+        .phase-table td{border:1px solid var(--border);padding:10px 14px;vertical-align:top;}
+        .phase-table tr:nth-child(even) td{background:rgba(255,255,255,0.02);}
+        .cta-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:32px;text-align:center;margin:48px 0;}
+        .cta-box h3{font-size:20px;margin-bottom:8px;}.cta-box p{color:var(--text-dim);margin-bottom:20px;font-size:14px;}
+        .cta-btn{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#0a0a0c;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;}
+        .cta-btn:hover{background:#e09820;text-decoration:none;}
+        .nav-footer{display:flex;justify-content:space-between;gap:16px;margin-top:48px;padding-top:32px;border-top:1px solid var(--border);flex-wrap:wrap;}
+        .nav-footer a{font-size:14px;font-weight:500;color:var(--text-dim);}.nav-footer a:hover{color:var(--accent);text-decoration:none;}
+        footer{border-top:1px solid var(--border);padding:32px 24px;text-align:center;font-size:13px;color:var(--text-dim);}
+        .footer-links{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin-bottom:12px;}.footer-links a{color:var(--text-dim);}
+        @media(max-width:600px){.page-wrap{padding:32px 16px 60px;}.phase-table{font-size:12px;}}
+    </style>
+</head>
+<body>
+
+<nav>
+    <a href="/" class="nav-logo"><div class="nav-logo-icon">TV</div>TuneVault</a>
+    <div class="nav-links">
+        <a href="/resources/runbooks">Runbooks</a>
+        <a href="/blog">Blog</a>
+        <a href="/signup?path=health-check&redirect=/dashboard" class="nav-cta">Start Free</a>
+    </div>
+</nav>
+
+<div class="page-wrap">
+
+    <div class="breadcrumb">
+        <a href="/">TuneVault</a><span>›</span>
+        <a href="/resources/runbooks">Runbooks</a><span>›</span>
+        EBS Upgrade Triage
+    </div>
+
+    <div class="article-tag">🏗️ EBS Upgrade</div>
+    <h1>EBS Upgrade / Technology Stack Upgrade Triage Runbook</h1>
+    <div class="article-meta">
+        <span>⏱ 2–24 hrs (upgrade scope dependent)</span>
+        <span>EBS 12.1 / 12.2</span>
+        <span>Updated 2026-05-15</span>
+    </div>
+
+    <div class="callout callout-critical">
+        <div class="callout-title">🔴 First: determine where the failure happened</div>
+        The fix for an ADOP failure is completely different from an AutoConfig failure or a WebLogic startup failure. Before acting, identify which phase failed and read its log. Acting on the wrong phase wastes hours.
+    </div>
+
+    <div class="toc">
+        <div class="toc-title">In this runbook</div>
+        <ol>
+            <li><a href="#upgrade-path">EBS 12.1→12.2 upgrade path overview</a></li>
+            <li><a href="#adop-phases">ADOP phase failures — prepare/apply/finalize/cutover/cleanup</a></li>
+            <li><a href="#cutover-recovery">Failed cutover recovery — abort and cleanup</a></li>
+            <li><a href="#conc-manager">Concurrent Manager not starting post-upgrade</a></li>
+            <li><a href="#autoconfig">AutoConfig failures during tech stack patching</a></li>
+            <li><a href="#weblogic">WebLogic / Forms / OHS upgrade issues</a></li>
+            <li><a href="#online-patching">EBS R12.2 online patching troubleshooting</a></li>
+            <li><a href="#ad-utilities">AD utilities: adadmin, adpatch, adop — common failures</a></li>
+            <li><a href="#post-validation">Post-upgrade validation</a></li>
+            <li><a href="#cloning-issues">Apps tier cloning issues post-upgrade</a></li>
+            <li><a href="#common-errors">Common errors: AD-A-01022, ADZDCLN, OUI-67076</a></li>
+        </ol>
+    </div>
+
+    <h2 id="upgrade-path">1. EBS 12.1 → 12.2 Upgrade Path Overview</h2>
+
+    <p>EBS 12.1→12.2 is a major upgrade involving both the application technology stack (WebLogic replaces Oracle AS, Forms 11g, ADOP replaces adpatch) and the patching model (online patching with dual filesystem). It is not a patch — it is a full upgrade requiring a maintenance window of typically 8–24 hours.</p>
+
+    <div class="callout callout-info">
+        <div class="callout-title">ℹ️ AD/TXK delta baseline is mandatory</div>
+        Before beginning the 12.2 upgrade, you must apply the latest AD and TXK minipack on the 12.1 system. Check MOS Note 1315333.1 for the current baseline requirement. Skipping this causes immediate upgrade failures.
+    </div>
+
+    <table class="phase-table">
+        <thead>
+            <tr><th>Phase</th><th>What happens</th><th>Duration (typical)</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>Pre-upgrade steps</td><td>AD/TXK delta, DB upgrade to 12c/19c, preinstall patches</td><td>2–4 hrs</td></tr>
+            <tr><td>Upgrade start</td><td>Run u12201061.drv (12.2 upgrade driver) — schema changes, data migration</td><td>4–12 hrs</td></tr>
+            <tr><td>Technology stack install</td><td>Install WebLogic, Forms 11g, OHS; configure domains</td><td>1–2 hrs</td></tr>
+            <tr><td>AutoConfig</td><td>First AutoConfig under new tech stack</td><td>15–30 min</td></tr>
+            <tr><td>ADOP cutover model</td><td>Switch to dual-filesystem (run/patch editions)</td><td>30 min</td></tr>
+            <tr><td>Post-upgrade patches</td><td>Mandatory post-upgrade patches per MOS 1594222.1</td><td>1–3 hrs</td></tr>
+        </tbody>
+    </table>
+
+    <h2 id="adop-phases">2. ADOP Phase Failures</h2>
+
+    <p>ADOP (AD Online Patching) replaced adpatch in EBS 12.2. It operates in five sequential phases. A failure in any phase requires targeted recovery — not a full restart.</p>
+
+    <pre><code><span class="comment">-- Check the status of the current ADOP cycle</span>
+<span class="keyword">SELECT</span>
+  patch_run_id,
+  phase,
+  status,
+  start_date,
+  end_date,
+  workers,
+  log_file
+<span class="keyword">FROM</span> ad_adop_session_patches
+<span class="keyword">ORDER BY</span> patch_run_id <span class="keyword">DESC</span>
+<span class="keyword">FETCH FIRST</span> 10 <span class="keyword">ROWS ONLY</span>;
+
+<span class="comment">-- Check current ADOP session</span>
+<span class="keyword">SELECT</span>
+  adop_session_id,
+  node_name,
+  status,
+  start_date,
+  end_date
+<span class="keyword">FROM</span> ad_adop_sessions
+<span class="keyword">ORDER BY</span> start_date <span class="keyword">DESC</span>
+<span class="keyword">FETCH FIRST</span> 5 <span class="keyword">ROWS ONLY</span>;</code></pre>
+
+    <h3>prepare phase failure</h3>
+    <pre><code><span class="comment">-- prepare creates the patch edition and synchronizes filesystems</span>
+<span class="comment">-- Log: $APPL_TOP/../log/adop_&lt;session&gt;/prepare_&lt;node&gt;.log</span>
+
+<span class="comment">-- Common causes: stale patch edition from prior failed cycle</span>
+<span class="comment">-- Fix: cleanup first, then re-prepare</span>
+adop phase=cleanup
+adop phase=prepare</code></pre>
+
+    <h3>apply phase failure</h3>
+    <pre><code><span class="comment">-- apply runs patch workers; a failed worker does NOT stop the whole apply</span>
+<span class="comment">-- Find failed workers in log directory</span>
+<span class="comment">-- ls $APPL_TOP/../log/adop_&lt;session&gt;/apply_&lt;node&gt;/</span>
+
+<span class="comment">-- Restart a failed apply from where it left off</span>
+adop phase=apply patches=&lt;patch_number&gt; restart=yes
+
+<span class="comment">-- If a specific worker keeps failing, check its log</span>
+<span class="comment">-- cat $APPL_TOP/../log/adop_&lt;session&gt;/apply_&lt;node&gt;/adworker_&lt;N&gt;.log</span>
+
+<span class="comment">-- Check for worker errors in DB</span>
+<span class="keyword">SELECT</span>
+  w.worker_id,
+  w.status,
+  w.log_file,
+  j.unit_id,
+  j.action_code,
+  j.message
+<span class="keyword">FROM</span> ad_parallel_workers w
+<span class="keyword">JOIN</span> ad_parallel_jobs j ON w.worker_id = j.worker_id
+<span class="keyword">WHERE</span> j.status IN (<span class="string">'F'</span>, <span class="string">'R'</span>)
+<span class="keyword">ORDER BY</span> j.last_update_date <span class="keyword">DESC</span>;</code></pre>
+
+    <h3>finalize phase failure</h3>
+    <pre><code><span class="comment">-- finalize compiles invalid objects and runs post-patch tasks</span>
+<span class="comment">-- Log: $APPL_TOP/../log/adop_&lt;session&gt;/finalize_&lt;node&gt;.log</span>
+
+<span class="comment">-- Re-run finalize (safe to re-run)</span>
+adop phase=finalize
+
+<span class="comment">-- If finalize fails on a specific object compilation, find it in DB</span>
+<span class="keyword">SELECT</span> owner, object_name, object_type, status
+<span class="keyword">FROM</span> dba_objects
+<span class="keyword">WHERE</span> status = <span class="string">'INVALID'</span>
+  <span class="keyword">AND</span> owner NOT IN (<span class="string">'SYS'</span>, <span class="string">'SYSTEM'</span>)
+<span class="keyword">ORDER BY</span> owner, object_type, object_name;</code></pre>
+
+    <h3>cutover phase failure</h3>
+    <pre><code><span class="comment">-- cutover switches the run edition to the patched edition</span>
+<span class="comment">-- It requires all users to be out of the system (check active sessions)</span>
+
+<span class="comment">-- Check active DB sessions before cutover</span>
+<span class="keyword">SELECT</span> username, COUNT(*) AS sessions
+<span class="keyword">FROM</span> v$session
+<span class="keyword">WHERE</span> username IS NOT NULL
+  <span class="keyword">AND</span> username NOT IN (<span class="string">'SYS'</span>, <span class="string">'SYSTEM'</span>, <span class="string">'DBSNMP'</span>)
+<span class="keyword">GROUP BY</span> username
+<span class="keyword">ORDER BY</span> sessions <span class="keyword">DESC</span>;
+
+<span class="comment">-- Run cutover</span>
+adop phase=cutover
+
+<span class="comment">-- If cutover fails midway: check the log, restart is NOT supported</span>
+<span class="comment">-- You must abort and cleanup, then restart the entire patch cycle</span>
+<span class="comment">-- See Section 3 for abort recovery</span></code></pre>
+
+    <h3>cleanup phase failure</h3>
+    <pre><code><span class="comment">-- cleanup drops the old patch edition objects and removes stale filesystem content</span>
+<span class="comment">-- Safe to re-run if it fails</span>
+adop phase=cleanup
+
+<span class="comment">-- If cleanup hangs on edition drop (large schemas take time)</span>
+<span class="comment">-- Check for blocking locks</span>
+<span class="keyword">SELECT</span>
+  s.sid, s.serial#, s.username, s.status,
+  l.type, l.request, l.block
+<span class="keyword">FROM</span> v$session s
+<span class="keyword">JOIN</span> v$lock l ON s.sid = l.sid
+<span class="keyword">WHERE</span> l.block = 1;
+
+<span class="comment">-- Force cleanup if it's been stuck &gt; 2 hours</span>
+adop phase=cleanup mode=full</code></pre>
+
+    <h2 id="cutover-recovery">3. Failed Cutover Recovery</h2>
+
+    <div class="callout callout-critical">
+        <div class="callout-title">🔴 Failed cutover is the worst-case scenario</div>
+        If cutover fails mid-execution, EBS is in an inconsistent state — neither the old nor the new edition is fully active. The only safe path is <code>adop phase=abort</code>, then a fresh patch cycle. Do NOT attempt to restart cutover.
+    </div>
+
+    <pre><code><span class="comment">-- Step 1: Abort the failed adop session</span>
+adop phase=abort
+
+<span class="comment">-- Step 2: If abort also fails (stuck sessions), kill them in DB</span>
+<span class="keyword">SELECT</span> sid, serial#, username, status, schemaname
+<span class="keyword">FROM</span> v$session
+<span class="keyword">WHERE</span> schemaname LIKE <span class="string">'%_PATCH%'</span>
+   <span class="keyword">OR</span> schemaname LIKE <span class="string">'%_NEXT%'</span>;
+
+ALTER SYSTEM KILL SESSION '&amp;sid,&amp;serial' IMMEDIATE;
+
+<span class="comment">-- Step 3: Run cleanup to remove the failed patch edition</span>
+adop phase=cleanup
+
+<span class="comment">-- Step 4: Verify no patch editions remain</span>
+<span class="keyword">SELECT</span> edition_name, usable
+<span class="keyword">FROM</span> dba_editions
+<span class="keyword">ORDER BY</span> edition_name;
+<span class="comment">-- Should show only one usable edition (the run/base edition)</span>
+
+<span class="comment">-- Step 5: Verify filesystem is clean</span>
+<span class="comment">-- ls $APPL_TOP_NE  (should be minimal/empty after cleanup)</span>
+
+<span class="comment">-- Step 6: Now safe to start a new patch cycle</span>
+adop phase=prepare</code></pre>
+
+    <h3>Cleaning stuck ADOP sessions in the database</h3>
+    <pre><code><span class="comment">-- ADOP session state in DB (check ad_adop_sessions)</span>
+<span class="keyword">SELECT</span>
+  adop_session_id,
+  node_name,
+  status,
+  start_date
+<span class="keyword">FROM</span> ad_adop_sessions
+<span class="keyword">WHERE</span> status NOT IN (<span class="string">'C'</span>, <span class="string">'F'</span>)
+<span class="keyword">ORDER BY</span> start_date <span class="keyword">DESC</span>;
+
+<span class="comment">-- Mark stuck session as aborted (last resort if adop phase=abort fails)</span>
+<span class="keyword">UPDATE</span> ad_adop_sessions
+<span class="keyword">SET</span> status = <span class="string">'F'</span>  <span class="comment">-- F = Failed/Aborted</span>
+<span class="keyword">WHERE</span> status = <span class="string">'R'</span>  <span class="comment">-- R = Running</span>
+  <span class="keyword">AND</span> adop_session_id = &amp;session_id;
+COMMIT;</code></pre>
+
+    <h2 id="conc-manager">4. Concurrent Manager Not Starting Post-Upgrade</h2>
+
+    <pre><code><span class="comment">-- Check CM status</span>
+<span class="keyword">SELECT</span>
+  concurrent_queue_name,
+  manager_type,
+  running_processes,
+  max_processes,
+  target_node,
+  last_refresh_date
+<span class="keyword">FROM</span> fnd_concurrent_queues_vl
+<span class="keyword">WHERE</span> enabled_flag = <span class="string">'Y'</span>
+<span class="keyword">ORDER BY</span> concurrent_queue_name;</code></pre>
+
+    <h3>ICM (Internal Concurrent Manager) won't start</h3>
+    <pre><code><span class="comment">-- Check APPS password is correct in FND_USER</span>
+<span class="keyword">SELECT</span> user_name, encrypted_user_password, last_logon_date
+<span class="keyword">FROM</span> fnd_user
+<span class="keyword">WHERE</span> user_name = <span class="string">'APPS'</span>;
+
+<span class="comment">-- Reset APPS password if needed (requires SYSADMIN login)</span>
+<span class="comment">-- Navigate to: Security → User → Define → APPS user → change password</span>
+<span class="comment">-- OR use FNDCPASS utility:</span>
+FNDCPASS apps/apps_password 0 Y system/manager_password ALLORACLE APPS new_password
+
+<span class="comment">-- Verify $FND_TOP/bin/FNDLIBR is executable</span>
+<span class="comment">-- ls -la $FND_TOP/bin/FNDLIBR</span>
+
+<span class="comment">-- Check service startup log</span>
+<span class="comment">-- cat $APPLCSF/$APPLLOG/STARTCM.log (11.5) or check admin/log/</span>
+
+<span class="comment">-- Force CM restart</span>
+<span class="comment">-- As applmgr: adcmctl.sh start apps/&lt;password&gt;</span></code></pre>
+
+    <h3>CM starts but workers fail immediately</h3>
+    <pre><code><span class="comment">-- Check for environment issues — AutoConfig may not have run after upgrade</span>
+<span class="comment">-- Verify correct ORACLE_HOME and ORACLE_SID are set in the Apps tier env</span>
+<span class="comment">-- source $APPL_TOP/envshell.env (or APPS&lt;SID&gt;_&lt;host&gt;.env)</span>
+
+<span class="comment">-- Check for stale NLS_CHARACTERSET mismatches</span>
+<span class="keyword">SELECT</span> parameter, value
+<span class="keyword">FROM</span> nls_database_parameters
+<span class="keyword">WHERE</span> parameter IN (<span class="string">'NLS_CHARACTERSET'</span>, <span class="string">'NLS_NCHAR_CHARACTERSET'</span>);
+
+<span class="comment">-- Verify FND_INSTALL_PROCESSES table is clean</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> fnd_install_processes
+<span class="keyword">WHERE</span> status IN (<span class="string">'I'</span>, <span class="string">'R'</span>)
+<span class="keyword">ORDER BY</span> last_updated_date <span class="keyword">DESC</span>;</code></pre>
+
+    <h2 id="autoconfig">5. AutoConfig Failures During Technology Stack Patching</h2>
+
+    <pre><code><span class="comment">-- AutoConfig log location</span>
+<span class="comment">-- $APPL_TOP/admin/&lt;SID&gt;/log/&lt;date&gt;/adconfig.txt</span>
+<span class="comment">-- For apps tier: $INST_TOP/admin/log/&lt;date&gt;/adconfig.txt</span>
+
+<span class="comment">-- Run AutoConfig manually (as applmgr)</span>
+perl $AD_TOP/bin/adconfig.pl contextfile=$CONTEXT_FILE
+
+<span class="comment">-- If AutoConfig fails on database tier</span>
+perl $AD_TOP/bin/adconfig.pl contextfile=$CONTEXT_FILE run=DB</code></pre>
+
+    <h3>Common AutoConfig failure: context file out of date</h3>
+    <pre><code><span class="comment">-- After major upgrade, context file may have missing or wrong values</span>
+<span class="comment">-- Run adbldxml.pl to rebuild context file</span>
+perl $AD_TOP/bin/adbldxml.pl \
+  appspass=apps_password \
+  contextfile=$CONTEXT_FILE \
+  xmlfile=/path/to/old_context.xml
+
+<span class="comment">-- Validate context file</span>
+perl $AD_TOP/bin/adchkutl.pl contextfile=$CONTEXT_FILE</code></pre>
+
+    <h3>AutoConfig fails on WebLogic domain config</h3>
+    <pre><code><span class="comment">-- Check MW_HOME and WL_HOME are set correctly in context</span>
+<span class="comment">-- grep 'MW_HOME\|WL_HOME' $CONTEXT_FILE</span>
+
+<span class="comment">-- WebLogic domain config backup before AutoConfig</span>
+<span class="comment">-- cp -r $INST_TOP/ora/10.1.3/ $INST_TOP/ora/10.1.3.bak/</span>
+
+<span class="comment">-- If AutoConfig corrupted domain: restore from backup and re-run</span>
+<span class="comment">-- rm -rf $INST_TOP/ora/10.1.3/</span>
+<span class="comment">-- cp -r $INST_TOP/ora/10.1.3.bak/ $INST_TOP/ora/10.1.3/</span>
+perl $AD_TOP/bin/adconfig.pl contextfile=$CONTEXT_FILE</code></pre>
+
+    <h2 id="weblogic">6. WebLogic / Forms / OHS Upgrade Issues</h2>
+
+    <h3>AdminServer won't start after upgrade</h3>
+    <pre><code><span class="comment">-- Check AdminServer log</span>
+<span class="comment">-- tail -100 $DOMAIN_HOME/servers/AdminServer/logs/AdminServer.log</span>
+<span class="comment">-- tail -100 $DOMAIN_HOME/servers/AdminServer/logs/AdminServer-diagnostic.log</span>
+
+<span class="comment">-- Common cause: port conflict (AdminServer default: 7001)</span>
+<span class="comment">-- lsof -i :7001 (or netstat -tlnp | grep 7001)</span>
+
+<span class="comment">-- Common cause: boot.properties missing or corrupted</span>
+<span class="comment">-- Recreate boot.properties:</span>
+<span class="comment">-- mkdir -p $DOMAIN_HOME/servers/AdminServer/security/</span>
+<span class="comment">-- cat &gt; $DOMAIN_HOME/servers/AdminServer/security/boot.properties &lt;&lt;EOF</span>
+<span class="comment">-- username=weblogic</span>
+<span class="comment">-- password=&lt;plain_text_password&gt;</span>
+<span class="comment">-- EOF</span>
+<span class="comment">-- WLS will encrypt it on next start</span>
+
+<span class="comment">-- Start AdminServer manually</span>
+<span class="comment">-- $DOMAIN_HOME/bin/startWebLogic.sh &gt; /tmp/admin.log 2&gt;&amp;1 &amp;</span></code></pre>
+
+    <h3>NodeManager failures</h3>
+    <pre><code><span class="comment">-- NodeManager manages Managed Server lifecycle</span>
+<span class="comment">-- Log: $MW_HOME/oracle_common/common/nodemanager/nodemanager.log</span>
+
+<span class="comment">-- Check if NodeManager is running</span>
+<span class="comment">-- ps -ef | grep NodeManager</span>
+
+<span class="comment">-- Restart NodeManager</span>
+<span class="comment">-- cd $MW_HOME/oracle_common/common/bin</span>
+<span class="comment">-- ./startNodeManager.sh &gt; /tmp/nm.log 2&gt;&amp;1 &amp;</span>
+
+<span class="comment">-- If NodeManager refuses to enroll a machine</span>
+<span class="comment">-- Check nodemanager.properties: ListenPort, ListenAddress</span>
+<span class="comment">-- cat $WL_HOME/server/lib/nodemanager.properties | grep Listen</span></code></pre>
+
+    <h3>OHS (Oracle HTTP Server) won't start</h3>
+    <pre><code><span class="comment">-- OHS log location</span>
+<span class="comment">-- $INST_TOP/ora/10.1.3/Apache/Apache/logs/error_log</span>
+
+<span class="comment">-- Check port conflicts (default OHS: 8000 / 443)</span>
+<span class="comment">-- netstat -tlnp | grep -E '8000|443|7777'</span>
+
+<span class="comment">-- Restart OHS</span>
+$ADMIN_SCRIPTS_HOME/adopmnctl.sh start
+$ADMIN_SCRIPTS_HOME/adohactl.sh start
+
+<span class="comment">-- If OHS config is corrupt after AutoConfig: check httpd.conf</span>
+<span class="comment">-- diff $INST_TOP/ora/10.1.3/Apache/Apache/conf/httpd.conf \</span>
+<span class="comment">--      $INST_TOP/ora/10.1.3/Apache/Apache/conf/httpd.conf.bkXXXX</span></code></pre>
+
+    <h2 id="online-patching">7. EBS R12.2 Online Patching Troubleshooting</h2>
+
+    <p>EBS 12.2 uses an online patching model (Edition-Based Redefinition) — patches apply against the <em>patch edition</em> while users work in the <em>run edition</em>. The two editions share the same data but have separate code objects.</p>
+
+    <pre><code><span class="comment">-- Check current run and patch editions</span>
+<span class="keyword">SELECT</span>
+  property_name,
+  property_value
+<span class="keyword">FROM</span> fnd_product_installations
+<span class="keyword">WHERE</span> property_name <span class="keyword">LIKE</span> <span class="string">'%EDITION%'</span>;
+
+<span class="comment">-- Check edition objects are in sync</span>
+<span class="keyword">SELECT</span>
+  object_name, object_type,
+  edition_name,
+  status
+<span class="keyword">FROM</span> dba_edition_obj_audit_trail
+<span class="keyword">WHERE</span> status = <span class="string">'INVALID'</span>
+<span class="keyword">ORDER BY</span> object_name;</code></pre>
+
+    <h3>Edition drift — run edition has invalid objects</h3>
+    <pre><code><span class="comment">-- Check run edition objects for invalids</span>
+<span class="keyword">SELECT</span> owner, object_name, object_type, status
+<span class="keyword">FROM</span> dba_objects
+<span class="keyword">WHERE</span> status = <span class="string">'INVALID'</span>
+  <span class="keyword">AND</span> owner IN (<span class="string">'APPS'</span>, <span class="string">'APPLSYS'</span>)
+<span class="keyword">ORDER BY</span> object_type, object_name;
+
+<span class="comment">-- Force recompile in APPS schema</span>
+EXEC DBMS_UTILITY.COMPILE_SCHEMA(schema=&gt;<span class="string">'APPS'</span>, compile_all=&gt;FALSE);
+EXEC DBMS_UTILITY.COMPILE_SCHEMA(schema=&gt;<span class="string">'APPLSYS'</span>, compile_all=&gt;FALSE);</code></pre>
+
+    <h2 id="ad-utilities">8. AD Utilities — Common Failure Modes</h2>
+
+    <h3>adadmin — Maintain Applications Database Objects</h3>
+    <pre><code><span class="comment">-- adadmin log: $APPL_TOP/admin/&lt;SID&gt;/log/adadmin&lt;N&gt;.log</span>
+
+<span class="comment">-- Run adadmin to recompile invalid objects (menu option)</span>
+<span class="comment">-- adadmin -&gt; Maintain Applications Database Objects -&gt;</span>
+<span class="comment">--           Compile Invalid Objects in the APPS Schema</span>
+
+<span class="comment">-- adadmin fails with ORA-01017 (invalid username/password)</span>
+<span class="comment">-- Usually APPS schema password needs reset</span>
+<span class="comment">-- alter user apps identified by &lt;password&gt;;</span>
+
+<span class="comment">-- Check adadmin worker log for specific errors</span>
+<span class="comment">-- ls $APPL_TOP/admin/&lt;SID&gt;/log/adwork*.log | xargs grep "Error\|ORA-" | tail -20</span></code></pre>
+
+    <h3>adpatch — applying patches on 12.1 or older 12.2</h3>
+    <pre><code><span class="comment">-- adpatch log: $APPL_TOP/admin/&lt;SID&gt;/log/adpatch.log</span>
+
+<span class="comment">-- Check if previous adpatch session needs to be completed</span>
+<span class="keyword">SELECT</span>
+  patch_run_id,
+  phase,
+  status,
+  start_date
+<span class="keyword">FROM</span> ad_patch_runs
+<span class="keyword">ORDER BY</span> start_date <span class="keyword">DESC</span>
+<span class="keyword">FETCH FIRST</span> 5 <span class="keyword">ROWS ONLY</span>;
+
+<span class="comment">-- If adpatch stopped mid-run, restart it</span>
+<span class="comment">-- adpatch will detect the incomplete run and offer to restart</span>
+adpatch
+
+<span class="comment">-- Check for failed workers in a previous run</span>
+<span class="keyword">SELECT</span>
+  w.worker_id, w.status,
+  j.action_code, j.message
+<span class="keyword">FROM</span> ad_parallel_workers w
+<span class="keyword">JOIN</span> ad_parallel_jobs j ON w.worker_id = j.worker_id
+<span class="keyword">WHERE</span> j.status = <span class="string">'F'</span>
+<span class="keyword">ORDER BY</span> j.last_update_date <span class="keyword">DESC</span>;</code></pre>
+
+    <h2 id="post-validation">9. Post-Upgrade Validation</h2>
+
+    <pre><code><span class="comment">-- 1. Verify FND_INSTALL_PROCESSES shows successful upgrade steps</span>
+<span class="keyword">SELECT</span>
+  install_group_num,
+  status,
+  last_update_date,
+  product_short_name,
+  creation_date
+<span class="keyword">FROM</span> fnd_install_processes
+<span class="keyword">WHERE</span> status NOT IN (<span class="string">'S'</span>)
+<span class="keyword">ORDER BY</span> last_update_date <span class="keyword">DESC</span>
+<span class="keyword">FETCH FIRST</span> 20 <span class="keyword">ROWS ONLY</span>;
+
+<span class="comment">-- 2. Verify AD_BUGS for applied patches</span>
+<span class="keyword">SELECT</span>
+  bug_number,
+  bug_name,
+  last_update_date
+<span class="keyword">FROM</span> ad_bugs
+<span class="keyword">WHERE</span> bug_number IN (
+  <span class="string">'12345678'</span>  <span class="comment">-- replace with your critical patch numbers</span>
+)
+<span class="keyword">ORDER BY</span> last_update_date;
+
+<span class="comment">-- 3. Verify key product versions post-upgrade</span>
+<span class="keyword">SELECT</span>
+  product_short_name,
+  release_name,
+  patch_level,
+  install_status
+<span class="keyword">FROM</span> fnd_product_installations
+<span class="keyword">WHERE</span> install_status != <span class="string">'N'</span>
+<span class="keyword">ORDER BY</span> product_short_name;
+
+<span class="comment">-- 4. Check AD patch history for missing drivers</span>
+<span class="keyword">SELECT</span>
+  patch_name,
+  patch_type,
+  creation_date
+<span class="keyword">FROM</span> ad_applied_patches
+<span class="keyword">ORDER BY</span> creation_date <span class="keyword">DESC</span>
+<span class="keyword">FETCH FIRST</span> 20 <span class="keyword">ROWS ONLY</span>;
+
+<span class="comment">-- 5. Verify AutoConfig ran with no errors after upgrade</span>
+<span class="comment">-- grep "ERROR\|FAILED" $INST_TOP/admin/log/*/adconfig.txt | tail -20</span></code></pre>
+
+    <h2 id="cloning-issues">10. Apps Tier Cloning Issues Post-Upgrade</h2>
+
+    <pre><code><span class="comment">-- After upgrading, cloning requires updated clone scripts</span>
+
+<span class="comment">-- Step 1: On source (post-upgrade) system, run adpreclone</span>
+<span class="comment">-- perl $ADMIN_SCRIPTS_HOME/adpreclone.pl appsTier</span>
+<span class="comment">-- perl $ADMIN_SCRIPTS_HOME/adpreclone.pl dbTier</span>
+
+<span class="comment">-- Step 2: Copy filesystem to target</span>
+
+<span class="comment">-- Step 3: On target, run adcfgclone</span>
+<span class="comment">-- perl $CLONE_TOP/bin/adcfgclone.pl appsTier /path/to/context_template.xml</span>
+
+<span class="comment">-- Common post-upgrade clone failure: outdated $CLONE_TOP scripts</span>
+<span class="comment">-- The clone scripts in $AD_TOP/clone must be updated to EBS 12.2 versions</span>
+<span class="comment">-- Verify: grep 'version' $AD_TOP/clone/bin/adcfgclone.pl | head -3</span>
+
+<span class="comment">-- If adcfgclone fails on context file: rebuild context first</span>
+perl $AD_TOP/bin/adbldxml.pl \
+  contextfile=$NEW_CONTEXT_FILE \
+  templatefile=$AD_TOP/admin/template/&lt;template&gt;.xml</code></pre>
+
+    <h2 id="common-errors">11. Common Errors</h2>
+
+    <h3>AD-A-01022: Unable to determine the version of file</h3>
+    <pre><code><span class="comment">-- adop/adpatch can't determine a file's version</span>
+<span class="comment">-- Root cause: file header missing, binary file, or encoding issue</span>
+
+<span class="comment">-- Identify the problem file from adpatch/adop log</span>
+<span class="comment">-- grep "AD-A-01022" $APPL_TOP/admin/&lt;SID&gt;/log/adpatch.log</span>
+
+<span class="comment">-- Option 1: Force-apply by skipping version check</span>
+<span class="comment">-- adop phase=apply patches=&lt;N&gt; options=nofileversioncheck</span>
+<span class="comment">-- adpatch: use 'options=nofileversioncheck' flag</span>
+
+<span class="comment">-- Option 2: Manually update the file version in FND tables</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> fnd_application_files
+<span class="keyword">WHERE</span> file_name = <span class="string">'&amp;filename'</span>;
+
+<span class="comment">-- Option 3: Copy clean file from another server running same patch level</span></code></pre>
+
+    <h3>ADZDCLN errors during cleanup</h3>
+    <pre><code><span class="comment">-- ADZDCLN is the PL/SQL cleanup package for edition objects</span>
+<span class="comment">-- Errors usually mean dependent objects are blocking edition drop</span>
+
+<span class="comment">-- Check for objects dependent on the patch edition</span>
+<span class="keyword">SELECT</span>
+  owner, name, type,
+  referenced_owner, referenced_name, referenced_type
+<span class="keyword">FROM</span> dba_dependencies
+<span class="keyword">WHERE</span> referenced_owner <span class="keyword">LIKE</span> <span class="string">'%_NEXT'</span>
+   <span class="keyword">OR</span> referenced_owner <span class="keyword">LIKE</span> <span class="string">'%_PATCH'</span>
+<span class="keyword">FETCH FIRST</span> 20 <span class="keyword">ROWS ONLY</span>;
+
+<span class="comment">-- If cleanup keeps failing on the same object, check MOS for a bug</span>
+<span class="comment">-- Search: "ADZDCLN [object_name] 12.2" on support.oracle.com</span>
+
+<span class="comment">-- Force cleanup with verbose logging</span>
+adop phase=cleanup loglevel=statement</code></pre>
+
+    <h3>OUI-67076: OPatch failed — inventory not found</h3>
+    <pre><code><span class="comment">-- OPatch can't find the Oracle Inventory</span>
+<span class="comment">-- Check inventory pointer</span>
+<span class="comment">-- cat /etc/oraInst.loc</span>
+
+<span class="comment">-- Verify inventory exists</span>
+<span class="comment">-- ls -la $ORACLE_INVENTORY/ContentsXML/inventory.xml</span>
+
+<span class="comment">-- Re-attach Oracle home to inventory</span>
+$ORACLE_HOME/oui/bin/runInstaller -silent -ignoreSysPrereqs \
+  -attachHome \
+  ORACLE_HOME=$ORACLE_HOME \
+  ORACLE_HOME_NAME=OraDB19Home1
+
+<span class="comment">-- Validate the home is now visible to OPatch</span>
+$ORACLE_HOME/OPatch/opatch lsinventory -oh $ORACLE_HOME</code></pre>
+
+    <div class="callout callout-success">
+        <div class="callout-title">✅ Post-upgrade EBS checklist</div>
+        <ul style="margin:8px 0 0 20px;">
+            <li>AutoConfig completed with no errors on all tiers</li>
+            <li>Internal Concurrent Manager running and processing requests</li>
+            <li>ADOP cleanup completed — single edition in dba_editions</li>
+            <li>FND_INSTALL_PROCESSES shows no FAILED steps</li>
+            <li>Invalid objects in APPS/APPLSYS schemas = 0 after adadmin compile</li>
+            <li>WebLogic AdminServer, OHS, and all Managed Servers started</li>
+            <li>Applications URL accessible and login works</li>
+            <li>Run a sample concurrent request end-to-end to validate CM</li>
+        </ul>
+    </div>
+
+    <div class="cta-box">
+        <h3>Know your EBS patch level and ADOP cycle status in one click</h3>
+        <p>TuneVault health checks surface ADOP cycle state, failed workers, CM status, invalid objects, and missing mandatory patches — before they become upgrade blockers.</p>
+        <a href="/signup?path=health-check&redirect=/dashboard" class="cta-btn">Run a Free Health Check →</a>
+    </div>
+
+    <div class="nav-footer">
+        <a href="/resources/runbooks/oracle-db-upgrade-triage">← Oracle DB Upgrade Triage</a>
+        <a href="/resources/runbooks/adop-cutover-rollback">ADOP Cutover Rollback →</a>
+    </div>
+
+</div>
+
+<footer>
+    <div class="footer-links">
+        <a href="/">TuneVault</a>
+        <a href="/resources/runbooks">Runbooks</a>
+        <a href="/blog">Blog</a>
+        <a href="/compare">Compare Tools</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/about">About</a>
+    </div>
+    <p style="margin-top:12px;">© 2026 TuneVault · <a href="mailto:hello@tunevault.app">hello@tunevault.app</a></p>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terminal — TuneVault</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="apple-touch-icon" href="/favicon.svg">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg:        #0a0a0c;
+            --surface:   #111114;
+            --surface-2: #1a1a1f;
+            --surface-3: #222228;
+            --border:    #2a2a30;
+            --text:      #e8e8ed;
+            --text-dim:  #9898a8;
+            --accent:    #f0a830;
+            --green:     #34d399;
+            --red:       #f87171;
+            --yellow:    #fbbf24;
+            --blue:      #60a5fa;
+            --term-bg:   #0d0d10;
+            --term-green:#4ade80;
+            --term-amber:#fbbf24;
+            --term-cyan: #67e8f9;
+        }
+        body {
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* ── Nav ── */
+        nav {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 32px; border-bottom: 1px solid var(--border);
+            background: var(--surface); flex-shrink: 0;
+        }
+        .logo {
+            font-size: 18px; font-weight: 700; letter-spacing: -0.5px;
+            display: flex; align-items: center; gap: 10px;
+            text-decoration: none; color: var(--text);
+        }
+        .logo-icon {
+            width: 26px; height: 26px; background: var(--accent);
+            border-radius: 5px; display: flex; align-items: center; justify-content: center;
+            font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; color: var(--bg);
+        }
+        .nav-tag {
+            font-size: 11px; color: var(--green); background: rgba(52,211,153,0.08);
+            padding: 3px 10px; border-radius: 100px; border: 1px solid rgba(52,211,153,0.2); font-weight: 600;
+        }
+        .nav-actions { display: flex; align-items: center; gap: 12px; }
+        .nav-link {
+            font-size: 13px; color: var(--text-dim); text-decoration: none;
+            padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; transition: all 0.15s;
+        }
+        .nav-link:hover { color: var(--text); border-color: rgba(255,255,255,0.15); }
+
+        /* ── Main layout ── */
+        .page {
+            flex: 1; display: flex; flex-direction: column;
+            padding: 20px 28px 24px; max-width: 1280px; width: 100%; margin: 0 auto; gap: 14px;
+        }
+
+        /* ── Target bar ── */
+        .target-bar {
+            display: flex; align-items: center; gap: 12px;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 10px; padding: 12px 18px; flex-wrap: wrap;
+        }
+        .target-bar label {
+            font-size: 11px; font-weight: 600; color: var(--text-dim);
+            text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0; white-space: nowrap;
+        }
+        .target-select {
+            flex: 1; min-width: 220px; background: var(--surface-2);
+            border: 1px solid var(--border); border-radius: 6px; color: var(--text);
+            font-family: 'Space Grotesk', sans-serif; font-size: 13px; padding: 7px 10px; outline: none;
+        }
+        .target-select:focus { border-color: rgba(240,168,48,0.4); }
+        .target-status {
+            font-size: 12px; font-weight: 600; padding: 4px 10px;
+            border-radius: 5px; flex-shrink: 0; white-space: nowrap;
+        }
+        .target-status.ok   { background: rgba(52,211,153,0.1); color: var(--green); border: 1px solid rgba(52,211,153,0.2); }
+        .target-status.idle { background: rgba(136,136,160,0.08); color: var(--text-dim); border: 1px solid var(--border); }
+        .target-status.stream { background: rgba(96,165,250,0.1); color: var(--blue); border: 1px solid rgba(96,165,250,0.25); animation: pulse-blue 1.5s ease-in-out infinite; }
+        @keyframes pulse-blue { 0%,100%{opacity:1} 50%{opacity:.6} }
+
+        /* ── Pre-fill banner ── */
+        .prefill-banner {
+            display: flex; align-items: flex-start; gap: 10px; padding: 11px 16px;
+            background: rgba(52,211,153,0.06); border: 1px solid rgba(52,211,153,0.2);
+            border-radius: 8px; font-size: 13px;
+        }
+        .prefill-banner-text { color: var(--text-dim); line-height: 1.5; }
+        .prefill-banner-text strong { color: var(--green); }
+
+        /* ── Terminal output panel ── */
+        .term-wrap {
+            flex: 1; display: flex; flex-direction: column;
+            background: var(--term-bg); border: 1px solid #1e1e24;
+            border-radius: 10px; overflow: hidden; min-height: 400px;
+            box-shadow: inset 0 2px 12px rgba(0,0,0,0.4);
+        }
+        .term-titlebar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 16px; border-bottom: 1px solid #1e1e24;
+            background: #111116; flex-shrink: 0;
+        }
+        .term-dots { display: flex; gap: 6px; }
+        .term-dot {
+            width: 12px; height: 12px; border-radius: 50%;
+            cursor: default;
+        }
+        .term-dot.red   { background: #ff5f57; }
+        .term-dot.amber { background: #febc2e; }
+        .term-dot.green { background: #28c840; }
+        .term-title {
+            font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #555;
+            flex: 1; text-align: center; user-select: none;
+        }
+        .term-actions { display: flex; gap: 8px; }
+        .btn-xs {
+            font-size: 11px; color: var(--text-dim); background: transparent;
+            border: 1px solid #2a2a30; border-radius: 4px; padding: 3px 9px;
+            cursor: pointer; font-family: 'Space Grotesk', sans-serif; transition: all 0.12s;
+        }
+        .btn-xs:hover { color: var(--text); border-color: rgba(255,255,255,0.18); }
+        .btn-xs.danger { color: var(--red); border-color: rgba(248,113,113,0.25); }
+        .btn-xs.danger:hover { background: rgba(248,113,113,0.08); }
+
+        /* ── Output scroll area ── */
+        .term-output {
+            flex: 1; overflow-y: auto; overflow-x: hidden;
+            padding: 14px 18px; font-family: 'JetBrains Mono', monospace;
+            font-size: 12.5px; line-height: 1.65;
+            scroll-behavior: smooth;
+        }
+        .term-output::-webkit-scrollbar { width: 6px; }
+        .term-output::-webkit-scrollbar-track { background: transparent; }
+        .term-output::-webkit-scrollbar-thumb { background: #2a2a30; border-radius: 3px; }
+        .out-placeholder { color: #444; font-style: italic; }
+
+        /* ── Output line types ── */
+        .out-cmd { color: var(--term-cyan); margin-bottom: 3px; margin-top: 8px; }
+        .out-cmd::before { content: "$ "; color: var(--term-green); font-weight: 700; }
+        .out-stdout { color: #c8c8d4; white-space: pre-wrap; word-break: break-all; }
+        .out-stderr { color: #ff6b6b; white-space: pre-wrap; word-break: break-all; }
+        .out-info   { color: #555; font-style: italic; }
+        .out-stream { color: #c8c8d4; white-space: pre-wrap; word-break: break-all; }
+        .out-exit-ok  { color: var(--term-green); font-size: 11px; margin-top: 3px; opacity: 0.8; }
+        .out-exit-err { color: var(--red); font-size: 11px; margin-top: 3px; }
+        .out-blocked  { color: var(--red); font-style: italic; }
+        .out-divider  { border: none; border-top: 1px solid #1a1a20; margin: 10px 0; }
+        .out-running  { display: flex; align-items: center; gap: 8px; color: #555; font-style: italic; padding: 4px 0; }
+
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .spinner { width: 13px; height: 13px; border: 2px solid #222; border-top-color: var(--green); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+
+        /* ── Cursor blink ── */
+        .cursor-blink { display: inline-block; width: 8px; height: 14px; background: var(--term-green); vertical-align: text-bottom; animation: blink 1.1s step-end infinite; }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+        /* ── Input bar ── */
+        .input-bar {
+            display: flex; align-items: center; flex-shrink: 0;
+            border-top: 1px solid #1a1a20; background: #0f0f12;
+            padding: 0 18px; gap: 0;
+        }
+        .input-prompt {
+            font-family: 'JetBrains Mono', monospace; font-size: 13px;
+            color: var(--term-green); flex-shrink: 0; padding: 14px 0;
+            user-select: none; white-space: nowrap;
+        }
+        .input-prompt.loading { color: var(--yellow); }
+        #cmdInput {
+            flex: 1; background: transparent; border: none; color: var(--text);
+            font-family: 'JetBrains Mono', monospace; font-size: 13px;
+            line-height: 1.6; padding: 14px 12px; outline: none; caret-color: var(--term-green);
+        }
+        #cmdInput::placeholder { color: #3a3a44; }
+        .input-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+        .btn-run {
+            font-size: 12px; font-weight: 600; color: #000; background: var(--green);
+            border: none; border-radius: 6px; padding: 6px 18px; cursor: pointer;
+            font-family: 'Space Grotesk', sans-serif; display: flex; align-items: center; gap: 6px;
+            transition: all 0.15s;
+        }
+        .btn-run:hover:not(:disabled) { background: #22c55e; }
+        .btn-run:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-stop {
+            font-size: 12px; font-weight: 600; color: var(--red); background: rgba(248,113,113,0.1);
+            border: 1px solid rgba(248,113,113,0.3); border-radius: 6px; padding: 6px 16px; cursor: pointer;
+            font-family: 'Space Grotesk', sans-serif; display: flex; align-items: center; gap: 6px;
+            transition: all 0.15s;
+        }
+        .btn-stop:hover { background: rgba(248,113,113,0.2); }
+
+        /* ── Bottom toolbar ── */
+        .input-toolbar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 7px 18px; border-top: 1px solid #181820;
+            background: #0d0d10; flex-shrink: 0; flex-wrap: wrap; gap: 8px;
+        }
+        .hint-row {
+            display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+        }
+        .hint { font-size: 11px; color: #444; font-family: 'JetBrains Mono', monospace; }
+        kbd {
+            font-family: 'JetBrains Mono', monospace; font-size: 10px;
+            background: #1e1e24; border: 1px solid #2a2a30;
+            border-radius: 3px; padding: 1px 5px; color: #666;
+        }
+        .history-pills { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .hist-label { font-size: 10px; font-weight: 600; color: #444; text-transform: uppercase; letter-spacing: 0.4px; }
+        .hist-pill {
+            font-size: 10px; color: #555; background: #151518;
+            border: 1px solid #252528; border-radius: 4px; padding: 2px 8px;
+            cursor: pointer; max-width: 220px; overflow: hidden; text-overflow: ellipsis;
+            white-space: nowrap; font-family: 'JetBrains Mono', monospace; transition: all 0.12s;
+        }
+        .hist-pill:hover { color: var(--text-dim); border-color: #3a3a40; }
+
+        /* ── Streaming indicator ── */
+        .stream-badge {
+            display: none; align-items: center; gap: 6px;
+            font-size: 11px; font-weight: 600; color: var(--blue);
+            background: rgba(96,165,250,0.08); border: 1px solid rgba(96,165,250,0.2);
+            padding: 3px 10px; border-radius: 5px;
+        }
+        .stream-badge.active { display: flex; }
+        .stream-dot { width: 7px; height: 7px; background: var(--blue); border-radius: 50%; animation: pulse-blue 1s ease-in-out infinite; }
+
+        /* ── Security badges strip ── */
+        .security-strip {
+            display: flex; align-items: center; gap: 0;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 10px; overflow: hidden; flex-wrap: wrap;
+        }
+        .sec-badge {
+            display: flex; align-items: center; gap: 7px;
+            padding: 10px 16px; font-size: 11px; color: var(--text-dim);
+            border-right: 1px solid var(--border); flex: 1; min-width: 160px;
+        }
+        .sec-badge:last-child { border-right: none; }
+        .sec-icon { font-size: 15px; flex-shrink: 0; }
+        .sec-text strong { color: var(--text); display: block; font-size: 11px; font-weight: 600; margin-bottom: 1px; }
+
+        /* ── Confirmation modal ── */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.75); z-index: 1000;
+            align-items: center; justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 28px; max-width: 480px; width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+        }
+        .modal-icon { font-size: 32px; margin-bottom: 14px; }
+        .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+        .modal-body { font-size: 13px; color: var(--text-dim); line-height: 1.6; margin-bottom: 20px; }
+        .modal-cmd {
+            background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
+            padding: 10px 14px; font-family: 'JetBrains Mono', monospace; font-size: 12px;
+            color: var(--term-cyan); margin-bottom: 20px; word-break: break-all;
+        }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+        .btn-modal-cancel {
+            font-size: 13px; color: var(--text-dim); background: transparent;
+            border: 1px solid var(--border); border-radius: 6px; padding: 8px 20px;
+            cursor: pointer; font-family: 'Space Grotesk', sans-serif; transition: all 0.15s;
+        }
+        .btn-modal-cancel:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+        .btn-modal-proceed {
+            font-size: 13px; font-weight: 600; color: #000; background: var(--yellow);
+            border: none; border-radius: 6px; padding: 8px 22px;
+            cursor: pointer; font-family: 'Space Grotesk', sans-serif; transition: all 0.15s;
+        }
+        .btn-modal-proceed:hover { background: #f59e0b; }
+
+        /* ── History search modal ── */
+        .hist-search-box {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.75); z-index: 1001;
+            align-items: flex-start; justify-content: center; padding-top: 15vh;
+        }
+        .hist-search-box.open { display: flex; }
+        .hist-search-inner {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 10px; width: 90%; max-width: 580px; overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+        }
+        .hist-search-header {
+            display: flex; align-items: center; gap: 10px;
+            padding: 14px 18px; border-bottom: 1px solid var(--border);
+        }
+        .hist-search-label { font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; white-space: nowrap; }
+        #histSearchInput {
+            flex: 1; background: transparent; border: none; color: var(--text);
+            font-family: 'JetBrains Mono', monospace; font-size: 13px; outline: none;
+        }
+        .hist-results { max-height: 280px; overflow-y: auto; }
+        .hist-result-item {
+            padding: 11px 18px; font-family: 'JetBrains Mono', monospace; font-size: 12px;
+            color: var(--text-dim); cursor: pointer; border-bottom: 1px solid #1a1a20; transition: background 0.1s;
+        }
+        .hist-result-item:hover, .hist-result-item.selected { background: var(--surface-2); color: var(--text); }
+        .hist-result-item:last-child { border-bottom: none; }
+        .hist-empty { padding: 20px 18px; color: #444; font-size: 12px; font-style: italic; }
+
+        /* ── Responsive ── */
+        @media (max-width: 640px) {
+            .page { padding: 14px 16px 20px; }
+            nav { padding: 14px 20px; }
+            .sec-badge { min-width: 130px; padding: 8px 12px; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/dashboard" class="logo">
+            <div class="logo-icon">TV</div>
+            TuneVault
+        </a>
+        <div class="nav-actions">
+            <span class="nav-tag" id="streamBadge2" style="display:none;color:var(--blue);border-color:rgba(96,165,250,0.3);background:rgba(96,165,250,0.08)">● Streaming</span>
+            <a href="/dashboard" class="nav-link">← Dashboard</a>
+            <a href="/settings/ssh-targets" class="nav-link">SSH Targets</a>
+        </div>
+    </nav>
+
+    <div class="page">
+
+        <!-- SSH target selector -->
+        <div class="target-bar">
+            <label>SSH Target</label>
+            <select class="target-select" id="targetSelect" onchange="onTargetChange()">
+                <option value="">— Select SSH target —</option>
+            </select>
+            <span class="target-status idle" id="targetStatus">No target</span>
+            <div class="stream-badge" id="streamBadge">
+                <span class="stream-dot"></span>
+                Streaming
+            </div>
+        </div>
+
+        <!-- Pre-fill notice (hidden by default) -->
+        <div class="prefill-banner" id="prefillBanner" style="display:none">
+            <span style="font-size:16px;flex-shrink:0">⚡</span>
+            <div class="prefill-banner-text">
+                <strong>Pre-filled from health check finding.</strong>
+                Review the command below before running — it was generated from your health check data.
+                Replace any <code style="font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(255,255,255,0.07);padding:1px 5px;border-radius:3px">[PLACEHOLDER]</code> values before running.
+            </div>
+        </div>
+
+        <!-- Terminal window -->
+        <div class="term-wrap">
+
+            <!-- macOS-style title bar -->
+            <div class="term-titlebar">
+                <div class="term-dots">
+                    <div class="term-dot red"></div>
+                    <div class="term-dot amber"></div>
+                    <div class="term-dot green"></div>
+                </div>
+                <div class="term-title" id="termTitle">TuneVault Terminal — no target selected</div>
+                <div class="term-actions">
+                    <button class="btn-xs" onclick="copyLastOutput()" title="Copy last command output">📋 Copy</button>
+                    <button class="btn-xs" onclick="clearOutput()">Clear</button>
+                </div>
+            </div>
+
+            <!-- Scrollable output -->
+            <div class="term-output" id="termOutput">
+                <span class="out-placeholder">Select an SSH target above, then type a command and press Enter.<br><br>
+                <span style="color:#333">Tips: ↑/↓ for history &nbsp;·&nbsp; Ctrl+R to search history &nbsp;·&nbsp; tail -f commands stream in real-time</span></span>
+            </div>
+
+            <!-- Input bar -->
+            <div class="input-bar">
+                <span class="input-prompt" id="inputPrompt">$</span>
+                <input type="text" id="cmdInput"
+                    placeholder="Enter command…"
+                    autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                <div class="input-actions">
+                    <button class="btn-stop" id="stopBtn" style="display:none" onclick="stopStream()">
+                        ⬛ Stop
+                    </button>
+                    <button class="btn-run" id="runBtn" onclick="submitCmd()">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        Run
+                    </button>
+                </div>
+            </div>
+
+            <!-- Bottom toolbar -->
+            <div class="input-toolbar">
+                <div class="hint-row">
+                    <span class="hint"><kbd>Enter</kbd> run &nbsp;·&nbsp; <kbd>↑</kbd><kbd>↓</kbd> history &nbsp;·&nbsp; <kbd>Ctrl+R</kbd> search &nbsp;·&nbsp; <kbd>Ctrl+C</kbd> stop stream</span>
+                </div>
+                <div class="history-pills" id="histPills" style="display:none">
+                    <span class="hist-label">Recent:</span>
+                    <div id="histPillList" style="display:flex;gap:5px;flex-wrap:wrap"></div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Security badges -->
+        <div class="security-strip">
+            <div class="sec-badge">
+                <span class="sec-icon">🔒</span>
+                <div class="sec-text">
+                    <strong>AES-256-GCM Encrypted</strong>
+                    Credentials encrypted at rest
+                </div>
+            </div>
+            <div class="sec-badge">
+                <span class="sec-icon">🔐</span>
+                <div class="sec-text">
+                    <strong>TLS In Transit</strong>
+                    All traffic HTTPS encrypted
+                </div>
+            </div>
+            <div class="sec-badge">
+                <span class="sec-icon">📝</span>
+                <div class="sec-text">
+                    <strong>Audit Logged</strong>
+                    Every command timestamped
+                </div>
+            </div>
+            <div class="sec-badge">
+                <span class="sec-icon">🛡️</span>
+                <div class="sec-text">
+                    <strong>Block-list Active</strong>
+                    rm -rf, dd, mkfs, shutdown blocked
+                </div>
+            </div>
+            <div class="sec-badge">
+                <span class="sec-icon">🚫</span>
+                <div class="sec-text">
+                    <strong>Output Not Stored</strong>
+                    Displayed in your browser only
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ── Confirmation modal ── -->
+    <div class="modal-overlay" id="confirmModal">
+        <div class="modal">
+            <div class="modal-icon" id="modalIcon">⚠️</div>
+            <div class="modal-title" id="modalTitle">Confirm command</div>
+            <div class="modal-body" id="modalBody">This command may have significant impact.</div>
+            <div class="modal-cmd" id="modalCmd"></div>
+            <div class="modal-actions">
+                <button class="btn-modal-cancel" onclick="cancelModal()">Cancel</button>
+                <button class="btn-modal-proceed" id="modalProceedBtn" onclick="proceedModal()">Proceed</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── History search modal (Ctrl+R) ── -->
+    <div class="hist-search-box" id="histSearch">
+        <div class="hist-search-inner">
+            <div class="hist-search-header">
+                <span class="hist-search-label">Search history</span>
+                <input type="text" id="histSearchInput" placeholder="Type to filter…" autocomplete="off" oninput="filterHistory()" onkeydown="histSearchKey(event)">
+                <span class="hint" style="color:#333"><kbd>Esc</kbd> close</span>
+            </div>
+            <div class="hist-results" id="histResultsList">
+                <div class="hist-empty">No history yet.</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/connection-state.js"></script>
+    <script src="/nav-component.js"></script>
+    <script src="/tunebot.js"></script>
+    <script>
+    // ─── Auth ─────────────────────────────────────────────────────────────────
+    const COOKIE_NAME = 'tv_session';
+    function getCookie(n) {
+        return (document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith(n+'='))||'').slice(n.length+1) || null;
+    }
+    function authHeaders() {
+        const t = getCookie(COOKIE_NAME);
+        return t ? { 'Authorization': 'Bearer '+t, 'Content-Type': 'application/json' }
+                 : { 'Content-Type': 'application/json' };
+    }
+    async function authFetch(url, opts={}) {
+        opts.headers = Object.assign({}, authHeaders(), opts.headers||{});
+        return fetch(url, opts);
+    }
+
+    // ─── State ────────────────────────────────────────────────────────────────
+    let _targets    = [];
+    let _history    = JSON.parse(localStorage.getItem('tv_term_history')||'[]');
+    let _histIdx    = -1;
+    let _running    = false;
+    let _streaming  = false;
+    let _activeESS  = null;   // active EventSource for streaming
+    let _lastOutput = '';     // last block of stdout (for copy)
+    const MAX_HISTORY  = 100;
+    const MAX_LINES    = 1000; // keep last N lines before pruning
+
+    // ─── URL params ──────────────────────────────────────────────────────────
+    const _params     = new URLSearchParams(window.location.search);
+    const _initTarget = _params.get('target');
+    const _initConnId = _params.get('connection') || tvConn.load();
+    const _initCmd    = _params.get('cmd') ? decodeURIComponent(_params.get('cmd')) : null;
+    const _fromHC     = !!_params.get('cmd');
+
+    if (_fromHC && _initCmd) document.getElementById('prefillBanner').style.display = 'flex';
+    if (_initCmd) document.getElementById('cmdInput').value = _initCmd;
+
+    // ─── Confirmation rules ───────────────────────────────────────────────────
+    // { pattern, title, body, icon, btnLabel }
+    const CONFIRM_RULES = [
+        {
+            pattern: /\blsnrctl\s+stop\b/i,
+            icon: '⚠️', title: 'Stop Oracle Listener',
+            body: 'This will stop the Oracle listener. <strong>Active database connections will be dropped.</strong> Ensure no critical processes are connected before proceeding.',
+            btnLabel: 'Stop Listener',
+        },
+        {
+            pattern: /\blsnrctl\s+start\b/i,
+            icon: '🔌', title: 'Start Oracle Listener',
+            body: 'This will start the Oracle listener. Existing processes may attempt reconnection automatically.',
+            btnLabel: 'Start Listener',
+        },
+        {
+            pattern: /\badop\s+phase=/i,
+            icon: '🔧', title: 'ADOP Patching Operation',
+            body: 'This will trigger an EBS ADOP patching phase. <strong>Ensure a maintenance window is active.</strong> Interrupting a patching session mid-phase can leave the system in an inconsistent state.',
+            btnLabel: 'Run ADOP',
+        },
+        {
+            pattern: /\badstpall\.sh\b/i,
+            icon: '⛔', title: 'Stop All EBS Services',
+            body: 'This will call <code>adstpall.sh</code> to stop <strong>all EBS application tier services</strong> across all nodes. Users will be disconnected immediately.',
+            btnLabel: 'Stop All Services',
+        },
+        {
+            pattern: /\badstrtal\.sh\b/i,
+            icon: '🟢', title: 'Start All EBS Services',
+            body: 'This will call <code>adstrtal.sh</code> to start all EBS application tier services across all nodes.',
+            btnLabel: 'Start All Services',
+        },
+        {
+            pattern: /\badmanagedsrvctl\.sh\s+stop\b/i,
+            icon: '⚠️', title: 'Stop WLS Managed Server',
+            body: 'This will stop a WebLogic managed server. Users on that service (oacore, forms, etc.) will lose their sessions.',
+            btnLabel: 'Stop Server',
+        },
+        {
+            pattern: /\bsysctl\s+-w\b|\bsysctl\s+--write\b/i,
+            icon: '⚠️', title: 'Kernel Parameter Change',
+            body: 'This will write a kernel parameter using <code>sysctl -w</code>. Non-persistent changes revert on reboot; use <code>/etc/sysctl.conf</code> for permanent settings.',
+            btnLabel: 'Apply Sysctl',
+        },
+        {
+            pattern: /\bdf\s+-h\b|\bdisk.*free\b|\bdu\s+-sh\b/i,
+            // read-only — no confirm needed; this entry intentionally not included
+            skip: true,
+        },
+    ].filter(r => !r.skip);
+
+    function matchConfirmRule(cmd) {
+        for (const rule of CONFIRM_RULES) {
+            if (rule.pattern.test(cmd)) return rule;
+        }
+        return null;
+    }
+
+    // ─── Stream detection ─────────────────────────────────────────────────────
+    // Commands that produce continuous output and need SSE streaming.
+    function isStreamingCmd(cmd) {
+        return /\btail\s+(-[^-]*f|-f)\b|\bwatchdog\b|\bjournalctl.*-f\b|\bjournalctl.*--follow\b|\bvmstat\s+\d/i.test(cmd);
+    }
+
+    // ─── Load SSH targets ─────────────────────────────────────────────────────
+    async function loadTargets() {
+        try {
+            const res = await authFetch('/api/terminal/targets');
+            if (res.status === 401) {
+                window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
+                return;
+            }
+            if (!res.ok) throw new Error('Failed');
+            const data = await res.json();
+            _targets = data.targets || [];
+            populateTargetSelect();
+        } catch (err) {
+            appendLine({ type: 'info', text: `[terminal] Could not load SSH targets: ${err.message}` });
+        }
+    }
+
+    function populateTargetSelect() {
+        const sel = document.getElementById('targetSelect');
+        sel.innerHTML = '<option value="">— Select SSH target —</option>';
+        const groups = {};
+        _targets.forEach(t => {
+            const r = t.role || 'utility';
+            if (!groups[r]) groups[r] = [];
+            groups[r].push(t);
+        });
+        const lbl = { apps_tier: 'Apps Tier', db_tier: 'DB Tier', utility: 'Utility' };
+        Object.entries(groups).forEach(([role, ts]) => {
+            const grp = document.createElement('optgroup');
+            grp.label = lbl[role] || role;
+            ts.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id;
+                opt.textContent = `${t.label || t.host} (${t.host})`;
+                if (String(t.id) === String(_initTarget) ||
+                    (!_initTarget && _initConnId && String(t.connection_id) === String(_initConnId))) {
+                    opt.selected = true;
+                }
+                grp.appendChild(opt);
+            });
+            sel.appendChild(grp);
+        });
+        if (_targets.length === 0) {
+            const opt = document.createElement('option');
+            opt.disabled = true;
+            opt.textContent = 'No SSH targets configured — add one in Settings';
+            sel.appendChild(opt);
+        }
+        onTargetChange();
+    }
+
+    function onTargetChange() {
+        const sel = document.getElementById('targetSelect');
+        const statusEl = document.getElementById('targetStatus');
+        const promptEl = document.getElementById('inputPrompt');
+        const titleEl  = document.getElementById('termTitle');
+        if (sel.value) {
+            const t = _targets.find(t => String(t.id) === String(sel.value));
+            const label = t ? `${t.os_user}@${t.host}` : 'connected';
+            statusEl.textContent = label;
+            statusEl.className = 'target-status ok';
+            promptEl.textContent = `${label}:~$`;
+            titleEl.textContent = `TuneVault Terminal — ${label}`;
+        } else {
+            statusEl.textContent = 'No target';
+            statusEl.className = 'target-status idle';
+            promptEl.textContent = '$';
+            titleEl.textContent = 'TuneVault Terminal — no target selected';
+        }
+    }
+
+    // ─── Keyboard handling ────────────────────────────────────────────────────
+    document.getElementById('cmdInput').addEventListener('keydown', function(e) {
+        // Ctrl+C — stop stream
+        if (e.ctrlKey && e.key === 'c') {
+            if (_streaming) { e.preventDefault(); stopStream(); return; }
+        }
+        // Ctrl+R — open history search
+        if (e.ctrlKey && e.key === 'r') {
+            e.preventDefault();
+            openHistSearch();
+            return;
+        }
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            submitCmd();
+            return;
+        }
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (_histIdx < _history.length - 1) {
+                _histIdx++;
+                this.value = _history[_histIdx] || '';
+            }
+            return;
+        }
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (_histIdx > 0) {
+                _histIdx--;
+                this.value = _history[_histIdx] || '';
+            } else {
+                _histIdx = -1;
+                this.value = '';
+            }
+        }
+    });
+
+    // ─── Submit command ───────────────────────────────────────────────────────
+    function submitCmd() {
+        if (_running || _streaming) return;
+        const sel = document.getElementById('targetSelect');
+        const cmd = document.getElementById('cmdInput').value.trim();
+
+        if (!sel.value) { appendLine({ type: 'stderr', text: 'Select an SSH target first.' }); return; }
+        if (!cmd)        { return; }
+
+        // Check for confirmation rules
+        const rule = matchConfirmRule(cmd);
+        if (rule) {
+            showConfirmModal(cmd, rule);
+            return;
+        }
+
+        runCommand(cmd, sel.value);
+    }
+
+    // ─── Run command ──────────────────────────────────────────────────────────
+    function runCommand(cmd, targetId) {
+        if (isStreamingCmd(cmd)) {
+            runStreaming(cmd, targetId);
+        } else {
+            runSingle(cmd, targetId);
+        }
+    }
+
+    async function runSingle(cmd, targetId) {
+        _running = true;
+        setRunningState(true);
+        addHistory(cmd);
+
+        const output = document.getElementById('termOutput');
+        // Remove placeholder if present
+        const ph = output.querySelector('.out-placeholder');
+        if (ph) ph.remove();
+
+        appendLine({ type: 'cmd', text: cmd });
+        const runnerEl = appendRunning();
+
+        const t0 = Date.now();
+        try {
+            const res = await authFetch('/api/terminal/run', {
+                method: 'POST',
+                body: JSON.stringify({ target_id: parseInt(targetId, 10), command: cmd }),
+            });
+            runnerEl.remove();
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                if (err.blocked) {
+                    appendLine({ type: 'blocked', text: `⛔ Command blocked: ${err.error}` });
+                } else {
+                    appendLine({ type: 'stderr', text: `Error: ${err.error || 'Command failed'}` });
+                }
+            } else {
+                const data = await res.json();
+                const elapsed = Date.now() - t0;
+                if (data.stdout) {
+                    _lastOutput = data.stdout;
+                    appendLine({ type: 'stdout', text: data.stdout });
+                }
+                if (data.stderr) appendLine({ type: 'stderr', text: data.stderr });
+                appendLine({ type: data.exitCode === 0 ? 'exit-ok' : 'exit-err', text: `exit ${data.exitCode ?? '?'} · ${elapsed}ms` });
+            }
+        } catch (err) {
+            runnerEl.remove();
+            appendLine({ type: 'stderr', text: `Network error: ${err.message}` });
+        }
+
+        pruneOutput();
+        scrollToBottom();
+        _running = false;
+        setRunningState(false);
+        document.getElementById('cmdInput').focus();
+    }
+
+    function runStreaming(cmd, targetId) {
+        _streaming = true;
+        setStreamingState(true);
+        addHistory(cmd);
+
+        const output = document.getElementById('termOutput');
+        const ph = output.querySelector('.out-placeholder');
+        if (ph) ph.remove();
+
+        appendLine({ type: 'cmd', text: cmd });
+
+        const params = new URLSearchParams({ target_id: targetId, command: cmd });
+        const token  = getCookie(COOKIE_NAME);
+        const url    = `/api/terminal/stream?${params}${token ? '&_t=' + encodeURIComponent(token) : ''}`;
+
+        // SSE doesn't support custom headers; we pass token as query param and the
+        // backend reads it — handled via a server-side cookie fallback in the route
+        // if EventSource doesn't support headers.
+        // We use fetch + ReadableStream for auth header support.
+        _streamWithFetch(url.replace('&_t='+encodeURIComponent(token),''), cmd, targetId);
+    }
+
+    async function _streamWithFetch(baseUrl, cmd, targetId) {
+        const params = new URLSearchParams({ target_id: targetId, command: cmd });
+        const url    = baseUrl + (baseUrl.includes('?') ? '&' : '?') + params;
+
+        try {
+            const res = await fetch(url, { headers: authHeaders() });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                appendLine({ type: err.blocked ? 'blocked' : 'stderr', text: `⛔ ${err.error || 'Stream failed'}` });
+                _streaming = false;
+                setStreamingState(false);
+                document.getElementById('cmdInput').focus();
+                return;
+            }
+
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            // Store abort function for stopStream()
+            _activeESS = { abort: () => reader.cancel() };
+
+            const process = async () => {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+
+                    const parts = buffer.split('\n\n');
+                    buffer = parts.pop(); // keep incomplete last chunk
+
+                    for (const part of parts) {
+                        const dataLine = part.split('\n').find(l => l.startsWith('data: '));
+                        if (!dataLine) continue;
+                        try {
+                            const msg = JSON.parse(dataLine.slice(6));
+                            handleStreamEvent(msg);
+                        } catch (_) {}
+                    }
+                }
+                // Stream ended naturally
+                if (_streaming) endStreaming('done');
+            };
+
+            await process();
+        } catch (err) {
+            if (_streaming) {
+                appendLine({ type: 'info', text: `[stream] Disconnected: ${err.message}` });
+                endStreaming('error');
+            }
+        }
+    }
+
+    function handleStreamEvent(msg) {
+        if (msg.type === 'line')  { appendLine({ type: 'stream', text: msg.text }); scrollToBottom(); }
+        if (msg.type === 'info')  { appendLine({ type: 'info',   text: msg.text }); }
+        if (msg.type === 'error') { appendLine({ type: 'stderr', text: msg.text }); }
+        if (msg.type === 'done')  { endStreaming(msg.reason); }
+        pruneOutput();
+    }
+
+    function endStreaming(reason) {
+        if (!_streaming) return;
+        _streaming = false;
+        _activeESS = null;
+        if (reason === 'timeout_5min') {
+            appendLine({ type: 'info', text: '[stream] Auto-stopped after 5 minutes.' });
+        } else if (reason === 'client_disconnect' || reason === 'stopped') {
+            appendLine({ type: 'info', text: '[stream] Stream stopped.' });
+        }
+        appendLine({ type: 'exit-ok', text: 'stream ended' });
+        setStreamingState(false);
+        scrollToBottom();
+        document.getElementById('cmdInput').focus();
+    }
+
+    function stopStream() {
+        if (!_streaming) return;
+        if (_activeESS) { try { _activeESS.abort(); } catch (_) {} _activeESS = null; }
+        endStreaming('stopped');
+    }
+
+    // ─── Confirmation modal ───────────────────────────────────────────────────
+    let _pendingCmd = null;
+    let _pendingTarget = null;
+
+    function showConfirmModal(cmd, rule) {
+        _pendingCmd    = cmd;
+        _pendingTarget = document.getElementById('targetSelect').value;
+        document.getElementById('modalIcon').textContent   = rule.icon;
+        document.getElementById('modalTitle').textContent  = rule.title;
+        document.getElementById('modalBody').innerHTML     = rule.body;
+        document.getElementById('modalCmd').textContent    = cmd;
+        document.getElementById('modalProceedBtn').textContent = rule.btnLabel || 'Proceed';
+        document.getElementById('confirmModal').classList.add('open');
+    }
+
+    function cancelModal() {
+        document.getElementById('confirmModal').classList.remove('open');
+        _pendingCmd = null;
+        document.getElementById('cmdInput').focus();
+    }
+
+    function proceedModal() {
+        document.getElementById('confirmModal').classList.remove('open');
+        const cmd    = _pendingCmd;
+        const target = _pendingTarget;
+        _pendingCmd = null;
+        if (cmd && target) runCommand(cmd, target);
+    }
+
+    // Close modal on overlay click
+    document.getElementById('confirmModal').addEventListener('click', function(e) {
+        if (e.target === this) cancelModal();
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            cancelModal();
+            closeHistSearch();
+        }
+    });
+
+    // ─── History search (Ctrl+R) ──────────────────────────────────────────────
+    let _histSelIdx = 0;
+
+    function openHistSearch() {
+        document.getElementById('histSearch').classList.add('open');
+        document.getElementById('histSearchInput').value = '';
+        filterHistory();
+        document.getElementById('histSearchInput').focus();
+    }
+
+    function closeHistSearch() {
+        document.getElementById('histSearch').classList.remove('open');
+        document.getElementById('cmdInput').focus();
+    }
+
+    function filterHistory() {
+        const q = document.getElementById('histSearchInput').value.toLowerCase();
+        const filtered = _history.filter(h => !q || h.toLowerCase().includes(q));
+        const list = document.getElementById('histResultsList');
+        list.innerHTML = '';
+        _histSelIdx = 0;
+        if (!filtered.length) {
+            list.innerHTML = '<div class="hist-empty">No matches.</div>';
+            return;
+        }
+        filtered.slice(0, 30).forEach((cmd, i) => {
+            const div = document.createElement('div');
+            div.className = 'hist-result-item' + (i === 0 ? ' selected' : '');
+            div.textContent = cmd;
+            div.onclick = () => { selectHistResult(cmd); };
+            list.appendChild(div);
+        });
+    }
+
+    function selectHistResult(cmd) {
+        document.getElementById('cmdInput').value = cmd;
+        closeHistSearch();
+    }
+
+    function histSearchKey(e) {
+        const items = document.querySelectorAll('.hist-result-item');
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (_histSelIdx < items.length - 1) {
+                items[_histSelIdx].classList.remove('selected');
+                _histSelIdx++;
+                items[_histSelIdx].classList.add('selected');
+                items[_histSelIdx].scrollIntoView({ block: 'nearest' });
+            }
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (_histSelIdx > 0) {
+                items[_histSelIdx].classList.remove('selected');
+                _histSelIdx--;
+                items[_histSelIdx].classList.add('selected');
+                items[_histSelIdx].scrollIntoView({ block: 'nearest' });
+            }
+        } else if (e.key === 'Enter') {
+            if (items[_histSelIdx]) selectHistResult(items[_histSelIdx].textContent);
+        } else if (e.key === 'Escape') {
+            closeHistSearch();
+        }
+    }
+
+    // ─── UI helpers ───────────────────────────────────────────────────────────
+    function appendRunning() {
+        const el = document.createElement('div');
+        el.className = 'out-running';
+        el.innerHTML = '<div class="spinner"></div><span>Running…</span>';
+        document.getElementById('termOutput').appendChild(el);
+        scrollToBottom();
+        return el;
+    }
+
+    function appendLine({ type, text }) {
+        const body = document.getElementById('termOutput');
+        const el   = document.createElement('div');
+
+        if (type === 'cmd')      { el.className = 'out-cmd';      el.textContent = text; }
+        else if (type === 'stdout') { el.className = 'out-stdout';   el.textContent = text; }
+        else if (type === 'stream') { el.className = 'out-stream';   el.textContent = text; }
+        else if (type === 'stderr') { el.className = 'out-stderr';   el.textContent = text; }
+        else if (type === 'info')   { el.className = 'out-info';     el.textContent = text; }
+        else if (type === 'blocked'){ el.className = 'out-blocked';  el.textContent = text; }
+        else if (type === 'exit-ok') {
+            el.className = 'out-exit-ok'; el.textContent = '✓ ' + text;
+            const hr = document.createElement('hr'); hr.className = 'out-divider';
+            body.appendChild(el); body.appendChild(hr); return;
+        }
+        else if (type === 'exit-err') {
+            el.className = 'out-exit-err'; el.textContent = '✗ ' + text;
+            const hr = document.createElement('hr'); hr.className = 'out-divider';
+            body.appendChild(el); body.appendChild(hr); return;
+        }
+
+        body.appendChild(el);
+    }
+
+    function pruneOutput() {
+        const body = document.getElementById('termOutput');
+        while (body.children.length > MAX_LINES) {
+            body.removeChild(body.firstChild);
+        }
+    }
+
+    function scrollToBottom() {
+        const body = document.getElementById('termOutput');
+        body.scrollTop = body.scrollHeight;
+    }
+
+    function clearOutput() {
+        const body = document.getElementById('termOutput');
+        body.innerHTML = '<span class="out-placeholder">Output cleared.</span>';
+    }
+
+    function copyLastOutput() {
+        if (!_lastOutput) return;
+        navigator.clipboard.writeText(_lastOutput).catch(() => {});
+        const btn = document.querySelector('.btn-xs');
+        const orig = btn.textContent;
+        btn.textContent = '✓ Copied';
+        setTimeout(() => { btn.textContent = orig; }, 1500);
+    }
+
+    function setRunningState(on) {
+        const runBtn = document.getElementById('runBtn');
+        const input  = document.getElementById('cmdInput');
+        if (on) {
+            runBtn.disabled = true;
+            runBtn.innerHTML = '<div class="spinner" style="border-top-color:#000;border-color:rgba(0,0,0,0.2)"></div> Running…';
+            input.disabled = true;
+        } else {
+            runBtn.disabled = false;
+            runBtn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> Run';
+            input.disabled = false;
+        }
+    }
+
+    function setStreamingState(on) {
+        const runBtn  = document.getElementById('runBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const input   = document.getElementById('cmdInput');
+        const badge   = document.getElementById('streamBadge');
+        const badge2  = document.getElementById('streamBadge2');
+        const status  = document.getElementById('targetStatus');
+
+        if (on) {
+            runBtn.style.display  = 'none';
+            stopBtn.style.display = 'flex';
+            input.disabled = false; // allow typing while streaming (Ctrl+C shortcut)
+            badge.classList.add('active');
+            badge2.style.display = 'inline-flex';
+            if (status.classList.contains('ok')) status.className = 'target-status stream';
+        } else {
+            runBtn.style.display  = 'flex';
+            stopBtn.style.display = 'none';
+            badge.classList.remove('active');
+            badge2.style.display = 'none';
+            // Restore status
+            const sel = document.getElementById('targetSelect');
+            status.className = sel.value ? 'target-status ok' : 'target-status idle';
+        }
+    }
+
+    // ─── Command history ──────────────────────────────────────────────────────
+    function addHistory(cmd) {
+        _history = _history.filter(h => h !== cmd);
+        _history.unshift(cmd);
+        if (_history.length > MAX_HISTORY) _history = _history.slice(0, MAX_HISTORY);
+        _histIdx = -1;
+        localStorage.setItem('tv_term_history', JSON.stringify(_history));
+        renderHistPills();
+    }
+
+    function renderHistPills() {
+        const wrap  = document.getElementById('histPills');
+        const pills = document.getElementById('histPillList');
+        if (!_history.length) { wrap.style.display = 'none'; return; }
+        wrap.style.display = 'flex';
+        pills.innerHTML = '';
+        _history.slice(0, 6).forEach(cmd => {
+            const p = document.createElement('button');
+            p.className = 'hist-pill';
+            p.textContent = cmd.length > 40 ? cmd.substring(0, 40) + '…' : cmd;
+            p.title = cmd;
+            p.onclick = () => {
+                document.getElementById('cmdInput').value = cmd;
+                document.getElementById('cmdInput').focus();
+            };
+            pills.appendChild(p);
+        });
+    }
+
+    // ─── Bootstrap ────────────────────────────────────────────────────────────
+    renderHistPills();
+    loadTargets();
+    </script>
+</body>
+</html>

@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EBS Validation — TuneVault Admin</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://tunevault.app/admin/ebs-validation">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0c;
+      --surface: #111114;
+      --surface-2: #1a1a1f;
+      --border: #2a2a30;
+      --text: #e8e8ed;
+      --text-dim: #9898a8;
+      --accent: #f0a830;
+      --accent-dim: rgba(240, 168, 48, 0.12);
+      --green: #34d399;
+      --green-dim: rgba(52, 211, 153, 0.10);
+      --red: #f87171;
+      --red-dim: rgba(248, 113, 113, 0.10);
+      --yellow: #fbbf24;
+      --yellow-dim: rgba(251, 191, 36, 0.10);
+      --blue: #60a5fa;
+      --blue-dim: rgba(96, 165, 250, 0.10);
+      --gray: #6b7280;
+      --mono: 'JetBrains Mono', monospace;
+    }
+
+    body {
+      font-family: 'Space Grotesk', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .grain {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 999;
+    }
+
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 48px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      font-size: 16px; font-weight: 700; letter-spacing: -0.5px;
+      display: flex; align-items: center; gap: 10px;
+      color: var(--text); text-decoration: none;
+    }
+    .logo svg { width: 28px; height: 28px; }
+
+    .nav-links { display: flex; gap: 24px; align-items: center; }
+    .nav-links a { color: var(--text-dim); text-decoration: none; font-size: 14px; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--text); }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 40px 32px 80px; }
+
+    /* ── Page header */
+    .page-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 24px; margin-bottom: 24px; flex-wrap: wrap;
+    }
+    .page-title h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 4px; }
+    .page-title p { color: var(--text-dim); font-size: 14px; }
+
+    /* ── Last Fixes Shipped panel */
+    .fixes-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 28px;
+      overflow: hidden;
+    }
+
+    .fixes-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px; cursor: pointer; user-select: none;
+      transition: background 0.15s;
+    }
+    .fixes-header:hover { background: var(--surface-2); }
+
+    .fixes-header-left { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px; }
+    .fixes-toggle { font-size: 11px; color: var(--text-dim); transition: transform 0.2s; }
+    .fixes-panel.open .fixes-toggle { transform: rotate(180deg); }
+
+    .fixes-body { display: none; border-top: 1px solid var(--border); }
+    .fixes-panel.open .fixes-body { display: block; }
+
+    .fix-row {
+      display: grid;
+      grid-template-columns: 80px 1fr 2fr;
+      gap: 0 16px;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      align-items: start;
+    }
+    .fix-row:last-child { border-bottom: none; }
+    .fix-date { color: var(--text-dim); font-family: var(--mono); font-size: 11px; padding-top: 1px; }
+    .fix-title { font-weight: 600; color: var(--text); }
+    .fix-outcome { color: var(--text-dim); font-size: 12px; }
+
+    /* ── Connection selector */
+    .selector-row {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 28px; flex-wrap: wrap;
+    }
+
+    .selector-label { font-size: 13px; font-weight: 600; color: var(--text-dim); white-space: nowrap; }
+
+    .conn-select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+      padding: 8px 12px;
+      min-width: 240px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .conn-select:focus { outline: none; border-color: var(--accent); }
+    .conn-select option { background: var(--surface-2); }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 11px; font-weight: 600; padding: 2px 7px;
+      border-radius: 5px; white-space: nowrap;
+    }
+    .badge-proxy { background: var(--blue-dim); color: var(--blue); }
+    .badge-ssh   { background: var(--green-dim); color: var(--green); }
+    .badge-ebs   { background: var(--accent-dim); color: var(--accent); }
+    .badge-warn  { background: var(--yellow-dim); color: var(--yellow); }
+
+    .conn-badges { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+
+    /* ── Buttons */
+    .btn-run-all {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--accent); color: #000;
+      border: none; border-radius: 8px;
+      padding: 10px 20px; font-family: inherit; font-size: 14px; font-weight: 700;
+      cursor: pointer; transition: opacity 0.2s, transform 0.1s; white-space: nowrap;
+    }
+    .btn-run-all:hover { opacity: 0.9; }
+    .btn-run-all:active { transform: scale(0.98); }
+    .btn-run-all:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .spinner {
+      display: none; width: 14px; height: 14px;
+      border: 2px solid rgba(0,0,0,0.2); border-top-color: #000;
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+    .btn-run-all.running .spinner { display: block; }
+    .btn-run-all.running .btn-label { display: none; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .spinner-sm {
+      display: inline-block; width: 12px; height: 12px;
+      border: 2px solid rgba(96,165,250,0.2); border-top-color: var(--blue);
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+
+    /* ── Tests 1–5 cards */
+    .tests-section { margin-bottom: 40px; }
+    .tests-section-title {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--text-dim); margin-bottom: 14px;
+    }
+
+    .test-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 10px;
+      overflow: hidden;
+      transition: border-color 0.15s;
+    }
+    .test-card.pass { border-color: rgba(52,211,153,0.3); }
+    .test-card.fail { border-color: rgba(248,113,113,0.3); }
+    .test-card.warn { border-color: rgba(251,191,36,0.3); }
+    .test-card.skip { border-color: var(--border); }
+
+    .test-card-main {
+      display: flex; align-items: center; gap: 16px; padding: 16px 20px;
+    }
+
+    .test-num {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--surface-2); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; color: var(--text-dim);
+      flex-shrink: 0;
+    }
+    .test-card.pass .test-num { background: var(--green-dim); border-color: rgba(52,211,153,0.3); color: var(--green); }
+    .test-card.fail .test-num { background: var(--red-dim);   border-color: rgba(248,113,113,0.3); color: var(--red); }
+    .test-card.warn .test-num { background: var(--yellow-dim); border-color: rgba(251,191,36,0.3); color: var(--yellow); }
+    .test-card.running .test-num { background: var(--blue-dim); border-color: rgba(96,165,250,0.3); color: var(--blue); }
+
+    .test-info { flex: 1; min-width: 0; }
+    .test-name-main { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+    .test-desc { font-size: 12px; color: var(--text-dim); }
+
+    .test-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 12px; font-weight: 600; padding: 4px 10px;
+      border-radius: 6px; white-space: nowrap;
+    }
+    .status-badge.pass    { background: var(--green-dim); color: var(--green); }
+    .status-badge.fail    { background: var(--red-dim);   color: var(--red); }
+    .status-badge.warn    { background: var(--yellow-dim); color: var(--yellow); }
+    .status-badge.pending { background: rgba(107,114,128,0.12); color: var(--gray); }
+    .status-badge.running { background: var(--blue-dim); color: var(--blue); }
+    .status-badge.skip    { background: rgba(107,114,128,0.12); color: var(--gray); }
+
+    .run-btn {
+      background: none; border: 1px solid var(--border); color: var(--text-dim);
+      border-radius: 6px; padding: 5px 12px; font-family: inherit; font-size: 12px;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .run-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Test detail panel */
+    .test-detail {
+      display: none; border-top: 1px solid var(--border);
+      padding: 14px 20px 16px 64px;
+    }
+    .test-detail.open { display: block; }
+
+    .diagnostic {
+      font-size: 13px; margin-bottom: 10px;
+      padding: 10px 14px; border-radius: 8px;
+    }
+    .diagnostic.pass { background: var(--green-dim); color: var(--green); }
+    .diagnostic.fail { background: var(--red-dim);   color: var(--red); }
+    .diagnostic.warn { background: var(--yellow-dim); color: var(--yellow); }
+    .diagnostic.skip { background: rgba(107,114,128,0.08); color: var(--gray); }
+
+    .raw-toggle {
+      background: none; border: none; color: var(--text-dim); font-size: 12px;
+      cursor: pointer; padding: 0; font-family: inherit;
+      display: inline-flex; align-items: center; gap: 4px;
+    }
+    .raw-toggle:hover { color: var(--text); }
+
+    .raw-output {
+      display: none; margin-top: 8px;
+      font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; padding: 10px 12px;
+      overflow-x: auto; white-space: pre; max-height: 240px; overflow-y: auto;
+    }
+    .raw-output.open { display: block; }
+
+    /* ── Pre-req warning */
+    .prereq-hint {
+      font-size: 12px; color: var(--yellow); padding: 8px 14px;
+      background: var(--yellow-dim); border-radius: 6px;
+      border: 1px solid rgba(251,191,36,0.2);
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .prereq-hint a { color: var(--yellow); font-weight: 600; }
+
+    /* ── No-connection placeholder */
+    .no-conn-hint {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 32px; text-align: center; color: var(--text-dim);
+      font-size: 14px;
+    }
+
+    /* ── Legacy static tests section */
+    .table-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden;
+    }
+    .table-head {
+      display: grid; grid-template-columns: 1fr 90px 120px 60px;
+      padding: 12px 20px; border-bottom: 1px solid var(--border);
+      font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text-dim);
+    }
+    .test-row {
+      display: grid; grid-template-columns: 1fr 90px 120px 60px;
+      border-bottom: 1px solid var(--border);
+    }
+    .test-row:last-child { border-bottom: none; }
+    .test-cell { padding: 14px 20px; font-size: 13px; display: flex; align-items: center; }
+    .test-name { color: var(--text); font-size: 13px; line-height: 1.4; gap: 8px; }
+    .test-group {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.05em;
+      text-transform: uppercase; color: var(--text-dim); margin-bottom: 2px;
+    }
+    .last-run-cell { color: var(--text-dim); font-size: 12px; font-family: var(--mono); }
+    .rerun-btn {
+      background: none; border: 1px solid var(--border); color: var(--text-dim);
+      border-radius: 6px; padding: 4px 10px; font-family: inherit; font-size: 12px;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .rerun-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .rerun-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .detail-panel { display: none; grid-column: 1 / -1; padding: 0 20px 14px 20px; }
+    .detail-panel.open { display: block; }
+    .detail-inner {
+      background: var(--surface-2); border-radius: 8px;
+      border: 1px solid var(--border); padding: 12px 16px;
+    }
+    .detail-label {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px;
+    }
+    .detail-text { font-size: 13px; color: var(--text); margin-bottom: 10px; }
+    .detail-json {
+      font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+      overflow-x: auto; white-space: pre; background: var(--bg);
+      padding: 10px; border-radius: 6px; border: 1px solid var(--border);
+      max-height: 200px;
+    }
+    .test-name-btn {
+      background: none; border: none; color: var(--text); cursor: pointer;
+      font-family: inherit; font-size: 13px; text-align: left; padding: 0;
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .test-name-btn:hover .test-name-label { color: var(--accent); }
+    .toggle-icon { font-size: 10px; color: var(--text-dim); margin-left: 6px; }
+
+    /* ── Summary rollup */
+    #rollup {
+      display: none; border-radius: 10px; padding: 16px 20px;
+      margin-bottom: 24px; border: 1px solid; font-size: 14px;
+    }
+    #rollup.all-pass { background: var(--green-dim); border-color: rgba(52,211,153,0.25); }
+    #rollup.has-fail { background: var(--red-dim);   border-color: rgba(248,113,113,0.25); }
+    #rollup.has-warn { background: var(--yellow-dim); border-color: rgba(251,191,36,0.25); }
+    .rollup-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .rollup-status { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; }
+    .rollup-stats  { display: flex; gap: 16px; font-size: 13px; }
+    .rollup-stat { display: flex; gap: 4px; align-items: center; }
+    .rollup-stat .label { color: var(--text-dim); }
+    .rollup-stat .val.pass { color: var(--green); font-weight: 600; }
+    .rollup-stat .val.fail { color: var(--red);   font-weight: 600; }
+    .rollup-stat .val.warn { color: var(--yellow); font-weight: 600; }
+    .rollup-timing { color: var(--text-dim); font-size: 13px; }
+
+    .error-banner {
+      background: var(--red-dim); border: 1px solid rgba(248,113,113,0.25);
+      border-radius: 10px; padding: 16px 20px; margin-bottom: 24px;
+      font-size: 14px; color: var(--red); display: none;
+    }
+
+    .section-gap { margin-bottom: 32px; }
+    .section-divider { height: 1px; background: var(--border); margin: 32px 0; }
+  </style>
+</head>
+<body>
+  <div class="grain"></div>
+
+  <nav id="nav-root"></nav>
+
+  <div class="container">
+
+    <!-- ── Page header ── -->
+    <div class="page-header">
+      <div class="page-title">
+        <h1>EBS Validation</h1>
+        <p>Run Tests 1–5 end-to-end against a live EBS connection. Select a connection with SSH to unlock all tests.</p>
+      </div>
+    </div>
+
+    <!-- ── Last Fixes Shipped panel ── -->
+    <div class="fixes-panel" id="fixesPanel">
+      <div class="fixes-header" data-action="toggle-fixes">
+        <div class="fixes-header-left">
+          📋 Last fixes shipped
+          <span class="badge badge-proxy">5 entries</span>
+        </div>
+        <span class="fixes-toggle">▼</span>
+      </div>
+      <div class="fixes-body">
+        <div class="fix-row">
+          <div class="fix-date">2026-05-13</div>
+          <div class="fix-title">SSH proxy routing + self-test fix</div>
+          <div class="fix-outcome">db/ssh-targets.js returns connection_type; proxy-self-test CSP fix; Tunnel branding scrubbed. Task #1546340.</div>
+        </div>
+        <div class="fix-row">
+          <div class="fix-date">2026-05-13</div>
+          <div class="fix-title">EBS/WebLogic Quick Access tunnel</div>
+          <div class="fix-outcome">oracle-proxy.py v3.4.0 POST /api/http-forward with APPS_URL_WHITELIST; apps-tunnel.js routes; ebs_login_url + weblogic_console_url columns; 🚀 Open EBS / WebLogic buttons in dashboard. Task #1546341.</div>
+        </div>
+        <div class="fix-row">
+          <div class="fix-date">2026-05-12</div>
+          <div class="fix-title">Synthetic self-test + 4 EBS fixtures</div>
+          <div class="fix-outcome">POST /api/admin/proxy/self-test now accepts synthetic-ebs-payload.json (Healthy/Warning/Critical/EBS Patching); runs ingestion pipeline end-to-end without a real Oracle box. Task #1545839.</div>
+        </div>
+        <div class="fix-row">
+          <div class="fix-date">2026-05-12</div>
+          <div class="fix-title">EBS proxy payload + detection probes (5 bug fixes)</div>
+          <div class="fix-outcome">Fixed payload structure, CM/OPP/Workflow/ADOP health checks, detection fallback chain (FND_PRODUCT_GROUPS → FND_CONCURRENT_QUEUES → FND_PRODUCT_INSTALLATIONS → ALL_TABLES). Task #1545xxx.</div>
+        </div>
+        <div class="fix-row">
+          <div class="fix-date">2026-05-12</div>
+          <div class="fix-title">EBS validation page + 16 static smoke tests</div>
+          <div class="fix-outcome">routes/ebs-validation.js: code-analysis + DB-schema checks for EBS detection, fleet, CM, OPP, Workflow, ADOP, SQL Tuning. All run without a real Oracle connection.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Live Tests 1–5 ── -->
+    <div class="tests-section">
+      <div class="tests-section-title">Live End-to-End Tests — Select a connection to run</div>
+
+      <!-- Connection selector -->
+      <div class="selector-row">
+        <span class="selector-label">Connection:</span>
+        <select class="conn-select" id="connSelect">
+          <option value="">— Loading connections… —</option>
+        </select>
+        <div class="conn-badges" id="connBadges"></div>
+        <button class="btn-run-all" id="runAllLiveBtn" onclick="runAllLive()" disabled>
+          <span class="spinner"></span>
+          <span class="btn-label">⚡ Run All (1–5)</span>
+        </button>
+      </div>
+
+      <div id="noConnHint" class="no-conn-hint" style="display:none">
+        No EBS-detected connections found. <a href="/dashboard" style="color:var(--accent)">Add a connection</a> with <em>EBS detected</em> enabled.
+      </div>
+
+      <!-- Test cards 1–5 -->
+      <div id="liveTests"></div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <!-- ── Static smoke tests ── -->
+    <div class="section-gap">
+      <div class="tests-section-title">Static Smoke Tests — Code analysis + DB schema (no connection needed)</div>
+
+      <div class="page-header" style="margin-bottom: 16px;">
+        <div></div>
+        <button class="btn-run-all" id="runAllBtn" onclick="runAll()">
+          <span class="spinner"></span>
+          <span class="btn-label">⚡ Run All Static Tests</span>
+        </button>
+      </div>
+
+      <div class="error-banner" id="errorBanner"></div>
+
+      <div id="rollup">
+        <div class="rollup-inner">
+          <div class="rollup-status" id="rollupStatus"></div>
+          <div class="rollup-stats"  id="rollupStats"></div>
+          <div class="rollup-timing" id="rollupTiming"></div>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div class="table-head">
+          <div>Feature / Test</div>
+          <div>Status</div>
+          <div>Last Run</div>
+          <div></div>
+        </div>
+        <div id="testTable"><!-- Rows injected by JS --></div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function showGlobalError(msg) {
+      document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0a0a0c;color:#e8e8ed;font-family:system-ui,sans-serif;text-align:center;padding:24px;"><div><div style="font-size:36px;margin-bottom:16px;">🔒</div><div style="font-size:18px;font-weight:700;margin-bottom:8px;">Access Restricted</div><div style="font-size:14px;color:#9898a8;margin-bottom:24px;">' + msg + '</div><a href="/dashboard" style="background:#f0a830;color:#0a0a0c;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Go to Dashboard</a></div></div>';
+    }
+
+    // ── Fixes panel toggle ────────────────────────────────────────────────────
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action="toggle-fixes"]');
+      if (btn) document.getElementById('fixesPanel').classList.toggle('open');
+
+      const rawBtn = e.target.closest('[data-action="toggle-raw"]');
+      if (rawBtn) {
+        const idx = rawBtn.dataset.idx;
+        const raw = document.getElementById(`raw-${idx}`);
+        if (raw) raw.classList.toggle('open');
+        rawBtn.textContent = raw && raw.classList.contains('open') ? '▲ Hide raw output' : '▼ View raw output';
+      }
+    });
+
+    // ── Connection selector + live tests ─────────────────────────────────────
+
+    const LIVE_TESTS = [
+      {
+        id: 1,
+        name: 'Identity & SSH connectivity',
+        desc: 'Runs whoami/hostname via SSH to confirm the apps tier is reachable.',
+        prereqs: ['ssh'],
+      },
+      {
+        id: 2,
+        name: 'Filesystem health (APPL_TOP, /tmp)',
+        desc: 'Checks $APPL_TOP free space via SSH. Warns if usage ≥ 85%.',
+        prereqs: ['ssh'],
+      },
+      {
+        id: 3,
+        name: 'Concurrent Manager + OPP live probe',
+        desc: 'Verifies ICM (FNDCRM) is running and FNDLIBR worker count > 0.',
+        prereqs: ['ssh'],
+      },
+      {
+        id: 4,
+        name: 'ADOP session sanity',
+        desc: 'Checks for orphaned or stalled ADOP patching sessions in fs_ne logs.',
+        prereqs: ['ssh'],
+      },
+      {
+        id: 5,
+        name: 'Workflow + EBS HTTP reachability',
+        desc: 'Probes EBS Login URL via proxy HTTP-forward. Checks WF mailer via SSH.',
+        prereqs: ['proxy_or_ssh'],
+      },
+    ];
+
+    let connections = [];
+    let liveResults = {}; // testId → { status, diagnostic, raw_output, elapsed_ms }
+    let liveRunning = {};
+    let selectedConn = null;
+    let anyLiveRunning = false;
+
+    async function loadConnections() {
+      try {
+        const r = await fetch('/api/admin/ebs-validation/connections', { credentials: 'include' });
+        if (r.status === 401) {
+          showGlobalError('Sign in first, then return to this page.');
+          return;
+        }
+        if (r.status === 403) {
+          showGlobalError('Admin access required. This page is restricted to TuneVault administrators.');
+          return;
+        }
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        connections = data.connections || [];
+        renderConnSelector();
+      } catch (e) {
+        connections = [];
+        renderConnSelector();
+        console.error('[ebs-validation] loadConnections failed:', e.message);
+      }
+    }
+
+    function renderConnSelector() {
+      const sel  = document.getElementById('connSelect');
+      const hint = document.getElementById('noConnHint');
+
+      if (!connections.length) {
+        sel.innerHTML = '<option value="">— No EBS connections found —</option>';
+        hint.style.display = 'block';
+        renderLiveTests();
+        return;
+      }
+
+      hint.style.display = 'none';
+      sel.innerHTML = '<option value="">— Select a connection —</option>' +
+        connections.map(c => `<option value="${c.id}">${escHtml(c.connection_name)}</option>`).join('');
+
+      sel.addEventListener('change', () => {
+        const id = parseInt(sel.value, 10);
+        selectedConn = connections.find(c => c.id === id) || null;
+        liveResults = {};
+        renderConnBadges();
+        renderLiveTests();
+        document.getElementById('runAllLiveBtn').disabled = !selectedConn || anyLiveRunning;
+      });
+
+      // Auto-select if only one connection — saves an unnecessary click
+      if (connections.length === 1) {
+        sel.value = String(connections[0].id);
+        selectedConn = connections[0];
+        document.getElementById('runAllLiveBtn').disabled = false;
+        renderConnBadges();
+      }
+
+      renderLiveTests();
+    }
+
+    function renderConnBadges() {
+      const el = document.getElementById('connBadges');
+      if (!selectedConn) { el.innerHTML = ''; return; }
+      const badges = [];
+      if (selectedConn.connection_type === 'proxy') badges.push('<span class="badge badge-proxy">proxy ✓</span>');
+      if (selectedConn.ssh_target_count > 0) badges.push(`<span class="badge badge-ssh">ssh ✓ (${selectedConn.ssh_target_count})</span>`);
+      badges.push('<span class="badge badge-ebs">ebs ✓</span>');
+      el.innerHTML = badges.join('');
+    }
+
+    function prereqsMet(test) {
+      if (!selectedConn) return false;
+      const hasProxy = selectedConn.connection_type === 'proxy';
+      const hasSsh   = selectedConn.ssh_target_count > 0;
+      if (test.prereqs.includes('ssh'))          return hasSsh;
+      if (test.prereqs.includes('proxy_or_ssh')) return hasProxy || hasSsh;
+      return true;
+    }
+
+    function prereqHint(test) {
+      if (!selectedConn) return 'Select a connection above to run this test.';
+      const hasProxy = selectedConn.connection_type === 'proxy';
+      const hasSsh   = selectedConn.ssh_target_count > 0;
+      if (test.prereqs.includes('ssh') && !hasSsh)
+        return `Requires SSH — configure at <a href="/settings/ssh-targets">/settings/ssh-targets</a> and link to this connection.`;
+      if (test.prereqs.includes('proxy_or_ssh') && !hasProxy && !hasSsh)
+        return `Requires proxy connection or SSH target. This connection has neither.`;
+      return '';
+    }
+
+    function renderLiveTests() {
+      const container = document.getElementById('liveTests');
+      container.innerHTML = LIVE_TESTS.map(t => {
+        const r = liveResults[t.id] || null;
+        const running = liveRunning[t.id] || false;
+        const met = prereqsMet(t);
+        const hint = !met ? prereqHint(t) : '';
+
+        let status = 'pending';
+        if (running) status = 'running';
+        else if (r) status = r.status;
+
+        const statusLabels = { pass: '🟢 Pass', fail: '🔴 Fail', warn: '🟡 Warn', pending: '— Pending', running: '⏳ Running', skip: '⏭ Skip' };
+        const badge = `<span class="status-badge ${status}">${statusLabels[status] || status}</span>`;
+
+        const detailHtml = r ? `
+          <div class="test-detail open" id="detail-live-${t.id}">
+            <div class="diagnostic ${r.status}">${escHtml(r.diagnostic || '')}</div>
+            ${r.raw_output ? `
+              <button class="raw-toggle" data-action="toggle-raw" data-idx="live-${t.id}">▼ View raw output</button>
+              <pre class="raw-output" id="raw-live-${t.id}">${escHtml(r.raw_output)}</pre>
+            ` : ''}
+          </div>
+        ` : (hint ? `
+          <div class="test-detail open" id="detail-live-${t.id}">
+            <div class="prereq-hint">⚠ ${hint}</div>
+          </div>
+        ` : '');
+
+        const cardClass = running ? 'running' : (r ? r.status : '');
+
+        return `
+          <div class="test-card ${cardClass}" id="card-live-${t.id}">
+            <div class="test-card-main">
+              <div class="test-num">${running ? '<span class="spinner-sm"></span>' : t.id}</div>
+              <div class="test-info">
+                <div class="test-name-main">${escHtml(t.name)}</div>
+                <div class="test-desc">${escHtml(t.desc)}</div>
+              </div>
+              <div class="test-actions">
+                ${badge}
+                <button class="run-btn" onclick="runLiveTest(${t.id})"
+                  ${(!selectedConn || anyLiveRunning) ? 'disabled' : ''}
+                  ${!met && selectedConn ? 'title="Prerequisites not met"' : ''}
+                >Run</button>
+              </div>
+            </div>
+            ${detailHtml}
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function runLiveTest(testId) {
+      if (!selectedConn || anyLiveRunning) return;
+      liveRunning[testId] = true;
+      anyLiveRunning = true;
+      renderLiveTests();
+      document.getElementById('runAllLiveBtn').disabled = true;
+
+      try {
+        const r = await fetch(`/api/admin/ebs-validation/run/live/${testId}`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ connection_id: selectedConn.id }),
+        });
+        const data = await r.json();
+        if (r.ok) {
+          liveResults[testId] = data;
+        } else {
+          liveResults[testId] = { status: 'fail', diagnostic: data.error || `HTTP ${r.status}`, raw_output: null, elapsed_ms: 0 };
+        }
+      } catch (e) {
+        liveResults[testId] = { status: 'fail', diagnostic: `Request failed: ${e.message}`, raw_output: null, elapsed_ms: 0 };
+      } finally {
+        liveRunning[testId] = false;
+        anyLiveRunning = Object.values(liveRunning).some(Boolean);
+        renderLiveTests();
+        document.getElementById('runAllLiveBtn').disabled = !selectedConn || anyLiveRunning;
+      }
+    }
+
+    async function runAllLive() {
+      if (!selectedConn || anyLiveRunning) return;
+      // Run sequentially — SSH sessions can be rate-limited on the proxy side
+      for (const t of LIVE_TESTS) {
+        await runLiveTest(t.id);
+      }
+    }
+
+    // ── Static tests ──────────────────────────────────────────────────────────
+
+    const TEST_GROUPS = [
+      'Proxy Bug Fixes', 'Proxy Bug Fixes', 'Proxy Bug Fixes', 'Proxy Bug Fixes', 'Proxy Bug Fixes',
+      'Fleet Dashboard',  'EBS Health Checks', 'EBS Health Checks', 'EBS Health Checks',
+      'EBS Health Checks', 'EBS Health Checks', 'EBS Health Checks', 'Fleet Dashboard',
+      '/vs-oem Page', 'SQL Tuning + EBS', 'SQL Tuning + EBS',
+    ];
+
+    let testResults = [];
+    let isRunning = false;
+
+    function formatTime(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso);
+      return d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function statusBadge(status) {
+      const labels = { pass: '🟢 Pass', fail: '🔴 Fail', warn: '🟡 Warn', pending: '— Pending', running: '⏳ Running' };
+      return `<span class="status-badge ${status}">${labels[status] || status}</span>`;
+    }
+
+    function renderRow(idx, result) {
+      const group = TEST_GROUPS[idx] || 'Other';
+      const name  = result ? result.test : `Test ${idx + 1}`;
+      const status = result ? result.status : 'pending';
+      const lastRun = result ? formatTime(result.ran_at) : '—';
+      const detailOpen = document.querySelector(`#row-${idx} .detail-panel`)?.classList.contains('open');
+
+      return `
+        <div class="test-row" id="row-${idx}">
+          <div class="test-cell test-name">
+            <button class="test-name-btn" onclick="toggleDetail(${idx})">
+              <div class="test-group">${group}</div>
+              <div class="test-name-label">${name}<span class="toggle-icon">▼</span></div>
+            </button>
+          </div>
+          <div class="test-cell">${statusBadge(status)}</div>
+          <div class="test-cell last-run-cell">${lastRun}</div>
+          <div class="test-cell">
+            <button class="rerun-btn" onclick="rerunSingle(${idx})" ${isRunning ? 'disabled' : ''}>Re-run</button>
+          </div>
+          <div class="detail-panel ${detailOpen ? 'open' : ''}" id="detail-${idx}">
+            ${result ? renderDetail(result) : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderDetail(result) {
+      const color = result.status === 'pass' ? 'var(--green)' : result.status === 'fail' ? 'var(--red)' : 'var(--yellow)';
+      return `
+        <div class="detail-inner">
+          <div class="detail-label">Detail</div>
+          <div class="detail-text" style="color:${color}">${escHtml(result.detail || '')}</div>
+          ${result.data ? `
+            <div class="detail-label">Response Payload</div>
+            <pre class="detail-json">${escHtml(JSON.stringify(result.data, null, 2))}</pre>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function escHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function toggleDetail(idx) {
+      const panel = document.getElementById(`detail-${idx}`);
+      if (panel) panel.classList.toggle('open');
+    }
+
+    function renderTable() {
+      const table = document.getElementById('testTable');
+      const count = Math.max(16, testResults.length);
+      let html = '';
+      for (let i = 0; i < count; i++) html += renderRow(i, testResults[i] || null);
+      table.innerHTML = html;
+    }
+
+    function setRunning(running) {
+      isRunning = running;
+      const btn = document.getElementById('runAllBtn');
+      btn.classList.toggle('running', running);
+      btn.disabled = running;
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('errorBanner');
+      el.textContent = msg; el.style.display = 'block';
+    }
+    function hideError() { document.getElementById('errorBanner').style.display = 'none'; }
+
+    function updateRollup(summary) {
+      const el = document.getElementById('rollup');
+      el.style.display = 'block';
+      if (summary.fail > 0) { el.className = 'has-fail'; document.getElementById('rollupStatus').innerHTML = '🔴 Some tests failed — EBS systems need attention'; }
+      else if (summary.warn > 0) { el.className = 'has-warn'; document.getElementById('rollupStatus').innerHTML = '🟡 All systems pass — some warnings to review'; }
+      else { el.className = 'all-pass'; document.getElementById('rollupStatus').innerHTML = '🟢 All EBS systems green — safe to proceed'; }
+
+      document.getElementById('rollupStats').innerHTML = `
+        <div class="rollup-stat"><span class="label">Pass</span><span class="val pass">${summary.pass}</span></div>
+        <div class="rollup-stat"><span class="label">Warn</span><span class="val warn">${summary.warn}</span></div>
+        <div class="rollup-stat"><span class="label">Fail</span><span class="val fail">${summary.fail}</span></div>
+        <div class="rollup-stat"><span class="label">Total</span><span class="val">${summary.total}</span></div>
+      `;
+      document.getElementById('rollupTiming').textContent = `${summary.duration_ms}ms`;
+    }
+
+    async function runAll() {
+      if (isRunning) return;
+      setRunning(true); hideError();
+      testResults = new Array(16).fill(null).map((_, i) => ({
+        test: TEST_GROUPS[i] ? `${TEST_GROUPS[i]} test ${i + 1}` : `Test ${i + 1}`,
+        status: 'running', detail: 'Running…', data: null, ran_at: null
+      }));
+      renderTable();
+
+      try {
+        const resp = await fetch('/api/admin/ebs-validation/run-all', { credentials: 'include' });
+        if (!resp.ok) { const err = await resp.json().catch(() => ({ error: resp.statusText })); throw new Error(err.error || `HTTP ${resp.status}`); }
+        const data = await resp.json();
+        testResults = data.tests;
+        renderTable();
+        updateRollup(data.summary);
+      } catch (e) {
+        showError(`Run failed: ${e.message}`);
+        testResults = []; renderTable();
+      } finally {
+        setRunning(false);
+      }
+    }
+
+    async function rerunSingle(idx) {
+      if (isRunning) return;
+      testResults[idx] = { ...(testResults[idx] || { test: `Test ${idx + 1}`, data: null, ran_at: null }), status: 'running', detail: 'Running…' };
+      renderTable();
+
+      try {
+        const resp = await fetch(`/api/admin/ebs-validation/run/${idx}`, { credentials: 'include' });
+        if (!resp.ok) { const err = await resp.json().catch(() => ({ error: resp.statusText })); throw new Error(err.error || `HTTP ${resp.status}`); }
+        const result = await resp.json();
+        testResults[idx] = result;
+        renderTable();
+        setTimeout(() => { const panel = document.getElementById(`detail-${idx}`); if (panel) panel.classList.add('open'); }, 50);
+      } catch (e) {
+        testResults[idx] = { test: `Test ${idx + 1}`, status: 'fail', detail: `Re-run failed: ${e.message}`, data: null, ran_at: new Date().toISOString() };
+        renderTable();
+      }
+    }
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+
+    async function loadLastResults() {
+      try {
+        const r = await fetch('/api/admin/ebs-validation/results', { credentials: 'include' });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        if (data.run && Array.isArray(data.run.tests) && data.run.tests.length > 0) {
+          testResults = data.run.tests;
+          renderTable();
+          updateRollup(data.run.summary);
+          return true; // had previous results
+        }
+      } catch (e) {
+        console.warn('[ebs-validation] Could not load previous results:', e.message);
+      }
+      return false; // no previous results
+    }
+
+    async function init() {
+      renderTable(); // show pending state immediately
+      loadConnections();
+
+      // Restore last run from DB, or auto-run if this is first visit
+      const hadResults = await loadLastResults();
+      if (!hadResults) {
+        // First visit — auto-run static tests so no row ever shows "— Pending —"
+        await runAll();
+      }
+    }
+
+    init();
+  </script>
+<script src="/nav-component.js"></script>
+<script>window.tvNav.init('admin');</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

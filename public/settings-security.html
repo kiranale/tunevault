@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Security — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c; --surface: #111114; --surface-2: #1a1a1f;
+      --border: #2a2a30; --text: #e8e8ed; --text-dim: #b8b8c8;
+      --accent: #f0a830; --accent-dim: rgba(240,168,48,.12);
+      --green: #34d399; --green-dim: rgba(52,211,153,.10);
+      --red: #f87171; --red-dim: rgba(248,113,113,.10);
+      --blue: #60a5fa; --blue-dim: rgba(96,165,250,.10);
+      --mono: 'JetBrains Mono', monospace;
+    }
+    body { font-family: 'Space Grotesk', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    main { max-width: 720px; margin: 0 auto; padding: 48px 24px 100px; }
+    h1 { font-size: 26px; font-weight: 700; letter-spacing: -.5px; }
+    .subtitle { color: var(--text-dim); font-size: 14px; margin-top: 6px; }
+
+    .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: 13px; text-decoration: none; margin-bottom: 28px; transition: color .15s; }
+    .back-link:hover { color: var(--text); }
+
+    /* Section */
+    .section { margin-top: 36px; }
+    .section-label { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 12px; padding-left: 2px; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .card-row {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      padding: 22px 24px; gap: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .card-row:last-child { border-bottom: none; }
+    .row-label { font-size: 14px; font-weight: 600; }
+    .row-desc { font-size: 13px; color: var(--text-dim); margin-top: 3px; line-height: 1.5; }
+
+    /* Status badges */
+    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; letter-spacing: .02em; }
+    .badge-green { background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,.2); }
+    .badge-red { background: var(--red-dim); color: var(--red); border: 1px solid rgba(248,113,113,.2); }
+    .badge-gold { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(240,168,48,.25); }
+
+    /* Buttons */
+    .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: 8px; font-family: 'Space Grotesk', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; text-decoration: none; }
+    .btn-primary { background: var(--accent); color: #0a0a0c; }
+    .btn-primary:hover { background: #f7b84a; transform: translateY(-1px); }
+    .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-outline:hover { border-color: var(--text-dim); background: rgba(255,255,255,.04); }
+    .btn-danger { background: var(--red-dim); color: var(--red); border: 1px solid rgba(248,113,113,.2); }
+    .btn-danger:hover { background: rgba(248,113,113,.2); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    .btn-sm { padding: 7px 14px; font-size: 12px; }
+
+    /* Input */
+    input[type="text"], input[type="password"] {
+      background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+      padding: 10px 14px; border-radius: 8px; font-family: var(--mono); font-size: 14px;
+      width: 100%; outline: none; transition: border-color .15s;
+    }
+    input:focus { border-color: var(--accent); }
+    input::placeholder { color: var(--text-dim); }
+
+    /* Panels (shown/hidden via JS) */
+    .panel { display: none; }
+    .panel.visible { display: block; }
+
+    /* QR setup */
+    .qr-setup-wrap { padding: 24px; }
+    .steps { display: flex; flex-direction: column; gap: 24px; margin-bottom: 24px; }
+    .step { display: flex; gap: 14px; }
+    .step-num { width: 26px; height: 26px; border-radius: 50%; background: var(--accent-dim); border: 1px solid rgba(240,168,48,.3); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--accent); flex-shrink: 0; margin-top: 1px; }
+    .step-body { flex: 1; }
+    .step-title { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+    .step-desc { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+
+    .qr-container { display: flex; gap: 20px; align-items: flex-start; margin: 16px 0; flex-wrap: wrap; }
+    .qr-img-wrap { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: #111114; padding: 8px; }
+    .qr-img-wrap img { display: block; width: 200px; height: 200px; }
+    .manual-key-wrap { flex: 1; min-width: 200px; }
+    .manual-key-label { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; }
+    .manual-key { font-family: var(--mono); font-size: 13px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; letter-spacing: .08em; word-break: break-all; color: var(--accent); line-height: 1.8; }
+
+    .app-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+    .app-link { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-dim); font-size: 12px; font-weight: 500; text-decoration: none; transition: all .15s; }
+    .app-link:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+    .code-input-group { display: flex; gap: 10px; align-items: center; }
+    .code-input-group input { max-width: 180px; text-align: center; font-size: 20px; letter-spacing: .2em; }
+
+    /* Recovery codes display */
+    .recovery-codes-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 16px 0; }
+    .recovery-code { font-family: var(--mono); font-size: 13px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; padding: 10px 14px; text-align: center; color: var(--accent); letter-spacing: .04em; user-select: all; }
+    .recovery-code.used { color: var(--text-dim); text-decoration: line-through; opacity: .5; }
+
+    .save-warning { display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px; background: rgba(240,168,48,.08); border: 1px solid rgba(240,168,48,.2); border-radius: 9px; margin: 16px 0; }
+    .save-warning-icon { font-size: 18px; flex-shrink: 0; }
+    .save-warning-text { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+    .save-warning-text strong { color: var(--accent); }
+
+    .checkbox-row { display: flex; align-items: center; gap: 10px; margin: 16px 0; cursor: pointer; }
+    .checkbox-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+    .checkbox-row span { font-size: 13px; color: var(--text-dim); }
+
+    /* Error/success states */
+    .msg { font-size: 13px; padding: 10px 14px; border-radius: 8px; margin: 10px 0; }
+    .msg-error { background: var(--red-dim); color: var(--red); border: 1px solid rgba(248,113,113,.2); }
+    .msg-success { background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,.2); }
+
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.2); border-top-color: currentColor; border-radius: 50%; animation: spin .6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Team MFA section */
+    .team-member-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--border); }
+    .team-member-row:last-child { border-bottom: none; }
+    .member-email { font-size: 13px; font-family: var(--mono); }
+    .member-meta { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+    .toggle-wrap { display: flex; align-items: center; gap: 8px; }
+    .toggle { position: relative; width: 40px; height: 22px; cursor: pointer; }
+    .toggle input { display: none; }
+    .toggle-slider { position: absolute; inset: 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: 11px; transition: all .2s; }
+    .toggle input:checked + .toggle-slider { background: rgba(240,168,48,.15); border-color: var(--accent); }
+    .toggle-slider::before { content:''; position: absolute; width: 16px; height: 16px; left: 2px; top: 2px; background: var(--text-dim); border-radius: 50%; transition: all .2s; }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(18px); background: var(--accent); }
+    nav { position: sticky; top: 0; z-index: 9999; background: rgba(10,10,12,.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); }
+  </style>
+</head>
+<body>
+  <div id="nav-root"></div>
+  <main>
+    <a class="back-link" href="/settings">
+      ← Back to Settings
+    </a>
+
+    <h1>Security</h1>
+    <p class="subtitle">Manage two-factor authentication and access controls.</p>
+
+    <!-- MFA Status section -->
+    <div class="section">
+      <div class="section-label">Two-Factor Authentication</div>
+      <div class="card">
+
+        <!-- MFA STATUS ROW -->
+        <div class="card-row" id="mfa-status-row">
+          <div>
+            <div class="row-label">Authenticator App (TOTP)</div>
+            <div class="row-desc" id="mfa-status-desc">
+              Protects your account with a 6-digit code from Google Authenticator, Authy, 1Password, or any TOTP app.
+            </div>
+            <div id="mfa-status-badge-wrap" style="margin-top:10px"></div>
+          </div>
+          <div style="flex-shrink:0;display:flex;align-items:center;gap:10px">
+            <button class="btn btn-primary" id="btn-enable-mfa" style="display:none">Enable 2FA</button>
+            <button class="btn btn-outline btn-sm" id="btn-disable-mfa" style="display:none">Disable</button>
+          </div>
+        </div>
+
+        <!-- SETUP PANEL -->
+        <div class="panel" id="panel-setup">
+          <div class="qr-setup-wrap">
+            <div class="steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-body">
+                  <div class="step-title">Install an authenticator app</div>
+                  <div class="step-desc">Any TOTP-compatible app works.</div>
+                  <div class="app-links" style="margin-top:10px">
+                    <a href="https://googleauthenticator.net" target="_blank" rel="noopener" class="app-link">🔑 Google Authenticator</a>
+                    <a href="https://authy.com" target="_blank" rel="noopener" class="app-link">🔐 Authy</a>
+                    <a href="https://1password.com" target="_blank" rel="noopener" class="app-link">🔒 1Password</a>
+                    <a href="https://bitwarden.com" target="_blank" rel="noopener" class="app-link">🛡 Bitwarden</a>
+                  </div>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-body">
+                  <div class="step-title">Scan the QR code</div>
+                  <div class="step-desc">Open your authenticator app, tap "+" or "Add account", and scan.</div>
+                  <div class="qr-container">
+                    <div class="qr-img-wrap">
+                      <img id="qr-img" src="" alt="MFA QR code" width="200" height="200">
+                    </div>
+                    <div class="manual-key-wrap">
+                      <div class="manual-key-label">Or enter manually</div>
+                      <div class="manual-key" id="manual-key-display">—</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-body">
+                  <div class="step-title">Enter the 6-digit code to verify</div>
+                  <div class="step-desc">Your app shows a code that refreshes every 30 seconds.</div>
+                  <div class="code-input-group" style="margin-top:12px">
+                    <input type="text" id="setup-code-input" placeholder="000 000" maxlength="7" inputmode="numeric" autocomplete="one-time-code">
+                    <button class="btn btn-primary" id="btn-confirm-setup">Verify &amp; Enable →</button>
+                  </div>
+                  <div id="setup-msg"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RECOVERY CODES PANEL (shown after enabling) -->
+        <div class="panel" id="panel-recovery-show">
+          <div class="qr-setup-wrap">
+            <div class="save-warning">
+              <span class="save-warning-icon">⚠️</span>
+              <div class="save-warning-text">
+                <strong>Save these now.</strong> These 10 one-time recovery codes are shown exactly once.
+                Store them somewhere safe — if you lose your authenticator app, they're your only fallback.
+              </div>
+            </div>
+            <div class="recovery-codes-grid" id="recovery-codes-grid"></div>
+            <div class="checkbox-row">
+              <input type="checkbox" id="saved-codes-check">
+              <span>I've saved my recovery codes in a safe place</span>
+            </div>
+            <button class="btn btn-primary" id="btn-confirm-saved" disabled>I've saved them — continue →</button>
+          </div>
+        </div>
+
+        <!-- MFA ENABLED ROW (visible when MFA is on) -->
+        <div class="card-row" id="mfa-active-row" style="display:none">
+          <div>
+            <div class="row-label">Recovery Codes</div>
+            <div class="row-desc" id="recovery-remaining-desc">10 codes remaining.</div>
+          </div>
+          <button class="btn btn-outline btn-sm" id="btn-regen-codes">Regenerate</button>
+        </div>
+
+        <!-- REGEN CODES PANEL -->
+        <div class="panel" id="panel-regen">
+          <div class="qr-setup-wrap">
+            <p style="font-size:13px;color:var(--text-dim);margin-bottom:14px">
+              Generating new recovery codes <strong>invalidates all existing ones</strong>. Enter your current TOTP code to confirm.
+            </p>
+            <div class="code-input-group">
+              <input type="text" id="regen-code-input" placeholder="000 000" maxlength="7" inputmode="numeric" autocomplete="one-time-code">
+              <button class="btn btn-primary" id="btn-regen-confirm">Regenerate Codes</button>
+            </div>
+            <div id="regen-msg"></div>
+            <div class="panel" id="panel-new-codes">
+              <div class="save-warning" style="margin-top:16px">
+                <span class="save-warning-icon">⚠️</span>
+                <div class="save-warning-text"><strong>New codes generated.</strong> Your old codes are now invalid. Save these.</div>
+              </div>
+              <div class="recovery-codes-grid" id="regen-codes-grid"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DISABLE CONFIRM PANEL -->
+        <div class="panel" id="panel-disable">
+          <div class="qr-setup-wrap">
+            <p style="font-size:13px;color:var(--text-dim);margin-bottom:14px">
+              Enter your current TOTP code to disable two-factor authentication.
+            </p>
+            <div class="code-input-group">
+              <input type="text" id="disable-code-input" placeholder="000 000" maxlength="7" inputmode="numeric" autocomplete="one-time-code">
+              <button class="btn btn-danger" id="btn-disable-confirm">Disable 2FA</button>
+            </div>
+            <div id="disable-msg"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Team MFA Section (team admins only) -->
+    <div class="section" id="team-mfa-section" style="display:none">
+      <div class="section-label">Team Authentication</div>
+      <div class="card">
+        <div class="card-row">
+          <div>
+            <div class="row-label">Require 2FA for all team members</div>
+            <div class="row-desc">When enabled, team members without MFA will be prompted to set it up on next login.</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-team-mfa">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="card-row" id="team-members-section">
+          <div style="width:100%">
+            <div class="row-label" style="margin-bottom:14px">Member MFA Status</div>
+            <div id="team-members-list"><div style="color:var(--text-dim);font-size:13px">Loading…</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    // App logic below
+
+    // ===== State =====
+    let mfaEnabled = false;
+    let setupInProgress = false;
+
+    // ===== Init =====
+    async function init() {
+      // Check auth
+      const meRes = await fetch('/api/auth/me');
+      if (meRes.status === 401) { window.location.href = '/login?redirect=/settings/security'; return; }
+
+      const mfaRes = await fetch('/api/mfa/status');
+      if (!mfaRes.ok) return;
+      const mfaData = await mfaRes.json();
+      renderMfaState(mfaData);
+
+      // Team section
+      const teamRes = await fetch('/api/mfa/admin/team-status');
+      if (teamRes.ok) {
+        const teamData = await teamRes.json();
+        renderTeamSection(teamData);
+      }
+    }
+
+    function renderMfaState({ enabled, recovery_codes_remaining, verified_at }) {
+      mfaEnabled = enabled;
+      const badgeWrap = document.getElementById('mfa-status-badge-wrap');
+      const btnEnable = document.getElementById('btn-enable-mfa');
+      const btnDisable = document.getElementById('btn-disable-mfa');
+      const activeRow = document.getElementById('mfa-active-row');
+
+      if (enabled) {
+        badgeWrap.innerHTML = '<span class="badge badge-green">✓ Enabled</span>';
+        btnEnable.style.display = 'none';
+        btnDisable.style.display = '';
+        activeRow.style.display = '';
+        document.getElementById('recovery-remaining-desc').textContent =
+          `${recovery_codes_remaining} code${recovery_codes_remaining !== 1 ? 's' : ''} remaining.${recovery_codes_remaining <= 2 ? ' Generate new codes soon.' : ''}`;
+      } else {
+        badgeWrap.innerHTML = '<span class="badge badge-red">Not enabled</span>';
+        btnEnable.style.display = '';
+        btnDisable.style.display = 'none';
+        activeRow.style.display = 'none';
+      }
+    }
+
+    // ===== Enable MFA flow =====
+    document.getElementById('btn-enable-mfa').addEventListener('click', async () => {
+      if (setupInProgress) return;
+      setupInProgress = true;
+      const btn = document.getElementById('btn-enable-mfa');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Setting up…';
+
+      const res = await fetch('/api/mfa/setup/begin', { method: 'POST' });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showMsg('setup-msg', data.error || 'Failed to start setup', 'error');
+        btn.disabled = false; btn.textContent = 'Enable 2FA'; setupInProgress = false;
+        return;
+      }
+
+      document.getElementById('qr-img').src = data.qr_data_url;
+      document.getElementById('manual-key-display').textContent = data.manual_key_formatted;
+      showPanel('panel-setup');
+      btn.style.display = 'none';
+      btn.disabled = false; btn.textContent = 'Enable 2FA';
+    });
+
+    document.getElementById('btn-confirm-setup').addEventListener('click', async () => {
+      const code = document.getElementById('setup-code-input').value.replace(/\s/g, '');
+      if (!code || code.length < 6) { showMsg('setup-msg', 'Enter the 6-digit code from your app', 'error'); return; }
+
+      const btn = document.getElementById('btn-confirm-setup');
+      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+
+      const res = await fetch('/api/mfa/setup/confirm', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code })
+      });
+      const data = await res.json();
+      btn.disabled = false; btn.textContent = 'Verify & Enable →';
+
+      if (!res.ok) { showMsg('setup-msg', data.error || 'Invalid code', 'error'); return; }
+
+      // Show recovery codes
+      hidePanel('panel-setup');
+      renderRecoveryCodes('recovery-codes-grid', data.recovery_codes);
+      showPanel('panel-recovery-show');
+    });
+
+    // Saved codes confirmation
+    document.getElementById('saved-codes-check').addEventListener('change', (e) => {
+      document.getElementById('btn-confirm-saved').disabled = !e.target.checked;
+    });
+    document.getElementById('btn-confirm-saved').addEventListener('click', async () => {
+      hidePanel('panel-recovery-show');
+      setupInProgress = false;
+      const mfaRes = await fetch('/api/mfa/status');
+      renderMfaState(await mfaRes.json());
+    });
+
+    // ===== Disable flow =====
+    document.getElementById('btn-disable-mfa').addEventListener('click', () => {
+      showPanel('panel-disable');
+    });
+    document.getElementById('btn-disable-confirm').addEventListener('click', async () => {
+      const code = document.getElementById('disable-code-input').value.replace(/\s/g, '');
+      if (!code || code.length < 6) { showMsg('disable-msg', 'Enter your 6-digit code', 'error'); return; }
+
+      const btn = document.getElementById('btn-disable-confirm');
+      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+      const res = await fetch('/api/mfa/disable', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code })
+      });
+      const data = await res.json();
+      btn.disabled = false; btn.textContent = 'Disable 2FA';
+
+      if (!res.ok) { showMsg('disable-msg', data.error || 'Invalid code', 'error'); return; }
+
+      hidePanel('panel-disable');
+      document.getElementById('disable-code-input').value = '';
+      const mfaRes = await fetch('/api/mfa/status');
+      renderMfaState(await mfaRes.json());
+    });
+
+    // ===== Regen recovery codes =====
+    document.getElementById('btn-regen-codes').addEventListener('click', () => {
+      showPanel('panel-regen');
+    });
+    document.getElementById('btn-regen-confirm').addEventListener('click', async () => {
+      const code = document.getElementById('regen-code-input').value.replace(/\s/g, '');
+      if (!code || code.length < 6) { showMsg('regen-msg', 'Enter your 6-digit code', 'error'); return; }
+
+      const btn = document.getElementById('btn-regen-confirm');
+      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+      const res = await fetch('/api/mfa/recovery-codes/regenerate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code })
+      });
+      const data = await res.json();
+      btn.disabled = false; btn.textContent = 'Regenerate Codes';
+
+      if (!res.ok) { showMsg('regen-msg', data.error || 'Invalid code', 'error'); return; }
+
+      showMsg('regen-msg', '', '');
+      renderRecoveryCodes('regen-codes-grid', data.recovery_codes);
+      showPanel('panel-new-codes');
+      const mfaRes = await fetch('/api/mfa/status');
+      renderMfaState(await mfaRes.json());
+    });
+
+    // ===== Team section =====
+    function renderTeamSection({ team, members }) {
+      const section = document.getElementById('team-mfa-section');
+      section.style.display = '';
+
+      const toggle = document.getElementById('toggle-team-mfa');
+      toggle.checked = team.mfa_required;
+      toggle.addEventListener('change', async () => {
+        const res = await fetch('/api/mfa/admin/team-mfa-required', {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ required: toggle.checked })
+        });
+        if (!res.ok) toggle.checked = !toggle.checked;
+      });
+
+      const list = document.getElementById('team-members-list');
+      list.innerHTML = members.map(m => `
+        <div class="team-member-row">
+          <div>
+            <div class="member-email">${escHtml(m.email)}</div>
+            <div class="member-meta">${m.name ? escHtml(m.name) + ' · ' : ''}${m.mfa_enabled ? 'MFA enabled' : 'MFA not enabled'}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            ${m.mfa_enabled
+              ? '<span class="badge badge-green">✓ 2FA</span>'
+              : '<span class="badge badge-red">No 2FA</span>'}
+            ${m.mfa_enabled
+              ? `<button class="btn btn-outline btn-sm" data-action="reset-mfa" data-uid="${m.id}" data-email="${escHtml(m.email)}">Reset MFA</button>`
+              : ''}
+          </div>
+        </div>
+      `).join('');
+
+      list.addEventListener('click', async (e) => {
+        const btn = e.target.closest('[data-action="reset-mfa"]');
+        if (!btn) return;
+        const uid = btn.dataset.uid;
+        const email = btn.dataset.email;
+        if (!confirm(`Reset MFA for ${email}? They will need to re-enable it on next login.`)) return;
+        btn.disabled = true; btn.textContent = 'Resetting…';
+        const res = await fetch(`/api/mfa/admin/reset/${uid}`, { method: 'POST' });
+        if (res.ok) {
+          btn.closest('.team-member-row').querySelector('.member-meta').textContent += ' (MFA reset)';
+          btn.replaceWith(Object.assign(document.createElement('span'), { className: 'badge badge-gold', textContent: 'Reset sent' }));
+        } else {
+          btn.disabled = false; btn.textContent = 'Reset MFA';
+          alert('Failed to reset MFA. Try again.');
+        }
+      });
+    }
+
+    // ===== Helpers =====
+    function showPanel(id) { document.getElementById(id).classList.add('visible'); }
+    function hidePanel(id) { document.getElementById(id).classList.remove('visible'); }
+
+    function showMsg(containerId, text, type) {
+      const el = document.getElementById(containerId);
+      if (!el) return;
+      if (!text) { el.innerHTML = ''; return; }
+      el.innerHTML = `<div class="msg msg-${type}">${escHtml(text)}</div>`;
+    }
+
+    function renderRecoveryCodes(gridId, codes) {
+      const grid = document.getElementById(gridId);
+      grid.innerHTML = codes.map(c => `<div class="recovery-code">${escHtml(c)}</div>`).join('');
+    }
+
+    function escHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    init();
+  </script>
+  <script src="/nav-component.js"></script>
+  <script>window.tvNav.init('security');</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

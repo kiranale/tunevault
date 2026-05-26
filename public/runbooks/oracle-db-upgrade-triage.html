@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oracle Database Upgrade Triage Runbook — 12c→19c, 19c→23ai, ORA-39700, catctl.pl | TuneVault</title>
+    <meta name="description" content="Oracle database upgrade failed? Systematic triage: preupgrade.jar errors, catctl.pl/catupgrd.sql failures, invalid objects, timezone mismatch, component failures, flashback restore point strategy, and post-upgrade validation. Covers 12c→19c and 19c→23ai paths.">
+    <meta name="author" content="TuneVault">
+    <link rel="canonical" href="https://tunevault.app/resources/runbooks/oracle-db-upgrade-triage">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <meta property="og:title" content="Oracle Database Upgrade Triage Runbook — TuneVault">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://tunevault.app/resources/runbooks/oracle-db-upgrade-triage">
+    <meta property="og:site_name" content="TuneVault">
+    <meta property="og:image" content="https://tunevault.app/og/runbook.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="Oracle DBA Runbook — TuneVault production-tested recovery guide">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://tunevault.app/og/runbook.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        { "@type": "Organization", "@id": "https://tunevault.app/#organization", "name": "TuneVault", "url": "https://tunevault.app", "logo": { "@type": "ImageObject", "url": "https://tunevault.app/logo.png" }, "foundingDate": "2026", "founder": { "@type": "Person", "name": "Kiran Kumar Ale", "url": "https://tunevault.app/about" }, "contactPoint": { "@type": "ContactPoint", "email": "hello@tunevault.app", "contactType": "customer support" } },
+        { "@type": "TechArticle", "@id": "https://tunevault.app/resources/runbooks/oracle-db-upgrade-triage#article", "headline": "Oracle Database Upgrade Triage Runbook", "description": "Systematic triage for Oracle database upgrade failures: preupgrade validation, catctl.pl restarts, invalid objects, timezone mismatch, component failures, and rollback via Guaranteed Restore Point.", "url": "https://tunevault.app/resources/runbooks/oracle-db-upgrade-triage", "datePublished": "2026-05-15", "dateModified": "2026-05-15", "author": { "@type": "Person", "name": "Kiran Kumar Ale", "url": "https://tunevault.app/about" }, "publisher": { "@id": "https://tunevault.app/#organization" }, "about": [{ "@type": "Thing", "name": "Oracle Database Upgrade" }, { "@type": "Thing", "name": "catctl.pl" }, { "@type": "Thing", "name": "ORA-39700" }] }
+      ]
+    }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+    <style>
+        :root{--bg:#0a0a0c;--surface:#111114;--surface2:#18181c;--border:#2a2a30;--text:#e8e8ed;--text-dim:#9898a8;--accent:#f0a830;--accent-dim:rgba(240,168,48,0.12);--red:#f87171;--red-dim:rgba(248,113,113,0.1);--green:#4ade80;--green-dim:rgba(74,222,128,0.1);--blue:#60a5fa;--blue-dim:rgba(96,165,250,0.1);}
+        *{box-sizing:border-box;margin:0;padding:0;}body{background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif;line-height:1.7;}a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
+        nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+        .nav-logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;color:var(--text);text-decoration:none;}
+        .nav-logo-icon{width:28px;height:28px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:13px;color:#0a0a0c;font-weight:700;}
+        .nav-links{display:flex;align-items:center;gap:20px;}.nav-links a{font-size:13px;color:var(--text-dim);transition:color 0.15s;}.nav-links a:hover{color:var(--text);text-decoration:none;}
+        .nav-cta{background:var(--accent);color:#0a0a0c !important;padding:6px 16px;border-radius:6px;font-weight:600;font-size:13px !important;}
+        .page-wrap{max-width:820px;margin:0 auto;padding:48px 24px 80px;}
+        .breadcrumb{font-size:13px;color:var(--text-dim);margin-bottom:32px;}.breadcrumb a{color:var(--text-dim);}.breadcrumb a:hover{color:var(--accent);}.breadcrumb span{margin:0 6px;}
+        .article-tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:3px 10px;border-radius:20px;background:rgba(168,85,247,0.12);color:#c084fc;margin-bottom:16px;}
+        h1{font-size:clamp(26px,4vw,40px);font-weight:700;line-height:1.2;margin-bottom:16px;}
+        .article-meta{display:flex;gap:20px;flex-wrap:wrap;font-size:13px;color:var(--text-dim);margin-bottom:40px;}
+        .toc{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 24px;margin-bottom:40px;}
+        .toc-title{font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-dim);margin-bottom:12px;}
+        .toc ol{padding-left:20px;}.toc li{margin-bottom:6px;}.toc a{font-size:14px;color:var(--text-dim);}.toc a:hover{color:var(--accent);}
+        h2{font-size:22px;font-weight:700;margin:48px 0 16px;padding-top:32px;border-top:1px solid var(--border);}h3{font-size:17px;font-weight:600;margin:28px 0 12px;}
+        p{margin-bottom:16px;font-size:15px;}ul,ol{padding-left:22px;margin-bottom:16px;}li{margin-bottom:8px;font-size:15px;}
+        pre{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:18px 20px;overflow-x:auto;margin:16px 0 24px;}
+        code{font-family:'JetBrains Mono',monospace;font-size:13px;color:#93c5fd;line-height:1.6;}p code,li code{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:12.5px;color:#93c5fd;}
+        .comment{color:#6b7280;}.keyword{color:#f0a830;}.string{color:#4ade80;}
+        .callout{border-radius:10px;padding:18px 20px;margin:20px 0;font-size:14px;}
+        .callout-critical{background:var(--red-dim);border:1px solid rgba(248,113,113,0.3);}.callout-warning{background:var(--accent-dim);border:1px solid rgba(240,168,48,0.3);}.callout-info{background:var(--blue-dim);border:1px solid rgba(96,165,250,0.3);}.callout-success{background:var(--green-dim);border:1px solid rgba(74,222,128,0.3);}
+        .callout-title{font-weight:700;margin-bottom:6px;}.callout-critical .callout-title{color:var(--red);}.callout-warning .callout-title{color:var(--accent);}.callout-info .callout-title{color:var(--blue);}.callout-success .callout-title{color:var(--green);}
+        .cta-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:32px;text-align:center;margin:48px 0;}
+        .cta-box h3{font-size:20px;margin-bottom:8px;}.cta-box p{color:var(--text-dim);margin-bottom:20px;font-size:14px;}
+        .cta-btn{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#0a0a0c;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;}
+        .cta-btn:hover{background:#e09820;text-decoration:none;}
+        .decision-tree{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:20px 24px;margin:20px 0;}
+        .decision-tree h4{font-size:14px;font-weight:700;color:var(--accent);margin-bottom:12px;}
+        .nav-footer{display:flex;justify-content:space-between;gap:16px;margin-top:48px;padding-top:32px;border-top:1px solid var(--border);flex-wrap:wrap;}
+        .nav-footer a{font-size:14px;font-weight:500;color:var(--text-dim);}.nav-footer a:hover{color:var(--accent);text-decoration:none;}
+        footer{border-top:1px solid var(--border);padding:32px 24px;text-align:center;font-size:13px;color:var(--text-dim);}
+        .footer-links{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin-bottom:12px;}.footer-links a{color:var(--text-dim);}
+        @media(max-width:600px){.page-wrap{padding:32px 16px 60px;}}
+    </style>
+</head>
+<body>
+
+<nav>
+    <a href="/" class="nav-logo"><div class="nav-logo-icon">TV</div>TuneVault</a>
+    <div class="nav-links">
+        <a href="/resources/runbooks">Runbooks</a>
+        <a href="/blog">Blog</a>
+        <a href="/signup?path=health-check&redirect=/dashboard" class="nav-cta">Start Free</a>
+    </div>
+</nav>
+
+<div class="page-wrap">
+
+    <div class="breadcrumb">
+        <a href="/">TuneVault</a><span>›</span>
+        <a href="/resources/runbooks">Runbooks</a><span>›</span>
+        Oracle Database Upgrade Triage
+    </div>
+
+    <div class="article-tag">⬆️ Database Upgrade</div>
+    <h1>Oracle Database Upgrade Triage Runbook</h1>
+    <div class="article-meta">
+        <span>⏱ 1–8 hrs (depending on failure point)</span>
+        <span>12c → 19c · 19c → 23ai</span>
+        <span>Updated 2026-05-15</span>
+    </div>
+
+    <div class="callout callout-critical">
+        <div class="callout-title">🔴 Did you create a Guaranteed Restore Point before starting?</div>
+        If yes, you can flashback the database to pre-upgrade state in under 30 minutes at any point. If no, jump to <strong>Section 9: Rollback Options</strong> immediately to understand your recovery path before taking any further action.
+    </div>
+
+    <div class="toc">
+        <div class="toc-title">In this runbook</div>
+        <ol>
+            <li><a href="#preupgrade">Pre-upgrade validation failures (preupgrade.jar)</a></li>
+            <li><a href="#dbua-vs-manual">DBUA vs manual upgrade decision</a></li>
+            <li><a href="#catctl">catctl.pl / catupgrd.sql failures and restarts</a></li>
+            <li><a href="#invalid-objects">Invalid objects post-upgrade</a></li>
+            <li><a href="#timezone">Timezone file version mismatch (DST patch)</a></li>
+            <li><a href="#components">Component upgrade failures (APEX, XML DB, JVM, Spatial)</a></li>
+            <li><a href="#ora-errors">Common ORA errors during upgrade</a></li>
+            <li><a href="#post-upgrade">Post-upgrade validation checklist</a></li>
+            <li><a href="#rollback">Rollback strategy — Guaranteed Restore Point</a></li>
+            <li><a href="#version-paths">Version-specific notes: 12c→19c, 19c→23ai</a></li>
+        </ol>
+    </div>
+
+    <h2 id="preupgrade">1. Pre-upgrade Validation Failures (preupgrade.jar)</h2>
+
+    <p>Run <code>preupgrade.jar</code> from the <em>new</em> Oracle home against the source database. It generates <code>preupgrade_fixups.sql</code> (run before upgrade) and <code>postupgrade_fixups.sql</code> (run after). Never skip this step.</p>
+
+    <pre><code><span class="comment">-- Run from NEW ORACLE_HOME against the source DB (still open)</span>
+java -jar $NEW_OH/rdbms/admin/preupgrade.jar FILE DIR /tmp/preupgrade_output
+
+<span class="comment">-- Review the output summary</span>
+cat /tmp/preupgrade_output/preupgrade.log
+
+<span class="comment">-- Execute pre-upgrade fixups (source DB, as SYSDBA)</span>
+sqlplus / as sysdba @/tmp/preupgrade_output/preupgrade_fixups.sql</code></pre>
+
+    <h3>Common preupgrade.jar warnings and how to handle them</h3>
+
+    <div class="callout callout-warning">
+        <div class="callout-title">⚠️ WARNING vs ERROR distinction</div>
+        Warnings can be deferred; ERRORs in preupgrade.jar output block the upgrade and must be resolved first.
+    </div>
+
+    <pre><code><span class="comment">-- Check for components in non-VALID status</span>
+<span class="keyword">SELECT</span> comp_id, comp_name, status, version
+<span class="keyword">FROM</span> dba_registry
+<span class="keyword">ORDER BY</span> comp_id;
+
+<span class="comment">-- Purge recycle bin (often flagged by preupgrade)</span>
+PURGE DBA_RECYCLEBIN;
+
+<span class="comment">-- Gather dictionary stats (preupgrade will flag if stale)</span>
+EXEC DBMS_STATS.GATHER_DICTIONARY_STATS;
+
+<span class="comment">-- Adjust compatible parameter if flagged</span>
+<span class="keyword">SHOW</span> PARAMETER compatible;
+<span class="comment">-- Must be at minimum: 11.2.0 for 19c target, 12.2.0 for 23ai target</span>
+
+<span class="comment">-- Check AWR retention (preupgrade may warn about large AWR)</span>
+<span class="keyword">SELECT</span> retention <span class="keyword">FROM</span> dba_hist_wr_control;
+
+<span class="comment">-- Check for XML DB issues (required for upgrade)</span>
+<span class="keyword">SELECT</span> status <span class="keyword">FROM</span> dba_registry <span class="keyword">WHERE</span> comp_id = <span class="string">'XDB'</span>;</code></pre>
+
+    <h2 id="dbua-vs-manual">2. DBUA vs Manual Upgrade Decision</h2>
+
+    <div class="decision-tree">
+        <h4>📋 Decision Tree: DBUA or Manual?</h4>
+        <ul style="margin:0;padding-left:18px;font-size:14px;line-height:2;">
+            <li><strong>Use DBUA</strong> if: first upgrade attempt, non-CDB/standard environment, less than 500GB, DBA comfort with GUI</li>
+            <li><strong>Use Manual (catctl.pl)</strong> if: DBUA previously failed, need parallelism control, automating in a script, large CDB with many PDBs, need to capture detailed logs</li>
+            <li><strong>DBUA advantage:</strong> pre/post checks built in, progress UI, automatic log management</li>
+            <li><strong>Manual advantage:</strong> restart capability, granular error visibility, scriptable, works over SSH without X11</li>
+        </ul>
+    </div>
+
+    <pre><code><span class="comment">-- Launch DBUA (requires DISPLAY for GUI, or use -silent for headless)</span>
+$NEW_OH/bin/dbua -silent -dbName ORCL \
+  -oracleHome $NEW_OH \
+  -sysDBAUserName sys \
+  -sysDBAPassword &lt;password&gt;
+
+<span class="comment">-- DBUA log location (tail for progress)</span>
+tail -f $NEW_OH/cfgtoollogs/dbua/&lt;dbname&gt;/upgrade1/dbua*.log</code></pre>
+
+    <h2 id="catctl">3. catctl.pl / catupgrd.sql Failures and Restarts</h2>
+
+    <p>catctl.pl is the parallel upgrade driver in 12.2+. It runs the upgrade in phases across parallel processes. If it fails mid-phase, it can be restarted from the failure point — you do not need to start over.</p>
+
+    <pre><code><span class="comment">-- Manual upgrade sequence (new ORACLE_HOME)</span>
+<span class="comment">-- Step 1: Shut down source DB cleanly</span>
+sqlplus / as sysdba
+SHUTDOWN IMMEDIATE;
+
+<span class="comment">-- Step 2: Start in upgrade mode under NEW ORACLE_HOME</span>
+export ORACLE_HOME=$NEW_OH
+export PATH=$NEW_OH/bin:$PATH
+sqlplus / as sysdba
+STARTUP UPGRADE;
+
+<span class="comment">-- Step 3: Run catctl.pl (parallel upgrade, 4 processes)</span>
+$NEW_OH/perl/bin/perl $NEW_OH/rdbms/admin/catctl.pl \
+  -n 4 \
+  -d $NEW_OH/rdbms/admin \
+  catupgrd.sql
+
+<span class="comment">-- Monitor progress in another session</span>
+sqlplus / as sysdba
+<span class="keyword">SELECT</span> time, message <span class="keyword">FROM</span> sys.upgrade_progress_restart
+<span class="keyword">ORDER BY</span> time <span class="keyword">DESC</span>
+<span class="keyword">FETCH FIRST</span> 20 <span class="keyword">ROWS ONLY</span>;</code></pre>
+
+    <h3>Restarting catctl.pl after a failure</h3>
+
+    <div class="callout callout-info">
+        <div class="callout-title">ℹ️ Restart, don't re-run from scratch</div>
+        catctl.pl tracks completed phases in <code>catctl_p*.sql</code> files and a restart marker. Adding <code>-p &lt;phase&gt;</code> or just re-running catctl.pl resumes from the failure point.
+    </div>
+
+    <pre><code><span class="comment">-- Check which phase failed — review catupgrd*.log files</span>
+ls -lt $NEW_OH/cfgtoollogs/dbua/*/upgrade1/
+<span class="comment">-- Or if running manually:</span>
+ls -lt /tmp/catctl_*.log
+
+<span class="comment">-- Re-run catctl.pl to resume from failure point</span>
+$NEW_OH/perl/bin/perl $NEW_OH/rdbms/admin/catctl.pl \
+  -n 4 \
+  -d $NEW_OH/rdbms/admin \
+  catupgrd.sql
+<span class="comment">-- catctl.pl automatically detects partial progress and resumes</span>
+
+<span class="comment">-- If catctl.pl refuses to restart, check for leftover lock</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> sys.registry$history <span class="keyword">ORDER BY</span> action_time <span class="keyword">DESC</span>;
+
+<span class="comment">-- Force phase restart (use phase number from catctl log)</span>
+$NEW_OH/perl/bin/perl $NEW_OH/rdbms/admin/catctl.pl \
+  -n 4 -p &lt;failed_phase_number&gt; \
+  -d $NEW_OH/rdbms/admin \
+  catupgrd.sql</code></pre>
+
+    <h3>catupgrd.sql on older releases (pre-12.2)</h3>
+
+    <pre><code><span class="comment">-- For 11g/12.1 source: catupgrd.sql runs directly in SQL*Plus</span>
+<span class="comment">-- Startup upgrade first, then:</span>
+sqlplus / as sysdba @$NEW_OH/rdbms/admin/catupgrd.sql
+
+<span class="comment">-- Check for errors after completion</span>
+sqlplus / as sysdba @$NEW_OH/rdbms/admin/utlu122s.sql</code></pre>
+
+    <h2 id="invalid-objects">4. Invalid Objects Post-Upgrade</h2>
+
+    <p>Some number of invalid objects after upgrade is normal. The target: zero invalid objects in SYS/SYSTEM schemas. User schema invalids are expected and must be recompiled by the application owner.</p>
+
+    <pre><code><span class="comment">-- Count invalid objects by schema</span>
+<span class="keyword">SELECT</span> owner, object_type, COUNT(*) AS invalid_count
+<span class="keyword">FROM</span> dba_objects
+<span class="keyword">WHERE</span> status = <span class="string">'INVALID'</span>
+<span class="keyword">GROUP BY</span> owner, object_type
+<span class="keyword">ORDER BY</span> owner, invalid_count <span class="keyword">DESC</span>;
+
+<span class="comment">-- Step 1: Run utlrp.sql (recompiles invalid objects in parallel)</span>
+sqlplus / as sysdba @$ORACLE_HOME/rdbms/admin/utlrp.sql
+
+<span class="comment">-- Step 2: Run utlrp.sql a second time if count decreases</span>
+<span class="comment">-- (dependency chains sometimes need two passes)</span>
+sqlplus / as sysdba @$ORACLE_HOME/rdbms/admin/utlrp.sql
+
+<span class="comment">-- After recompile: check remaining invalids in SYS/SYSTEM</span>
+<span class="keyword">SELECT</span> owner, object_name, object_type, status
+<span class="keyword">FROM</span> dba_objects
+<span class="keyword">WHERE</span> status = <span class="string">'INVALID'</span>
+  <span class="keyword">AND</span> owner <span class="keyword">IN</span> (<span class="string">'SYS'</span>, <span class="string">'SYSTEM'</span>)
+<span class="keyword">ORDER BY</span> object_type, object_name;
+
+<span class="comment">-- Manually recompile a specific object</span>
+ALTER PACKAGE sys.dbms_metadata COMPILE;
+ALTER PACKAGE sys.dbms_metadata COMPILE BODY;
+
+<span class="comment">-- For user schema invalids — run as the schema owner</span>
+EXEC DBMS_UTILITY.COMPILE_SCHEMA(schema=&gt;<span class="string">'SCOTT'</span>, compile_all=&gt;FALSE);</code></pre>
+
+    <div class="callout callout-warning">
+        <div class="callout-title">⚠️ SYS/SYSTEM invalids after two utlrp runs = problem</div>
+        If you have invalid objects in SYS or SYSTEM after running utlrp.sql twice, this indicates a failed component upgrade. Check <code>dba_registry</code> for INVALID status components and address Section 6 (Component Upgrade Failures).
+    </div>
+
+    <h2 id="timezone">5. Timezone File Version Mismatch (DST Patch)</h2>
+
+    <p>Oracle maintains its own timezone data separate from the OS. The new Oracle home must have a timezone file version ≥ the source database's timezone version. Mismatches block upgrade startup or cause post-upgrade errors.</p>
+
+    <pre><code><span class="comment">-- Check current timezone file version in source DB</span>
+<span class="keyword">SELECT</span> version <span class="keyword">FROM</span> v$timezone_file;
+
+<span class="comment">-- Check timezone version in NEW Oracle home (before upgrade)</span>
+<span class="comment">-- grep TIMEZONE_FILE_VERSION $NEW_OH/oracore/zoneinfo/timezlrg_*.dat</span>
+<span class="comment">-- Or: ls $NEW_OH/oracore/zoneinfo/</span>
+
+<span class="comment">-- After upgrade: check if DB needs DST upgrade</span>
+<span class="keyword">SELECT</span>
+  property_name,
+  property_value
+<span class="keyword">FROM</span> database_properties
+<span class="keyword">WHERE</span> property_name <span class="keyword">LIKE</span> <span class="string">'%TIMEZONE%'</span>;
+
+<span class="comment">-- Run DBMS_DST to upgrade timezone data (if needed)</span>
+<span class="comment">-- This is a two-step process: prepare + upgrade</span>
+
+<span class="comment">-- Step 1: Begin prepare (check for affected data)</span>
+EXEC DBMS_DST.BEGIN_PREPARE(new_version =&gt; &lt;target_tz_version&gt;);
+
+<span class="comment">-- Step 2: Find tables with TIMESTAMP WITH TIME ZONE columns that need update</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> sys.dst$affected_tables;
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> sys.dst$error_table;
+
+<span class="comment">-- Step 3: End prepare</span>
+EXEC DBMS_DST.END_PREPARE;
+
+<span class="comment">-- Step 4: Upgrade (requires RESTRICTED mode)</span>
+STARTUP RESTRICT;
+EXEC DBMS_DST.BEGIN_UPGRADE(new_version =&gt; &lt;target_tz_version&gt;);
+EXEC DBMS_DST.UPGRADE_DATABASE(parallel =&gt; TRUE, parallel_degree =&gt; 4);
+EXEC DBMS_DST.END_UPGRADE(parallel =&gt; TRUE, parallel_degree =&gt; 4);</code></pre>
+
+    <h2 id="components">6. Component Upgrade Failures (APEX, XML DB, JVM, Spatial)</h2>
+
+    <pre><code><span class="comment">-- Check registry for component status</span>
+<span class="keyword">SELECT</span> comp_id, comp_name, status, version, modified
+<span class="keyword">FROM</span> dba_registry
+<span class="keyword">ORDER BY</span> comp_id;
+
+<span class="comment">-- Valid statuses after upgrade: VALID, OPTION OFF, REMOVED</span>
+<span class="comment">-- Problem statuses: INVALID, LOADING, UPGRADING</span></code></pre>
+
+    <h3>XML DB (XDB) — INVALID after upgrade</h3>
+    <pre><code><span class="comment">-- XDB invalid is common, especially on 19c upgrades</span>
+sqlplus / as sysdba
+
+<span class="comment">-- Remove and reinstall XDB</span>
+@$ORACLE_HOME/rdbms/admin/catnoqm.sql
+@$ORACLE_HOME/rdbms/admin/catqm.sql change_on_install SYSAUX TEMP YES
+
+<span class="comment">-- Revalidate</span>
+@$ORACLE_HOME/rdbms/admin/utlrp.sql</code></pre>
+
+    <h3>APEX — remove old version before upgrading</h3>
+    <pre><code><span class="comment">-- Check APEX version in dba_registry</span>
+<span class="keyword">SELECT</span> comp_id, version, status <span class="keyword">FROM</span> dba_registry
+<span class="keyword">WHERE</span> comp_id = <span class="string">'APEX'</span>;
+
+<span class="comment">-- If old APEX is INVALID: remove it (APEX must be reinstalled separately)</span>
+sqlplus / as sysdba @$ORACLE_HOME/apex/apxremov.sql
+
+<span class="comment">-- Install matching version from APEX download for new Oracle home</span>
+<span class="comment">-- cd $APEX_DIR; sqlplus / as sysdba @apexins.sql APEX APEX TEMP /i/</span></code></pre>
+
+    <h3>Oracle JVM (OJVM) — separate patch required</h3>
+    <pre><code><span class="comment">-- OJVM requires a SEPARATE quarterly patch (JVM patch)</span>
+<span class="comment">-- It is NOT included in the database RU/RUR</span>
+
+<span class="comment">-- Check JVM status</span>
+<span class="keyword">SELECT</span> comp_id, version, status <span class="keyword">FROM</span> dba_registry
+<span class="keyword">WHERE</span> comp_id = <span class="string">'JAVAVM'</span>;
+
+<span class="comment">-- If INVALID: apply OJVM bundle patch from My Oracle Support</span>
+<span class="comment">-- Patch number format: OJVM RELEASE UPDATE &lt;version&gt; (search MOS for your version)</span>
+<span class="comment">-- Apply with: opatch apply -local &lt;patch_number&gt;</span></code></pre>
+
+    <h3>Spatial / SDO — revalidation</h3>
+    <pre><code><span class="comment">-- If MDSYS is invalid</span>
+sqlplus / as sysdba
+@$ORACLE_HOME/md/admin/mdinst.sql
+@$ORACLE_HOME/rdbms/admin/utlrp.sql</code></pre>
+
+    <h2 id="ora-errors">7. Common ORA Errors During Upgrade</h2>
+
+    <h3>ORA-39700: database must be opened with UPGRADE option</h3>
+    <pre><code><span class="comment">-- You're trying to open the DB normally when it needs to be in UPGRADE mode</span>
+<span class="comment">-- or the catupgrd.sql hasn't run yet on a database opened normally</span>
+
+<span class="comment">-- Correct sequence: shut down, start UPGRADE, run catupgrd/catctl</span>
+SHUTDOWN IMMEDIATE;
+STARTUP UPGRADE;
+<span class="comment">-- Now run catctl.pl or catupgrd.sql</span></code></pre>
+
+    <h3>ORA-01092: ORACLE instance terminated — disconnection forced</h3>
+    <pre><code><span class="comment">-- Session killed during upgrade, OR a background process crashed</span>
+<span class="comment">-- Check alert log immediately</span>
+<span class="comment">-- tail -200 $ORACLE_BASE/diag/rdbms/&lt;dbname&gt;/&lt;sid&gt;/trace/alert_&lt;sid&gt;.log</span>
+
+<span class="comment">-- Check for ORA-00600 (internal error) in alert log</span>
+<span class="comment">-- grep "ORA-00600\|ORA-07445\|ORA-01092" alert_*.log</span>
+
+<span class="comment">-- If catctl.pl launched it, just restart catctl.pl — it will resume</span>
+$NEW_OH/perl/bin/perl $NEW_OH/rdbms/admin/catctl.pl -n 4 \
+  -d $NEW_OH/rdbms/admin catupgrd.sql</code></pre>
+
+    <h3>ORA-04031: unable to allocate shared memory during upgrade</h3>
+    <pre><code><span class="comment">-- shared_pool_size is too small for upgrade operations</span>
+<span class="comment">-- Set a minimum 1GB shared pool for upgrade</span>
+
+<span class="comment">-- Add to init&lt;sid&gt;.ora or spfile before starting UPGRADE</span>
+ALTER SYSTEM SET shared_pool_size = 1G SCOPE = SPFILE;
+ALTER SYSTEM SET pga_aggregate_target = 1G SCOPE = SPFILE;
+SHUTDOWN IMMEDIATE;
+STARTUP UPGRADE;</code></pre>
+
+    <h2 id="post-upgrade">8. Post-Upgrade Validation Checklist</h2>
+
+    <pre><code><span class="comment">-- After catctl.pl completes and DB is OPEN (normal mode)</span>
+
+<span class="comment">-- 1. Run post-upgrade fixups (generated by preupgrade.jar earlier)</span>
+sqlplus / as sysdba @/tmp/preupgrade_output/postupgrade_fixups.sql
+
+<span class="comment">-- 2. Run utlu122s.sql — post-upgrade status utility</span>
+sqlplus / as sysdba @$ORACLE_HOME/rdbms/admin/utlu122s.sql
+
+<span class="comment">-- 3. Check dba_registry — all components must be VALID or OPTION OFF</span>
+<span class="keyword">SELECT</span> comp_id, comp_name, status, version
+<span class="keyword">FROM</span> dba_registry
+<span class="keyword">ORDER BY</span> comp_id;
+
+<span class="comment">-- 4. Run utlrp.sql twice</span>
+sqlplus / as sysdba @$ORACLE_HOME/rdbms/admin/utlrp.sql
+sqlplus / as sysdba @$ORACLE_HOME/rdbms/admin/utlrp.sql
+
+<span class="comment">-- 5. Check remaining invalids in SYS/SYSTEM</span>
+<span class="keyword">SELECT</span> COUNT(*) <span class="keyword">FROM</span> dba_objects
+<span class="keyword">WHERE</span> status = <span class="string">'INVALID'</span>
+  <span class="keyword">AND</span> owner <span class="keyword">IN</span> (<span class="string">'SYS'</span>, <span class="string">'SYSTEM'</span>);
+
+<span class="comment">-- 6. Verify DB version</span>
+<span class="keyword">SELECT</span> version, version_full <span class="keyword">FROM</span> v$instance;
+
+<span class="comment">-- 7. Gather dictionary and fixed object stats</span>
+EXEC DBMS_STATS.GATHER_DICTIONARY_STATS;
+EXEC DBMS_STATS.GATHER_FIXED_OBJECTS_STATS;
+
+<span class="comment">-- 8. Run utluiobj.sql — checks for remaining user-facing invalids</span>
+sqlplus / as sysdba @$ORACLE_HOME/rdbms/admin/utluiobj.sql
+
+<span class="comment">-- 9. Verify timezone file version matches</span>
+<span class="keyword">SELECT</span> version <span class="keyword">FROM</span> v$timezone_file;
+
+<span class="comment">-- 10. Check alert log for errors after first full open</span>
+<span class="comment">-- grep "ORA-\|Error\|error" $ORACLE_BASE/diag/rdbms/&lt;db&gt;/&lt;sid&gt;/trace/alert_*.log | tail -50</span></code></pre>
+
+    <h2 id="rollback">9. Rollback Strategy — Guaranteed Restore Point</h2>
+
+    <div class="callout callout-critical">
+        <div class="callout-title">🔴 You MUST create the GRP before the upgrade begins</div>
+        A Guaranteed Restore Point (GRP) created before upgrade lets you flashback the database to pre-upgrade state in 15–30 minutes regardless of how far the upgrade progressed. No GRP = your only option is an RMAN restore, which takes hours.
+    </div>
+
+    <pre><code><span class="comment">-- === BEFORE UPGRADE: Create Guaranteed Restore Point ===</span>
+
+<span class="comment">-- Step 1: Ensure DB is in ARCHIVELOG mode</span>
+<span class="keyword">SELECT</span> log_mode <span class="keyword">FROM</span> v$database;
+
+<span class="comment">-- Step 2: Enable flashback (if not already)</span>
+ALTER SYSTEM SET db_recovery_file_dest_size = 100G;
+ALTER SYSTEM SET db_recovery_file_dest = '/u03/fra';
+ALTER DATABASE FLASHBACK ON;
+
+<span class="comment">-- Step 3: Create the GRP (name it clearly)</span>
+CREATE RESTORE POINT pre_upgrade_19c GUARANTEE FLASHBACK DATABASE;
+
+<span class="comment">-- Verify it exists</span>
+<span class="keyword">SELECT</span> name, guarantee_flashback_database, time
+<span class="keyword">FROM</span> v$restore_point;
+
+
+<span class="comment">-- === IF UPGRADE FAILS: Flashback to GRP ===</span>
+
+<span class="comment">-- Step 1: Mount the database under the OLD Oracle home</span>
+export ORACLE_HOME=$OLD_OH
+export PATH=$OLD_OH/bin:$PATH
+sqlplus / as sysdba
+SHUTDOWN ABORT;
+STARTUP MOUNT;
+
+<span class="comment">-- Step 2: Flashback to the restore point</span>
+FLASHBACK DATABASE TO RESTORE POINT pre_upgrade_19c;
+
+<span class="comment">-- Step 3: Open with resetlogs</span>
+ALTER DATABASE OPEN RESETLOGS;
+
+<span class="comment">-- Step 4: Verify you're back on the old version</span>
+<span class="keyword">SELECT</span> version <span class="keyword">FROM</span> v$instance;
+
+<span class="comment">-- Step 5: Drop the restore point (it consumes FRA space)</span>
+DROP RESTORE POINT pre_upgrade_19c;</code></pre>
+
+    <h2 id="version-paths">10. Version-Specific Notes</h2>
+
+    <h3>12c (12.1 / 12.2) → 19c</h3>
+    <ul>
+        <li>Direct upgrade from 12.1.0.2 or 12.2.0.1 to 19c is supported. No intermediate hop required.</li>
+        <li>Apply at minimum the latest 19c RU (Release Update) before running the upgrade — base 19.3 has known upgrade bugs.</li>
+        <li>The <code>compatible</code> parameter cannot be downgraded after it's raised. Do not raise it until the upgrade is confirmed stable.</li>
+        <li>APEX must be separately upgraded after the DB upgrade — it does not auto-upgrade with catctl.pl.</li>
+        <li>Unified Auditing is the default in 19c. Mixed mode is on by default for compatibility, but plan to migrate audit policies.</li>
+        <li>Check <code>_allow_resetlogs_corruption</code> — it should NOT be set in your spfile before upgrading.</li>
+    </ul>
+
+    <pre><code><span class="comment">-- Verify compatible is NOT raised before upgrade is confirmed</span>
+<span class="keyword">SHOW</span> PARAMETER compatible;
+<span class="comment">-- Leave at 12.2.0.1 during upgrade; raise to 19.0.0 after stability window</span>
+
+<span class="comment">-- Confirm minimum patch level on 19c home before upgrade</span>
+<span class="comment">-- opatch lspatches | head -5</span>
+<span class="comment">-- Should show at least 19.X.0.0.YYMMDD Release Update</span></code></pre>
+
+    <h3>19c → 23ai (23c)</h3>
+    <ul>
+        <li>Requires 19c to be on a recent RU first (19.18+ recommended by Oracle).</li>
+        <li>23ai introduces SQL Domains, Property Graphs, and TRUE CACHE — none require action during upgrade but verify application SQL compatibility.</li>
+        <li>The <code>compatible</code> minimum for 23ai target is <code>19.0.0</code>.</li>
+        <li>PDB upgrades in CDB: use <code>catctl.pl -c &lt;pdb_name&gt;</code> to upgrade individual PDBs or <code>catctl.pl -C &lt;pdb_list&gt;</code> for multiple in parallel.</li>
+        <li>AutoUpgrade tool (Oracle-supplied) is the recommended path for 23ai — it handles pre-checks, fixups, upgrade, and post-upgrade in a single workflow.</li>
+    </ul>
+
+    <pre><code><span class="comment">-- AutoUpgrade tool (recommended for 23ai) — config file example</span>
+<span class="comment">-- Create config.cfg:</span>
+<span class="comment">--   global.autoupg_log_dir=/tmp/autoupg_logs</span>
+<span class="comment">--   upg1.source_home=/u01/app/oracle/product/19.0.0/dbhome_1</span>
+<span class="comment">--   upg1.target_home=/u01/app/oracle/product/23.0.0/dbhome_1</span>
+<span class="comment">--   upg1.sid=ORCL</span>
+<span class="comment">--   upg1.start_time=NOW</span>
+<span class="comment">--   upg1.upgrade_node=localhost</span>
+
+java -jar $NEW_OH/rdbms/admin/autoupgrade.jar \
+  -config config.cfg \
+  -mode deploy
+
+<span class="comment">-- Monitor AutoUpgrade progress</span>
+java -jar $NEW_OH/rdbms/admin/autoupgrade.jar \
+  -config config.cfg \
+  -mode monitor</code></pre>
+
+    <div class="cta-box">
+        <h3>Validate your upgrade readiness before the maintenance window</h3>
+        <p>TuneVault health checks surface upgrade blockers — invalid objects, unsupported parameters, component status, archive log space — before they halt your upgrade at 2am.</p>
+        <a href="/signup?path=health-check&redirect=/dashboard" class="cta-btn">Run a Free Health Check →</a>
+    </div>
+
+    <div class="nav-footer">
+        <a href="/resources/runbooks/adop-cutover-rollback">← ADOP Cutover Rollback</a>
+        <a href="/resources/runbooks/ebs-upgrade-triage">EBS Upgrade Triage →</a>
+    </div>
+
+</div>
+
+<footer>
+    <div class="footer-links">
+        <a href="/">TuneVault</a>
+        <a href="/resources/runbooks">Runbooks</a>
+        <a href="/blog">Blog</a>
+        <a href="/compare">Compare Tools</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/about">About</a>
+    </div>
+    <p style="margin-top:12px;">© 2026 TuneVault · <a href="mailto:hello@tunevault.app">hello@tunevault.app</a></p>
+</footer>
+
+</body>
+</html>

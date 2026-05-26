@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VirtualBox Test Harness — TuneVault Admin</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://tunevault.app/admin/test-harness">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0c;
+      --surface: #111114;
+      --surface-2: #1a1a1f;
+      --border: #2a2a30;
+      --text: #e8e8ed;
+      --text-dim: #9898a8;
+      --accent: #f0a830;
+      --accent-dim: rgba(240, 168, 48, 0.12);
+      --green: #34d399;
+      --green-dim: rgba(52, 211, 153, 0.10);
+      --red: #f87171;
+      --red-dim: rgba(248, 113, 113, 0.10);
+      --yellow: #fbbf24;
+      --yellow-dim: rgba(251, 191, 36, 0.10);
+      --blue: #60a5fa;
+      --blue-dim: rgba(96, 165, 250, 0.10);
+      --mono: 'JetBrains Mono', monospace;
+    }
+
+    body {
+      font-family: 'Space Grotesk', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .grain {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 999;
+    }
+
+    nav {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 16px 48px; border-bottom: 1px solid var(--border);
+    }
+
+    .logo { font-size: 16px; font-weight: 700; color: var(--text); text-decoration: none; }
+    .logo span { color: var(--accent); }
+    .nav-right { display: flex; gap: 12px; align-items: center; }
+    .nav-link {
+      font-size: 13px; color: var(--text-dim); text-decoration: none;
+      padding: 6px 12px; border-radius: 6px; transition: background 0.15s;
+    }
+    .nav-link:hover { background: var(--surface-2); color: var(--text); }
+
+    .container { max-width: 960px; margin: 0 auto; padding: 48px 24px 80px; }
+
+    .page-header { margin-bottom: 40px; }
+    .page-header h1 { font-size: 28px; font-weight: 700; color: var(--text); }
+    .page-header .subtitle {
+      font-size: 15px; color: var(--text-dim); margin-top: 8px; max-width: 620px;
+    }
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+      padding: 4px 10px; border-radius: 4px; margin-bottom: 16px;
+    }
+    .badge-admin { background: var(--yellow-dim); color: var(--yellow); border: 1px solid rgba(251,191,36,0.25); }
+
+    /* Progress checklist */
+    .progress-bar {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      padding: 20px 24px; margin-bottom: 40px;
+    }
+    .progress-bar h3 { font-size: 13px; font-weight: 600; color: var(--text-dim); margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.06em; }
+    .progress-steps { display: flex; gap: 8px; flex-wrap: wrap; }
+    .step-pill {
+      display: flex; align-items: center; gap: 8px; cursor: pointer;
+      padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border);
+      font-size: 13px; color: var(--text-dim); transition: all 0.15s; user-select: none;
+    }
+    .step-pill:hover { border-color: var(--accent); color: var(--text); }
+    .step-pill.checked { background: var(--green-dim); border-color: rgba(52,211,153,0.3); color: var(--green); }
+    .step-pill .check-icon { font-size: 14px; }
+
+    /* Sections */
+    .section {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      margin-bottom: 24px; overflow: hidden;
+    }
+    .section-header {
+      display: flex; align-items: center; gap: 12px; padding: 20px 24px;
+      border-bottom: 1px solid var(--border); cursor: pointer;
+    }
+    .section-header:hover { background: var(--surface-2); }
+    .section-num {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: var(--accent-dim); color: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; flex-shrink: 0;
+    }
+    .section-title { font-size: 16px; font-weight: 600; flex: 1; }
+    .section-meta { font-size: 13px; color: var(--text-dim); }
+    .chevron { font-size: 12px; color: var(--text-dim); transition: transform 0.2s; }
+    .section.open .chevron { transform: rotate(90deg); }
+    .section-body { padding: 24px; display: none; }
+    .section.open .section-body { display: block; }
+
+    /* Code blocks */
+    .code-block {
+      position: relative; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; margin: 12px 0;
+    }
+    .code-block pre {
+      font-family: var(--mono); font-size: 13px; line-height: 1.6;
+      padding: 14px 16px; overflow-x: auto; color: var(--text);
+    }
+    .code-block .copy-btn {
+      position: absolute; top: 8px; right: 8px;
+      font-size: 11px; font-weight: 600; padding: 4px 10px;
+      background: var(--surface-2); border: 1px solid var(--border); border-radius: 5px;
+      color: var(--text-dim); cursor: pointer; transition: all 0.15s;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+    .code-block .copy-btn:hover { background: var(--accent-dim); color: var(--accent); border-color: rgba(240,168,48,0.3); }
+    .code-block .copy-btn.copied { background: var(--green-dim); color: var(--green); border-color: rgba(52,211,153,0.3); }
+
+    /* Step instructions */
+    .step { margin: 16px 0; }
+    .step-label {
+      font-size: 13px; font-weight: 600; color: var(--text-dim); text-transform: uppercase;
+      letter-spacing: 0.06em; margin-bottom: 6px;
+    }
+    p, li { font-size: 14px; color: var(--text-dim); }
+    p { margin: 8px 0; }
+    ul, ol { padding-left: 20px; margin: 8px 0; }
+    li { margin: 4px 0; }
+    strong { color: var(--text); font-weight: 600; }
+    code {
+      font-family: var(--mono); font-size: 12px; color: var(--accent);
+      background: var(--accent-dim); padding: 2px 6px; border-radius: 4px;
+    }
+    a { color: var(--blue); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Expected results table */
+    .results-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+    .results-table th {
+      text-align: left; padding: 8px 12px;
+      border-bottom: 1px solid var(--border); color: var(--text-dim);
+      font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; font-size: 11px;
+    }
+    .results-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+    .results-table tr:last-child td { border-bottom: none; }
+    .results-table tr:hover td { background: var(--surface-2); }
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;
+    }
+    .status-pass { background: var(--green-dim); color: var(--green); }
+    .status-expected-fail { background: var(--yellow-dim); color: var(--yellow); }
+    .status-bug { background: var(--red-dim); color: var(--red); }
+
+    /* Download button */
+    .download-btn {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: var(--accent); color: #000; font-weight: 700;
+      padding: 12px 24px; border-radius: 8px; font-size: 14px;
+      text-decoration: none; transition: opacity 0.15s; cursor: pointer; border: none;
+    }
+    .download-btn:hover { opacity: 0.85; text-decoration: none; }
+    .download-btn svg { width: 16px; height: 16px; }
+
+    .callout {
+      display: flex; gap: 12px; padding: 14px 16px;
+      background: var(--blue-dim); border: 1px solid rgba(96,165,250,0.2);
+      border-radius: 8px; margin: 16px 0;
+    }
+    .callout-warn {
+      background: var(--yellow-dim); border-color: rgba(251,191,36,0.2);
+    }
+    .callout-icon { font-size: 16px; flex-shrink: 0; margin-top: 2px; }
+    .callout p { margin: 0; font-size: 13px; }
+
+    hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+    @media (max-width: 640px) {
+      nav { padding: 14px 16px; }
+      .container { padding: 24px 16px 60px; }
+      .progress-steps { gap: 6px; }
+      .step-pill { font-size: 12px; padding: 6px 10px; }
+    }
+  </style>
+</head>
+<body>
+<div class="grain"></div>
+
+<nav>
+  <a href="/dashboard" class="logo">Tune<span>Vault</span></a>
+  <div class="nav-right">
+    <a href="/admin/ebs-validation" class="nav-link">EBS Validation</a>
+    <a href="/admin/payments/last-test" class="nav-link">Payment Test</a>
+    <a href="/dashboard" class="nav-link">Dashboard</a>
+  </div>
+</nav>
+
+<div class="container">
+
+  <div class="page-header">
+    <div class="badge badge-admin">⚙ Admin — Test Harness</div>
+    <h1>VirtualBox Oracle XE Test Harness</h1>
+    <p class="subtitle">
+      Step-by-step guide to set up a local Oracle XE 21c VM and validate the TuneVault proxy.
+      Exercises all 5 known proxy bugs in a reproducible local environment.
+      No licensed Oracle EBS media required.
+    </p>
+  </div>
+
+  <!-- Progress checklist -->
+  <div class="progress-bar">
+    <h3>Progress Checklist</h3>
+    <div class="progress-steps" id="progressSteps">
+      <div class="step-pill" data-step="1" onclick="toggleStep(this)">
+        <span class="check-icon">○</span> 1. VirtualBox + Oracle XE installed
+      </div>
+      <div class="step-pill" data-step="2" onclick="toggleStep(this)">
+        <span class="check-icon">○</span> 2. Network ports forwarded
+      </div>
+      <div class="step-pill" data-step="3" onclick="toggleStep(this)">
+        <span class="check-icon">○</span> 3. SSH confirmed working
+      </div>
+      <div class="step-pill" data-step="4" onclick="toggleStep(this)">
+        <span class="check-icon">○</span> 4. TUNEVAULT_RO user created
+      </div>
+      <div class="step-pill" data-step="5" onclick="toggleStep(this)">
+        <span class="check-icon">○</span> 5. Proxy installed + configured
+      </div>
+      <div class="step-pill" data-step="6" onclick="toggleStep(this)">
+        <span class="check-icon">○</span> 6. Validator bundle downloaded + run
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 1: VirtualBox Setup -->
+  <div class="section open" id="sec1">
+    <div class="section-header" onclick="toggleSection('sec1')">
+      <div class="section-num">1</div>
+      <div>
+        <div class="section-title">VirtualBox + Oracle XE Setup</div>
+        <div class="section-meta">Download, install, boot — ~30 min</div>
+      </div>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="section-body">
+      <div class="callout">
+        <span class="callout-icon">ℹ</span>
+        <p>Oracle XE 21c is free for development/testing. It supports all the V$ and DBA_ views TuneVault reads.
+           <strong>Real Oracle EBS requires licensed media</strong> — on XE the EBS-specific probes will return
+           <code>ebs_detected: false</code>, which is the correct negative-path test.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Step 1.1 — Download VirtualBox 7.x</div>
+        <p>Get the installer for your host OS from the official site:</p>
+        <p><a href="https://www.virtualbox.org/wiki/Downloads" target="_blank" rel="noopener">virtualbox.org/wiki/Downloads</a>
+           — choose "VirtualBox 7.x platform packages" for your OS.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Step 1.2 — Get Oracle XE 21c VirtualBox appliance</div>
+        <p>Oracle provides a free pre-built OVA (requires Oracle account, free registration):</p>
+        <p><a href="https://www.oracle.com/database/technologies/xe-downloads.html" target="_blank" rel="noopener">oracle.com/database/technologies/xe-downloads.html</a></p>
+        <p>Download <strong>Oracle Database 21c Express Edition for Linux x86-64</strong> (RPM installer).
+           You'll install it inside an Oracle Linux 8 / AlmaLinux 8 VM, or use an existing Oracle XE appliance if you have one.</p>
+        <p>Alternatively, search VirtualBox Appliance Gallery for a pre-built Oracle XE 21c OVA to import directly.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Step 1.3 — Import + boot the VM</div>
+        <p>Import the OVA in VirtualBox: File → Import Appliance → select the .ova file.</p>
+        <p>Start the VM. Default credentials are typically <code>oracle/oracle</code> or shown in the appliance README.</p>
+        <p>Inside the VM, verify Oracle is running:</p>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre>systemctl status oracle-xe-21c
+# Should show: active (running)</pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Step 1.4 — Change SYS/SYSTEM passwords</div>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre>su - oracle
+sqlplus / as sysdba
+ALTER USER SYS   IDENTIFIED BY "YourSysPassword123!";
+ALTER USER SYSTEM IDENTIFIED BY "YourSystemPassword123!";
+exit</pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Step 1.5 — Enable SSH</div>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre>sudo systemctl enable --now sshd
+# Verify it's listening:
+sudo ss -tlnp | grep 22</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 2: Network Config -->
+  <div class="section" id="sec2">
+    <div class="section-header" onclick="toggleSection('sec2')">
+      <div class="section-num">2</div>
+      <div>
+        <div class="section-title">VirtualBox Network + Port Forwarding</div>
+        <div class="section-meta">Map host ports to guest ports</div>
+      </div>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="section-body">
+      <p>With NAT networking (default), set up port forwarding in VirtualBox so your host machine can reach the VM's Oracle listener and SSH daemon.</p>
+
+      <div class="step">
+        <div class="step-label">VirtualBox GUI method</div>
+        <ol>
+          <li>Select the VM → Settings → Network → Adapter 1</li>
+          <li>Confirm: Attached to = <strong>NAT</strong></li>
+          <li>Click <strong>Port Forwarding</strong></li>
+          <li>Add three rules:</li>
+        </ol>
+        <table class="results-table" style="margin-top:12px">
+          <thead>
+            <tr><th>Name</th><th>Protocol</th><th>Host IP</th><th>Host Port</th><th>Guest IP</th><th>Guest Port</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>SSH</td><td>TCP</td><td>127.0.0.1</td><td>2222</td><td></td><td>22</td></tr>
+            <tr><td>Oracle</td><td>TCP</td><td>127.0.0.1</td><td>1521</td><td></td><td>1521</td></tr>
+            <tr><td>EM Express</td><td>TCP</td><td>127.0.0.1</td><td>8080</td><td></td><td>8080</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Or via VBoxManage CLI</div>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre>VBoxManage modifyvm "OracleXE" --natpf1 "ssh,tcp,,2222,,22"
+VBoxManage modifyvm "OracleXE" --natpf1 "oracle,tcp,,1521,,1521"
+VBoxManage modifyvm "OracleXE" --natpf1 "em-express,tcp,,8080,,8080"</pre>
+        </div>
+        <p>Replace <code>OracleXE</code> with the name of your VM.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Verify SSH from your host</div>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre>ssh -p 2222 oracle@localhost
+# Accept the host key fingerprint
+# You should land in the Oracle Linux VM shell</pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Verify Oracle listener from your host</div>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre># Quick TCP test (macOS / Linux)
+timeout 3 bash -c "echo > /dev/tcp/localhost/1521" && echo "✓ Port 1521 reachable" || echo "✗ Not reachable"
+
+# Or with sqlplus if you have Oracle client installed:
+sqlplus TUNEVAULT_RO/password@localhost:1521/XE</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 3: Oracle User Setup -->
+  <div class="section" id="sec3">
+    <div class="section-header" onclick="toggleSection('sec3')">
+      <div class="section-num">3</div>
+      <div>
+        <div class="section-title">Oracle User Setup (TUNEVAULT_RO)</div>
+        <div class="section-meta">Create read-only monitoring user with required grants</div>
+      </div>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="section-body">
+      <p>TuneVault uses a dedicated read-only user with <code>SELECT_CATALOG_ROLE</code>. Run this SQL block inside the VM as SYSDBA:</p>
+
+      <div class="step">
+        <div class="step-label">SSH into the VM + connect as SYSDBA</div>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre>ssh -p 2222 oracle@localhost
+su - oracle
+sqlplus / as sysdba</pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Create user + grant roles (paste this in SQLPlus)</div>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre>-- Create the monitoring user
+CREATE USER TUNEVAULT_RO IDENTIFIED BY "TVReadOnly2024!";
+
+-- Basic connection + catalog read
+GRANT CREATE SESSION TO TUNEVAULT_RO;
+GRANT SELECT_CATALOG_ROLE TO TUNEVAULT_RO;
+
+-- V$ dynamic performance views (needed for all core checks)
+GRANT SELECT ANY DICTIONARY TO TUNEVAULT_RO;
+
+-- Additional grants for specific checks
+GRANT SELECT ON v_$session        TO TUNEVAULT_RO;
+GRANT SELECT ON v_$sql            TO TUNEVAULT_RO;
+GRANT SELECT ON v_$sqlarea        TO TUNEVAULT_RO;
+GRANT SELECT ON v_$sysstat        TO TUNEVAULT_RO;
+GRANT SELECT ON v_$parameter      TO TUNEVAULT_RO;
+GRANT SELECT ON v_$tablespace     TO TUNEVAULT_RO;
+GRANT SELECT ON v_$datafile       TO TUNEVAULT_RO;
+GRANT SELECT ON v_$sga            TO TUNEVAULT_RO;
+GRANT SELECT ON v_$sgastat        TO TUNEVAULT_RO;
+GRANT SELECT ON v_$pgastat        TO TUNEVAULT_RO;
+GRANT SELECT ON v_$rman_backup_job_details TO TUNEVAULT_RO;
+GRANT SELECT ON dba_segments      TO TUNEVAULT_RO;
+GRANT SELECT ON dba_tablespaces   TO TUNEVAULT_RO;
+GRANT SELECT ON dba_free_space    TO TUNEVAULT_RO;
+GRANT SELECT ON dba_objects       TO TUNEVAULT_RO;
+GRANT SELECT ON dba_users         TO TUNEVAULT_RO;
+GRANT SELECT ON dba_sys_privs     TO TUNEVAULT_RO;
+
+-- Confirm grants
+SELECT granted_role FROM dba_role_privs WHERE grantee = 'TUNEVAULT_RO';
+exit</pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Test the user from your host</div>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre># With sqlplus (if Oracle client installed on host):
+sqlplus TUNEVAULT_RO/"TVReadOnly2024!"@localhost:1521/XE
+
+# Verify V$ access:
+SELECT banner FROM v$version WHERE ROWNUM = 1;</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 4: Proxy Install -->
+  <div class="section" id="sec4">
+    <div class="section-header" onclick="toggleSection('sec4')">
+      <div class="section-num">4</div>
+      <div>
+        <div class="section-title">Proxy Install + Self-Test</div>
+        <div class="section-meta">Copy proxy to VM, configure proxy.env, run --validate-only</div>
+      </div>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="section-body">
+      <div class="callout callout-warn">
+        <span class="callout-icon">⚡</span>
+        <p>For local testing, the proxy can run on your <strong>host machine</strong> (not inside the VM)
+           since you've port-forwarded Oracle :1521 to localhost:1521.
+           The <code>--validate-only</code> flag tests connectivity without starting an HTTP server.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Option A — Run proxy on host (simplest for testing)</div>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre># Download oracle-proxy.py from TuneVault dashboard or use the validator bundle below
+
+# Create proxy.env (copy from proxy.env.template, edit values)
+cat > proxy.env << 'EOF'
+ORACLE_HOST=localhost
+ORACLE_PORT=1521
+ORACLE_SERVICE=XE
+ORACLE_USER=TUNEVAULT_RO
+ORACLE_PASSWORD=TVReadOnly2024!
+TUNEVAULT_API_KEY=local-test-key
+EOF
+
+# Self-test without starting the HTTP server:
+python3 oracle-proxy.py --validate-only
+# Exit 0 = all pass, 1 = failures</pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Option B — Run proxy inside the VM</div>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre># Copy proxy to VM:
+scp -P 2222 oracle-proxy.py oracle@localhost:~/
+
+# SSH in + set up:
+ssh -p 2222 oracle@localhost
+
+# Inside VM:
+pip3 install cx_Oracle
+
+cat > proxy.env << 'EOF'
+ORACLE_HOST=localhost
+ORACLE_PORT=1521
+ORACLE_SERVICE=XE
+ORACLE_USER=TUNEVAULT_RO
+ORACLE_PASSWORD=TVReadOnly2024!
+TUNEVAULT_API_KEY=local-test-key
+EOF
+
+# Self-test:
+python3 oracle-proxy.py --validate-only</pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Start the proxy normally (after --validate-only passes)</div>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre>export TUNEVAULT_API_KEY=local-test-key
+python3 oracle-proxy.py
+# Listening on 127.0.0.1:3100
+
+# From your host, hit the health endpoint:
+curl http://localhost:3100/health
+# {"status":"ok","version":"..."}</pre>
+        </div>
+        <p>For the proxy to be reachable from TuneVault, you'll need an HTTPS tunnel or reverse proxy
+           to expose the local port over HTTPS. For local-only testing, the validator bundle below handles this directly.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 5: Expected Results -->
+  <div class="section" id="sec5">
+    <div class="section-header" onclick="toggleSection('sec5')">
+      <div class="section-num">5</div>
+      <div>
+        <div class="section-title">Expected Results on Oracle XE 21c (no EBS)</div>
+        <div class="section-meta">What passes, what fails, and why each result is correct</div>
+      </div>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="section-body">
+      <p>On a vanilla Oracle XE 21c instance (no Oracle EBS installed), here's what the validator should return:</p>
+
+      <table class="results-table">
+        <thead>
+          <tr>
+            <th>Check</th>
+            <th>Expected</th>
+            <th>Reason</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>cx_Oracle import</td>
+            <td><span class="status-badge status-pass">✓ PASS</span></td>
+            <td>Library installed via <code>pip3 install cx_Oracle</code></td>
+          </tr>
+          <tr>
+            <td>TCP connectivity</td>
+            <td><span class="status-badge status-pass">✓ PASS</span></td>
+            <td>Port 1521 forwarded from host to guest</td>
+          </tr>
+          <tr>
+            <td>Oracle connection</td>
+            <td><span class="status-badge status-pass">✓ PASS</span></td>
+            <td>TUNEVAULT_RO user exists with correct password</td>
+          </tr>
+          <tr>
+            <td>SELECT_CATALOG_ROLE</td>
+            <td><span class="status-badge status-pass">✓ PASS</span></td>
+            <td>DBA_ views accessible — role granted in setup SQL</td>
+          </tr>
+          <tr>
+            <td>Payload structure (Bug 1)</td>
+            <td><span class="status-badge status-pass">✓ PASS</span></td>
+            <td>collect_metrics() returns all required keys</td>
+          </tr>
+          <tr>
+            <td>EBS probe variants (Bug 2)</td>
+            <td><span class="status-badge status-pass">✓ PASS</span></td>
+            <td>APPS.* tables don't exist on XE — all probes fail gracefully, <code>ebs_detected=false</code></td>
+          </tr>
+          <tr>
+            <td>Health check coverage (Bug 3)</td>
+            <td><span class="status-badge status-pass">✓ PASS</span></td>
+            <td>All 5 core V$ queries accessible on XE 21c</td>
+          </tr>
+          <tr>
+            <td>Edition detection (Bug 4)</td>
+            <td><span class="status-badge status-pass">✓ PASS</span></td>
+            <td>XE banner detected as "Express Edition"</td>
+          </tr>
+          <tr>
+            <td>CM multi-row handling (Bug 5)</td>
+            <td><span class="status-badge status-pass">✓ PASS</span></td>
+            <td>FND_CONCURRENT_QUEUES doesn't exist on XE — proxy returns gracefully</td>
+          </tr>
+          <tr>
+            <td>EBS detection (in proxy)</td>
+            <td><span class="status-badge status-expected-fail">! EXPECTED</span></td>
+            <td>APPS.FND_APPLICATION not present → <code>ebs_detected=false</code>. Correct for XE.</td>
+          </tr>
+          <tr>
+            <td>FND_CONCURRENT_QUEUES query</td>
+            <td><span class="status-badge status-expected-fail">! EXPECTED</span></td>
+            <td>Table doesn't exist on non-EBS → ORA-00942. Proxy must NOT crash.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-warn" style="margin-top:16px">
+        <span class="callout-icon">⚠</span>
+        <p><strong>If the proxy crashes</strong> when EBS probes fail (ORA-00942 / table not found),
+           that is <strong>Bug #1 reproduced</strong>. The fix is shipped in the current proxy version —
+           all APPS.* queries are wrapped in try/except with graceful fallback to <code>ebs_detected=false</code>.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 6: Download Validator Bundle -->
+  <div class="section" id="sec6">
+    <div class="section-header" onclick="toggleSection('sec6')">
+      <div class="section-num">6</div>
+      <div>
+        <div class="section-title">Download Validator Bundle</div>
+        <div class="section-meta">run-local-validation.sh + local_validation.py + oracle-proxy.py</div>
+      </div>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="section-body">
+      <p>The bundle contains everything needed to run the full validation locally:</p>
+      <ul>
+        <li><code>oracle-proxy.py</code> — the TuneVault proxy (with <code>--validate-only</code> flag)</li>
+        <li><code>run-local-validation.sh</code> — shell wrapper with pre-flight checks</li>
+        <li><code>local_validation.py</code> — Python harness (9 checks, exercises all 5 bugs)</li>
+        <li><code>proxy.env.template</code> — copy to <code>proxy.env</code> and fill in your values</li>
+      </ul>
+
+      <div class="step">
+        <div class="step-label">Download + extract</div>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre># Download the bundle (requires admin session cookie):
+curl -O -b "$(cat ~/.tv_cookie)" https://tunevault.app/api/test-harness/validator-bundle
+# File: tunevault-validator.tar
+
+# Extract:
+tar xf tunevault-validator.tar
+
+# Edit config:
+cp proxy.env.template proxy.env
+nano proxy.env   # set ORACLE_HOST, PORT, SERVICE, USER, PASSWORD</pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Or click to download directly</div>
+        <a href="/api/test-harness/validator-bundle" class="download-btn">
+          <svg viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zM7 11.414V5h2v6.414l1.707-1.707 1.414 1.414L8 15.243l-4.121-4.122 1.414-1.414L7 11.414z"/>
+          </svg>
+          Download Validator Bundle (.tar)
+        </a>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Run the validation</div>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre>chmod +x run-local-validation.sh
+./run-local-validation.sh
+
+# Or directly with Python:
+python3 local_validation.py
+
+# With explicit args (overrides proxy.env):
+python3 local_validation.py \
+  --host localhost --port 1521 --service XE \
+  --user TUNEVAULT_RO --password "TVReadOnly2024!"</pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Use oracle-proxy.py --validate-only directly</div>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre># Self-test mode — reads proxy.env, no HTTP server started
+python3 oracle-proxy.py --validate-only
+
+# Exit code 0 = all pass
+# Exit code 1 = one or more failures
+# Report: validation-report.json written to same directory</pre>
+        </div>
+      </div>
+
+      <hr>
+      <p style="font-size:13px; margin-top:12px;">
+        <strong>Note:</strong> The validator writes <code>validation-report.json</code> to its working directory.
+        Share this file with TuneVault support if you're reporting a proxy bug — it contains all check results
+        with Oracle version, edition, and EBS detection state.
+      </p>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+  // ── Section toggle ──────────────────────────────────────────────────────────
+  function toggleSection(id) {
+    const sec = document.getElementById(id);
+    sec.classList.toggle('open');
+  }
+
+  // ── Progress checklist (localStorage) ──────────────────────────────────────
+  const STORAGE_KEY = 'tv_harness_steps';
+
+  function loadSteps() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    } catch { return {}; }
+  }
+
+  function saveSteps(state) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  function toggleStep(el) {
+    const state = loadSteps();
+    const step  = el.dataset.step;
+    const checked = !state[step];
+    state[step] = checked;
+    saveSteps(state);
+    renderStep(el, checked);
+  }
+
+  function renderStep(el, checked) {
+    const icon = el.querySelector('.check-icon');
+    if (checked) {
+      el.classList.add('checked');
+      icon.textContent = '✓';
+    } else {
+      el.classList.remove('checked');
+      icon.textContent = '○';
+    }
+  }
+
+  // Restore state on load
+  (function() {
+    const state = loadSteps();
+    document.querySelectorAll('.step-pill').forEach(el => {
+      if (state[el.dataset.step]) renderStep(el, true);
+    });
+  })();
+
+  // ── Copy to clipboard ───────────────────────────────────────────────────────
+  function copyCode(btn) {
+    const pre = btn.closest('.code-block').querySelector('pre');
+    navigator.clipboard.writeText(pre.textContent.trim()).then(() => {
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = 'Copy';
+        btn.classList.remove('copied');
+      }, 1800);
+    });
+  }
+</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

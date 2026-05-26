@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0a0c"/>
+      <stop offset="100%" style="stop-color:#111114"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#f0a830"/>
+      <stop offset="100%" style="stop-color:#f5c060"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Subtle grid lines -->
+  <line x1="0" y1="1" x2="1200" y2="1" stroke="#2a2a30" stroke-width="1"/>
+  <line x1="0" y1="629" x2="1200" y2="629" stroke="#2a2a30" stroke-width="1"/>
+
+  <!-- Left accent bar -->
+  <rect x="80" y="180" width="4" height="120" fill="url(#accent)" rx="2"/>
+
+  <!-- Logo / brand mark -->
+  <text x="96" y="145" font-family="'JetBrains Mono', 'Courier New', monospace" font-size="18" fill="#f0a830" font-weight="500">▶ tunevault</text>
+
+  <!-- Main headline -->
+  <text x="96" y="230" font-family="'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif" font-size="52" font-weight="700" fill="#e8e8ed">Oracle Database</text>
+  <text x="96" y="295" font-family="'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif" font-size="52" font-weight="700" fill="#e8e8ed">Health Checks</text>
+  <text x="96" y="360" font-family="'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif" font-size="52" font-weight="700" fill="url(#accent)">On Demand.</text>
+
+  <!-- Subtext -->
+  <text x="96" y="420" font-family="'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif" font-size="22" fill="#8888a0">AI-powered analysis. Actionable PDF reports.</text>
+  <text x="96" y="450" font-family="'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif" font-size="22" fill="#8888a0">No 24/7 promises — just results when you need them.</text>
+
+  <!-- Right side: terminal-style card -->
+  <rect x="700" y="160" width="420" height="280" rx="12" fill="#111114" stroke="#2a2a30" stroke-width="1"/>
+  <rect x="700" y="160" width="420" height="40" rx="12" fill="#1a1a1f"/>
+  <rect x="700" y="188" width="420" height="12" fill="#1a1a1f"/>
+
+  <!-- Terminal dots -->
+  <circle cx="728" cy="180" r="6" fill="#f87171"/>
+  <circle cx="748" cy="180" r="6" fill="#f0a830"/>
+  <circle cx="768" cy="180" r="6" fill="#34d399"/>
+
+  <!-- Terminal label -->
+  <text x="795" y="184" font-family="'JetBrains Mono', monospace" font-size="12" fill="#8888a0">health-check.log</text>
+
+  <!-- Terminal content lines -->
+  <text x="720" y="232" font-family="'JetBrains Mono', monospace" font-size="13" fill="#8888a0">$ tunevault run --db prod-oracle</text>
+  <text x="720" y="258" font-family="'JetBrains Mono', monospace" font-size="13" fill="#34d399">✓ Connected to PRODDB (12.2.0.1)</text>
+  <text x="720" y="280" font-family="'JetBrains Mono', monospace" font-size="13" fill="#8888a0">  Running 12 health checks...</text>
+  <text x="720" y="302" font-family="'JetBrains Mono', monospace" font-size="13" fill="#f87171">⚠ Tablespace USERS at 94% — critical</text>
+  <text x="720" y="324" font-family="'JetBrains Mono', monospace" font-size="13" fill="#f0a830">→ ALTER TABLESPACE USERS ADD DATAFILE</text>
+  <text x="720" y="346" font-family="'JetBrains Mono', monospace" font-size="13" fill="#e8e8ed">   '/u01/oradata/users02.dbf' SIZE 2G;</text>
+  <text x="720" y="372" font-family="'JetBrains Mono', monospace" font-size="13" fill="#34d399">✓ PDF report ready — 8 recommendations</text>
+
+  <!-- Score badge -->
+  <rect x="700" y="460" width="420" height="60" rx="8" fill="#1a1a1f" stroke="#2a2a30" stroke-width="1"/>
+  <text x="740" y="497" font-family="'Space Grotesk', sans-serif" font-size="16" fill="#8888a0">Health Score</text>
+  <text x="920" y="497" font-family="'Space Grotesk', sans-serif" font-size="24" font-weight="700" fill="#f0a830">72 / 100</text>
+
+  <!-- Bottom CTA hint -->
+  <text x="96" y="555" font-family="'Space Grotesk', sans-serif" font-size="16" fill="#8888a0">tunevault.app</text>
+</svg>

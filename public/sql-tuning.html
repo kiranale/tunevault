@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oracle SQL Tuning — Index &amp; Rewrite Recommendations | TuneVault</title>
+  <meta name="description" content="AI-powered Oracle SQL tuning: top-10 high-impact queries ranked by CPU, elapsed time, and buffer gets — with index recommendations and rewrite suggestions.">
+  <link rel="canonical" href="https://tunevault.app/sql-tuning">
+  <!-- Open Graph -->
+  <meta property="og:title" content="Oracle SQL Tuning — AI Index &amp; Rewrite Recommendations">
+  <meta property="og:description" content="AI-powered Oracle SQL tuning: top-10 high-impact queries ranked by CPU, elapsed time, and buffer gets — with index recommendations and rewrite suggestions.">
+  <meta property="og:url" content="https://tunevault.app/sql-tuning">
+  <meta property="og:image" content="https://tunevault.app/og/sql-tuning.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="TuneVault AI SQL Tuning — top resource consumers and index recommendations">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="TuneVault">
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Oracle SQL Tuning — AI Index &amp; Rewrite Recommendations">
+  <meta name="twitter:description" content="AI-powered Oracle SQL tuning: top-10 high-impact queries ranked by CPU, elapsed time, and buffer gets — with index recommendations and rewrite suggestions.">
+  <meta name="twitter:image" content="https://tunevault.app/og/sql-tuning.png">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c;
+      --surface: #111114;
+      --surface-2: #1a1a1f;
+      --surface-3: #22222a;
+      --border: #2a2a30;
+      --text: #e8e8ed;
+      --text-dim: #b8b8c8;
+      --accent: #f0a830;
+      --accent-dim: rgba(240, 168, 48, 0.12);
+      --green: #34d399;
+      --green-dim: rgba(52, 211, 153, 0.12);
+      --red: #f87171;
+      --red-dim: rgba(248, 113, 113, 0.12);
+      --yellow: #fbbf24;
+      --yellow-dim: rgba(251, 191, 36, 0.12);
+      --blue: #60a5fa;
+      --blue-dim: rgba(96, 165, 250, 0.12);
+      --purple: #a78bfa;
+      --purple-dim: rgba(167, 139, 250, 0.12);
+    }
+    body {
+      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    .grain {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 999;
+    }
+
+    /* ── Nav ── */
+    .nav-wrapper { border-bottom: 1px solid var(--border); background: rgba(10,10,12,0.95); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 9999; }
+    #nav-root { max-width: 1400px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 14px 48px; gap: 16px; }
+
+    /* ── Layout ── */
+    .page-wrapper { max-width: 1400px; margin: 0 auto; padding: 48px 48px 80px; }
+
+    /* ── Page header ── */
+    .page-header { padding: 32px 0 20px; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .page-title { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
+    .page-subtitle { color: var(--text-dim); font-size: 14px; margin-top: 4px; }
+
+    /* ── Toolbar ── */
+    .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .conn-select {
+      flex: 1; min-width: 200px; max-width: 320px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 9px 12px; color: var(--text);
+      font-size: 13px; font-family: inherit; outline: none; cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .conn-select:focus { border-color: var(--accent); }
+    .conn-select option { background: var(--surface-2); }
+    .schema-filter-wrap { display: flex; align-items: center; gap: 6px; }
+    .schema-filter-label { font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+    .filter-toggle {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 7px; padding: 7px 12px; font-size: 12px; font-weight: 500;
+      color: var(--text-dim); cursor: pointer; font-family: inherit; transition: all 0.18s;
+    }
+    .filter-toggle:hover { color: var(--text); border-color: rgba(255,255,255,0.25); }
+    .filter-toggle.on { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
+    .analyze-btn {
+      background: var(--accent); color: #0a0a0c; border: none;
+      border-radius: 8px; padding: 9px 20px; font-size: 13px; font-weight: 700;
+      cursor: pointer; font-family: inherit; transition: opacity 0.2s;
+      display: flex; align-items: center; gap: 7px; white-space: nowrap;
+    }
+    .analyze-btn:hover { opacity: 0.88; }
+    .analyze-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .demo-btn {
+      background: none; border: 1px solid var(--border); border-radius: 8px;
+      padding: 9px 16px; font-size: 13px; color: var(--text-dim);
+      cursor: pointer; font-family: inherit; transition: all 0.18s; white-space: nowrap;
+    }
+    .demo-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.3); }
+    .spinner { display: inline-block; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Demo badge ── */
+    .demo-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--yellow-dim); border: 1px solid var(--yellow);
+      border-radius: 6px; padding: 4px 12px; font-size: 12px; color: var(--yellow);
+      font-weight: 600; margin-bottom: 16px;
+    }
+
+    /* ── Summary strip ── */
+    .summary-strip {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;
+    }
+    .summary-tile {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px 18px;
+    }
+    .summary-tile-label { font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-dim); }
+    .summary-tile-value { font-size: 22px; font-weight: 700; font-family: 'JetBrains Mono', monospace; margin-top: 3px; }
+    .summary-tile-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+    /* ── Table ── */
+    .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .tuning-table { width: 100%; border-collapse: collapse; }
+    .tuning-table th {
+      text-align: left; font-size: 10px; font-weight: 700; letter-spacing: 0.8px;
+      text-transform: uppercase; color: var(--text-dim); padding: 10px 14px;
+      border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02);
+      white-space: nowrap;
+    }
+    .tuning-table td { padding: 10px 14px; font-size: 13px; border-bottom: 1px solid rgba(42,42,48,0.6); vertical-align: top; }
+    .tuning-table tr:last-child td { border-bottom: none; }
+    .tuning-table tr { transition: background 0.12s; cursor: pointer; }
+    .tuning-table tr:hover td { background: rgba(255,255,255,0.025); }
+    .tuning-table tr.active-row td { background: rgba(240,168,48,0.05); }
+
+    /* ── Rank chip ── */
+    .rank-chip { display: inline-block; width: 22px; height: 22px; border-radius: 50%; background: var(--surface-3); font-size: 11px; font-weight: 700; text-align: center; line-height: 22px; font-family: 'JetBrains Mono', monospace; }
+    .rank-chip.rank-1 { background: rgba(240,168,48,0.2); color: var(--accent); }
+    .rank-chip.rank-2 { background: rgba(248,113,113,0.15); color: var(--red); }
+    .rank-chip.rank-3 { background: rgba(251,191,36,0.15); color: var(--yellow); }
+
+    /* ── SQL ID mono ── */
+    .sql-id { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--blue); letter-spacing: 0.5px; }
+
+    /* ── Schema badge ── */
+    .schema-badge {
+      display: inline-block; padding: 2px 7px; border-radius: 4px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.4px;
+    }
+    .schema-apps { background: var(--yellow-dim); color: var(--yellow); }
+    .schema-other { background: var(--surface-3); color: var(--text-dim); }
+
+    /* ── Metric cell ── */
+    .metric { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text); white-space: nowrap; }
+    .metric.high { color: var(--red); font-weight: 600; }
+    .metric.medium { color: var(--yellow); }
+
+    /* ── Diagnosis tag ── */
+    .diag-tag {
+      display: inline-block; padding: 2px 8px; border-radius: 100px; font-size: 10px; font-weight: 700;
+    }
+    .diag-fts     { background: var(--red-dim);    color: var(--red); }
+    .diag-index   { background: var(--yellow-dim); color: var(--yellow); }
+    .diag-join    { background: var(--blue-dim);   color: var(--blue); }
+    .diag-card    { background: var(--purple-dim); color: var(--purple); }
+    .diag-hint    { background: var(--orange-dim, rgba(251,146,60,0.12)); color: #fb923c; }
+    .diag-other   { background: var(--surface-3);  color: var(--text-dim); }
+    .diag-heuristic { opacity: 0.75; }
+
+    /* ── Plan operations ── */
+    .plan-chips { display: flex; flex-wrap: wrap; gap: 4px; max-width: 220px; }
+    .plan-op {
+      display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px;
+      font-family: 'JetBrains Mono', monospace; white-space: nowrap;
+    }
+    .plan-full { background: var(--red-dim); color: var(--red); }
+    .plan-index { background: var(--green-dim); color: var(--green); }
+    .plan-hash { background: var(--blue-dim); color: var(--blue); }
+    .plan-sort { background: var(--yellow-dim); color: var(--yellow); }
+    .plan-other { background: var(--surface-3); color: var(--text-dim); }
+
+    /* ── Drawer ── */
+    .drawer-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+      z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    }
+    .drawer-backdrop.open { opacity: 1; pointer-events: all; }
+    .drawer {
+      position: fixed; right: 0; top: 0; bottom: 0; width: min(680px, 95vw);
+      background: var(--surface); border-left: 1px solid var(--border);
+      z-index: 201; overflow-y: auto;
+      transform: translateX(100%); transition: transform 0.22s cubic-bezier(0.4,0,0.2,1);
+    }
+    .drawer.open { transform: translateX(0); }
+    .drawer-header {
+      position: sticky; top: 0; background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      z-index: 1;
+    }
+    .drawer-title { font-size: 14px; font-weight: 700; }
+    .drawer-close {
+      background: none; border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text-dim); padding: 5px 10px; cursor: pointer; font-size: 16px;
+      font-family: inherit; transition: all 0.15s; line-height: 1;
+    }
+    .drawer-close:hover { color: var(--text); border-color: rgba(255,255,255,0.3); }
+    .drawer-body { padding: 20px; }
+
+    /* ── Drawer sections ── */
+    .drawer-section { margin-bottom: 24px; }
+    .drawer-section-title {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+      color: var(--text-dim); margin-bottom: 10px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .drawer-section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    /* ── SQL text block ── */
+    .sql-block {
+      background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+      padding: 14px 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px;
+      line-height: 1.7; color: #c9d1d9; overflow-x: auto; white-space: pre; max-height: 260px;
+      overflow-y: auto; position: relative;
+    }
+    .copy-btn {
+      background: var(--surface-3); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text-dim); font-size: 11px; font-weight: 600; cursor: pointer;
+      padding: 5px 10px; font-family: inherit; transition: all 0.15s;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+    .copy-btn.copied { color: var(--green); border-color: var(--green); }
+
+    /* ── Plan tree ── */
+    .plan-tree {
+      background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+      overflow: hidden;
+    }
+    .plan-row {
+      display: grid; grid-template-columns: 28px 1fr auto auto;
+      align-items: center; gap: 8px; padding: 7px 12px; font-size: 12px;
+      border-bottom: 1px solid rgba(42,42,48,0.5);
+    }
+    .plan-row:last-child { border-bottom: none; }
+    .plan-row:hover { background: rgba(255,255,255,0.02); }
+    .plan-step-id { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dim); text-align: right; }
+    .plan-op-text { font-family: 'JetBrains Mono', monospace; color: var(--text); }
+    .plan-op-text .op-obj { color: var(--accent); }
+    .plan-op-text .op-full { color: var(--red); }
+    .plan-op-text .op-index { color: var(--green); }
+    .plan-stats { font-size: 10px; color: var(--text-dim); white-space: nowrap; font-family: 'JetBrains Mono', monospace; }
+    .plan-pred { font-size: 10px; color: var(--blue); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+
+    /* ── AI diagnosis card ── */
+    .ai-card {
+      background: linear-gradient(135deg, rgba(240,168,48,0.08) 0%, rgba(240,168,48,0.03) 100%);
+      border: 1px solid rgba(240,168,48,0.25); border-radius: 10px; padding: 16px;
+    }
+    .ai-card-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+    .ai-card-title { font-size: 13px; font-weight: 700; color: var(--accent); }
+    .heuristic-note { font-size: 10px; color: var(--text-dim); background: var(--surface-3); padding: 2px 7px; border-radius: 4px; }
+    .ai-rationale { font-size: 13px; color: var(--text); margin-bottom: 12px; line-height: 1.5; }
+    .copy-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+    .copy-row-label { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-dim); }
+
+    /* ── Bind table ── */
+    .bind-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .bind-table th { text-align: left; font-size: 10px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--text-dim); padding: 6px 10px; background: var(--surface-2); }
+    .bind-table td { padding: 6px 10px; border-bottom: 1px solid rgba(42,42,48,0.4); font-family: 'JetBrains Mono', monospace; }
+    .bind-table tr:last-child td { border-bottom: none; }
+    .bind-captured { color: var(--green); }
+    .bind-not-captured { color: var(--text-dim); }
+
+    /* ── Metrics row ── */
+    .metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .metric-item { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; }
+    .metric-item-label { font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-dim); }
+    .metric-item-value { font-size: 18px; font-weight: 700; font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+    .metric-item-value.bad { color: var(--red); }
+    .metric-item-value.warn { color: var(--yellow); }
+
+    /* ── EBS program badge ── */
+    .ebs-program-chip { display: inline-flex; align-items: center; gap: 5px; background: var(--yellow-dim); border-radius: 6px; padding: 3px 8px; font-size: 11px; color: var(--yellow); font-weight: 500; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── Empty / loading states ── */
+    .empty-state { text-align: center; padding: 80px 20px; }
+    .empty-icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .empty-sub { color: var(--text-dim); font-size: 14px; max-width: 420px; margin: 0 auto 24px; line-height: 1.6; }
+    .loading-state { text-align: center; padding: 80px 20px; color: var(--text-dim); }
+    .loading-state .spin-icon { font-size: 32px; display: block; animation: spin 0.8s linear infinite; margin-bottom: 14px; }
+    .loading-state p { font-size: 14px; }
+    .error-state { background: var(--red-dim); border: 1px solid var(--red); border-radius: 8px; padding: 14px 18px; font-size: 13px; color: var(--red); margin-bottom: 16px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      #nav-root { padding: 14px 20px; }
+      .page-wrapper { padding: 48px 20px 60px; }
+      .summary-strip { grid-template-columns: repeat(2, 1fr); }
+      .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+      .tuning-table th:nth-child(n+5) { display: none; }
+      .tuning-table td:nth-child(n+5) { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="grain"></div>
+
+<!-- Nav -->
+<div class="nav-wrapper"><nav id="nav-root"></nav></div>
+
+<div class="page-wrapper">
+  <!-- Page header -->
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">SQL Tuning</h1>
+      <p class="page-subtitle">Top resource consumers from V$SQL with AI-generated index and rewrite recommendations</p>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <select id="conn-select" class="conn-select" onchange="onConnChange()">
+      <option value="">Loading connections…</option>
+    </select>
+    <button id="filter-apps" class="filter-toggle on" title="Exclude SYS/SYSTEM/APPS_NE noise schemas" onclick="toggleAppsFilter()">Hide noise schemas</button>
+    <button id="btn-analyze" class="analyze-btn" onclick="runAnalysis()" disabled>
+      <span id="spin-icon">⟳</span>
+      <span id="btn-label">Run Analysis</span>
+    </button>
+    <button class="demo-btn" onclick="runDemo()">View Demo</button>
+  </div>
+
+  <div id="error-banner" class="error-state" style="display:none;"></div>
+  <div id="demo-note" style="display:none;"><div class="demo-badge">⚡ Demo Data — connect a real Oracle DB to analyze your SQL</div></div>
+
+  <!-- Summary strip -->
+  <div id="summary-strip" class="summary-strip" style="display:none;">
+    <div class="summary-tile">
+      <div class="summary-tile-label">Statements Analyzed</div>
+      <div id="kpi-count" class="summary-tile-value">—</div>
+      <div class="summary-tile-sub">top V$SQL by composite score</div>
+    </div>
+    <div class="summary-tile">
+      <div class="summary-tile-label">Worst Elapsed / Exec</div>
+      <div id="kpi-elapsed" class="summary-tile-value">—</div>
+      <div id="kpi-elapsed-sub" class="summary-tile-sub">ms, rank #1</div>
+    </div>
+    <div class="summary-tile">
+      <div class="summary-tile-label">Full Table Scans</div>
+      <div id="kpi-fts" class="summary-tile-value">—</div>
+      <div class="summary-tile-sub">statements with FTS</div>
+    </div>
+    <div class="summary-tile">
+      <div class="summary-tile-label">Index Recs Ready</div>
+      <div id="kpi-idx" class="summary-tile-value">—</div>
+      <div class="summary-tile-sub">CREATE INDEX statements</div>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div id="main-content">
+    <div class="empty-state">
+      <div class="empty-icon">🔍</div>
+      <div class="empty-title">No analysis yet</div>
+      <div class="empty-sub">Select a connection and click <strong>Run Analysis</strong> to collect the top 10 SQL statements from V$SQL and generate tuning recommendations. Results persist between sessions.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Drawer backdrop -->
+<div id="drawer-backdrop" class="drawer-backdrop" onclick="closeDrawer()"></div>
+
+<!-- Detail drawer -->
+<div id="detail-drawer" class="drawer">
+  <div class="drawer-header">
+    <div>
+      <div class="drawer-title" id="drawer-sql-id">SQL Detail</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:2px;" id="drawer-schema"></div>
+    </div>
+    <button class="drawer-close" onclick="closeDrawer()">✕</button>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+</div>
+
+<script src="/connection-state.js"></script>
+<script src="/nav-component.js"></script>
+<script>
+'use strict';
+
+// ── State ────────────────────────────────────────────────────────────────────
+
+var allFindings   = [];
+var filteredFindings = [];
+var hideNoise     = true;   // filter noise schemas by default
+var analyzedAt    = null;
+var activeRowId   = null;
+
+// ── Nav init ─────────────────────────────────────────────────────────────────
+
+window.tvNav.init('sql-tuning');
+
+// ── Auth + boot ──────────────────────────────────────────────────────────────
+
+(async function boot() {
+  try {
+    const r = await fetch('/api/auth/me', { credentials: 'include' });
+    if (!r.ok) { window.location.href = '/login?redirect=/sql-tuning'; return; }
+    await loadConnections();
+    await loadCachedFindings();
+  } catch (e) {
+    console.error('[sql-tuning] boot error:', e);
+  }
+})();
+
+// ── Connections ──────────────────────────────────────────────────────────────
+
+async function loadConnections() {
+  const r = await fetch('/api/connections', { credentials: 'include' });
+  if (!r.ok) return;
+  const data = await r.json();
+  const connections = tvConn.parseList(data);
+  const sel = document.getElementById('conn-select');
+  if (!connections.length) {
+    sel.innerHTML = '<option value="">No connections — add one on Dashboard</option>';
+    return;
+  }
+  sel.innerHTML = '<option value="">Select a connection…</option>';
+  for (const c of connections) {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.name || `${c.host}/${c.service_name}`;
+    sel.appendChild(opt);
+  }
+  tvConn.bind(sel, connections);
+  if (sel.value) {
+    document.getElementById('btn-analyze').disabled = false;
+  } else if (connections.length > 0) {
+    sel.value = connections[0].id;
+    document.getElementById('btn-analyze').disabled = false;
+  }
+}
+
+function onConnChange() {
+  const connId = document.getElementById('conn-select').value;
+  if (connId) tvConn.save(connId);
+  document.getElementById('btn-analyze').disabled = !connId;
+  allFindings = [];
+  filteredFindings = [];
+  hideSummary();
+  document.getElementById('main-content').innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">No analysis yet</div><div class="empty-sub">Click <strong>Run Analysis</strong> to analyze this connection.</div></div>';
+  // Try to load cached findings for this connection
+  if (connId) loadCachedFindings();
+}
+
+// ── Load cached findings (no Oracle trip) ───────────────────────────────────
+
+async function loadCachedFindings() {
+  const connId = document.getElementById('conn-select').value;
+  if (!connId) return;
+  try {
+    const r = await fetch('/api/sql-tuning/' + connId + '/findings', { credentials: 'include' });
+    if (!r.ok) return;
+    const data = await r.json();
+    if (data.findings && data.findings.length > 0) {
+      allFindings = data.findings;
+      applyFilter();
+      renderTable();
+    }
+  } catch (e) { /* silently ignore — will be populated after first analyze */ }
+}
+
+// ── Analysis ─────────────────────────────────────────────────────────────────
+
+async function runAnalysis() {
+  const connId = document.getElementById('conn-select').value;
+  if (!connId) return;
+
+  setAnalyzing(true);
+  hideError();
+  document.getElementById('demo-note').style.display = 'none';
+
+  try {
+    const r = await fetch('/api/sql-tuning/' + connId + '/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+    });
+    if (r.status === 401) { window.location.href = '/login?redirect=/sql-tuning'; return; }
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err.error || 'HTTP ' + r.status);
+    }
+    const data = await r.json();
+    allFindings  = data.findings || [];
+    analyzedAt   = data.analyzed_at;
+    applyFilter();
+    renderTable();
+  } catch (e) {
+    showError('Analysis failed: ' + e.message);
+  } finally {
+    setAnalyzing(false);
+  }
+}
+
+function runDemo() {
+  setAnalyzing(true);
+  hideError();
+  fetch('/api/sql-tuning/demo/findings', { credentials: 'include' })
+    .then(r => r.json())
+    .then(data => {
+      allFindings  = data.findings || [];
+      analyzedAt   = null;
+      applyFilter();
+      renderTable();
+      document.getElementById('demo-note').style.display = 'block';
+    })
+    .catch(e => showError('Demo failed: ' + e.message))
+    .finally(() => setAnalyzing(false));
+}
+
+function setAnalyzing(on) {
+  const btn   = document.getElementById('btn-analyze');
+  const icon  = document.getElementById('spin-icon');
+  const label = document.getElementById('btn-label');
+  btn.disabled = on;
+  if (on) {
+    icon.classList.add('spinner');
+    label.textContent = 'Analyzing…';
+    document.getElementById('main-content').innerHTML =
+      '<div class="loading-state"><span class="spin-icon">⟳</span><p>Querying V$SQL, fetching execution plans, generating AI recommendations…</p></div>';
+    hideSummary();
+  } else {
+    icon.classList.remove('spinner');
+    label.textContent = 'Run Analysis';
+    btn.disabled = !document.getElementById('conn-select').value;
+  }
+}
+
+// ── Filters ──────────────────────────────────────────────────────────────────
+
+var NOISE_SCHEMAS = ['SYS','SYSTEM','DBSNMP','ORACLE_OCM','OUTLN','XDB','CTXSYS','EXFSYS','MDSYS','ORDSYS','WMSYS','OJVMSYS','LBACSYS','DVSYS','AUDSYS','GSMADMIN_INTERNAL','APPS_NE'];
+
+function toggleAppsFilter() {
+  hideNoise = !hideNoise;
+  document.getElementById('filter-apps').classList.toggle('on', hideNoise);
+  applyFilter();
+  renderTable();
+}
+
+function applyFilter() {
+  if (hideNoise) {
+    filteredFindings = allFindings.filter(f => !NOISE_SCHEMAS.includes((f.parsing_schema_name || '').toUpperCase()));
+  } else {
+    filteredFindings = allFindings.slice();
+  }
+}
+
+// ── Render table ─────────────────────────────────────────────────────────────
+
+function renderTable() {
+  renderSummary();
+
+  if (!filteredFindings.length) {
+    document.getElementById('main-content').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">No statements match the current filter</div><div class="empty-sub">Try toggling the noise schema filter.</div></div>';
+    return;
+  }
+
+  var rows = filteredFindings.map(function(f, idx) {
+    var rank = f.rank || (idx + 1);
+    var rankCls = rank <= 3 ? 'rank-' + rank : '';
+    var schemaCls = (f.parsing_schema_name || '') === 'APPS' ? 'schema-apps' : 'schema-other';
+    var planChips = buildPlanChips(f.plan_summary_json || []);
+    var diagTag = buildDiagTag(f);
+    var elapsedCls = f.elapsed_per_exec_ms > 5000 ? 'high' : f.elapsed_per_exec_ms > 1000 ? 'medium' : '';
+    var bufCls    = f.buffer_gets_per_exec > 100000 ? 'high' : f.buffer_gets_per_exec > 20000 ? 'medium' : '';
+
+    return '<tr onclick="openDrawer(' + idx + ')" id="row-' + idx + '">' +
+      '<td><span class="rank-chip ' + rankCls + '">' + rank + '</span></td>' +
+      '<td><span class="sql-id">' + escHtml(f.sql_id || '—') + '</span></td>' +
+      '<td><span class="schema-badge ' + schemaCls + '">' + escHtml(f.parsing_schema_name || '—') + '</span>' +
+        (f.metrics_json && f.metrics_json.ebs_program
+          ? '<br><span class="ebs-program-chip" style="margin-top:4px;">' + escHtml(f.metrics_json.ebs_program) + '</span>'
+          : '') +
+      '</td>' +
+      '<td><span class="metric ' + elapsedCls + '">' + fmtMs(f.elapsed_per_exec_ms) + '</span></td>' +
+      '<td><span class="metric">' + fmtMs(f.cpu_per_exec_ms) + '</span></td>' +
+      '<td><span class="metric ' + bufCls + '">' + fmtNum(f.buffer_gets_per_exec) + '</span></td>' +
+      '<td><div class="plan-chips">' + planChips + '</div></td>' +
+      '<td>' + diagTag + '</td>' +
+      '</tr>';
+  }).join('');
+
+  document.getElementById('main-content').innerHTML =
+    '<div class="table-wrap">' +
+      '<table class="tuning-table">' +
+        '<thead><tr>' +
+          '<th>#</th>' +
+          '<th>SQL ID</th>' +
+          '<th>Schema / Program</th>' +
+          '<th>Elapsed/Exec</th>' +
+          '<th>CPU/Exec</th>' +
+          '<th>Buffer Gets/Exec</th>' +
+          '<th>Plan Ops</th>' +
+          '<th>Diagnosis</th>' +
+        '</tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table>' +
+    '</div>' +
+    (analyzedAt ? '<div style="margin-top:10px;font-size:11px;color:var(--text-dim);text-align:right;">Analyzed ' + fmtTime(analyzedAt) + '</div>' : '');
+}
+
+// ── Plan chips ────────────────────────────────────────────────────────────────
+
+function buildPlanChips(plan) {
+  var seen = {};
+  var chips = [];
+  for (var i = 0; i < plan.length; i++) {
+    var op = plan[i];
+    var key = op.operation + '|' + (op.options || '');
+    if (seen[key]) continue;
+    seen[key] = true;
+    var cls = 'plan-other';
+    var label = op.operation;
+    if (op.options) label += ' ' + op.options;
+    if (op.operation === 'TABLE ACCESS' && op.options === 'FULL') { cls = 'plan-full'; label = 'FTS'; }
+    else if (op.operation === 'TABLE ACCESS' && op.options === 'BY INDEX ROWID') { cls = 'plan-index'; label = 'IDX ROWID'; }
+    else if (op.operation === 'INDEX') { cls = 'plan-index'; label = op.options || 'INDEX'; }
+    else if (op.operation === 'HASH JOIN') { cls = 'plan-hash'; label = 'HASH JOIN'; }
+    else if (op.operation === 'SORT') { cls = 'plan-sort'; label = 'SORT ' + (op.options || ''); }
+    else if (op.operation === 'NESTED LOOPS') { cls = 'plan-hash'; label = 'NL JOIN'; }
+    else continue; // Skip SELECT STATEMENT, FILTER, VIEW, etc.
+    chips.push('<span class="plan-op ' + cls + '">' + escHtml(label) + '</span>');
+    if (chips.length >= 4) break;
+  }
+  return chips.join('') || '<span style="font-size:11px;color:var(--text-dim);">—</span>';
+}
+
+// ── Diagnosis tag ─────────────────────────────────────────────────────────────
+
+var DIAG_MAP = {
+  'full_table_scan':       ['diag-fts',   'Full Table Scan'],
+  'missing_index':         ['diag-index', 'Missing Index'],
+  'bad_join_order':        ['diag-join',  'Join Order'],
+  'cardinality_misestimate': ['diag-card', 'Cardinality'],
+  'bind_peeking':          ['diag-hint',  'Bind Peeking'],
+  'cursor_sharing':        ['diag-hint',  'Cursor Sharing'],
+  'redundant_sort':        ['diag-sort',  'Redundant Sort'],
+  'unnecessary_distinct':  ['diag-hint',  'Unnecessary DISTINCT'],
+  'subquery_unnesting':    ['diag-hint',  'Subquery'],
+  'other':                 ['diag-other', 'Other'],
+};
+
+function buildDiagTag(f) {
+  if (!f.diagnosis_tag && !f.fix_type) return '<span style="color:var(--text-dim);font-size:11px;">—</span>';
+  var tag = f.diagnosis_tag || 'other';
+  var entry = DIAG_MAP[tag] || ['diag-other', tag];
+  var extraCls = f.is_heuristic ? ' diag-heuristic' : '';
+  return '<span class="diag-tag ' + entry[0] + extraCls + '">' + escHtml(entry[1]) + (f.is_heuristic ? ' *' : '') + '</span>';
+}
+
+// ── Summary strip ─────────────────────────────────────────────────────────────
+
+function renderSummary() {
+  var findings = filteredFindings;
+  if (!findings.length) { hideSummary(); return; }
+
+  var top = findings[0];
+  var ftsCount = findings.filter(function(f) { return f.diagnosis_tag === 'full_table_scan'; }).length;
+  var idxCount = findings.filter(function(f) { return f.fix_type === 'index' && f.recommended_sql_text; }).length;
+
+  document.getElementById('kpi-count').textContent = findings.length;
+  document.getElementById('kpi-elapsed').textContent = fmtMs(top.elapsed_per_exec_ms);
+  document.getElementById('kpi-elapsed-sub').textContent = 'ms, rank #' + (top.rank || 1);
+  document.getElementById('kpi-fts').textContent = ftsCount;
+  document.getElementById('kpi-idx').textContent = idxCount;
+  document.getElementById('summary-strip').style.display = 'grid';
+}
+
+function hideSummary() {
+  document.getElementById('summary-strip').style.display = 'none';
+}
+
+// ── Drawer ────────────────────────────────────────────────────────────────────
+
+function openDrawer(idx) {
+  var f = filteredFindings[idx];
+  if (!f) return;
+
+  // Highlight active row
+  if (activeRowId !== null) {
+    var prev = document.getElementById('row-' + activeRowId);
+    if (prev) prev.classList.remove('active-row');
+  }
+  activeRowId = idx;
+  var row = document.getElementById('row-' + idx);
+  if (row) row.classList.add('active-row');
+
+  document.getElementById('drawer-sql-id').textContent = f.sql_id || '—';
+  document.getElementById('drawer-schema').textContent = 'Schema: ' + (f.parsing_schema_name || '—') + ' · Plan hash: ' + (f.plan_hash || '—');
+
+  var body = '';
+
+  // ── Metrics ──
+  body += '<div class="drawer-section">';
+  body += '<div class="drawer-section-title">Runtime Metrics</div>';
+  body += '<div class="metrics-grid">';
+  body += metricItem('Elapsed / Exec', fmtMs(f.elapsed_per_exec_ms) + ' ms', f.elapsed_per_exec_ms > 5000 ? 'bad' : f.elapsed_per_exec_ms > 1000 ? 'warn' : '');
+  body += metricItem('CPU / Exec', fmtMs(f.cpu_per_exec_ms) + ' ms', f.cpu_per_exec_ms > 4000 ? 'bad' : f.cpu_per_exec_ms > 800 ? 'warn' : '');
+  body += metricItem('Buffer Gets / Exec', fmtNum(f.buffer_gets_per_exec), f.buffer_gets_per_exec > 100000 ? 'bad' : f.buffer_gets_per_exec > 20000 ? 'warn' : '');
+  body += metricItem('Disk Reads / Exec', fmtNum(f.disk_reads_per_exec), f.disk_reads_per_exec > 5000 ? 'bad' : '');
+  body += metricItem('Executions', fmtNum(f.executions), '');
+  body += metricItem('Rows / Exec', fmtNum(f.rows_processed_per_exec), '');
+  body += '</div>';
+  if (f.metrics_json && f.metrics_json.ebs_program) {
+    body += '<div style="margin-top:10px;"><span class="ebs-program-chip">📋 ' + escHtml(f.metrics_json.ebs_program) + '</span></div>';
+  }
+  if (f.metrics_json && f.metrics_json.is_rac) {
+    body += '<div style="margin-top:8px;font-size:11px;color:var(--blue);">RAC instance — stats from local node only</div>';
+  }
+  body += '</div>';
+
+  // ── AI Diagnosis ──
+  if (f.ai_recommendation_text || f.recommended_sql_text) {
+    body += '<div class="drawer-section">';
+    body += '<div class="drawer-section-title">AI Diagnosis</div>';
+    body += '<div class="ai-card">';
+    body += '<div class="ai-card-header">';
+    body += '<span class="ai-card-title">' + (buildDiagTag(f)) + ' &nbsp;' + escHtml(f.ai_recommendation_text || '') + '</span>';
+    if (f.is_heuristic) body += '<span class="heuristic-note">Heuristic (no AI)</span>';
+    body += '</div>';
+    if (f.recommended_sql_text) {
+      body += '<div class="copy-row">';
+      body += '<span class="copy-row-label">Recommended SQL</span>';
+      body += '<button class="copy-btn" id="copy-rec-btn" onclick="copyText(\'' + escAttr(f.recommended_sql_text) + '\', \'copy-rec-btn\')">';
+      body += '<span>📋</span> Copy';
+      body += '</button>';
+      body += '</div>';
+      body += '<div class="sql-block">' + syntaxHighlight(f.recommended_sql_text) + '</div>';
+    }
+    body += '</div>';
+    body += '</div>';
+  }
+
+  // ── Full SQL ──
+  if (f.sql_text) {
+    body += '<div class="drawer-section">';
+    body += '<div class="drawer-section-title" style="justify-content:space-between;"><span>Full SQL</span>';
+    body += '<button class="copy-btn" id="copy-sql-btn" onclick="copyText(\'' + escAttr(f.sql_text) + '\', \'copy-sql-btn\')"><span>📋</span> Copy</button>';
+    body += '</div>';
+    body += '<div class="sql-block">' + syntaxHighlight(f.sql_text) + '</div>';
+    body += '</div>';
+  }
+
+  // ── Execution Plan ──
+  var plan = f.plan_summary_json || [];
+  if (plan.length > 0) {
+    body += '<div class="drawer-section">';
+    body += '<div class="drawer-section-title">Execution Plan (' + plan.length + ' steps)</div>';
+    body += '<div class="plan-tree">';
+    for (var i = 0; i < plan.length; i++) {
+      var step = plan[i];
+      var indent = getIndent(step, plan) * 12;
+      var isFull = step.operation === 'TABLE ACCESS' && step.options === 'FULL';
+      var isIdx  = step.operation === 'INDEX' || (step.operation === 'TABLE ACCESS' && step.options === 'BY INDEX ROWID');
+      var opCls = isFull ? 'op-full' : isIdx ? 'op-index' : '';
+      var opText = '<span class="' + opCls + '" style="margin-left:' + indent + 'px;">' + escHtml(step.operation);
+      if (step.options) opText += ' <span style="opacity:0.7;">' + escHtml(step.options) + '</span>';
+      if (step.object_name) opText += ' <span class="op-obj">' + escHtml((step.object_owner ? step.object_owner + '.' : '') + step.object_name) + '</span>';
+      opText += '</span>';
+      var pred = step.access_predicates || step.filter_predicates || '';
+      body += '<div class="plan-row">';
+      body += '<span class="plan-step-id">' + (i) + '</span>';
+      body += '<span class="plan-op-text">' + opText + '</span>';
+      body += '<span class="plan-stats">cost=' + (step.cost ?? '?') + ' card=' + (step.cardinality ?? '?') + '</span>';
+      body += pred ? '<span class="plan-pred" title="' + escHtml(pred) + '">' + escHtml(pred.slice(0, 60)) + (pred.length > 60 ? '…' : '') + '</span>' : '<span></span>';
+      body += '</div>';
+    }
+    body += '</div>';
+    body += '</div>';
+  }
+
+  // ── Bind variables ──
+  var binds = (f.metrics_json && f.metrics_json.binds) || [];
+  if (binds.length > 0) {
+    body += '<div class="drawer-section">';
+    body += '<div class="drawer-section-title">Bind Variables (' + binds.length + ')</div>';
+    body += '<table class="bind-table"><thead><tr><th>Name</th><th>Type</th><th>Peeked Value</th></tr></thead><tbody>';
+    for (var b = 0; b < binds.length; b++) {
+      var bv = binds[b];
+      var capCls = bv.was_captured === 'YES' ? 'bind-captured' : 'bind-not-captured';
+      body += '<tr>';
+      body += '<td>' + escHtml(bv.name || '') + '</td>';
+      body += '<td>' + escHtml(bv.datatype_string || '') + '</td>';
+      body += '<td class="' + capCls + '">' + (bv.value_string != null ? escHtml(bv.value_string) : '<em style="color:var(--text-dim)">not captured</em>') + '</td>';
+      body += '</tr>';
+    }
+    body += '</tbody></table>';
+    body += '</div>';
+  }
+
+  document.getElementById('drawer-body').innerHTML = body;
+  document.getElementById('detail-drawer').classList.add('open');
+  document.getElementById('drawer-backdrop').classList.add('open');
+}
+
+// Approximate indent from parent_id chain
+function getIndent(step, plan) {
+  var depth = 0;
+  var current = step;
+  while (current && current.parent_id != null) {
+    var parent = plan.find(function(p) { return p.id === current.parent_id; });
+    if (!parent || parent === current) break;
+    depth++;
+    current = parent;
+    if (depth > 20) break;
+  }
+  return depth;
+}
+
+function closeDrawer() {
+  document.getElementById('detail-drawer').classList.remove('open');
+  document.getElementById('drawer-backdrop').classList.remove('open');
+  if (activeRowId !== null) {
+    var row = document.getElementById('row-' + activeRowId);
+    if (row) row.classList.remove('active-row');
+    activeRowId = null;
+  }
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function metricItem(label, value, cls) {
+  return '<div class="metric-item"><div class="metric-item-label">' + escHtml(label) + '</div><div class="metric-item-value ' + (cls || '') + '">' + value + '</div></div>';
+}
+
+function fmtMs(v) { return v != null ? Number(v).toLocaleString(undefined, { maximumFractionDigits: 1 }) : '—'; }
+function fmtNum(v) { return v != null ? Number(v).toLocaleString() : '—'; }
+function fmtTime(iso) { try { return new Date(iso).toLocaleString(); } catch (e) { return iso; } }
+
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Escape for attribute value (single-quote delimited onclick strings)
+function escAttr(s) {
+  return String(s || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n').replace(/\r/g,'');
+}
+
+// Very basic SQL keyword highlighting
+function syntaxHighlight(sql) {
+  var esc = escHtml(sql);
+  var kw = ['SELECT','FROM','WHERE','JOIN','LEFT','RIGHT','INNER','OUTER','ON','AND','OR','NOT','IN',
+            'GROUP BY','ORDER BY','HAVING','UNION','DISTINCT','INSERT','UPDATE','DELETE','CREATE','INDEX',
+            'TABLE','INTO','VALUES','SET','AS','BY','CASE','WHEN','THEN','ELSE','END','NULL','IS',
+            'BETWEEN','LIKE','EXISTS','FETCH','FIRST','ROWS','ONLY','TABLESPACE'];
+  for (var i = 0; i < kw.length; i++) {
+    var re = new RegExp('\\b(' + kw[i] + ')\\b', 'g');
+    esc = esc.replace(re, '<span style="color:#79c0ff;font-weight:600;">$1</span>');
+  }
+  return esc;
+}
+
+async function copyText(text, btnId) {
+  try {
+    await navigator.clipboard.writeText(text);
+    var btn = document.getElementById(btnId);
+    if (btn) {
+      btn.classList.add('copied');
+      btn.innerHTML = '<span>✓</span> Copied!';
+      setTimeout(function() {
+        btn.classList.remove('copied');
+        btn.innerHTML = '<span>📋</span> Copy';
+      }, 2000);
+    }
+  } catch (e) {
+    console.error('Copy failed:', e);
+  }
+}
+
+function showError(msg) {
+  var el = document.getElementById('error-banner');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function hideError() {
+  document.getElementById('error-banner').style.display = 'none';
+}
+
+// Close drawer on Escape key
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeDrawer();
+});
+</script>
+<script src="/tv-tracker.js"></script>
+<div style="text-align:center;padding:24px 16px 16px;border-top:1px solid rgba(255,255,255,0.05);margin-top:32px;">
+  <span style="font-size:12px;color:#9898a8;">Need help? <a href="mailto:support@tunevault.app" style="color:#f0a830;text-decoration:none;">support@tunevault.app</a></span>
+</div>
+<script src="/tunebot.js"></script>
+</body>
+</html>

@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TuneVault Terms of Service — Acceptable Use &amp; Data Rights</title>
+    <meta name="application-name" content="TuneVault">
+    <meta name="description" content="TuneVault Terms of Service — acceptable use, service availability, payment terms, and your data rights.">
+    <link rel="canonical" href="https://tunevault.app/terms">
+    <!-- Open Graph -->
+    <meta property="og:title" content="Terms of Service — TuneVault">
+    <meta property="og:description" content="TuneVault Terms of Service — acceptable use, service availability, payment terms, and your data rights.">
+    <meta property="og:url" content="https://tunevault.app/terms">
+    <meta property="og:image" content="https://tunevault.app/og/home.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="TuneVault — AI Oracle DBA Agent with 100+ health checks">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="TuneVault">
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Terms of Service — TuneVault">
+    <meta name="twitter:description" content="TuneVault Terms of Service — acceptable use, service availability, payment terms, and your data rights.">
+    <meta name="twitter:image" content="https://tunevault.app/og/home.png">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://tunevault.app/#organization","name":"TuneVault","url":"https://tunevault.app","logo":{"@type":"ImageObject","url":"https://tunevault.app/logo.png","width":512,"height":512}},{"@type":"WebSite","@id":"https://tunevault.app/#website","name":"TuneVault","url":"https://tunevault.app","publisher":{"@id":"https://tunevault.app/#organization"}}]}</script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0c;
+            --surface: #111114;
+            --surface-2: #1a1a1f;
+            --border: #2a2a30;
+            --text: #e8e8ed;
+            --text-dim: #b8b8c8;
+            --accent: #f0a830;
+            --accent-dim: rgba(240, 168, 48, 0.12);
+            --green: #34d399;
+            --red: #f87171;
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        .grain {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 999;
+        }
+
+
+
+        /* Hero */
+        .hero {
+            max-width: 760px;
+            margin: 64px auto 0;
+            padding: 0 32px;
+        }
+
+        .page-tag {
+            display: inline-block;
+            font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--accent);
+            background: var(--accent-dim);
+            padding: 4px 12px;
+            border-radius: 100px;
+            margin-bottom: 20px;
+            letter-spacing: 0.05em;
+        }
+
+        h1 {
+            font-size: clamp(28px, 4vw, 40px);
+            font-weight: 700;
+            letter-spacing: -1px;
+            line-height: 1.1;
+            margin-bottom: 16px;
+        }
+
+        .effective-date {
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 48px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Content */
+        .content {
+            max-width: 760px;
+            margin: 0 auto 80px;
+            padding: 0 32px;
+        }
+
+        .toc {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 24px 28px;
+            margin-bottom: 48px;
+        }
+
+        .toc h3 {
+            font-size: 13px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 14px;
+        }
+
+        .toc ol {
+            list-style: decimal;
+            padding-left: 18px;
+        }
+
+        .toc li { margin-bottom: 6px; }
+
+        .toc a {
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 14px;
+            transition: opacity 0.2s;
+        }
+
+        .toc a:hover { opacity: 0.75; }
+
+        section {
+            margin-bottom: 48px;
+            padding-bottom: 48px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        section:last-child { border-bottom: none; }
+
+        h2 {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            margin-bottom: 16px;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h2::before {
+            content: '';
+            display: inline-block;
+            width: 3px;
+            height: 20px;
+            background: var(--accent);
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        p {
+            color: var(--text-dim);
+            margin-bottom: 14px;
+            font-size: 15px;
+        }
+
+        p:last-child { margin-bottom: 0; }
+
+        ul, ol {
+            padding-left: 20px;
+            margin-bottom: 14px;
+        }
+
+        li {
+            color: var(--text-dim);
+            font-size: 15px;
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+
+        .highlight-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--accent);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 20px 0;
+        }
+
+        .highlight-box p {
+            font-size: 14px;
+            margin: 0;
+            color: var(--text);
+        }
+
+        .warning-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--red);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 20px 0;
+        }
+
+        .warning-box p {
+            font-size: 14px;
+            margin: 0;
+            color: var(--text);
+        }
+
+        .warning-box strong { color: var(--red); }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        a:hover { text-decoration: underline; }
+
+        strong { color: var(--text); }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--border);
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 32px 48px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        footer span { font-size: 13px; color: var(--text-dim); }
+
+        footer .brand-name { color: var(--accent); }
+
+        .footer-links {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .footer-links a {
+            font-size: 13px;
+            color: var(--text-dim);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover { color: var(--accent); }
+        .footer-links a.active { color: var(--accent); }
+
+        @media (max-width: 640px) {
+            .hero, .content { padding: 0 20px; }
+            .hero { margin-top: 40px; }
+            footer { padding: 24px 20px; flex-direction: column; align-items: flex-start; }
+            .footer-links { flex-wrap: wrap; gap: 14px; }
+        }
+    </style>
+</head>
+<body>
+<div class="grain"></div>
+
+<nav id="nav-root"></nav>
+
+<div class="hero">
+    <div class="page-tag">LEGAL</div>
+    <h1>Terms of Service</h1>
+    <div class="effective-date">Effective: May 12, 2026 · Last updated: May 12, 2026</div>
+</div>
+
+<div class="content">
+
+    <div class="toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#acceptance">Acceptance of Terms</a></li>
+            <li><a href="#acceptable-use">Acceptable Use</a></li>
+            <li><a href="#service-availability">Service Availability</a></li>
+            <li><a href="#payment-terms">Payment Terms</a></li>
+            <li><a href="#data-ownership">Data Ownership</a></li>
+            <li><a href="#liability">Limitation of Liability</a></li>
+            <li><a href="#termination">Termination</a></li>
+            <li><a href="#changes">Changes to Terms</a></li>
+            <li><a href="#governing-law">Governing Law</a></li>
+            <li><a href="#contact">Contact</a></li>
+        </ol>
+    </div>
+
+    <section id="acceptance">
+        <h2>Acceptance of Terms</h2>
+        <p>By creating an account or using TuneVault ("the Service"), you agree to be bound by these Terms of Service. If you are using TuneVault on behalf of an organization, you represent that you have the authority to bind that organization to these terms.</p>
+        <p>If you do not agree to these terms, do not use the Service.</p>
+    </section>
+
+    <section id="acceptable-use">
+        <h2>Acceptable Use</h2>
+        <p>TuneVault is a diagnostic and operational intelligence tool for Oracle databases. You agree to use it only for lawful purposes and only with databases you own or are explicitly authorized to access.</p>
+
+        <div class="warning-box">
+            <p><strong>Prohibited:</strong> Using TuneVault to connect to Oracle databases you do not own, manage, or have written authorization to access. This includes competitor reconnaissance, unauthorized security scanning, or any access that violates applicable computer access laws.</p>
+        </div>
+
+        <p>You also agree not to:</p>
+        <ul>
+            <li>Attempt to reverse-engineer, decompile, or extract TuneVault's source code or AI models</li>
+            <li>Use the Service to build a competing product</li>
+            <li>Circumvent rate limits, authentication, or usage quotas through automated means</li>
+            <li>Introduce malicious code, bots, or scrapers to the platform</li>
+            <li>Resell or sublicense access to the Service without written permission</li>
+        </ul>
+
+        <p>TuneVault is an advisory tool. All control actions (EBS commands, database operations) are executed at your direction and under your supervision. You remain fully responsible for any actions taken on your databases based on TuneVault's output.</p>
+    </section>
+
+    <section id="service-availability">
+        <h2>Service Availability</h2>
+        <div class="highlight-box">
+            <p><strong>No SLA at this stage.</strong> TuneVault is provided on a commercially reasonable efforts basis. We target high availability but do not guarantee any specific uptime percentage or offer service credits for downtime.</p>
+        </div>
+        <p>We perform maintenance windows with advance notice where possible. For critical production use cases, we recommend retaining your own DBA capacity alongside TuneVault's automated tooling.</p>
+        <p>We reserve the right to modify or discontinue features with reasonable notice. Material feature removals affecting paid plans will include a notification period of at least 30 days.</p>
+    </section>
+
+    <section id="payment-terms">
+        <h2>Payment Terms</h2>
+        <p><strong>Payment processor:</strong> All payments are handled by Razorpay. TuneVault does not store credit card numbers or banking credentials.</p>
+        <ul>
+            <li><strong>One-time purchases:</strong> Charged immediately, non-refundable after health check credits are consumed.</li>
+            <li><strong>Monthly subscriptions:</strong> Billed monthly in advance. Cancel at any time — your plan remains active through the end of the billing period.</li>
+            <li><strong>Refunds:</strong> Unused credits on annual or monthly plans are refundable on a pro-rata basis within 7 days of purchase if no health checks have been run. Contact <a href="mailto:support@tunevault.app">support@tunevault.app</a> to request a refund.</li>
+            <li><strong>Price changes:</strong> We will provide 30 days' notice before changing pricing for existing subscribers. New pricing applies at your next renewal.</li>
+            <li><strong>Failed payments:</strong> If a subscription payment fails, we will retry for up to 7 days before suspending access. Data is retained during suspension and for 30 days after.</li>
+        </ul>
+    </section>
+
+    <section id="data-ownership">
+        <h2>Data Ownership</h2>
+        <p><strong>You own your data.</strong> Your Oracle connection metadata, health check results, and any configuration you provide remain yours. TuneVault is a data processor — not a data owner.</p>
+        <ul>
+            <li>You grant TuneVault a limited license to process your data solely to deliver the Service.</li>
+            <li>We do not use your database diagnostic data to train AI models or share it with third parties beyond what is necessary to operate the Service.</li>
+            <li>On account deletion, all your data is purged within 30 days. You may request a data export before deletion via <a href="mailto:privacy@tunevault.app">privacy@tunevault.app</a>.</li>
+        </ul>
+        <p>For full details on data handling, see our <a href="/privacy">Privacy Policy</a>.</p>
+    </section>
+
+    <section id="liability">
+        <h2>Limitation of Liability</h2>
+        <p>TuneVault is a diagnostic and advisory platform. We provide information about the state of your databases — we do not act autonomously without your explicit instruction.</p>
+        <p><strong>TuneVault is not responsible for:</strong></p>
+        <ul>
+            <li>Actions taken on your databases based on TuneVault's recommendations or findings</li>
+            <li>Data loss, corruption, or downtime resulting from EBS control operations, database commands, or remediation steps you choose to execute</li>
+            <li>Inaccurate or incomplete diagnostic results due to Oracle version differences, custom configurations, or network connectivity issues</li>
+            <li>Losses arising from unauthorized access to your databases through compromised credentials you provided</li>
+        </ul>
+        <p>To the maximum extent permitted by law, TuneVault's aggregate liability for any claim arising from use of the Service is limited to the amount you paid for the Service in the 12 months preceding the claim. We are not liable for indirect, consequential, incidental, or punitive damages.</p>
+        <p>Some jurisdictions do not allow limitation of liability — in those cases, the above limit applies to the fullest extent permitted.</p>
+    </section>
+
+    <section id="termination">
+        <h2>Termination</h2>
+        <p><strong>By you:</strong> Cancel your subscription at any time from your account settings. Your access remains active through the end of the current billing period. After cancellation, your data is retained for 30 days before deletion unless you request immediate deletion.</p>
+        <p><strong>By TuneVault:</strong> We reserve the right to suspend or terminate accounts that violate these Terms, particularly the Acceptable Use provisions. We will provide notice where possible, except in cases of severe or ongoing abuse.</p>
+        <p><strong>After termination:</strong> All data associated with your account is deleted within 30 days. Payment records required for financial compliance are retained per applicable law (typically 7 years).</p>
+    </section>
+
+    <section id="changes">
+        <h2>Changes to Terms</h2>
+        <p>We may update these Terms to reflect product changes, legal requirements, or business updates. Material changes will be communicated by email to registered users at least 14 days before taking effect.</p>
+        <p>Continued use of the Service after the effective date constitutes acceptance of the updated Terms. If you disagree with a change, you may cancel before the effective date.</p>
+    </section>
+
+    <section id="governing-law">
+        <h2>Governing Law</h2>
+        <p>These Terms are governed by the laws applicable to the jurisdiction in which TuneVault operates, without regard to conflict of law principles. Disputes will be resolved through good-faith negotiation first; if unresolved, through binding arbitration.</p>
+        <p>Nothing in these terms limits your statutory rights as a consumer under applicable local law.</p>
+    </section>
+
+    <section id="contact">
+        <h2>Contact</h2>
+        <p>Legal inquiries: <a href="mailto:legal@tunevault.app">legal@tunevault.app</a></p>
+        <p>Support: <a href="mailto:support@tunevault.app">support@tunevault.app</a></p>
+        <p>General: <a href="mailto:hello@tunevault.app">hello@tunevault.app</a></p>
+    </section>
+
+</div>
+
+<footer>
+    <span><span class="brand-name">TuneVault</span> &copy; 2026</span>
+    <div class="footer-links">
+        <a href="/about">About</a>
+        <a href="/blog">Blog</a>
+        <a href="/docs/oracle-setup">Setup Guide</a>
+        <a href="/security">Security</a>
+        <a href="/trust">Trust Center</a>
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/terms" class="active">Terms of Service</a>
+    </div>
+</footer>
+
+<script src="/nav-component.js"></script>
+<script>window.tvNav.init("main");</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

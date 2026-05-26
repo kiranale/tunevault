@@ -1,0 +1,1487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sample Oracle Health Report — TuneVault</title>
+    <meta name="description" content="See a real TuneVault Oracle health check report: 200+ diagnostic checks, AI recommendations, storage alerts, backup status, EBS Concurrent Manager queue, and security findings — no signup required.">
+    <link rel="canonical" href="https://tunevault.app/sample-report">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="apple-touch-icon" href="/favicon.svg">
+    <!-- Open Graph -->
+    <meta property="og:title" content="Sample Oracle Health Check Report — TuneVault">
+    <meta property="og:description" content="200+ diagnostic checks on a real Oracle 19c EBS R12.2.10 instance. Storage at 92.5%, RMAN backup 9 days overdue, 4 users with default passwords. This is what your report looks like.">
+    <meta property="og:image" content="https://tunevault.app/og/home.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="TuneVault — AI Oracle DBA Agent with 100+ health checks">
+    <meta property="og:url" content="https://tunevault.app/sample-report">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="TuneVault">
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Sample Oracle Health Check Report — TuneVault">
+    <meta name="twitter:description" content="Storage at 92.5%, RMAN backup 9 days overdue, 4 default-password users. See exactly what TuneVault produces on your Oracle instance.">
+    <meta name="twitter:image" content="https://tunevault.app/og/home.png">
+    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://tunevault.app/#organization","name":"TuneVault","url":"https://tunevault.app","logo":{"@type":"ImageObject","url":"https://tunevault.app/og/home.png","width":1200,"height":630},"description":"AI agent that autonomously manages Oracle database operations."},{"@type":"WebPage","@id":"https://tunevault.app/sample-report","url":"https://tunevault.app/sample-report","name":"Sample Oracle Health Check Report — TuneVault","description":"See a real TuneVault Oracle health check report: 200+ diagnostic checks, AI recommendations, storage alerts, backup status, and security findings. No signup required.","isPartOf":{"@id":"https://tunevault.app/#website"},"publisher":{"@id":"https://tunevault.app/#organization"}},{"@type":"SoftwareApplication","name":"TuneVault Oracle Health Check","applicationCategory":"BusinessApplication","operatingSystem":"Cloud","provider":{"@id":"https://tunevault.app/#organization"},"description":"200+ automated Oracle database health checks with AI-powered analysis. Covers storage, performance, security, RMAN backup, EBS Concurrent Manager, and more.","screenshot":"https://tunevault.app/og/home.png"}]}</script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0a0a0c;
+            --surface: #111114;
+            --surface-2: #1a1a1f;
+            --border: #2a2a30;
+            --text: #e8e8ed;
+            --text-dim: #b8b8c8;
+            --accent: #f0a830;
+            --accent-dim: rgba(240, 168, 48, 0.12);
+            --green: #34d399;
+            --red: #f87171;
+            --yellow: #fbbf24;
+            --blue: #60a5fa;
+            --purple: #a78bfa;
+        }
+        body {
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        .grain {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+            pointer-events: none; z-index: 999;
+        }
+
+        /* ============================================================
+           SAMPLE BANNER
+        ============================================================ */
+        .sample-banner {
+            background: linear-gradient(135deg, rgba(240,168,48,0.12) 0%, rgba(240,168,48,0.05) 100%);
+            border-bottom: 1px solid rgba(240,168,48,0.3);
+            padding: 13px 48px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .sample-banner-text {
+            font-size: 13px;
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .sample-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(240,168,48,0.15);
+            border: 1px solid rgba(240,168,48,0.4);
+            color: var(--accent);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 10px;
+            border-radius: 100px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            flex-shrink: 0;
+        }
+        .sample-cta-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 20px;
+            background: var(--accent);
+            color: #0a0a0c;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .sample-cta-btn:hover { background: #e09820; transform: translateY(-1px); }
+        @media (max-width: 600px) {
+            .sample-banner { padding: 12px 16px; }
+        }
+
+        /* Nav — rendered by nav-component.js */
+        #nav-root { display: flex; align-items: center; justify-content: space-between; padding: 16px 48px; max-width: 1400px; margin: 0 auto; }
+
+        /* ============================================================
+           VITALS BAR
+        ============================================================ */
+        .vitals-bar {
+            position: sticky; top: 0; z-index: 9999;
+            background: rgba(17,17,20,0.97);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+        }
+        .vitals-inner {
+            max-width: 1400px; margin: 0 auto; padding: 0 48px;
+            display: flex; align-items: center; gap: 0;
+            overflow-x: auto; scrollbar-width: none;
+        }
+        .vitals-inner::-webkit-scrollbar { display: none; }
+        .vital-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 11px 20px; border-right: 1px solid var(--border);
+            white-space: nowrap; flex-shrink: 0;
+        }
+        .vital-item:last-child { border-right: none; margin-left: auto; }
+        .vital-label { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); }
+        .vital-value { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 500; color: var(--text); }
+        .vital-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .vital-dot.ok { background: var(--green); box-shadow: 0 0 6px rgba(52,211,153,0.6); }
+        .vital-dot.warn { background: var(--yellow); box-shadow: 0 0 6px rgba(251,191,36,0.6); }
+        .vital-dot.crit { background: var(--red); box-shadow: 0 0 6px rgba(248,113,113,0.6); }
+        .vital-timestamp { font-size: 11px; color: var(--text-dim); display: flex; align-items: center; gap: 6px; }
+        @media (max-width: 768px) { .vitals-inner { padding: 0 16px; } .vital-label { display: none; } .vital-item { padding: 11px 12px; gap: 6px; } }
+
+        /* ============================================================
+           MAIN CONTAINER
+        ============================================================ */
+        .container { max-width: 1400px; margin: 0 auto; padding: 28px 48px 80px; }
+        @media (max-width: 768px) { #nav-root { padding: 16px 20px; } .container { padding: 20px 16px 60px; } .sample-banner { padding: 12px 16px; } }
+
+        /* ============================================================
+           REPORT HEADER
+        ============================================================ */
+        .report-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; gap: 24px; }
+        .report-title h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.8px; margin-bottom: 4px; }
+        .report-meta { font-size: 13px; color: var(--text-dim); display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+        .report-meta .dot { width: 4px; height: 4px; background: var(--border); border-radius: 50%; }
+        .app-pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 10px; background: rgba(96,165,250,0.12); border: 1px solid rgba(96,165,250,0.25); border-radius: 100px; font-size: 11px; font-weight: 500; color: var(--blue); }
+
+        /* Score ring */
+        .score-ring-wrapper { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .score-ring { width: 80px; height: 80px; position: relative; flex-shrink: 0; }
+        .score-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+        .score-ring circle { fill: none; stroke-width: 6; }
+        .score-ring .bg { stroke: var(--surface-2); }
+        .score-ring .fg { stroke-linecap: round; }
+        .score-ring .score-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 700; }
+        .score-ring-label { font-size: 10px; color: var(--text-dim); white-space: nowrap; text-align: center; }
+
+        /* Score cards */
+        .scores-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 28px; }
+        .score-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; }
+        .score-card-value { font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+        .score-card-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        @media (max-width: 600px) { .scores-row { grid-template-columns: repeat(3, 1fr); } }
+
+        /* ============================================================
+           TABS
+        ============================================================ */
+        .tabs-nav {
+            display: flex; gap: 2px; margin-bottom: 28px;
+            background: var(--surface); padding: 4px; border-radius: 12px;
+            border: 1px solid var(--border); overflow-x: auto; scrollbar-width: none;
+        }
+        .tabs-nav::-webkit-scrollbar { display: none; }
+        .tab-btn {
+            flex-shrink: 0; padding: 9px 16px; border-radius: 8px;
+            font-family: 'Space Grotesk', sans-serif; font-size: 13px; font-weight: 500;
+            cursor: pointer; border: none; background: transparent;
+            color: var(--text-dim); transition: all 0.2s;
+            display: flex; align-items: center; gap: 6px; white-space: nowrap;
+        }
+        .tab-btn.active { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+        .tab-btn:hover:not(.active) { color: var(--text); }
+        .tab-badge { font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .tab-badge-crit { background: rgba(248,113,113,0.2); color: var(--red); }
+        .tab-badge-warn { background: rgba(251,191,36,0.2); color: var(--yellow); }
+        .tab-badge-ok { background: rgba(52,211,153,0.15); color: var(--green); }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* ============================================================
+           SHARED COMPONENTS
+        ============================================================ */
+        .section { margin-bottom: 20px; }
+        .section-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 20px; background: var(--surface); border: 1px solid var(--border);
+            border-radius: 10px 10px 0 0; cursor: pointer; user-select: none;
+        }
+        .section-header h3 { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+        .section-header .tag { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500; font-family: 'JetBrains Mono', monospace; }
+        .tag-critical { background: rgba(248,113,113,0.15); color: var(--red); }
+        .tag-warning { background: rgba(251,191,36,0.15); color: var(--yellow); }
+        .tag-ok { background: rgba(52,211,153,0.15); color: var(--green); }
+        .section-toggle { font-size: 18px; color: var(--text-dim); transition: transform 0.2s; }
+        .section-body { background: var(--surface); border: 1px solid var(--border); border-top: none; border-radius: 0 0 10px 10px; padding: 20px; }
+        .section.collapsed .section-body { display: none; }
+        .section.collapsed .section-toggle { transform: rotate(-90deg); }
+
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 24px; margin-bottom: 20px; }
+        .card h3 { font-size: 15px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+
+        /* Tables */
+        .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .data-table th { text-align: left; padding: 9px 12px; color: var(--text-dim); font-weight: 500; text-transform: uppercase; letter-spacing: 1px; font-size: 11px; border-bottom: 1px solid var(--border); }
+        .data-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); }
+        .data-table tr:last-child td { border-bottom: none; }
+        .data-table .mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+        .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+        .bar-cell { min-width: 80px; }
+        .bar-track { width: 100%; height: 5px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+        .bar-fill { height: 100%; border-radius: 3px; }
+        .bar-fill.fill-ok { background: var(--green); }
+        .bar-fill.fill-warn { background: var(--yellow); }
+        .bar-fill.fill-crit { background: var(--red); }
+
+        .status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; }
+        .dot-ok { background: var(--green); }
+        .dot-warn { background: var(--yellow); }
+        .dot-crit { background: var(--red); }
+
+        /* SQL / code block */
+        .sql-block { background: var(--surface-2); border-radius: 6px; padding: 12px 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.8; color: var(--green); overflow-x: auto; margin: 8px 0; position: relative; }
+        .copy-btn { position: absolute; right: 8px; top: 8px; background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); font-size: 11px; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-family: 'Space Grotesk', sans-serif; transition: all 0.2s; }
+        .copy-btn:hover { color: var(--text); border-color: var(--accent); }
+
+        /* Exec summary */
+        .exec-summary-card { background: var(--surface); border: 1.5px solid rgba(240,168,48,0.45); border-radius: 14px; padding: 22px 26px; margin-bottom: 24px; position: relative; overflow: hidden; }
+        .exec-summary-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, #f0a830 0%, rgba(240,168,48,0.15) 100%); }
+        .exec-summary-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+        .exec-summary-sparkle { font-size: 18px; line-height: 1; }
+        .exec-summary-label { font-size: 11px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 1.2px; }
+        .exec-summary-text { font-size: 14.5px; line-height: 1.7; color: var(--text); margin-bottom: 16px; }
+        .exec-summary-text p { margin-bottom: 8px; }
+        .exec-summary-text ul { margin: 4px 0 8px 20px; }
+        .exec-summary-text li { margin-bottom: 3px; }
+        .exec-summary-text strong { color: var(--text); }
+        .exec-summary-action { display: flex; align-items: flex-start; gap: 12px; background: rgba(240,168,48,0.06); border: 1px solid rgba(240,168,48,0.18); border-radius: 8px; padding: 12px 16px; }
+        .exec-summary-action-icon { font-size: 16px; margin-top: 1px; flex-shrink: 0; }
+        .exec-summary-action-body { flex: 1; min-width: 0; }
+        .exec-summary-action-label { font-size: 10px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+        .exec-summary-action-text { font-size: 13.5px; color: var(--text); line-height: 1.55; }
+
+        /* Findings */
+        .findings-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+        .findings-counter { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 500; }
+        .counter-crit { background: rgba(248,113,113,0.1); color: var(--red); border: 1px solid rgba(248,113,113,0.2); }
+        .counter-warn { background: rgba(251,191,36,0.1); color: var(--yellow); border: 1px solid rgba(251,191,36,0.2); }
+        .counter-ok { background: rgba(52,211,153,0.1); color: var(--green); border: 1px solid rgba(52,211,153,0.2); }
+
+        .finding-item { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
+        .finding-item.sev-critical { border-left: 3px solid var(--red); }
+        .finding-item.sev-warning { border-left: 3px solid var(--yellow); }
+        .finding-item.sev-ok { border-left: 3px solid var(--green); }
+        .finding-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; cursor: pointer; background: var(--surface); user-select: none; }
+        .finding-header:hover { background: var(--surface-2); }
+        .finding-header-left { display: flex; align-items: center; gap: 12px; }
+        .sev-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .sev-critical { background: rgba(248,113,113,0.15); color: var(--red); }
+        .sev-warning { background: rgba(251,191,36,0.15); color: var(--yellow); }
+        .sev-ok { background: rgba(52,211,153,0.15); color: var(--green); }
+        .finding-metric { font-size: 14px; font-weight: 500; }
+        .finding-value { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); }
+        .finding-toggle { font-size: 16px; color: var(--text-dim); transition: transform 0.2s; }
+        .finding-item.collapsed .finding-toggle { transform: rotate(-90deg); }
+        .finding-body { padding: 16px; background: var(--surface-2); border-top: 1px solid var(--border); }
+        .finding-item.collapsed .finding-body { display: none; }
+        .finding-rec { font-size: 13px; color: var(--text-dim); margin-bottom: 12px; line-height: 1.6; }
+        .fix-command { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--green); line-height: 1.7; overflow-x: auto; position: relative; }
+
+        /* Instance grid */
+        .instance-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+        @media (max-width: 600px) { .instance-grid { grid-template-columns: repeat(2, 1fr); } }
+        .instance-item { background: var(--surface-2); border-radius: 6px; padding: 12px 14px; }
+        .instance-item .label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+        .instance-item .value { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 500; }
+
+        /* AI rec inline */
+        .ai-rec-inline { background: rgba(240,168,48,0.06); border: 1px solid rgba(240,168,48,0.2); border-radius: 6px; padding: 10px 14px; margin-top: 10px; font-size: 12px; color: var(--text-dim); line-height: 1.6; }
+        .ai-rec-label { font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
+
+        /* EBS table */
+        .ebs-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .ebs-table th { text-align: left; padding: 8px 14px; color: var(--text-dim); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+        .ebs-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+        .ebs-table tr:last-child td { border-bottom: none; }
+        .ebs-table .mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+
+        /* Callout box */
+        .callout { border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 12px; }
+        .callout-crit { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); }
+        .callout-warn { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.3); }
+        .callout-info { background: rgba(96,165,250,0.07); border: 1px solid rgba(96,165,250,0.2); }
+        .callout-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+        .callout-body { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+        .callout-body strong { color: var(--text); }
+
+        /* Stat mini */
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+        @media (max-width: 600px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+        .stat-mini { background: var(--surface-2); border-radius: 8px; padding: 12px 14px; }
+        .stat-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+        .stat-val { font-size: 16px; font-weight: 600; color: var(--text); font-family: 'JetBrains Mono', monospace; }
+        .stat-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+    </style>
+</head>
+<body>
+<div class="grain"></div>
+
+<!-- Sample Banner -->
+<div class="sample-banner">
+    <div class="sample-banner-text">
+        <span class="sample-badge">Sample Report</span>
+        Anonymized data from a representative Oracle EBS deployment. Your report will look identical, using your real data.
+    </div>
+    <a href="/signup?path=health-check&redirect=/dashboard" class="sample-cta-btn">
+        Run this on your database →
+    </a>
+</div>
+
+<!-- Nav — auth-aware via nav-component.js -->
+<nav id="nav-root"></nav>
+
+<!-- Vitals Bar -->
+<div class="vitals-bar">
+    <div class="vitals-inner">
+        <div class="vital-item">
+            <div class="vital-dot ok"></div>
+            <span class="vital-label">DB</span>
+            <span class="vital-value">Online <span style="color:var(--text-dim);font-weight:400">· 142d 7h</span></span>
+        </div>
+        <div class="vital-item">
+            <div class="vital-dot warn"></div>
+            <span class="vital-label">Score</span>
+            <span class="vital-value">67<span style="font-size:11px;color:var(--text-dim)">/100</span></span>
+        </div>
+        <div class="vital-item">
+            <div class="vital-dot crit"></div>
+            <span class="vital-label">Storage</span>
+            <span class="vital-value">92.5<span style="font-size:11px;color:var(--text-dim)">% max</span></span>
+        </div>
+        <div class="vital-item">
+            <div class="vital-dot warn"></div>
+            <span class="vital-label">Waits</span>
+            <span class="vital-value">54<span style="font-size:11px;color:var(--text-dim)">/100</span></span>
+        </div>
+        <div class="vital-item">
+            <div class="vital-dot ok"></div>
+            <span class="vital-label">CPU</span>
+            <span class="vital-value">34<span style="font-size:11px;color:var(--text-dim)">%</span></span>
+        </div>
+        <div class="vital-item">
+            <div class="vital-dot warn"></div>
+            <span class="vital-label">Free RAM</span>
+            <span class="vital-value">12.4<span style="font-size:11px;color:var(--text-dim)"> GB</span></span>
+        </div>
+        <div class="vital-item">
+            <div class="vital-timestamp">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Sample data — representative run
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- Report Header -->
+    <div class="report-header">
+        <div class="report-title">
+            <h1>ACME-PROD / ORCL</h1>
+            <div class="report-meta">
+                <span>Oracle 19c (19.18.0.0)</span>
+                <span class="dot"></span>
+                <span>EBS R12.2.10</span>
+                <span class="dot"></span>
+                <span>Linux x86_64</span>
+                <span class="dot"></span>
+                <span>acmeprod.internal:1521</span>
+                <span class="dot"></span>
+                <span class="app-pill">🏭 EBS R12</span>
+                <span class="app-pill">🔄 WLS 12.2.1.4</span>
+            </div>
+        </div>
+        <div class="score-ring-wrapper">
+            <div class="score-ring">
+                <svg viewBox="0 0 36 36">
+                    <circle class="bg" cx="18" cy="18" r="15"/>
+                    <!-- 67/100 → stroke-dasharray = 67% of circumference (94.25) ≈ 63.1 -->
+                    <circle class="fg" cx="18" cy="18" r="15" stroke="#fbbf24" stroke-dasharray="63.1 94.25"/>
+                </svg>
+                <div class="score-text" style="color:#fbbf24">67</div>
+            </div>
+            <div class="score-ring-label">Overall Score</div>
+        </div>
+    </div>
+
+    <!-- Score Cards -->
+    <div class="scores-row">
+        <div class="score-card">
+            <div class="score-card-value" style="color:var(--red)">45</div>
+            <div class="score-card-label">Storage</div>
+        </div>
+        <div class="score-card">
+            <div class="score-card-value" style="color:var(--yellow)">54</div>
+            <div class="score-card-label">Wait Events</div>
+        </div>
+        <div class="score-card">
+            <div class="score-card-value" style="color:var(--yellow)">62</div>
+            <div class="score-card-label">SQL</div>
+        </div>
+        <div class="score-card">
+            <div class="score-card-value" style="color:var(--green)">88</div>
+            <div class="score-card-label">Sessions</div>
+        </div>
+        <div class="score-card">
+            <div class="score-card-value" style="color:var(--yellow)">71</div>
+            <div class="score-card-label">Memory</div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs-nav">
+        <button class="tab-btn active" onclick="switchTab('overview', this)">Overview</button>
+        <button class="tab-btn" onclick="switchTab('storage', this)">Storage <span class="tab-badge tab-badge-crit">🔴</span></button>
+        <button class="tab-btn" onclick="switchTab('performance', this)">Performance <span class="tab-badge tab-badge-warn">⚠</span></button>
+        <button class="tab-btn" onclick="switchTab('backups', this)">Backups <span class="tab-badge tab-badge-crit">🔴</span></button>
+        <button class="tab-btn" onclick="switchTab('ebs', this)">EBS <span class="tab-badge tab-badge-warn">⚠</span></button>
+        <button class="tab-btn" onclick="switchTab('security', this)">Security <span class="tab-badge tab-badge-crit">🔴</span></button>
+        <button class="tab-btn" onclick="switchTab('memory', this)">Memory</button>
+        <button class="tab-btn" onclick="switchTab('waits', this)">Wait Events</button>
+        <button class="tab-btn" onclick="switchTab('ai', this)">AI Analysis ✦</button>
+    </div>
+
+    <!-- ============================================================
+         TAB: OVERVIEW
+    ============================================================ -->
+    <div id="tab-overview" class="tab-panel active">
+
+        <!-- Executive Summary -->
+        <div class="exec-summary-card">
+            <div class="exec-summary-header">
+                <span class="exec-summary-sparkle">✦</span>
+                <span class="exec-summary-label">TuneVault AI Summary</span>
+            </div>
+            <div class="exec-summary-text">
+                <p>This database is functional but carrying three risks that need attention this week. Primary storage is approaching capacity and could cause write failures within days if not expanded. Backup recovery capability has lapsed beyond acceptable thresholds, and the EBS batch processing queue is showing signs of backlog.</p>
+            </div>
+            <div class="exec-summary-action">
+                <span class="exec-summary-action-icon">⚡</span>
+                <div class="exec-summary-action-body">
+                    <div class="exec-summary-action-label">Top Action Now</div>
+                    <div class="exec-summary-action-text">Expand primary storage capacity immediately — your DBA team has the specific commands in the Health Overview below.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Instance Grid -->
+        <div class="instance-grid">
+            <div class="instance-item">
+                <div class="label">DB Name</div>
+                <div class="value">ORCL</div>
+            </div>
+            <div class="instance-item">
+                <div class="label">Version</div>
+                <div class="value">19.18.0.0.0</div>
+            </div>
+            <div class="instance-item">
+                <div class="label">Edition</div>
+                <div class="value">Enterprise</div>
+            </div>
+            <div class="instance-item">
+                <div class="label">Platform</div>
+                <div class="value">Linux x86_64</div>
+            </div>
+            <div class="instance-item">
+                <div class="label">Uptime</div>
+                <div class="value">142d 7h</div>
+            </div>
+            <div class="instance-item">
+                <div class="label">SGA Size</div>
+                <div class="value">24 GB</div>
+            </div>
+            <div class="instance-item">
+                <div class="label">PGA Target</div>
+                <div class="value">8 GB</div>
+            </div>
+            <div class="instance-item">
+                <div class="label">CPU Cores</div>
+                <div class="value">16 vCPU</div>
+            </div>
+        </div>
+
+        <!-- Findings Summary -->
+        <div class="findings-header">
+            <span style="font-size:14px;font-weight:600;color:var(--text)">Check Results</span>
+            <span class="findings-counter counter-crit">🔴 7 critical</span>
+            <span class="findings-counter counter-warn">⚠ 12 warnings</span>
+            <span class="findings-counter counter-ok">✓ 81 passed</span>
+        </div>
+
+        <!-- Top findings list -->
+        <div class="finding-item sev-critical">
+            <div class="finding-header" onclick="toggleFinding(this.parentElement)">
+                <div class="finding-header-left">
+                    <span class="sev-badge sev-critical">🔴 Critical</span>
+                    <span class="finding-metric">USERS tablespace near capacity</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px">
+                    <span class="finding-value">92.5% used</span>
+                    <span class="finding-toggle">▾</span>
+                </div>
+            </div>
+            <div class="finding-body">
+                <p class="finding-rec">USERS tablespace has only 247 MB remaining. At current write rate (approx 120 MB/day) it will exhaust in under 3 days, causing ORA-01653 errors and halting all user activity. Add a new datafile immediately.</p>
+                <div class="fix-command">
+ALTER TABLESPACE USERS ADD DATAFILE '/u02/app/oracle/oradata/ORCL/users02.dbf'
+  SIZE 4096M AUTOEXTEND ON NEXT 512M MAXSIZE 20480M;
+<button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+            </div>
+        </div>
+
+        <div class="finding-item sev-critical">
+            <div class="finding-header" onclick="toggleFinding(this.parentElement)">
+                <div class="finding-header-left">
+                    <span class="sev-badge sev-critical">🔴 Critical</span>
+                    <span class="finding-metric">RMAN full backup overdue</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px">
+                    <span class="finding-value">9 days ago</span>
+                    <span class="finding-toggle">▾</span>
+                </div>
+            </div>
+            <div class="finding-body">
+                <p class="finding-rec">Last RMAN full backup completed 9 days ago — well beyond any standard RPO. If the database were lost today, recovery would require replaying 9 days of archived logs (or accepting that data loss). Schedule a full backup immediately, then configure daily incrementals.</p>
+                <div class="fix-command">
+-- Run immediately to establish a new recovery point:
+RMAN TARGET /
+RUN {
+  ALLOCATE CHANNEL ch1 DEVICE TYPE DISK FORMAT '/backup/ORCL/%U';
+  BACKUP AS COMPRESSED BACKUPSET DATABASE PLUS ARCHIVELOG DELETE INPUT;
+  BACKUP CURRENT CONTROLFILE;
+}
+<button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+            </div>
+        </div>
+
+        <div class="finding-item sev-critical">
+            <div class="finding-header" onclick="toggleFinding(this.parentElement)">
+                <div class="finding-header-left">
+                    <span class="sev-badge sev-critical">🔴 Critical</span>
+                    <span class="finding-metric">4 accounts with default passwords</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px">
+                    <span class="finding-value">4 users</span>
+                    <span class="finding-toggle">▾</span>
+                </div>
+            </div>
+            <div class="finding-body">
+                <p class="finding-rec">DBSNMP, SCOTT, HR, OUTLN have not had their passwords changed from Oracle defaults. These are well-known to attackers. Lock or drop unused accounts; rotate passwords on service accounts that must stay active.</p>
+                <div class="fix-command">
+ALTER USER DBSNMP  PASSWORD EXPIRE; ALTER USER DBSNMP  ACCOUNT LOCK;
+ALTER USER SCOTT   PASSWORD EXPIRE; ALTER USER SCOTT   ACCOUNT LOCK;
+ALTER USER HR      IDENTIFIED BY "&lt;strong_password&gt;";
+ALTER USER OUTLN   PASSWORD EXPIRE; ALTER USER OUTLN   ACCOUNT LOCK;
+<button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+            </div>
+        </div>
+
+        <div class="finding-item sev-warning">
+            <div class="finding-header" onclick="toggleFinding(this.parentElement)">
+                <div class="finding-header-left">
+                    <span class="sev-badge sev-warning">⚠ Warning</span>
+                    <span class="finding-metric">EBS Concurrent Manager backlog — 47 pending</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px">
+                    <span class="finding-value">Standard Manager</span>
+                    <span class="finding-toggle">▾</span>
+                </div>
+            </div>
+            <div class="finding-body collapsed" style="display:none">
+                <p class="finding-rec">Standard Manager queue has 47 pending requests. Normal backlog for a healthy instance is under 5. This may indicate worker processes are hung, insufficient target processes, or a long-running blocking job. Check FND_CONCURRENT_PROCESSES for stuck workers.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         TAB: STORAGE
+    ============================================================ -->
+    <div id="tab-storage" class="tab-panel">
+
+        <div class="callout callout-crit" style="margin-bottom:20px">
+            <span class="callout-icon">🔴</span>
+            <div class="callout-body"><strong>Immediate action required:</strong> USERS tablespace at 92.5% — estimated 2–3 days before exhaustion at current write rate. Add a datafile now to prevent ORA-01653.</div>
+        </div>
+
+        <div class="card">
+            <h3>Tablespace Usage</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Tablespace</th>
+                        <th>Total</th>
+                        <th>Used</th>
+                        <th>Free</th>
+                        <th>Used %</th>
+                        <th style="min-width:120px">Fill</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="mono">USERS</td>
+                        <td class="mono">3,072 MB</td>
+                        <td class="mono">2,825 MB</td>
+                        <td class="mono" style="color:var(--red)">247 MB</td>
+                        <td class="mono" style="color:var(--red)">92.5%</td>
+                        <td class="bar-cell"><div class="bar-track"><div class="bar-fill fill-crit" style="width:92.5%"></div></div></td>
+                        <td><span class="status-dot dot-crit"></span><span style="color:var(--red);font-size:12px;font-weight:600">CRITICAL</span></td>
+                    </tr>
+                    <tr>
+                        <td class="mono">UNDOTBS1</td>
+                        <td class="mono">8,192 MB</td>
+                        <td class="mono">5,734 MB</td>
+                        <td class="mono">2,458 MB</td>
+                        <td class="mono" style="color:var(--yellow)">70.0%</td>
+                        <td class="bar-cell"><div class="bar-track"><div class="bar-fill fill-warn" style="width:70%"></div></div></td>
+                        <td><span class="status-dot dot-warn"></span><span style="color:var(--yellow);font-size:12px;font-weight:600">WARNING</span></td>
+                    </tr>
+                    <tr>
+                        <td class="mono">APPS_TS_TX_DATA</td>
+                        <td class="mono">20,480 MB</td>
+                        <td class="mono">13,312 MB</td>
+                        <td class="mono">7,168 MB</td>
+                        <td class="mono">65.0%</td>
+                        <td class="bar-cell"><div class="bar-track"><div class="bar-fill fill-ok" style="width:65%"></div></div></td>
+                        <td><span class="status-dot dot-ok"></span><span style="color:var(--green);font-size:12px;font-weight:600">OK</span></td>
+                    </tr>
+                    <tr>
+                        <td class="mono">APPS_TS_TX_IDX</td>
+                        <td class="mono">8,192 MB</td>
+                        <td class="mono">4,506 MB</td>
+                        <td class="mono">3,686 MB</td>
+                        <td class="mono">55.0%</td>
+                        <td class="bar-cell"><div class="bar-track"><div class="bar-fill fill-ok" style="width:55%"></div></div></td>
+                        <td><span class="status-dot dot-ok"></span><span style="color:var(--green);font-size:12px;font-weight:600">OK</span></td>
+                    </tr>
+                    <tr>
+                        <td class="mono">SYSAUX</td>
+                        <td class="mono">4,096 MB</td>
+                        <td class="mono">2,867 MB</td>
+                        <td class="mono">1,229 MB</td>
+                        <td class="mono">70.0%</td>
+                        <td class="bar-cell"><div class="bar-track"><div class="bar-fill fill-warn" style="width:70%"></div></div></td>
+                        <td><span class="status-dot dot-warn"></span><span style="color:var(--yellow);font-size:12px;font-weight:600">WARNING</span></td>
+                    </tr>
+                    <tr>
+                        <td class="mono">SYSTEM</td>
+                        <td class="mono">2,048 MB</td>
+                        <td class="mono">880 MB</td>
+                        <td class="mono">1,168 MB</td>
+                        <td class="mono">43.0%</td>
+                        <td class="bar-cell"><div class="bar-track"><div class="bar-fill fill-ok" style="width:43%"></div></div></td>
+                        <td><span class="status-dot dot-ok"></span><span style="color:var(--green);font-size:12px;font-weight:600">OK</span></td>
+                    </tr>
+                    <tr>
+                        <td class="mono">TEMP</td>
+                        <td class="mono">4,096 MB</td>
+                        <td class="mono">307 MB</td>
+                        <td class="mono">3,789 MB</td>
+                        <td class="mono">7.5%</td>
+                        <td class="bar-cell"><div class="bar-track"><div class="bar-fill fill-ok" style="width:7.5%"></div></div></td>
+                        <td><span class="status-dot dot-ok"></span><span style="color:var(--green);font-size:12px;font-weight:600">OK</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Fix command -->
+        <div class="section">
+            <div class="section-header" onclick="toggleSection(this.parentElement)">
+                <h3>🔴 Fix: Add USERS Datafile <span class="tag tag-critical">CRITICAL</span></h3>
+                <span class="section-toggle">▾</span>
+            </div>
+            <div class="section-body">
+                <p style="font-size:13px;color:var(--text-dim);margin-bottom:12px">Run this as SYSDBA. This adds a new 4 GB datafile with autoextend enabled to keep the tablespace healthy long-term.</p>
+                <div class="sql-block">
+ALTER TABLESPACE USERS ADD DATAFILE '/u02/app/oracle/oradata/ORCL/users02.dbf'
+  SIZE 4096M AUTOEXTEND ON NEXT 512M MAXSIZE 20480M;
+
+-- Verify after:
+SELECT tablespace_name, ROUND(bytes/1024/1024) total_mb,
+       ROUND((bytes - NVL(free,0))/1024/1024) used_mb,
+       ROUND(NVL(free,0)/1024/1024) free_mb,
+       ROUND((bytes - NVL(free,0))/bytes * 100, 1) pct_used
+FROM dba_tablespaces t
+LEFT JOIN (
+  SELECT tablespace_name, SUM(bytes) free
+  FROM dba_free_space GROUP BY tablespace_name
+) f USING (tablespace_name)
+WHERE t.tablespace_name = 'USERS';
+<button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         TAB: PERFORMANCE
+    ============================================================ -->
+    <div id="tab-performance" class="tab-panel">
+
+        <div class="callout callout-warn" style="margin-bottom:20px">
+            <span class="callout-icon">⚠</span>
+            <div class="callout-body"><strong>SQL #3</strong> in the buffer-gets ranking has a missing index on <code style="font-family:JetBrains Mono,monospace;font-size:12px;background:var(--surface-2);padding:2px 6px;border-radius:4px">(CUSTOMER_ID, ORDER_DATE)</code> — responsible for 18 million logical reads per execution. Creating the index below will eliminate 94% of the buffer gets for this query.</div>
+        </div>
+
+        <div class="card">
+            <h3>Top 5 SQL by Buffer Gets</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>SQL_ID</th>
+                        <th>Executions</th>
+                        <th>Gets / Exec</th>
+                        <th>Plan Hash</th>
+                        <th style="min-width:220px">SQL Text (sample)</th>
+                        <th>Flag</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td class="mono">4xm8zp7q2wnb3</td>
+                        <td class="mono">1,204</td>
+                        <td class="mono">42,150</td>
+                        <td class="mono">3847261902</td>
+                        <td style="font-size:12px;color:var(--text-dim)">SELECT o.order_id, o.total_amt FROM oe_order_headers o WHERE...</td>
+                        <td><span class="status-dot dot-ok"></span><span style="font-size:11px;color:var(--green)">OK</span></td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td class="mono">7rtnhk2f9qa41</td>
+                        <td class="mono">337</td>
+                        <td class="mono">61,823</td>
+                        <td class="mono">2190584371</td>
+                        <td style="font-size:12px;color:var(--text-dim)">UPDATE ar_payment_schedules_all SET amount_due_remaining WHERE...</td>
+                        <td><span class="status-dot dot-warn"></span><span style="font-size:11px;color:var(--yellow)">High LIO</span></td>
+                    </tr>
+                    <tr style="background:rgba(248,113,113,0.04)">
+                        <td>3</td>
+                        <td class="mono" style="color:var(--red)">bq9vzn5r1kf22</td>
+                        <td class="mono">892</td>
+                        <td class="mono" style="color:var(--red)">18,240,000</td>
+                        <td class="mono">4012983766</td>
+                        <td style="font-size:12px;color:var(--text-dim)">SELECT c.customer_name, ol.* FROM oe_order_lines ol JOIN hz_cust_accounts c...</td>
+                        <td><span class="status-dot dot-crit"></span><span style="font-size:11px;color:var(--red)">Missing Index</span></td>
+                    </tr>
+                    <tr>
+                        <td>4</td>
+                        <td class="mono">2gf1wp8d3na95</td>
+                        <td class="mono">5,621</td>
+                        <td class="mono">9,872</td>
+                        <td class="mono">1739402841</td>
+                        <td style="font-size:12px;color:var(--text-dim)">SELECT meaning FROM fnd_lookups WHERE lookup_type = :b1 AND...</td>
+                        <td><span class="status-dot dot-ok"></span><span style="font-size:11px;color:var(--green)">OK</span></td>
+                    </tr>
+                    <tr>
+                        <td>5</td>
+                        <td class="mono">9sv4yx6t7mj18</td>
+                        <td class="mono">448</td>
+                        <td class="mono">22,411</td>
+                        <td class="mono">874903125</td>
+                        <td style="font-size:12px;color:var(--text-dim)">SELECT NVL(SUM(amount),0) FROM ra_customer_trx_lines_all WHERE...</td>
+                        <td><span class="status-dot dot-warn"></span><span style="font-size:11px;color:var(--yellow)">Table Scan</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- AI Rec for SQL #3 -->
+        <div class="section">
+            <div class="section-header" style="border-radius:10px 10px 0 0;" onclick="toggleSection(this.parentElement)">
+                <h3>⚡ AI Recommendation — SQL bq9vzn5r1kf22 <span class="tag tag-critical">MISSING INDEX</span></h3>
+                <span class="section-toggle">▾</span>
+            </div>
+            <div class="section-body">
+                <p style="font-size:13px;color:var(--text-dim);margin-bottom:12px">SQL <code style="font-family:JetBrains Mono,monospace;font-size:12px;background:var(--surface-2);padding:2px 6px;border-radius:4px">bq9vzn5r1kf22</code> performs a full table scan on <strong>OE_ORDER_LINES_ALL</strong> (42.3 million rows) because no index covers the join predicate on <code style="font-family:JetBrains Mono,monospace;font-size:12px;background:var(--surface-2);padding:2px 6px;border-radius:4px">(CUSTOMER_ID, ORDER_DATE)</code>. This accounts for 94% of its buffer gets. The index below eliminates the scan and reduces expected gets/exec from 18.2M to approximately 340.</p>
+                <p style="font-size:11.5px;color:#9898a8;margin-bottom:12px;">📚 Related deep-dive: <a href="https://linuxappsdba.blogspot.com/2024/04/oracle-database-performance-crisis.html" target="_blank" rel="author external noopener" style="color:#9898a8;text-decoration:underline;transition:color 0.15s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='#9898a8'">Oracle Database Performance Crisis: Analysis &amp; Recommendations ↗</a></p>
+                <div class="sql-block">
+-- Create index (runs online — no downtime required):
+CREATE INDEX OE_ORDER_LINES_CUST_DATE_IDX
+  ON OE_ORDER_LINES_ALL (CUSTOMER_ID, ORDER_DATE)
+  TABLESPACE APPS_TS_TX_IDX
+  ONLINE PARALLEL 4 NOLOGGING;
+
+-- After creation, gather stats:
+EXEC DBMS_STATS.GATHER_TABLE_STATS(
+  ownname => 'ONT',
+  tabname => 'OE_ORDER_LINES_ALL',
+  cascade => TRUE,
+  degree  => 4
+);
+<button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         TAB: BACKUPS
+    ============================================================ -->
+    <div id="tab-backups" class="tab-panel">
+
+        <div class="callout callout-crit" style="margin-bottom:20px">
+            <span class="callout-icon">🔴</span>
+            <div class="callout-body"><strong>Recovery risk:</strong> No full backup in 9 days. Archivelog backup is 14 hours old — within tolerance, but the missing full backup means recovery requires replaying 9 days of logs.</div>
+        </div>
+
+        <div class="stats-row">
+            <div class="stat-mini">
+                <div class="stat-label">Last RMAN Full</div>
+                <div class="stat-val" style="color:var(--red)">9 days ago</div>
+                <div class="stat-sub">2026-05-02 01:14 UTC</div>
+            </div>
+            <div class="stat-mini">
+                <div class="stat-label">Last Archivelog Backup</div>
+                <div class="stat-val" style="color:var(--yellow)">14 hours ago</div>
+                <div class="stat-sub">2026-05-11 01:08 UTC</div>
+            </div>
+            <div class="stat-mini">
+                <div class="stat-label">Backup Size (last full)</div>
+                <div class="stat-val">84.2 GB</div>
+                <div class="stat-sub">Compressed backupset</div>
+            </div>
+            <div class="stat-mini">
+                <div class="stat-label">Controlfile Backup</div>
+                <div class="stat-val" style="color:var(--red)">9 days ago</div>
+                <div class="stat-sub">Included in last full</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>RMAN Backup History (last 14 days)</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Duration</th>
+                        <th>Size</th>
+                        <th>Input MB</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="mono">2026-05-11 01:08</td>
+                        <td>Archivelog</td>
+                        <td><span class="status-dot dot-ok"></span>COMPLETED</td>
+                        <td class="mono">00:12:44</td>
+                        <td class="mono">2.1 GB</td>
+                        <td class="mono">4,218</td>
+                    </tr>
+                    <tr>
+                        <td class="mono">2026-05-10 01:07</td>
+                        <td>Archivelog</td>
+                        <td><span class="status-dot dot-ok"></span>COMPLETED</td>
+                        <td class="mono">00:11:52</td>
+                        <td class="mono">1.9 GB</td>
+                        <td class="mono">3,841</td>
+                    </tr>
+                    <tr>
+                        <td class="mono">2026-05-09 01:08</td>
+                        <td>Archivelog</td>
+                        <td><span class="status-dot dot-ok"></span>COMPLETED</td>
+                        <td class="mono">00:13:11</td>
+                        <td class="mono">2.3 GB</td>
+                        <td class="mono">4,640</td>
+                    </tr>
+                    <tr style="background:rgba(248,113,113,0.03)">
+                        <td class="mono" style="color:var(--text-dim)">2026-05-08</td>
+                        <td style="color:var(--text-dim)">Full (scheduled)</td>
+                        <td><span class="status-dot dot-crit"></span><span style="color:var(--red)">SKIPPED</span></td>
+                        <td class="mono" style="color:var(--text-dim)">—</td>
+                        <td class="mono" style="color:var(--text-dim)">—</td>
+                        <td class="mono" style="color:var(--text-dim)">—</td>
+                    </tr>
+                    <tr style="background:rgba(248,113,113,0.03)">
+                        <td class="mono" style="color:var(--text-dim)">2026-05-05</td>
+                        <td style="color:var(--text-dim)">Full (scheduled)</td>
+                        <td><span class="status-dot dot-crit"></span><span style="color:var(--red)">SKIPPED</span></td>
+                        <td class="mono" style="color:var(--text-dim)">—</td>
+                        <td class="mono" style="color:var(--text-dim)">—</td>
+                        <td class="mono" style="color:var(--text-dim)">—</td>
+                    </tr>
+                    <tr>
+                        <td class="mono">2026-05-02 01:14</td>
+                        <td>Full + Archivelog</td>
+                        <td><span class="status-dot dot-ok"></span>COMPLETED</td>
+                        <td class="mono">02:47:18</td>
+                        <td class="mono">84.2 GB</td>
+                        <td class="mono">198,340</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         TAB: EBS
+    ============================================================ -->
+    <div id="tab-ebs" class="tab-panel">
+
+        <div class="callout callout-warn" style="margin-bottom:20px">
+            <span class="callout-icon">⚠</span>
+            <div class="callout-body"><strong>EBS R12.2.10 detected.</strong> Standard Manager queue backlog is 3× normal. ADOP cleanup has been pending for 8 days — this holds filesystem and DB resources. OPP failures indicate output post-processing issues.</div>
+        </div>
+
+        <!-- Concurrent Manager Status -->
+        <div class="card">
+            <h3>Concurrent Manager Queue Status</h3>
+            <table class="ebs-table">
+                <thead>
+                    <tr>
+                        <th>Manager Name</th>
+                        <th>Status</th>
+                        <th>Target Processes</th>
+                        <th>Active</th>
+                        <th>Pending</th>
+                        <th>Completed (24h)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="mono">Internal Manager</td>
+                        <td><span class="status-dot dot-ok"></span>Active</td>
+                        <td class="mono">1</td>
+                        <td class="mono">1</td>
+                        <td class="mono">0</td>
+                        <td class="mono">—</td>
+                    </tr>
+                    <tr style="background:rgba(251,191,36,0.04)">
+                        <td class="mono" style="color:var(--yellow)">Standard Manager</td>
+                        <td><span class="status-dot dot-warn"></span><span style="color:var(--yellow)">Backlogged</span></td>
+                        <td class="mono">10</td>
+                        <td class="mono">10</td>
+                        <td class="mono" style="color:var(--yellow);font-weight:600">47</td>
+                        <td class="mono">312</td>
+                    </tr>
+                    <tr>
+                        <td class="mono">Conflict Resolution Mgr</td>
+                        <td><span class="status-dot dot-ok"></span>Active</td>
+                        <td class="mono">1</td>
+                        <td class="mono">1</td>
+                        <td class="mono">0</td>
+                        <td class="mono">—</td>
+                    </tr>
+                    <tr>
+                        <td class="mono">Output Post Processor</td>
+                        <td><span class="status-dot dot-warn"></span>Degraded</td>
+                        <td class="mono">1</td>
+                        <td class="mono">1</td>
+                        <td class="mono">3</td>
+                        <td class="mono">89</td>
+                    </tr>
+                    <tr>
+                        <td class="mono">Scheduler Agent</td>
+                        <td><span class="status-dot dot-ok"></span>Active</td>
+                        <td class="mono">2</td>
+                        <td class="mono">2</td>
+                        <td class="mono">0</td>
+                        <td class="mono">—</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- OPP Failures -->
+        <div class="card">
+            <h3>Output Post Processor — Recent Failures (last 24h)</h3>
+            <table class="ebs-table">
+                <thead>
+                    <tr>
+                        <th>Request ID</th>
+                        <th>Program</th>
+                        <th>Submitted By</th>
+                        <th>Completed</th>
+                        <th>Error</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="mono">8441029</td>
+                        <td>RAXINV — Invoice Print</td>
+                        <td>WIDGET_CO\jsmith</td>
+                        <td class="mono">2026-05-11 09:14</td>
+                        <td style="font-size:12px;color:var(--red)">ORA-20001: Output file missing</td>
+                    </tr>
+                    <tr>
+                        <td class="mono">8440847</td>
+                        <td>ARXRWMAI — Customer Stmt</td>
+                        <td>WIDGET_CO\arogers</td>
+                        <td class="mono">2026-05-11 06:30</td>
+                        <td style="font-size:12px;color:var(--red)">FRM-40735: POST-QUERY trigger</td>
+                    </tr>
+                    <tr>
+                        <td class="mono">8439211</td>
+                        <td>RAXTRX — Transaction Print</td>
+                        <td>AR_AUTOPRINT</td>
+                        <td class="mono">2026-05-10 22:48</td>
+                        <td style="font-size:12px;color:var(--red)">CP-7: Template not found</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ADOP Status -->
+        <div class="callout callout-warn">
+            <span class="callout-icon">⚠</span>
+            <div class="callout-body">
+                <strong>ADOP cleanup pending — 8 days overdue.</strong> Patch cycle completed 2026-05-03 but <code style="font-family:JetBrains Mono,monospace;font-size:12px;background:var(--surface-2);padding:2px 6px;border-radius:4px">adop phase=cleanup</code> has not been run. This holds the old edition objects, additional disk space in APPS_TS_TX_DATA, and blocks future patch cycles. Run cleanup during the next maintenance window.
+                <div style="margin-top:10px">
+                    <code style="font-family:JetBrains Mono,monospace;font-size:12px;background:var(--surface-2);padding:4px 10px;border-radius:4px;display:inline-block;color:var(--green)">adop phase=cleanup</code>
+                </div>
+                <div style="margin-top:10px;font-size:11.5px;color:#9898a8;">
+                    📚 Related deep-dive: <a href="https://linuxappsdba.blogspot.com/2020/06/ebs-122-online-patching-adop-cutover.html" target="_blank" rel="author external noopener" style="color:#9898a8;text-decoration:underline;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='#9898a8'">EBS 12.2 Online Patching (ADOP) — Cutover Phase Deep Dive ↗</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         TAB: SECURITY
+    ============================================================ -->
+    <div id="tab-security" class="tab-panel">
+
+        <div class="callout callout-crit" style="margin-bottom:20px">
+            <span class="callout-icon">🔴</span>
+            <div class="callout-body"><strong>4 accounts with Oracle default passwords</strong> and <strong>2 DBA grants in the last 30 days</strong>. Both require immediate review — default passwords are the #1 vector for Oracle database compromise.</div>
+        </div>
+
+        <div class="card">
+            <h3>Accounts with Default Passwords</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Account Status</th>
+                        <th>Default Password</th>
+                        <th>Last Login</th>
+                        <th>Recommendation</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="mono" style="color:var(--red)">DBSNMP</td>
+                        <td><span class="status-dot dot-crit"></span>OPEN</td>
+                        <td class="mono" style="color:var(--red)">dbsnmp</td>
+                        <td class="mono" style="color:var(--text-dim)">Never</td>
+                        <td style="font-size:12px">Lock or rotate — monitoring agent should use dedicated account</td>
+                    </tr>
+                    <tr>
+                        <td class="mono" style="color:var(--red)">SCOTT</td>
+                        <td><span class="status-dot dot-crit"></span>OPEN</td>
+                        <td class="mono" style="color:var(--red)">tiger</td>
+                        <td class="mono" style="color:var(--text-dim)">2024-11-14</td>
+                        <td style="font-size:12px">Lock — demo account, should not be active in production</td>
+                    </tr>
+                    <tr>
+                        <td class="mono" style="color:var(--red)">HR</td>
+                        <td><span class="status-dot dot-crit"></span>OPEN</td>
+                        <td class="mono" style="color:var(--red)">hr</td>
+                        <td class="mono" style="color:var(--text-dim)">2025-01-03</td>
+                        <td style="font-size:12px">Lock — sample schema, not needed in production</td>
+                    </tr>
+                    <tr>
+                        <td class="mono" style="color:var(--red)">OUTLN</td>
+                        <td><span class="status-dot dot-crit"></span>OPEN</td>
+                        <td class="mono" style="color:var(--red)">outln</td>
+                        <td class="mono" style="color:var(--text-dim)">Never</td>
+                        <td style="font-size:12px">Lock — legacy stored outlines account, unused</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h3>DBA Role Grants — Last 30 Days</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Grantee</th>
+                        <th>Granted By</th>
+                        <th>Grant Date</th>
+                        <th>Admin Option</th>
+                        <th>Risk</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="mono" style="color:var(--yellow)">WIDGET_REPORT</td>
+                        <td class="mono">SYS</td>
+                        <td class="mono">2026-04-28</td>
+                        <td>NO</td>
+                        <td><span style="color:var(--yellow);font-size:12px;font-weight:600">⚠ Review — reporting user with DBA role</span></td>
+                    </tr>
+                    <tr>
+                        <td class="mono" style="color:var(--red)">ACME_TEMP_ADMIN</td>
+                        <td class="mono">SYS</td>
+                        <td class="mono">2026-04-19</td>
+                        <td class="mono" style="color:var(--red)">YES</td>
+                        <td><span style="color:var(--red);font-size:12px;font-weight:600">🔴 Critical — temp account with ADMIN OPTION</span></td>
+                    </tr>
+                </tbody>
+            </table>
+            <div style="margin-top:14px">
+                <div class="sql-block" style="margin:0">
+-- Revoke DBA from reporting user and grant minimum required privs:
+REVOKE DBA FROM WIDGET_REPORT;
+GRANT SELECT ANY TABLE TO WIDGET_REPORT;
+GRANT CREATE SESSION TO WIDGET_REPORT;
+
+-- Revoke DBA + ADMIN OPTION from temp admin:
+REVOKE DBA FROM ACME_TEMP_ADMIN;
+-- If account is no longer needed:
+ALTER USER ACME_TEMP_ADMIN ACCOUNT LOCK;
+<button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+            </div>
+            <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06);font-size:11.5px;color:#9898a8;">
+                📚 Related deep-dive: <a href="https://linuxappsdba.blogspot.com/2024/01/oracle-database-security-assessment.html" target="_blank" rel="author external noopener" style="color:#9898a8;text-decoration:underline;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='#9898a8'">Oracle Database Security Assessment Tool (DBSAT) 3.0 ↗</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         TAB: MEMORY
+    ============================================================ -->
+    <div id="tab-memory" class="tab-panel">
+
+        <div class="stats-row">
+            <div class="stat-mini">
+                <div class="stat-label">SGA Total</div>
+                <div class="stat-val">24 GB</div>
+                <div class="stat-sub">Buffer pool + shared pool</div>
+            </div>
+            <div class="stat-mini">
+                <div class="stat-label">PGA Aggregate Target</div>
+                <div class="stat-val">8 GB</div>
+                <div class="stat-sub">PGA actual: 4.7 GB</div>
+            </div>
+            <div class="stat-mini">
+                <div class="stat-label">Buffer Cache Hit %</div>
+                <div class="stat-val" style="color:var(--green)">98.7%</div>
+                <div class="stat-sub">Excellent (>95% target)</div>
+            </div>
+            <div class="stat-mini">
+                <div class="stat-label">Shared Pool Free</div>
+                <div class="stat-val" style="color:var(--yellow)">14.2%</div>
+                <div class="stat-sub">2.8 GB of 19.8 GB</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Memory Pool Breakdown</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Pool</th>
+                        <th>Allocated</th>
+                        <th>Used</th>
+                        <th>Free</th>
+                        <th>Free %</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Buffer Cache</td>
+                        <td class="mono">18.0 GB</td>
+                        <td class="mono">17.8 GB</td>
+                        <td class="mono">0.2 GB</td>
+                        <td class="mono">1.1%</td>
+                        <td><span class="status-dot dot-ok"></span><span style="color:var(--green);font-size:12px">Normal (LRU managed)</span></td>
+                    </tr>
+                    <tr>
+                        <td>Shared Pool</td>
+                        <td class="mono">19.8 GB</td>
+                        <td class="mono">17.0 GB</td>
+                        <td class="mono">2.8 GB</td>
+                        <td class="mono">14.2%</td>
+                        <td><span class="status-dot dot-warn"></span><span style="color:var(--yellow);font-size:12px">Monitor — consider resize if parse pressure increases</span></td>
+                    </tr>
+                    <tr>
+                        <td>Large Pool</td>
+                        <td class="mono">1.0 GB</td>
+                        <td class="mono">0.4 GB</td>
+                        <td class="mono">0.6 GB</td>
+                        <td class="mono">60%</td>
+                        <td><span class="status-dot dot-ok"></span><span style="color:var(--green);font-size:12px">OK</span></td>
+                    </tr>
+                    <tr>
+                        <td>Java Pool</td>
+                        <td class="mono">0.5 GB</td>
+                        <td class="mono">0.3 GB</td>
+                        <td class="mono">0.2 GB</td>
+                        <td class="mono">40%</td>
+                        <td><span class="status-dot dot-ok"></span><span style="color:var(--green);font-size:12px">OK</span></td>
+                    </tr>
+                    <tr>
+                        <td>Streams Pool</td>
+                        <td class="mono">0.3 GB</td>
+                        <td class="mono">0.1 GB</td>
+                        <td class="mono">0.2 GB</td>
+                        <td class="mono">67%</td>
+                        <td><span class="status-dot dot-ok"></span><span style="color:var(--green);font-size:12px">OK</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         TAB: WAIT EVENTS
+    ============================================================ -->
+    <div id="tab-waits" class="tab-panel">
+
+        <div class="stats-row">
+            <div class="stat-mini">
+                <div class="stat-label">Wait Event Score</div>
+                <div class="stat-val" style="color:var(--yellow)">54/100</div>
+                <div class="stat-sub">Moderate contention</div>
+            </div>
+            <div class="stat-mini">
+                <div class="stat-label">Top Wait Class</div>
+                <div class="stat-val" style="font-size:13px">User I/O</div>
+                <div class="stat-sub">38% of total wait time</div>
+            </div>
+            <div class="stat-mini">
+                <div class="stat-label">DB CPU</div>
+                <div class="stat-val">34%</div>
+                <div class="stat-sub">Of total time in DB</div>
+            </div>
+            <div class="stat-mini">
+                <div class="stat-label">Active Sessions (avg)</div>
+                <div class="stat-val">8.4</div>
+                <div class="stat-sub">Peaks at 24 sessions</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Top Wait Events (last 7 days)</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Wait Event</th>
+                        <th>Class</th>
+                        <th>Total Wait (s)</th>
+                        <th>Avg Wait (ms)</th>
+                        <th>Waits</th>
+                        <th>% DB Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>db file sequential read</td>
+                        <td>User I/O</td>
+                        <td class="mono">48,241</td>
+                        <td class="mono">1.2</td>
+                        <td class="mono">40,200,833</td>
+                        <td class="mono">38.1%</td>
+                    </tr>
+                    <tr>
+                        <td>db file scattered read</td>
+                        <td>User I/O</td>
+                        <td class="mono">12,802</td>
+                        <td class="mono">4.8</td>
+                        <td class="mono">2,667,083</td>
+                        <td class="mono">10.1%</td>
+                    </tr>
+                    <tr>
+                        <td>log file sync</td>
+                        <td>Commit</td>
+                        <td class="mono">9,412</td>
+                        <td class="mono">2.1</td>
+                        <td class="mono">4,481,904</td>
+                        <td class="mono">7.4%</td>
+                    </tr>
+                    <tr>
+                        <td>enq: TX - row lock contention</td>
+                        <td>Application</td>
+                        <td class="mono" style="color:var(--yellow)">6,831</td>
+                        <td class="mono" style="color:var(--yellow)">14.2</td>
+                        <td class="mono">481,056</td>
+                        <td class="mono">5.4%</td>
+                    </tr>
+                    <tr>
+                        <td>buffer busy waits</td>
+                        <td>Concurrency</td>
+                        <td class="mono">2,104</td>
+                        <td class="mono">0.9</td>
+                        <td class="mono">2,337,777</td>
+                        <td class="mono">1.7%</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         TAB: AI ANALYSIS
+    ============================================================ -->
+    <div id="tab-ai" class="tab-panel">
+
+        <div style="background:var(--surface);border:1px solid rgba(240,168,48,0.2);border-radius:10px;padding:28px;margin-bottom:20px;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+                <div style="width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 2s ease-in-out infinite;flex-shrink:0;"></div>
+                <h3 style="font-size:17px;font-weight:600;">AI Analysis</h3>
+                <span style="font-size:11px;background:rgba(240,168,48,0.12);color:var(--accent);padding:2px 8px;border-radius:100px;font-weight:500;">GPT-4o powered</span>
+            </div>
+            <style>@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }</style>
+            <div style="line-height:1.8;color:var(--text);">
+                <h2 style="font-size:16px;margin:0 0 10px;color:var(--accent);">## SUMMARY</h2>
+                <p style="margin-bottom:10px;">ACME-PROD is a busy Oracle 19c EBS R12.2.10 production instance running on 16-core Linux with 24 GB SGA. Overall health score is <strong>67/100</strong>, which reflects functional operation but with three compounding risks that require resolution within the next 48 hours.</p>
+                <p style="margin-bottom:10px;">The most urgent issue is the USERS tablespace at 92.5% utilization with only 247 MB of free space. At the current ingestion rate of approximately 120 MB/day, the tablespace will become full within 2–3 days. An ORA-01653 error at that point will halt all INSERT activity across the EBS application, affecting order entry, AR processing, and the Concurrent Manager. This is straightforward to fix with a single ALTER TABLESPACE statement.</p>
+                <p style="margin-bottom:10px;">RMAN full backups have not completed in 9 days — two scheduled backup jobs were skipped on May 5 and May 8. Archivelog backups are current (14 hours old), which limits the immediate data-loss exposure, but without a recent full backup the recovery time objective (RTO) becomes unacceptably long. Recovery from the last full backup would require replaying 9 days of archived logs, which in a busy EBS environment could take 6–10 hours.</p>
+                <h2 style="font-size:16px;margin:20px 0 10px;color:var(--accent);">## TOP_RISKS</h2>
+                <p style="margin-bottom:6px;">1. <strong>USERS tablespace exhaustion</strong> — 2–3 days to ORA-01653. Add datafile immediately.</p>
+                <p style="margin-bottom:6px;">2. <strong>RMAN backup gap</strong> — 9 days without a full backup, RPO unacceptable for production EBS. Re-run full backup tonight.</p>
+                <p style="margin-bottom:6px;">3. <strong>Default passwords on 4 accounts</strong> — DBSNMP, SCOTT, HR, OUTLN remain accessible with vendor-default credentials. Lock or rotate before end of day.</p>
+                <p style="margin-bottom:6px;">4. <strong>SQL bq9vzn5r1kf22</strong> — 18.2M buffer gets per execution with 892 executions today. Missing composite index on OE_ORDER_LINES_ALL(CUSTOMER_ID, ORDER_DATE) is the root cause. Index creation runs online with no downtime.</p>
+                <p style="margin-bottom:10px;">5. <strong>ADOP cleanup pending</strong> — 8 days since patch completion. Run cleanup to release disk and enable future patch cycles.</p>
+                <h2 style="font-size:16px;margin:20px 0 10px;color:var(--accent);">## TOP_ACTION</h2>
+                <p>Add USERS datafile now, then schedule RMAN full backup for tonight. These two actions resolve the two critical operational risks within a single maintenance window.</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- PDF Download CTA -->
+<div id="pdf-cta" style="background:linear-gradient(180deg,rgba(240,168,48,0.07) 0%,rgba(240,168,48,0.03) 100%);border-top:1px solid rgba(240,168,48,0.25);padding:52px 48px;text-align:center;">
+    <div style="max-width:560px;margin:0 auto;">
+        <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(240,168,48,0.12);border:1px solid rgba(240,168,48,0.3);border-radius:100px;padding:4px 14px;font-size:11px;font-weight:600;color:var(--accent);letter-spacing:.06em;text-transform:uppercase;margin-bottom:20px;">Full PDF Report</div>
+        <h2 style="font-size:26px;font-weight:700;letter-spacing:-0.7px;margin-bottom:10px;line-height:1.25;">Take the full report with you</h2>
+        <p style="font-size:14px;color:var(--text-dim);margin-bottom:28px;line-height:1.7;">This is the exact PDF your team receives after every TuneVault scan — AI recommendations, copy-pasteable SQL fixes, EBS section, and all. 10 pages, no watermark.</p>
+
+        <!-- Email capture form -->
+        <div id="pdf-form" style="display:flex;gap:10px;max-width:420px;margin:0 auto 16px;">
+            <input id="pdf-email" type="email" placeholder="your@email.com (optional)"
+                style="flex:1;background:#1a1a1f;border:1px solid #2a2a30;border-radius:8px;padding:12px 16px;color:var(--text);font-size:14px;font-family:inherit;outline:none;transition:border-color 0.2s;"
+                onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='#2a2a30'"
+                onkeydown="if(event.key==='Enter')downloadPdf()">
+            <button onclick="downloadPdf()" id="pdf-btn"
+                style="padding:12px 24px;background:var(--accent);color:#0a0a0c;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.2s;white-space:nowrap;"
+                onmouseover="this.style.background='#e09820';this.style.transform='translateY(-1px)'"
+                onmouseout="this.style.background='var(--accent)';this.style.transform='translateY(0)'">
+                ↓ Download PDF
+            </button>
+        </div>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:0;">Email is optional — click Download PDF to get it immediately</p>
+        <div id="pdf-msg" style="display:none;margin-top:12px;font-size:13px;color:var(--green);"></div>
+    </div>
+</div>
+
+<!-- Bottom CTA -->
+<div style="background:var(--surface);border-top:1px solid var(--border);padding:40px 48px;text-align:center;margin-top:0;">
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">Your report will look exactly like this</p>
+    <h2 style="font-size:24px;font-weight:700;letter-spacing:-0.6px;margin-bottom:8px;">Ready to run this on your Oracle instance?</h2>
+    <p style="font-size:14px;color:var(--text-dim);margin-bottom:24px;max-width:480px;margin-left:auto;margin-right:auto;">Connect via Direct TCP or install our lightweight proxy agent. First report in under 5 minutes.</p>
+    <a href="/signup?path=health-check&redirect=/dashboard" style="display:inline-flex;align-items:center;gap:8px;padding:14px 32px;background:var(--accent);color:#0a0a0c;border-radius:8px;font-size:15px;font-weight:600;text-decoration:none;transition:all 0.2s;" onmouseover="this.style.background='#e09820';this.style.transform='translateY(-1px)'" onmouseout="this.style.background='var(--accent)';this.style.transform='translateY(0)'">
+        Run Health Check on Your Database →
+    </a>
+    <p style="font-size:12px;color:var(--text-dim);margin-top:12px;">5 free checks/month · No credit card required · EBS-native diagnostics included</p>
+</div>
+
+<script>
+    // PDF download with optional email capture
+    async function downloadPdf() {
+        const emailEl = document.getElementById('pdf-email');
+        const btnEl   = document.getElementById('pdf-btn');
+        const msgEl   = document.getElementById('pdf-msg');
+        const email   = (emailEl ? emailEl.value : '').trim();
+
+        btnEl.disabled = true;
+        btnEl.textContent = 'Preparing…';
+
+        try {
+            if (email && email.includes('@')) {
+                // Email provided — capture lead then redirect to PDF
+                const resp = await fetch('/sample-report/lead', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                const data = await resp.json().catch(() => ({}));
+                const pdfUrl = (data && data.pdfUrl) || '/sample-report/pdf';
+                msgEl.textContent = '✓ Got it! Downloading now…';
+                msgEl.style.display = 'block';
+                window.location.href = pdfUrl;
+            } else {
+                // No email — download directly
+                window.location.href = '/sample-report/pdf';
+            }
+        } catch (err) {
+            // Fallback: direct download
+            window.location.href = '/sample-report/pdf';
+        }
+
+        setTimeout(() => {
+            btnEl.disabled = false;
+            btnEl.textContent = '↓ Download PDF';
+        }, 3000);
+    }
+
+    // Tab switching
+    function switchTab(id, btn) {
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('tab-' + id).classList.add('active');
+        btn.classList.add('active');
+    }
+
+    // Collapsible sections
+    function toggleSection(section) {
+        section.classList.toggle('collapsed');
+    }
+
+    // Collapsible findings
+    function toggleFinding(item) {
+        item.classList.toggle('collapsed');
+    }
+
+    // Copy command
+    function copyCmd(btn) {
+        const block = btn.closest('.sql-block,.fix-command');
+        const text = block.innerText.replace(/Copy\s*$/, '').trim();
+        navigator.clipboard.writeText(text).then(() => {
+            const orig = btn.textContent;
+            btn.textContent = 'Copied!';
+            setTimeout(() => { btn.textContent = orig; }, 1500);
+        }).catch(() => {});
+    }
+</script>
+<script src="/nav-component.js"></script>
+<script>window.tvNav.init('main');</script>
+<script src="/tv-tracker.js"></script>
+<script>
+  // demo_started fires immediately when user lands on sample report
+  if (window.tvTrack) window.tvTrack('demo_started', { demo_type: 'db' });
+  // demo_completed fires when user has scrolled past 80% of the page
+  var _demoCompleted = false;
+  document.addEventListener('scroll', function() {
+    if (_demoCompleted) return;
+    var scrolled = window.scrollY + window.innerHeight;
+    var total    = document.body.scrollHeight;
+    if (scrolled / total > 0.8) {
+      _demoCompleted = true;
+      if (window.tvTrack) window.tvTrack('demo_completed', { demo_type: 'db' });
+    }
+  }, { passive: true });
+</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

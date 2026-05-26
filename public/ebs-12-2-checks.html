@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EBS 12.2 Deep Checks — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://tunevault.app/ebs-12-2-checks">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c;
+      --surface: #111114;
+      --surface-2: #1a1a1f;
+      --border: #2a2a30;
+      --text: #e8e8ed;
+      --text-dim: #b8b8c8;
+      --accent: #f0a830;
+      --accent-dim: rgba(240,168,48,0.12);
+      --green: #34d399;
+      --green-dim: rgba(52,211,153,0.12);
+      --red: #f87171;
+      --red-dim: rgba(248,113,113,0.12);
+      --yellow: #fbbf24;
+      --yellow-dim: rgba(251,191,36,0.12);
+      --blue: #60a5fa;
+      --blue-dim: rgba(96,165,250,0.12);
+    }
+    body { font-family: 'Space Grotesk', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; }
+    .grain { position: fixed; top:0; left:0; right:0; bottom:0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"); pointer-events: none; z-index: 999; }
+    nav { background: rgba(10,10,12,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 9999; }
+    .page-wrap { max-width: 1200px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    .page-header { margin-bottom: 32px; }
+    .page-header h1 { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
+    .page-header p { color: var(--text-dim); font-size: 14px; max-width: 640px; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; background: var(--accent-dim); border: 1px solid rgba(240,168,48,0.3); color: var(--accent); font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; margin-left: 10px; vertical-align: middle; }
+
+    /* Toolbar */
+    .toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; }
+    .toolbar label { font-size: 13px; color: var(--text-dim); white-space: nowrap; }
+    .conn-select, .ssh-select { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); font-family: inherit; font-size: 13px; padding: 8px 12px; border-radius: 8px; min-width: 220px; cursor: pointer; }
+    .conn-select:focus, .ssh-select:focus { outline: none; border-color: var(--accent); }
+    .run-btn { background: var(--accent); color: #0a0a0c; font-family: inherit; font-size: 13px; font-weight: 700; padding: 9px 20px; border-radius: 8px; border: none; cursor: pointer; white-space: nowrap; transition: opacity 0.15s; margin-left: auto; }
+    .run-btn:hover { opacity: 0.85; }
+    .run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Category tabs */
+    .cat-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 24px; border-bottom: 1px solid var(--border); }
+    .cat-tab { padding: 8px 16px; font-size: 13px; font-weight: 500; border: none; background: none; color: var(--text-dim); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s; white-space: nowrap; }
+    .cat-tab:hover { color: var(--text); }
+    .cat-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .cat-count { font-size: 10px; background: var(--surface-2); color: var(--text-dim); padding: 1px 6px; border-radius: 10px; margin-left: 4px; }
+
+    /* Summary bar */
+    .summary-bar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; padding: 12px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+    .summary-item { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .dot-ok { background: var(--green); }
+    .dot-warn { background: var(--yellow); }
+    .dot-crit { background: var(--red); }
+    .dot-info { background: var(--blue); }
+    .dot-error { background: var(--text-dim); }
+    .summary-bar.hidden { display: none; }
+
+    /* Checks grid */
+    .checks-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px,1fr)); gap: 14px; }
+
+    /* Check card */
+    .check-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; transition: border-color 0.15s; }
+    .check-card.status-ok    { border-left: 3px solid var(--green); }
+    .check-card.status-warn  { border-left: 3px solid var(--yellow); }
+    .check-card.status-crit  { border-left: 3px solid var(--red); }
+    .check-card.status-info  { border-left: 3px solid var(--blue); }
+    .check-card.status-error { border-left: 3px solid var(--text-dim); }
+    .check-card.status-idle  { border-left: 3px solid var(--border); }
+
+    .check-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+    .status-icon { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 11px; font-weight: 700; margin-top: 1px; }
+    .si-ok    { background: var(--green-dim); color: var(--green); }
+    .si-warn  { background: var(--yellow-dim); color: var(--yellow); }
+    .si-crit  { background: var(--red-dim); color: var(--red); }
+    .si-info  { background: var(--blue-dim); color: var(--blue); }
+    .si-error { background: rgba(136,136,160,0.12); color: var(--text-dim); }
+    .si-idle  { background: var(--surface-2); color: var(--text-dim); }
+
+    .check-label { font-size: 13px; font-weight: 600; flex: 1; }
+    .check-type { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600; }
+    .type-tns  { background: var(--accent-dim); color: var(--accent); }
+    .type-ssh  { background: var(--blue-dim); color: var(--blue); }
+
+    .check-value { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+    .check-evidence { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-dim); background: var(--surface-2); padding: 4px 8px; border-radius: 6px; word-break: break-all; margin-bottom: 6px; }
+    .check-recommendation { font-size: 12px; color: var(--yellow); background: var(--yellow-dim); padding: 6px 10px; border-radius: 6px; line-height: 1.5; }
+    .check-id { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--text-dim); opacity: 0.6; margin-top: 6px; }
+
+    /* Loading / idle states */
+    .check-card.loading .check-value { color: var(--text-dim); }
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* SSH hint banner */
+    .ssh-hint { background: var(--surface); border: 1px solid rgba(96,165,250,0.3); border-radius: 10px; padding: 14px 18px; margin-bottom: 24px; font-size: 13px; color: var(--blue); display: flex; align-items: flex-start; gap: 10px; }
+    .ssh-hint.hidden { display: none; }
+    .ssh-hint a { color: var(--accent); text-decoration: none; font-weight: 600; }
+    .ssh-hint a:hover { text-decoration: underline; }
+
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--text-dim); }
+    .empty-state .big-icon { font-size: 40px; margin-bottom: 12px; }
+    .empty-state h3 { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  </style>
+</head>
+<body>
+<div class="grain"></div>
+<nav id="nav-root" style="opacity:0;"></nav>
+<script src="/connection-state.js"></script>
+<script src="/nav-component.js"></script>
+<script>window.tvNav.init('ebs-deep');</script>
+
+<div class="page-wrap">
+  <div class="page-header">
+    <h1>EBS 12.2 Deep Checks <span class="badge">30 checks</span></h1>
+    <p>Topology &amp; Sizing · JVM Heap &amp; GC · OS Metrics · Code Levels · ETCC — TNS &amp; SSH combined.</p>
+  </div>
+
+  <div class="toolbar">
+    <label>Connection</label>
+    <select id="connSelect" class="conn-select">
+      <option value="">— Select connection —</option>
+    </select>
+    <label>SSH Target (optional)</label>
+    <select id="sshSelect" class="ssh-select">
+      <option value="">— None (TNS checks only) —</option>
+    </select>
+    <button id="runBtn" class="run-btn" disabled>Run 30 Checks</button>
+  </div>
+
+  <div id="sshHint" class="ssh-hint hidden">
+    <span>ℹ</span>
+    <span>SSH target not set — SSH checks will show as <strong>info</strong> (requires SSH target). Add an <a href="/settings/ssh-targets">apps_tier SSH target</a> to enable OS Metrics, JVM Heap, and ETCC checks.</span>
+  </div>
+
+  <div id="summaryBar" class="summary-bar hidden">
+    <span class="summary-item"><span class="dot dot-ok"></span> <span id="cnt-ok">0</span> OK</span>
+    <span class="summary-item"><span class="dot dot-warn"></span> <span id="cnt-warn">0</span> Warn</span>
+    <span class="summary-item"><span class="dot dot-crit"></span> <span id="cnt-crit">0</span> Critical</span>
+    <span class="summary-item"><span class="dot dot-info"></span> <span id="cnt-info">0</span> Info</span>
+    <span class="summary-item"><span class="dot dot-error"></span> <span id="cnt-error">0</span> Error</span>
+    <span id="ranAt" style="margin-left:auto; font-size:12px; color:var(--text-dim);"></span>
+  </div>
+
+  <div class="cat-tabs" id="catTabs">
+    <button class="cat-tab active" data-cat="all">All <span class="cat-count" id="cnt-all">30</span></button>
+    <button class="cat-tab" data-cat="topology">Topology <span class="cat-count">8</span></button>
+    <button class="cat-tab" data-cat="jvm_heap">JVM Heap <span class="cat-count">6</span></button>
+    <button class="cat-tab" data-cat="os_metrics">OS Metrics <span class="cat-count">7</span></button>
+    <button class="cat-tab" data-cat="code_levels">Code Levels <span class="cat-count">6</span></button>
+    <button class="cat-tab" data-cat="etcc">ETCC <span class="cat-count">3</span></button>
+  </div>
+
+  <div id="checksGrid" class="checks-grid">
+    <div class="empty-state">
+      <div class="big-icon">🔬</div>
+      <h3>Select a connection and click Run</h3>
+      <p>30 EBS 12.2 checks across Topology, JVM, OS, Code Levels, and ETCC</p>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ── State ──────────────────────────────────────────────────────────────────────
+let allChecks = [];
+let currentCat = 'all';
+
+const CATEGORY_LABELS = {
+  topology:    'Topology & Sizing',
+  jvm_heap:    'JVM Heap & GC',
+  os_metrics:  'OS Metrics',
+  code_levels: 'Code Levels',
+  etcc:        'ETCC',
+};
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+async function init() {
+  await Promise.all([loadConnections(), loadSshTargets()]);
+  loadCatalog();
+
+  document.getElementById('connSelect').addEventListener('change', onConnChange);
+  document.getElementById('runBtn').addEventListener('click', runChecks);
+
+  // Category tab clicks
+  document.getElementById('catTabs').addEventListener('click', e => {
+    const tab = e.target.closest('.cat-tab');
+    if (!tab) return;
+    document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentCat = tab.dataset.cat;
+    renderGrid();
+  });
+}
+
+async function loadConnections() {
+  try {
+    const r = await fetch('/api/connections');
+    if (!r.ok) return;
+    const data = await r.json();
+    const conns = tvConn.parseList(data);
+    const sel = document.getElementById('connSelect');
+    conns.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.connection_name || c.host;
+      sel.appendChild(opt);
+    });
+    tvConn.bind(sel, conns);
+    if (sel.value) {
+      onConnChange();
+    } else if (conns.length === 1) {
+      sel.value = conns[0].id;
+      tvConn.save(conns[0].id);
+      onConnChange();
+    }
+  } catch {}
+}
+
+async function loadSshTargets() {
+  try {
+    const r = await fetch('/api/user/ssh/targets');
+    if (!r.ok) return;
+    const data = await r.json();
+    const targets = data.targets || data || [];
+    const sel = document.getElementById('sshSelect');
+    targets.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t.id;
+      opt.textContent = `${t.host} (${t.role})`;
+      sel.appendChild(opt);
+    });
+  } catch {}
+}
+
+async function loadCatalog() {
+  try {
+    const r = await fetch('/api/ebs-12-2/catalog');
+    if (!r.ok) return;
+    const data = await r.json();
+    allChecks = (data.catalog || []).map(c => ({ ...c, status: 'idle', value: 'Not run yet', evidence: null, recommendation: null }));
+    renderGrid();
+  } catch {}
+}
+
+function onConnChange() {
+  const val = document.getElementById('connSelect').value;
+  if (val) tvConn.save(val);
+  document.getElementById('runBtn').disabled = !val;
+}
+
+// ── Run checks ─────────────────────────────────────────────────────────────────
+async function runChecks() {
+  const connId = document.getElementById('connSelect').value;
+  if (!connId) return;
+  const sshId = document.getElementById('sshSelect').value || null;
+  const btn = document.getElementById('runBtn');
+
+  // Show SSH hint if no target
+  document.getElementById('sshHint').classList.toggle('hidden', !!sshId);
+
+  btn.disabled = true;
+  btn.textContent = 'Running…';
+
+  // Set all checks to loading state
+  allChecks = allChecks.map(c => ({ ...c, status: 'loading', value: 'Running…', evidence: null, recommendation: null }));
+  renderGrid();
+
+  try {
+    const body = { connection_id: parseInt(connId, 10) };
+    if (sshId) body.ssh_target_id = parseInt(sshId, 10);
+
+    const r = await fetch('/api/ebs-12-2/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+
+    // Merge results into allChecks
+    const resultMap = {};
+    (data.checks || []).forEach(c => { resultMap[c.id] = c; });
+    allChecks = allChecks.map(c => resultMap[c.id] ? { ...c, ...resultMap[c.id] } : c);
+
+    // Update summary
+    const s = data.summary || {};
+    document.getElementById('cnt-ok').textContent   = s.ok    || 0;
+    document.getElementById('cnt-warn').textContent  = s.warn  || 0;
+    document.getElementById('cnt-crit').textContent  = s.crit  || 0;
+    document.getElementById('cnt-info').textContent  = s.info  || 0;
+    document.getElementById('cnt-error').textContent = s.error || 0;
+    document.getElementById('summaryBar').classList.remove('hidden');
+    document.getElementById('ranAt').textContent = data.ranAt ? 'Run at ' + new Date(data.ranAt).toLocaleTimeString() : '';
+
+  } catch (err) {
+    allChecks = allChecks.map(c => ({ ...c, status: 'error', value: 'Run failed', evidence: err.message }));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Run 30 Checks';
+    renderGrid();
+  }
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────────
+function renderGrid() {
+  const grid = document.getElementById('checksGrid');
+  const filtered = currentCat === 'all' ? allChecks : allChecks.filter(c => c.category === currentCat);
+
+  if (!filtered.length) {
+    grid.innerHTML = '<div class="empty-state"><div class="big-icon">🔬</div><h3>No checks found</h3></div>';
+    return;
+  }
+
+  grid.innerHTML = filtered.map(c => renderCheckCard(c)).join('');
+}
+
+function renderCheckCard(c) {
+  const s = c.status || 'idle';
+  const icon = s === 'ok' ? '✓' : s === 'warn' ? '!' : s === 'crit' ? '✕' : s === 'info' ? 'i' : s === 'loading' ? '' : s === 'error' ? '✕' : '–';
+  const typeLabel = c.type === 'tns' ? 'TNS' : 'SSH';
+  const typeCls = c.type === 'tns' ? 'type-tns' : 'type-ssh';
+  const rec = c.recommendation ? `<div class="check-recommendation">⚠ ${escHtml(c.recommendation)}</div>` : '';
+  const evidence = c.evidence ? `<div class="check-evidence">${escHtml(c.evidence)}</div>` : '';
+  const spinnerHtml = s === 'loading' ? '<span class="spinner"></span>' : '';
+
+  return `
+    <div class="check-card status-${s}">
+      <div class="check-header">
+        <div class="status-icon si-${s}">${spinnerHtml || escHtml(icon)}</div>
+        <span class="check-label">${escHtml(c.label)}</span>
+        <span class="check-type ${typeCls}">${typeLabel}</span>
+      </div>
+      <div class="check-value">${escHtml(c.value || '—')}</div>
+      ${evidence}
+      ${rec}
+      <div class="check-id">${escHtml(c.id)}</div>
+    </div>`;
+}
+
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+init();
+</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

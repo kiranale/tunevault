@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Patch Status — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c;
+      --surface: #111114;
+      --surface-2: #1a1a1f;
+      --border: #2a2a30;
+      --text: #e8e8ed;
+      --text-dim: #b8b8c8;
+      --accent: #f0a830;
+      --accent-dim: rgba(240,168,48,0.12);
+      --green: #34d399;
+      --green-dim: rgba(52,211,153,0.12);
+      --red: #f87171;
+      --red-dim: rgba(248,113,113,0.12);
+      --yellow: #fbbf24;
+      --yellow-dim: rgba(251,191,36,0.12);
+      --blue: #60a5fa;
+    }
+    body {
+      font-family: 'Space Grotesk', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    .grain {
+      position: fixed; top:0; left:0; right:0; bottom:0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 999;
+    }
+    nav { background: rgba(10,10,12,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 9999; }
+    .page-wrap { max-width: 900px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    /* Page header */
+    .page-header { margin-bottom: 32px; }
+    .page-header h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    .page-header p { color: var(--text-dim); font-size: 14px; }
+    .breadcrumb { font-size: 12px; color: var(--text-dim); margin-bottom: 16px; }
+    .breadcrumb a { color: var(--text-dim); text-decoration: none; }
+    .breadcrumb a:hover { color: var(--accent); }
+    .breadcrumb span { margin: 0 6px; }
+
+    /* Connection picker */
+    .conn-row { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; flex-wrap: wrap; }
+    .conn-label { font-size: 13px; color: var(--text-dim); white-space: nowrap; }
+    .conn-select {
+      flex: 1; min-width: 200px; max-width: 320px;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); padding: 8px 12px; border-radius: 8px;
+      font-size: 13px; font-family: inherit; cursor: pointer;
+      appearance: none;
+    }
+    .conn-select:focus { outline: none; border-color: var(--accent); }
+
+    /* Input area */
+    .input-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 24px; margin-bottom: 24px;
+    }
+    .input-card label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; }
+    .patch-textarea {
+      width: 100%; min-height: 120px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      color: var(--text); padding: 12px 14px; border-radius: 8px;
+      font-size: 13px; font-family: 'JetBrains Mono', monospace;
+      resize: vertical; line-height: 1.7;
+    }
+    .patch-textarea:focus { outline: none; border-color: var(--accent); }
+    .input-hint { font-size: 11px; color: var(--text-dim); margin-top: 8px; }
+
+    .check-btn {
+      margin-top: 16px;
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--accent); color: #0a0a0c;
+      border: none; border-radius: 8px; padding: 10px 24px;
+      font-size: 14px; font-weight: 600; font-family: inherit;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .check-btn:hover { background: #e09820; }
+    .check-btn:disabled { opacity: 0.6; cursor: default; }
+
+    /* Spinner */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(0,0,0,0.2);
+      border-top-color: #0a0a0c;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Results */
+    .results-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .results-title { font-size: 14px; font-weight: 600; }
+    .results-meta { font-size: 12px; color: var(--text-dim); }
+    .export-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: none; border: 1px solid var(--border);
+      color: var(--text-dim); padding: 6px 14px; border-radius: 6px;
+      font-size: 12px; font-family: inherit; cursor: pointer; transition: all 0.2s;
+    }
+    .export-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Results table */
+    .results-table {
+      width: 100%; border-collapse: collapse;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden;
+    }
+    .results-table th {
+      text-align: left; padding: 10px 16px;
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+      font-size: 11px; font-weight: 600; color: var(--text-dim);
+      text-transform: uppercase; letter-spacing: .06em;
+    }
+    .results-table td {
+      padding: 10px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      font-size: 13px;
+      vertical-align: middle;
+    }
+    .results-table tr:last-child td { border-bottom: none; }
+
+    /* Status badges */
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 12px; font-weight: 600; padding: 3px 10px;
+      border-radius: 20px; white-space: nowrap;
+    }
+    .badge-applied  { background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,0.2); }
+    .badge-missing  { background: var(--red-dim);   color: var(--red);   border: 1px solid rgba(248,113,113,0.2); }
+    .badge-unknown  { background: rgba(136,136,160,0.1); color: var(--text-dim); border: 1px solid rgba(136,136,160,0.2); }
+
+    .patch-num { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text); }
+    .date-text { font-size: 12px; color: var(--text-dim); }
+    .home-text { font-size: 12px; color: var(--blue); }
+    .desc-text { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+    /* Summary bar */
+    .summary-bar {
+      display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .summary-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 14px; border-radius: 8px;
+      font-size: 13px; font-weight: 600;
+    }
+    .chip-applied { background: var(--green-dim); color: var(--green); }
+    .chip-missing  { background: var(--red-dim);   color: var(--red); }
+    .chip-total   { background: var(--surface-2);  color: var(--text-dim); }
+
+    /* Error / empty states */
+    .notice {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 24px; text-align: center;
+      color: var(--text-dim); font-size: 14px;
+    }
+    .notice .icon { font-size: 28px; margin-bottom: 10px; }
+    .notice-error { border-color: rgba(248,113,113,0.3); background: var(--red-dim); color: var(--red); }
+  </style>
+</head>
+<body>
+<div class="grain"></div>
+<nav id="nav-root"></nav>
+
+<div class="page-wrap">
+  <div class="breadcrumb">
+    <a href="/dashboard">Dashboard</a>
+    <span>›</span>
+    <a href="/db-ops?cat=patches">Patches</a>
+    <span>›</span>
+    Patch Status
+  </div>
+
+  <div class="page-header">
+    <h1>🩹 Patch Status Checker</h1>
+    <p>Look up specific patch numbers — applied or not, with date and home. No ADOP details, no runbooks — just the answer your release team needs.</p>
+  </div>
+
+  <!-- Connection picker -->
+  <div class="conn-row">
+    <span class="conn-label">Connection:</span>
+    <select class="conn-select" id="connSelect">
+      <option value="">— loading connections —</option>
+    </select>
+  </div>
+
+  <!-- Patch number input -->
+  <div class="input-card">
+    <label>Patch Numbers</label>
+    <textarea class="patch-textarea" id="patchInput"
+      placeholder="One patch per line, or comma-separated&#10;e.g.&#10;12345678&#10;33915561&#10;35648110"></textarea>
+    <div class="input-hint">Accepts numeric Oracle patch IDs — one per line or comma-separated. Max 50 per check.</div>
+    <button class="check-btn" id="checkBtn" onclick="runCheck()">
+      <span id="checkBtnLabel">Check Status</span>
+    </button>
+  </div>
+
+  <!-- Results section (hidden until check runs) -->
+  <div id="resultsSection" style="display:none">
+    <div class="results-header">
+      <div>
+        <div class="results-title" id="resultsTitle">Results</div>
+        <div class="results-meta" id="resultsMeta"></div>
+      </div>
+      <button class="export-btn" onclick="exportCsv()">⬇ Export CSV</button>
+    </div>
+
+    <!-- Summary chips -->
+    <div class="summary-bar" id="summaryBar"></div>
+
+    <!-- Table -->
+    <table class="results-table" id="resultsTable">
+      <thead>
+        <tr>
+          <th>Patch Number</th>
+          <th>Status</th>
+          <th>Date Applied</th>
+          <th>Home</th>
+        </tr>
+      </thead>
+      <tbody id="resultsBody"></tbody>
+    </table>
+  </div>
+
+  <div id="resultsNotice"></div>
+</div>
+
+<script src="/nav-component.js"></script>
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let _connections = [];
+  let _lastResults = [];
+  let _connName = '';
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  window.tvNav.init('db-ops');
+
+  async function loadConnections() {
+    try {
+      const r = await fetch('/api/connections', { credentials: 'include' });
+      const d = await r.json();
+      _connections = Array.isArray(d) ? d : (d.connections || []);
+      const sel = document.getElementById('connSelect');
+      sel.innerHTML = '';
+      if (_connections.length === 0) {
+        sel.innerHTML = '<option value="">— no connections —</option>';
+        return;
+      }
+      _connections.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.name || c.host || `Connection ${c.id}`;
+        sel.appendChild(opt);
+      });
+    } catch (e) {
+      console.error('Failed to load connections', e);
+      document.getElementById('connSelect').innerHTML = '<option value="">— failed to load —</option>';
+    }
+  }
+
+  loadConnections();
+
+  // ── Check ──────────────────────────────────────────────────────────────────
+  async function runCheck() {
+    const connId = document.getElementById('connSelect').value;
+    const patchText = document.getElementById('patchInput').value.trim();
+
+    if (!connId) {
+      showNotice('⚠️ Select a connection first.', false);
+      return;
+    }
+    if (!patchText) {
+      showNotice('⚠️ Enter at least one patch number.', false);
+      return;
+    }
+
+    const btn = document.getElementById('checkBtn');
+    const lbl = document.getElementById('checkBtnLabel');
+    btn.disabled = true;
+    lbl.innerHTML = '<span class="spinner"></span> Checking…';
+    document.getElementById('resultsSection').style.display = 'none';
+    document.getElementById('resultsNotice').innerHTML = '';
+
+    // Build patches param — normalize to comma-separated
+    const patchesParam = patchText.split(/[\n,]+/).map(p => p.trim()).filter(Boolean).join(',');
+    const conn = _connections.find(c => String(c.id) === String(connId));
+    _connName = conn ? (conn.name || conn.host || `Connection ${connId}`) : connId;
+
+    try {
+      const url = `/api/patches/check?connection_id=${encodeURIComponent(connId)}&patches=${encodeURIComponent(patchesParam)}`;
+      const r = await fetch(url);
+      const d = await r.json();
+
+      if (!r.ok) {
+        showNotice('❌ ' + (d.error || 'Check failed'), true);
+        return;
+      }
+
+      _lastResults = d.results || [];
+      renderResults(d);
+    } catch (e) {
+      showNotice('❌ Network error: ' + e.message, true);
+    } finally {
+      btn.disabled = false;
+      lbl.textContent = 'Check Status';
+    }
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  function renderResults(data) {
+    const results = data.results || [];
+    if (results.length === 0) {
+      showNotice('No results returned.', false);
+      return;
+    }
+
+    const applied = results.filter(r => r.applied).length;
+    const missing = results.filter(r => !r.applied).length;
+
+    // Summary
+    document.getElementById('resultsTitle').textContent = 'Results — ' + _connName;
+    document.getElementById('resultsMeta').textContent =
+      (data.is_demo ? '(demo data) ' : '') + 'Checked against ' +
+      (data.is_demo ? 'demo instance' : _connName);
+
+    document.getElementById('summaryBar').innerHTML =
+      '<span class="summary-chip chip-total">🔢 ' + results.length + ' patches</span>' +
+      '<span class="summary-chip chip-applied">✅ ' + applied + ' applied</span>' +
+      '<span class="summary-chip chip-missing">❌ ' + missing + ' not applied</span>';
+
+    // Table rows
+    const tbody = document.getElementById('resultsBody');
+    tbody.innerHTML = '';
+    results.forEach(r => {
+      const tr = document.createElement('tr');
+
+      const badge = r.applied
+        ? '<span class="badge badge-applied">✅ Applied</span>'
+        : '<span class="badge badge-missing">❌ Not Applied</span>';
+
+      const dateCell = r.date
+        ? '<span class="date-text">' + escHtml(r.date) + '</span>'
+        : '<span style="color:var(--text-dim);font-size:12px">—</span>';
+
+      const homeCell = r.home
+        ? '<span class="home-text">' + escHtml(r.home) + '</span>' +
+          (r.description ? '<div class="desc-text">' + escHtml(r.description) + '</div>' : '')
+        : '<span style="color:var(--text-dim);font-size:12px">—</span>';
+
+      tr.innerHTML =
+        '<td><span class="patch-num">' + escHtml(r.patch_number) + '</span></td>' +
+        '<td>' + badge + '</td>' +
+        '<td>' + dateCell + '</td>' +
+        '<td>' + homeCell + '</td>';
+
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById('resultsSection').style.display = 'block';
+  }
+
+  // ── CSV export ─────────────────────────────────────────────────────────────
+  function exportCsv() {
+    if (!_lastResults.length) return;
+    const header = 'Patch Number,Status,Date Applied,Home,Description\n';
+    const rows = _lastResults.map(r => [
+      r.patch_number,
+      r.applied ? 'Applied' : 'Not Applied',
+      r.date || '',
+      r.home || '',
+      r.description || ''
+    ].map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
+
+    const blob = new Blob([header + rows], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'patch-status-' + (_connName || 'export').replace(/[^a-z0-9]/gi, '-') + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function showNotice(msg, isError) {
+    document.getElementById('resultsSection').style.display = 'none';
+    document.getElementById('resultsNotice').innerHTML =
+      '<div class="notice ' + (isError ? 'notice-error' : '') + '">' +
+      '<div class="icon">' + (isError ? '⚠️' : 'ℹ️') + '</div>' +
+      '<div>' + escHtml(msg) + '</div>' +
+      '</div>';
+  }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+</script>
+</body>
+</html>

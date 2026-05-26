@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EBS Live Status — How Each Card is Sourced — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://tunevault.app/ebs-status-sources">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c; --surface: #111114; --surface-2: #1a1a1f;
+      --border: #2a2a30; --text: #e8e8ed; --text-dim: #b8b8c8;
+      --accent: #f0a830; --green: #34d399; --red: #f87171;
+      --yellow: #fbbf24; --blue: #60a5fa; --orange: #fb923c;
+      --green-dim: rgba(52,211,153,0.12); --blue-dim: rgba(96,165,250,0.12);
+      --accent-dim: rgba(240,168,48,0.12); --orange-dim: rgba(251,146,60,0.12);
+    }
+    body { font-family: 'Space Grotesk', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; overflow-x: hidden; }
+    .page-wrapper { max-width: 900px; margin: 0 auto; padding: 48px 32px 80px; }
+    h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.4px; margin-bottom: 6px; }
+    .subtitle { color: var(--text-dim); font-size: 14px; margin-bottom: 36px; }
+    .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text-dim); text-decoration: none; font-size: 13px; margin-bottom: 28px; }
+    .back-link:hover { color: var(--text); }
+
+    /* Source legend */
+    .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 32px; }
+    .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+    .chip { display: inline-block; font-size: 10px; font-weight: 600; font-family: 'JetBrains Mono', monospace;
+            text-transform: uppercase; padding: 3px 8px; border-radius: 4px; }
+    .chip.db_only    { color: var(--blue);   background: var(--blue-dim);   border: 1px solid rgba(96,165,250,0.2); }
+    .chip.tcp_probe  { color: var(--green);  background: var(--green-dim);  border: 1px solid rgba(52,211,153,0.2); }
+    .chip.db_plus_tcp { color: var(--accent); background: var(--accent-dim); border: 1px solid rgba(240,168,48,0.2); }
+    .chip.shell_required { color: var(--orange); background: var(--orange-dim); border: 1px solid rgba(251,146,60,0.2); }
+
+    /* Card table */
+    table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+    thead th { text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-dim); padding: 8px 14px; border-bottom: 1px solid var(--border); }
+    tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); }
+    tbody tr:last-child { border-bottom: none; }
+    tbody td { padding: 14px; font-size: 13px; vertical-align: top; }
+    .card-name { font-weight: 600; color: var(--text); }
+    .card-note { font-size: 12px; color: var(--text-dim); margin-top: 4px; line-height: 1.5; }
+    .ebs-badge { display: inline-block; font-size: 9px; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+                 text-transform: uppercase; padding: 2px 5px; border-radius: 3px; margin-left: 6px;
+                 color: var(--orange); background: var(--orange-dim); border: 1px solid rgba(251,146,60,0.2); vertical-align: middle; }
+    .phase3-note { font-size: 11px; color: var(--orange); font-style: italic; margin-top: 4px; }
+
+    /* FAQ section */
+    h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: var(--text); }
+    .faq-item { margin-bottom: 20px; }
+    .faq-q { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+    .faq-a { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+    code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: var(--surface-2);
+           padding: 1px 5px; border-radius: 3px; color: var(--text); }
+  </style>
+</head>
+<body>
+<nav id="nav-root"></nav>
+<div class="page-wrapper">
+
+  <a href="/ebs-deep#monitor" class="back-link">&#8592; Back to EBS Deep Mode</a>
+
+  <h1>EBS Live Status — How Each Card Is Sourced</h1>
+  <p class="subtitle">Each service card in the Monitor tab probes a different signal source. Understanding the source tells you what a status means — and what it cannot tell you.</p>
+
+  <!-- Source legend -->
+  <div class="legend">
+    <div class="legend-item"><span class="chip db_only">DB only</span> — Oracle metadata query; valid even when app tier is down</div>
+    <div class="legend-item"><span class="chip tcp_probe">TCP probe</span> — TCP port reachability to the EBS host</div>
+    <div class="legend-item"><span class="chip db_plus_tcp">DB + TCP</span> — DB metadata cross-checked with TCP probe (composite signal)</div>
+    <div class="legend-item"><span class="chip shell_required">Shell (Phase 3)</span> — Requires SSH execution; not yet implemented</div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Card</th>
+        <th>Source</th>
+        <th>What it detects</th>
+        <th>Phase 3 upgrade path</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <div class="card-name">OPMN</div>
+          <div class="card-note">Legacy Oracle AS / Forms 10g/11g process manager. <strong>Not present on EBS 12.2+ WebLogic stacks</strong> — shows N/A if port 6200 is closed.</div>
+        </td>
+        <td><span class="chip tcp_probe">TCP probe</span></td>
+        <td>TCP reachability on port 6200. Absent on 12.2+ = <em>not_applicable</em>, not DOWN.</td>
+        <td>No upgrade planned — <code>opmnctl status</code> is only relevant on legacy stacks.</td>
+      </tr>
+      <tr>
+        <td>
+          <div class="card-name">NodeManager</div>
+          <div class="card-note">WebLogic 12c Node Manager daemon. Distinct from OPMN — different port (5556), different binary, different lifecycle.</div>
+        </td>
+        <td><span class="chip tcp_probe">TCP probe</span></td>
+        <td>TCP reachability on port 5556. UP = NM is accepting connections.</td>
+        <td>Phase 3: parse <code>nodemanager.log</code> last heartbeat timestamp via SSH.</td>
+      </tr>
+      <tr>
+        <td>
+          <div class="card-name">WebLogic Admin Server</div>
+          <div class="card-note">WLS Admin Server hosts the WebLogic console and coordinates managed servers. We do <strong>not</strong> shell out to <code>adadminsrvctl.sh</code> — it requires APPS + WLS passwords which we have no vault for yet.</div>
+        </td>
+        <td><span class="chip db_plus_tcp">DB + TCP</span></td>
+        <td>DB: <code>fnd_oam_managed_types</code> target_status. TCP: probe admin port (default 7001 or <code>s_wls_adminport</code> profile). Composite: both UP = running; either down = DOWN.</td>
+        <td>Phase 3: <code>adadminsrvctl.sh status</code> once secrets vault ships for APPS+WLS password storage.</td>
+      </tr>
+      <tr>
+        <td>
+          <div class="card-name">Apps Listener</div>
+          <div class="card-note">Oracle TNS Listener for EBS application tier. Port read from <code>fnd_oam_metval.APPS_JDBC_URL</code>.</div>
+        </td>
+        <td><span class="chip db_only">DB only</span></td>
+        <td>Listener port presence in APPS metadata. Does not TCP-probe the listener directly.</td>
+        <td>Phase 3: TCP probe on the extracted port to confirm listener is actually accepting connections.</td>
+      </tr>
+      <tr>
+        <td>
+          <div class="card-name">Apache (OHS)</div>
+          <div class="card-note">Oracle HTTP Server — the web front-end for EBS self-service pages.</div>
+        </td>
+        <td><span class="chip db_only">DB only</span></td>
+        <td><code>fnd_svc_components</code> component_status for HTTP-type component.</td>
+        <td>Phase 3: <code>adapcctl.sh status</code> via SSH.</td>
+      </tr>
+      <tr>
+        <td>
+          <div class="card-name">OACore</div>
+          <div class="card-note">OA Framework managed server — required for all OAF-based self-service pages.</div>
+        </td>
+        <td><span class="chip db_only">DB only</span></td>
+        <td><code>fnd_svc_components</code> component_status for oacore-type component.</td>
+        <td>Phase 3: <code>admanagedsrvctl.sh status oacore_server1</code> via SSH.</td>
+      </tr>
+      <tr>
+        <td>
+          <div class="card-name">Forms</div>
+          <div class="card-note">Oracle Forms managed server — required for all Forms-based EBS screens.</div>
+        </td>
+        <td><span class="chip db_only">DB only</span></td>
+        <td><code>fnd_svc_components</code> component_status for forms-type component.</td>
+        <td>Phase 3: <code>admanagedsrvctl.sh status forms_server1</code> via SSH.</td>
+      </tr>
+      <tr>
+        <td>
+          <div class="card-name">OAFM</div>
+          <div class="card-note">OA Framework Mobile managed server.</div>
+        </td>
+        <td><span class="chip db_only">DB only</span></td>
+        <td><code>fnd_svc_components</code> component_status for oafm-type component.</td>
+        <td>Phase 3: <code>admanagedsrvctl.sh status oafm_server1</code> via SSH.</td>
+      </tr>
+      <tr>
+        <td>
+          <div class="card-name">Concurrent Managers</div>
+          <div class="card-note">Internal Concurrent Manager (FNDICM) + running/target process counts. Background job processing for EBS.</div>
+        </td>
+        <td><span class="chip db_only">DB only</span></td>
+        <td><code>fnd_concurrent_queues_vl</code> running_processes, target_processes. Pending + 24h error counts from <code>fnd_concurrent_requests</code>.</td>
+        <td>N/A — CM status is authoritative in the DB.</td>
+      </tr>
+      <tr>
+        <td>
+          <div class="card-name">Workflow Mailer <span class="ebs-badge">EBS only</span></div>
+          <div class="card-note">WF Notification Mailer — only shown on EBS-detected connections. DB-resident service; valid even when app tier is down.</div>
+        </td>
+        <td><span class="chip db_only">DB only</span></td>
+        <td><code>fnd_svc_components</code> for WF_MAILER% type. Stuck/error counts from <code>wf_notifications</code> and <code>wf_error</code>.</td>
+        <td>N/A — WF Mailer status is authoritative in the DB.</td>
+      </tr>
+      <tr>
+        <td>
+          <div class="card-name">OPP <span class="ebs-badge">EBS only</span></div>
+          <div class="card-note">Output Post Processor — only shown on EBS-detected connections. Handles concurrent request output delivery.</div>
+        </td>
+        <td><span class="chip db_only">DB only</span></td>
+        <td><code>fnd_svc_components</code> for Output Post Processor. Queue depth from <code>fnd_concurrent_requests</code> FNDCPOPP.</td>
+        <td>N/A — OPP status is authoritative in the DB.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Frequently Asked Questions</h2>
+
+  <div class="faq-item">
+    <div class="faq-q">Why does OPMN show N/A on my EBS 12.2 instance?</div>
+    <div class="faq-a">OPMN (<code>opmnctl</code>) is the Oracle AS process manager used in EBS 11i and 12.0/12.1 app tiers. EBS 12.2 moved to a WebLogic 12c application tier — OPMN is not installed. If port 6200 is not reachable, TuneVault reports <em>not_applicable</em> rather than DOWN, since absence is expected on 12.2+ stacks.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Why doesn't TuneVault run <code>adadminsrvctl.sh status</code> for WebLogic Admin Server?</div>
+    <div class="faq-a"><code>adadminsrvctl.sh status</code> requires both the APPS schema password and the WebLogic admin password passed as arguments. TuneVault does not store those credentials — and shipping password-in-argument SSH calls without a secrets vault is a security regression we've explicitly blocked. Until Phase 3 ships with proper secrets management, the WLS Admin card uses a composite DB metadata + TCP probe instead. The card tooltip says exactly this.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">What does "DB only" mean for Apache / managed servers?</div>
+    <div class="faq-a">TuneVault reads <code>fnd_svc_components</code> for the component's registered status in the Oracle DB. This is usually accurate — EBS updates this table when services start/stop through the admin console. However, it cannot detect cases where the process crashed without updating the DB record. Phase 3 SSH commands will give a ground-truth shell-level status.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Why are Workflow Mailer and OPP only shown on EBS connections?</div>
+    <div class="faq-a">These services only exist in Oracle E-Business Suite — they're meaningless on a plain Oracle DB connection. When TuneVault detects no EBS tier (via the APPS.DUAL probe during health check), these cards are hidden entirely to avoid confusion.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">What is Phase 3?</div>
+    <div class="faq-a">Phase 3 is the planned SSH execution layer. Commands will be routed through the TuneVault proxy agent already installed on your EBS server, with a secrets vault for storing APPS/WLS passwords encrypted. Phase 3 upgrades several "DB only" cards to shell-verified status checks. The Control tab already shows the Phase 3 command whitelist in dry-run mode.</div>
+  </div>
+
+</div>
+<script src="/nav-component.js"></script>
+<script>window.tvNav.init('ebs-status-sources');</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

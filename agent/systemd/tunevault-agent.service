@@ -1,0 +1,36 @@
+# TuneVault Agent v6.1 systemd unit
+#
+# DO NOT add Environment= lines here.
+# All agent config lives in /etc/tunevault/agent.env.
+#
+# To update the API key:   sudo tunevault-agent rotate-key <new-key>
+# To update any config:    sudo tunevault-agent config set <KEY> <VALUE>
+# To migrate old layout:   sudo tunevault-agent migrate-config
+#
+# The EnvironmentFile= directive below is the ONLY source of agent configuration.
+# systemd processes Environment= directives AFTER EnvironmentFile=, silently
+# overriding values you set in agent.env — which is why we use Environment=PYTHONPATH
+# separately (it is not a TUNEVAULT_ config key; it has no equivalent in agent.env).
+
+[Unit]
+Description=TuneVault Oracle Agent
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/tunevault/agent.env
+ExecStart=/opt/tunevault/venv/bin/python3 -m agent.cli start
+WorkingDirectory=/opt/tunevault
+Environment=PYTHONPATH=/opt/tunevault
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tunevault-agent
+# Security hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

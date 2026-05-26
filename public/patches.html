@@ -1,0 +1,1440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Patch Advisor — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://tunevault.app/patches">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c;
+      --surface: #111114;
+      --surface-2: #1a1a1f;
+      --border: #2a2a30;
+      --text: #e8e8ed;
+      --text-dim: #b8b8c8;
+      --accent: #f0a830;
+      --accent-dim: rgba(240, 168, 48, 0.12);
+      --green: #34d399;
+      --green-dim: rgba(52, 211, 153, 0.12);
+      --red: #f87171;
+      --red-dim: rgba(248, 113, 113, 0.12);
+      --yellow: #fbbf24;
+      --yellow-dim: rgba(251, 191, 36, 0.12);
+      --blue: #60a5fa;
+      --blue-dim: rgba(96, 165, 250, 0.12);
+      --orange: #fb923c;
+      --orange-dim: rgba(251, 146, 60, 0.12);
+      --purple: #a78bfa;
+      --purple-dim: rgba(167, 139, 250, 0.12);
+    }
+    body {
+      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    .grain {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 999;
+    }
+    /* ── Nav ── */
+    .nav-wrapper {
+      border-bottom: 1px solid var(--border);
+      background: rgba(10,10,12,0.95);
+      backdrop-filter: blur(12px);
+      position: sticky; top: 0; z-index: 9999;
+    }
+    nav {
+      max-width: 1300px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 48px; gap: 16px;
+    }
+    .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .nav-logo span { font-size: 18px; font-weight: 700; color: var(--text); }
+    .nav-logo .accent { color: var(--accent); }
+    .nav-links { display: flex; align-items: center; gap: 4px; }
+    .nav-link {
+      color: var(--text-dim); text-decoration: none; font-size: 14px; font-weight: 500;
+      padding: 7px 12px; border-radius: 7px; transition: all 0.18s;
+    }
+    .nav-link:hover { color: var(--text); background: var(--surface-2); }
+    .nav-link.active { color: var(--accent); background: var(--accent-dim); }
+    .nav-cta {
+      background: var(--accent); color: #0a0a0c; font-size: 13px; font-weight: 700;
+      padding: 8px 16px; border-radius: 8px; text-decoration: none; transition: opacity 0.2s;
+      white-space: nowrap;
+    }
+    .nav-cta:hover { opacity: 0.88; }
+    /* ── Layout ── */
+    .page-wrapper { max-width: 1300px; margin: 0 auto; padding: 48px 48px 80px; }
+    /* ── Page header ── */
+    .page-header {
+      padding: 36px 0 0;
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 24px; flex-wrap: wrap;
+    }
+    .page-header h1 {
+      font-size: 24px; font-weight: 700; letter-spacing: -0.5px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .page-header p { margin-top: 6px; color: var(--text-dim); font-size: 14px; max-width: 620px; }
+    /* ── Connection bar ── */
+    .conn-bar {
+      display: flex; align-items: center; gap: 12px;
+      margin-top: 28px; flex-wrap: wrap;
+    }
+    .conn-bar label { font-size: 13px; color: var(--text-dim); white-space: nowrap; }
+    .conn-select {
+      background: var(--surface-2); border: 1px solid var(--border);
+      color: var(--text); border-radius: 8px; padding: 7px 12px;
+      font-size: 13px; font-family: inherit; min-width: 240px; cursor: pointer; outline: none;
+    }
+    .conn-select:focus { border-color: var(--accent); }
+    .btn-fetch {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--accent); border: none; color: #0a0a0c;
+      border-radius: 8px; padding: 7px 14px;
+      font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-fetch:hover { opacity: 0.88; }
+    .btn-fetch:disabled { opacity: 0.5; cursor: not-allowed; }
+    .spinning { animation: spin 0.8s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    /* ── Banners ── */
+    .banner {
+      border-radius: 10px; padding: 12px 18px;
+      display: flex; align-items: flex-start; gap: 12px; margin-top: 16px;
+    }
+    .banner-demo { background: var(--accent-dim); border: 1px solid rgba(240,168,48,0.25); }
+    .banner-warn { background: var(--yellow-dim); border: 1px solid rgba(251,191,36,0.25); }
+    .banner-error { background: var(--red-dim); border: 1px solid rgba(248,113,113,0.25); color: var(--red); }
+    .banner-info { background: var(--blue-dim); border: 1px solid rgba(96,165,250,0.25); }
+    .banner-good { background: var(--green-dim); border: 1px solid rgba(52,211,153,0.25); }
+    .banner .b-icon { font-size: 18px; flex-shrink: 0; margin-top: 2px; }
+    .banner-text strong { display: block; font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+    .banner-text p, .banner-text span { font-size: 13px; color: var(--text-dim); }
+    .banner-demo .banner-text strong { color: var(--accent); }
+    .banner-warn .banner-text strong { color: var(--yellow); }
+    .banner-good .banner-text strong { color: var(--green); }
+    .banner-info .banner-text strong { color: var(--blue); }
+    /* ── Summary dashboard ── */
+    .summary-dashboard {
+      margin-top: 24px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px 24px;
+    }
+    .summary-dashboard h3 {
+      font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
+      color: var(--text-dim); margin-bottom: 14px;
+    }
+    .summary-badges {
+      display: flex; flex-wrap: wrap; gap: 10px;
+    }
+    .summary-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 500;
+      border: 1px solid var(--border); background: var(--surface-2);
+    }
+    .summary-badge .sb-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    .sb-green { background: var(--green); }
+    .sb-yellow { background: var(--yellow); }
+    .sb-red { background: var(--red); }
+    .sb-dim { background: var(--text-dim); }
+    .summary-score {
+      margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border);
+      display: flex; align-items: center; gap: 16px;
+    }
+    .score-bar {
+      flex: 1; height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden;
+    }
+    .score-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+    .score-label { font-size: 13px; font-weight: 600; white-space: nowrap; }
+    /* ── Status cards row ── */
+    .status-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 14px; margin-top: 24px;
+    }
+    .status-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 18px 20px;
+    }
+    .status-card .card-label {
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
+      color: var(--text-dim); margin-bottom: 8px;
+    }
+    .status-card .card-value {
+      font-size: 20px; font-weight: 700; letter-spacing: -0.5px;
+    }
+    .status-card .card-sub { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+    .c-red { color: var(--red); }
+    .c-yellow { color: var(--yellow); }
+    .c-green { color: var(--green); }
+    .c-blue { color: var(--blue); }
+    .c-accent { color: var(--accent); }
+    .c-orange { color: var(--orange); }
+    .c-dim { color: var(--text-dim); }
+    /* ── Section header ── */
+    .section-header {
+      display: flex; align-items: center; gap: 10px; margin-top: 32px; margin-bottom: 14px;
+    }
+    .section-header h2 {
+      font-size: 16px; font-weight: 700;
+    }
+    .section-header .sh-badge {
+      font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px;
+      background: var(--surface-2); border: 1px solid var(--border); color: var(--text-dim);
+    }
+    /* ── Gap analysis card ── */
+    .gap-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 24px 28px;
+    }
+    .gap-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .gap-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+    }
+    @media (max-width: 700px) { .gap-row { grid-template-columns: 1fr; } }
+    .gap-item h4 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-dim); margin-bottom: 6px; }
+    .patch-id { font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 600; }
+    .patch-meta { font-size: 12px; color: var(--text-dim); margin-top: 3px; }
+    .age-pill {
+      display: inline-flex; align-items: center;
+      padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; margin-top: 6px;
+    }
+    .age-green { background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,0.3); }
+    .age-yellow { background: var(--yellow-dim); color: var(--yellow); border: 1px solid rgba(251,191,36,0.3); }
+    .age-red { background: var(--red-dim); color: var(--red); border: 1px solid rgba(248,113,113,0.3); }
+    /* ── CVE list ── */
+    .cve-list { margin-top: 16px; }
+    .cve-list h4 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-dim); margin-bottom: 10px; }
+    .cve-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+    }
+    .cve-row:last-child { border-bottom: none; }
+    .cve-id { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; }
+    .cvss-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 44px; padding: 2px 8px; border-radius: 5px;
+      font-size: 11px; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+    }
+    .cvss-critical { background: var(--red-dim); color: var(--red); border: 1px solid rgba(248,113,113,0.3); }
+    .cvss-high     { background: var(--orange-dim); color: var(--orange); border: 1px solid rgba(251,146,60,0.3); }
+    .cvss-medium   { background: var(--yellow-dim); color: var(--yellow); border: 1px solid rgba(251,191,36,0.3); }
+    .cvss-low      { background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,0.3); }
+    .cve-patch-label { font-size: 12px; color: var(--text-dim); flex: 1; }
+    .mos-link { font-size: 11px; color: var(--blue); margin-left: auto; white-space: nowrap; }
+    /* ── Installed patches inventory ── */
+    .inv-controls {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap;
+    }
+    .inv-search {
+      background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+      border-radius: 8px; padding: 6px 12px; font-size: 13px; font-family: inherit;
+      flex: 1; min-width: 200px; max-width: 300px; outline: none;
+    }
+    .inv-search:focus { border-color: var(--accent); }
+    .inv-filter-btn {
+      padding: 5px 12px; border-radius: 7px; font-size: 12px; font-weight: 500; font-family: inherit;
+      border: 1px solid var(--border); background: var(--surface-2); color: var(--text-dim);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .inv-filter-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+    /* ── Patch table ── */
+    .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+    .patch-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .patch-table th {
+      text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim);
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      cursor: pointer; white-space: nowrap; user-select: none;
+    }
+    .patch-table th:hover { color: var(--text); }
+    .patch-table th .sort-icon { opacity: 0.4; margin-left: 4px; }
+    .patch-table th.sort-asc .sort-icon::after { content: ' ▲'; opacity: 1; }
+    .patch-table th.sort-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
+    .patch-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+    .patch-table tbody tr:last-child td { border-bottom: none; }
+    .patch-table tbody tr:hover td { background: var(--surface-2); }
+    .mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+    .patch-status-ok { color: var(--green); font-size: 11px; font-weight: 600; }
+    .patch-status-err { color: var(--red); font-size: 11px; font-weight: 600; }
+    .patch-type-badge {
+      display: inline-flex; padding: 1px 7px; border-radius: 4px; font-size: 10px; font-weight: 700;
+      text-transform: uppercase;
+    }
+    .ptb-ru { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(240,168,48,0.2); }
+    .ptb-psu { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(96,165,250,0.2); }
+    .ptb-one { background: var(--surface-2); color: var(--text-dim); border: 1px solid var(--border); }
+    /* ── ADOP session table ── */
+    .adop-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .adop-table th {
+      text-align: left; padding: 9px 12px; font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+    }
+    .adop-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    .adop-table tr:last-child td { border-bottom: none; }
+    .adop-table tr:hover td { background: var(--surface-2); }
+    .phase-cell {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 22px; height: 22px; border-radius: 50%; font-size: 11px; font-weight: 700;
+    }
+    .phase-ok { background: var(--green-dim); color: var(--green); }
+    .phase-fail { background: var(--red-dim); color: var(--red); }
+    .phase-skip { background: var(--surface-2); color: var(--text-dim); }
+    .adop-phases { display: flex; gap: 4px; align-items: center; }
+    /* ── Codelevel card ── */
+    .codelevel-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+    }
+    @media (max-width: 600px) { .codelevel-grid { grid-template-columns: 1fr; } }
+    .codelevel-card {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 16px 20px;
+    }
+    .codelevel-card .cl-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-dim); margin-bottom: 6px; }
+    .codelevel-card .cl-value { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 600; }
+    .codelevel-card .cl-sub { font-size: 12px; color: var(--text-dim); margin-top: 3px; }
+    /* ── Preflight card ── */
+    .preflight-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 24px 28px;
+    }
+    .preflight-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .preflight-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+    .preflight-item {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 9px; padding: 14px 16px;
+    }
+    .preflight-item .pi-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-dim); margin-bottom: 6px; }
+    .preflight-item .pi-value { font-size: 16px; font-weight: 700; }
+    .preflight-item .pi-sub { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+    /* ── ETCC section ── */
+    .etcc-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 24px 28px;
+    }
+    .etcc-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+    .etcc-card .etcc-sub { font-size: 13px; color: var(--text-dim); margin-bottom: 18px; }
+    .etcc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 700px) { .etcc-grid { grid-template-columns: 1fr; } }
+    .etcc-check-card {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 16px 18px;
+    }
+    .etcc-check-card h4 { font-size: 13px; font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+    .etcc-cmd {
+      background: #0d0d11; border: 1px solid var(--border);
+      border-radius: 7px; padding: 10px 14px; position: relative; margin-top: 8px;
+    }
+    .etcc-cmd pre {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.7;
+      color: #c8c8d8; white-space: pre-wrap; word-break: break-word;
+    }
+    .etcc-cmd-copy {
+      position: absolute; top: 8px; right: 8px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      color: var(--text-dim); border-radius: 5px; padding: 3px 8px;
+      font-size: 10px; font-family: inherit; cursor: pointer; transition: all 0.2s;
+    }
+    .etcc-cmd-copy:hover { border-color: var(--accent); color: var(--accent); }
+    .etcc-what-to-look {
+      margin-top: 14px; font-size: 12px; color: var(--text-dim); line-height: 1.8;
+    }
+    .etcc-what-to-look strong { color: var(--text); }
+    .etcc-ssh-needed {
+      background: var(--blue-dim); border: 1px solid rgba(96,165,250,0.2);
+      border-radius: 8px; padding: 12px 16px; margin-top: 16px;
+      font-size: 13px; color: var(--blue);
+    }
+    /* ── Runbook ── */
+    .runbook-section { margin-top: 0; }
+    .runbook-section h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+    .runbook-section .runbook-note { font-size: 13px; color: var(--text-dim); margin-bottom: 16px; }
+    .change-window-banner {
+      background: var(--yellow-dim); border: 1px solid rgba(251,191,36,0.3);
+      border-radius: 10px; padding: 13px 18px; margin-bottom: 20px;
+      display: flex; align-items: center; gap: 10px;
+      font-size: 13px; color: var(--yellow); font-weight: 600;
+    }
+    .step-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden; margin-bottom: 12px;
+    }
+    .step-header {
+      display: flex; align-items: center; gap: 12px; padding: 16px 20px;
+      cursor: pointer; user-select: none; transition: background 0.15s;
+    }
+    .step-header:hover { background: var(--surface-2); }
+    .step-number {
+      width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: var(--text-dim); flex-shrink: 0;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .step-card.open .step-number { border-color: var(--accent); color: var(--accent); }
+    .step-card.rollback .step-number { border-color: var(--red); color: var(--red); }
+    .step-title { font-size: 14px; font-weight: 600; flex: 1; }
+    .step-chevron { color: var(--text-dim); font-size: 12px; transition: transform 0.2s; }
+    .step-card.open .step-chevron { transform: rotate(90deg); }
+    .step-body { display: none; padding: 0 20px 20px; }
+    .step-card.open .step-body { display: block; }
+    .step-notes { margin-bottom: 14px; }
+    .step-note {
+      font-size: 12px; color: var(--text-dim); padding: 4px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      display: flex; align-items: flex-start; gap: 6px;
+    }
+    .step-note:last-child { border-bottom: none; }
+    .cmd-block {
+      background: #0d0d11; border: 1px solid var(--border);
+      border-radius: 8px; padding: 14px 16px; position: relative; margin-top: 10px;
+    }
+    .cmd-block pre {
+      font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.7;
+      color: #c8c8d8; white-space: pre-wrap; word-break: break-word;
+    }
+    .cmd-block pre .comment { color: #9898a8; }
+    .cmd-block pre .keyword { color: var(--blue); }
+    .cmd-copy {
+      position: absolute; top: 10px; right: 10px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      color: var(--text-dim); border-radius: 6px; padding: 4px 10px;
+      font-size: 11px; font-family: inherit; cursor: pointer; transition: all 0.2s;
+    }
+    .cmd-copy:hover { border-color: var(--accent); color: var(--accent); }
+    .verification-block {
+      margin-top: 14px; background: rgba(96,165,250,0.04); border: 1px solid rgba(96,165,250,0.15);
+      border-radius: 8px; padding: 14px 16px;
+    }
+    .verification-block .vb-label {
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
+      color: var(--blue); margin-bottom: 8px;
+    }
+    .verification-block pre {
+      font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.7;
+      color: #c8c8d8; white-space: pre-wrap; word-break: break-word;
+    }
+    /* ── Card wrapper ── */
+    .card-block {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 24px 28px;
+    }
+    /* ── Fully patched state ── */
+    .patched-card {
+      background: var(--green-dim); border: 1px solid rgba(52,211,153,0.25);
+      border-radius: 12px; padding: 32px 36px; margin-top: 24px;
+      display: flex; align-items: flex-start; gap: 20px;
+    }
+    .patched-card .pc-icon { font-size: 42px; flex-shrink: 0; }
+    .patched-card h3 { font-size: 20px; font-weight: 700; color: var(--green); margin-bottom: 6px; }
+    .patched-card p { font-size: 14px; color: var(--text-dim); }
+    .patched-card .pc-patch { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text); margin-top: 10px; }
+    /* ── States ── */
+    .loading-state { padding: 80px 24px; text-align: center; color: var(--text-dim); font-size: 14px; }
+    .loading-state .spinner { font-size: 32px; display: block; margin-bottom: 16px; animation: spin 1s linear infinite; }
+    .empty-state { padding: 80px 24px; text-align: center; }
+    .empty-state .es-icon { font-size: 48px; display: block; margin-bottom: 16px; opacity: 0.3; }
+    .empty-state h3 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+    .empty-state p { font-size: 14px; color: var(--text-dim); max-width: 400px; margin: 0 auto; }
+    /* ── Section divider ── */
+    .section-divider { border: none; border-top: 1px solid rgba(255,255,255,0.06); margin: 28px 0; }
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      nav { padding: 14px 24px; }
+      .page-wrapper { padding: 48px 24px 60px; }
+    }
+    @media (max-width: 600px) {
+      nav { padding: 12px 16px; flex-wrap: wrap; }
+      .page-wrapper { padding: 48px 16px 60px; }
+      .status-grid { grid-template-columns: 1fr 1fr; }
+    }
+    /* ── Quick-link nav ── */
+    .section-toc {
+      display: flex; gap: 8px; flex-wrap: wrap; margin-top: 24px;
+    }
+    .toc-link {
+      padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;
+      border: 1px solid var(--border); background: var(--surface-2); color: var(--text-dim);
+      text-decoration: none; transition: all 0.15s;
+    }
+    .toc-link:hover { border-color: var(--accent); color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="grain"></div>
+
+  <!-- Nav -->
+  <div class="nav-wrapper">
+    <nav id="nav-root"></nav>
+  </div>
+
+  <div class="page-wrapper">
+    <div class="page-header">
+      <div>
+        <h1>🛡 Patch Advisor</h1>
+        <p>Current CPU/PSU level, CVE gap analysis, ADOP session history, AD/TXK codelevels, ETCC guidance, and a copy-pasteable patching runbook with live prerequisite values.</p>
+      </div>
+    </div>
+
+    <!-- Connection bar -->
+    <div class="conn-bar">
+      <label for="conn-select">Connection:</label>
+      <select class="conn-select" id="conn-select">
+        <option value="">Loading connections…</option>
+      </select>
+      <button class="btn-fetch" id="btn-fetch" onclick="fetchAdvisor()">
+        <span id="fetch-icon">⟳</span> <span id="fetch-label">Analyze Patches</span>
+      </button>
+    </div>
+
+    <!-- Quick nav (shown after load) -->
+    <div id="section-toc" style="display:none;" class="section-toc">
+      <a class="toc-link" href="#sec-summary">📊 Summary</a>
+      <a class="toc-link" href="#sec-dbpatch">🛡 DB Patch (OPatch)</a>
+      <a class="toc-link" href="#sec-inventory">📋 Patch Inventory</a>
+      <a class="toc-link" href="#sec-ebs" id="toc-ebs" style="display:none">📦 EBS / ADOP</a>
+      <a class="toc-link" href="#sec-etcc" id="toc-etcc" style="display:none">🔍 ETCC</a>
+      <a class="toc-link" href="#sec-preflight">🔧 Pre-flight</a>
+      <a class="toc-link" href="#sec-runbook">📜 Runbook</a>
+    </div>
+
+    <!-- Main content area -->
+    <div id="main-content">
+      <div class="empty-state" style="margin-top:40px;">
+        <span class="es-icon">🛡</span>
+        <h3>Select a connection</h3>
+        <p>Choose an Oracle connection above and click Analyze Patches to detect your current CPU/PSU level and generate a patching runbook.</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="/connection-state.js"></script>
+  <script>
+
+    // ── Auth ──────────────────────────────────────────────────────────────────
+
+    async function checkAuth() {
+      const r = await fetch('/api/auth/me', { credentials: 'include' });
+      if (!r.ok) { window.location.href = '/login?next=/patches'; }
+    }
+
+    // ── Load connections ──────────────────────────────────────────────────────
+
+    async function loadConnections() {
+      try {
+        const r = await fetch('/api/connections', { credentials: 'include' });
+        if (!r.ok) throw new Error('Failed to load connections');
+        const data = await r.json();
+        const conns = tvConn.parseList(data);
+        const sel = document.getElementById('conn-select');
+        sel.innerHTML = '';
+        if (!conns.length) {
+          sel.innerHTML = '<option value="">No connections — add one on Dashboard</option>';
+          return;
+        }
+        sel.innerHTML = '<option value="">Select a connection…</option>';
+        for (const c of conns) {
+          const opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = c.name || `${c.host}/${c.service_name}`;
+          sel.appendChild(opt);
+        }
+        // Restore saved connection from global state + wire persistence
+        tvConn.bind(sel, conns);
+      } catch (e) {
+        console.error('loadConnections:', e);
+      }
+    }
+
+    // ── Fetch advisor data ────────────────────────────────────────────────────
+
+    async function fetchAdvisor() {
+      const connId = document.getElementById('conn-select').value;
+      if (!connId) {
+        showError('Please select a connection first.');
+        return;
+      }
+      tvConn.save(connId);
+      setLoading(true);
+      try {
+        const r = await fetch(`/api/patches/advisor/${connId}`, { credentials: 'include' });
+        if (r.status === 401) { window.location.href = '/login?next=/patches'; return; }
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({}));
+          throw new Error(err.error || `HTTP ${r.status}`);
+        }
+        const data = await r.json();
+        renderAdvisor(data);
+      } catch (e) {
+        showError(`Failed to analyze patches: ${e.message}`);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    function setLoading(on) {
+      const btn = document.getElementById('btn-fetch');
+      const icon = document.getElementById('fetch-icon');
+      const label = document.getElementById('fetch-label');
+      btn.disabled = on;
+      if (on) {
+        icon.textContent = '⟳';
+        icon.classList.add('spinning');
+        label.textContent = 'Analyzing…';
+        document.getElementById('main-content').innerHTML = `
+          <div class="loading-state" style="margin-top:40px;">
+            <span class="spinner">⟳</span>
+            <p>Querying Oracle patch registry…</p>
+          </div>`;
+        document.getElementById('section-toc').style.display = 'none';
+      } else {
+        icon.classList.remove('spinning');
+        icon.textContent = '⟳';
+        label.textContent = 'Analyze Patches';
+      }
+    }
+
+    function showError(msg) {
+      document.getElementById('main-content').innerHTML = `
+        <div class="banner banner-error" style="margin-top:24px;">
+          <span class="b-icon">⚠</span>
+          <div class="banner-text"><strong>Error</strong><span>${escHtml(msg)}</span></div>
+        </div>`;
+    }
+
+    // ── Render ────────────────────────────────────────────────────────────────
+
+    function renderAdvisor(data) {
+      const el = document.getElementById('main-content');
+      let html = '';
+
+      // Show section TOC
+      document.getElementById('section-toc').style.display = 'flex';
+      document.getElementById('toc-ebs').style.display = data.ebs_detected ? '' : 'none';
+      document.getElementById('toc-etcc').style.display = data.ebs_detected ? '' : 'none';
+
+      // Demo banner
+      if (data.is_demo) {
+        html += `<div class="banner banner-demo" style="margin-top:16px;">
+          <span class="b-icon">🎯</span>
+          <div class="banner-text">
+            <strong>Demo Mode</strong>
+            <span>Showing a simulated 19c EBS instance on Jan 2024 CPU — 4 quarters behind. Connect a real Oracle DB for live analysis.</span>
+          </div>
+        </div>`;
+      }
+
+      // EOL warning
+      const gap = data.gap_analysis;
+      if (gap && gap.eol_warning) {
+        html += `<div class="banner banner-warn" style="margin-top:12px;">
+          <span class="b-icon">⚠️</span>
+          <div class="banner-text"><strong>End of Support</strong><span>${escHtml(gap.eol_warning)}</span></div>
+        </div>`;
+      }
+
+      // ── SECTION: Summary Dashboard ──────────────────────────────────────────
+      html += renderSummaryDashboard(data);
+
+      // Fully patched state (short-circuit only for non-EBS with no other sections)
+      if (gap && gap.fully_patched && !data.ebs_detected) {
+        html += `<div class="patched-card" style="margin-top:24px;">
+          <div class="pc-icon">✅</div>
+          <div>
+            <h3>You're on the latest CPU</h3>
+            <p>This instance is running <strong>${escHtml(gap.latest_patch?.label || 'current CPU')}</strong> — no gaps found.</p>
+            <div class="pc-patch">Patch: ${escHtml(gap.latest_patch?.patch_number || '')} · Released: ${escHtml(gap.latest_patch?.date || '')} · MOS: 2118136.2</div>
+            ${gap.next_cpu_estimate ? `<p style="margin-top:10px;font-size:12px;color:var(--text-dim)">Next bundle expected: ${escHtml(gap.next_cpu_estimate)}</p>` : ''}
+          </div>
+        </div>`;
+        el.innerHTML = html;
+        return;
+      }
+
+      // ── SECTION 1: DB Patch (OPatch) ───────────────────────────────────────
+      html += `<div id="sec-dbpatch">`;
+      html += `<div class="section-header"><h2>🛡 DB Patching (OPatch)</h2>`;
+      if (data.db_version_key) html += `<span class="sh-badge">${escHtml(data.db_version_key)}</span>`;
+      html += `</div>`;
+
+      // Status cards row
+      html += renderStatusCards(data);
+
+      // Gap analysis card
+      if (gap && gap.current_patch && gap.latest_patch) {
+        html += renderGapCard(gap);
+      }
+      html += `</div>`; // sec-dbpatch
+
+      // ── SECTION 2: Patch Inventory ─────────────────────────────────────────
+      html += `<div id="sec-inventory">`;
+      html += `<div class="section-header"><h2>📋 Installed Patches Inventory</h2></div>`;
+      html += renderPatchInventory(data.current_level);
+      html += `</div>`; // sec-inventory
+
+      // ── SECTION 3: EBS / ADOP (conditional) ───────────────────────────────
+      if (data.ebs_detected && data.ebs_level) {
+        html += `<div id="sec-ebs">`;
+        html += `<div class="section-header"><h2>📦 Apps Patches (ADOP)</h2><span class="sh-badge">EBS Detected</span></div>`;
+
+        // Applied EBS patches table
+        if (data.ebs_level.applied_patches && data.ebs_level.applied_patches.length > 0) {
+          html += renderEbsHistory(data.ebs_level);
+        }
+
+        // AD/TXK codelevels
+        html += renderAdTxkCodelevels(data.ebs_level);
+
+        // ADOP session history
+        if (data.ebs_level.adop_sessions && data.ebs_level.adop_sessions.length > 0) {
+          html += renderAdopSessionHistory(data.ebs_level.adop_sessions);
+        }
+        html += `</div>`; // sec-ebs
+
+        // ── SECTION 4: ETCC ───────────────────────────────────────────────────
+        html += `<div id="sec-etcc">`;
+        html += `<div class="section-header"><h2>🔍 ETCC (Enterprise Technology Codelevel Checker)</h2><span class="sh-badge">EBS Only</span></div>`;
+        html += renderEtccSection();
+        html += `</div>`; // sec-etcc
+      }
+
+      // ── SECTION 5: Preflight ───────────────────────────────────────────────
+      html += `<div id="sec-preflight">`;
+      html += `<div class="section-header"><h2>🔧 Pre-flight Checks</h2></div>`;
+      if (data.preflight) {
+        html += renderPreflightCard(data.preflight, data.ebs_level);
+      }
+      html += `</div>`; // sec-preflight
+
+      // ── SECTION 6: Runbook ─────────────────────────────────────────────────
+      if (data.runbook && data.runbook.length > 0) {
+        html += `<div id="sec-runbook">`;
+        html += `<div class="section-header"><h2>📜 ${data.ebs_detected ? 'ADOP Prep → Cleanup' : 'OPatch'} Runbook</h2></div>`;
+        html += renderRunbook(data.runbook, data.ebs_detected, gap);
+        html += `</div>`;
+      }
+
+      // Index freshness note
+      if (data.patch_index_meta) {
+        html += `<div style="margin-top:32px;font-size:12px;color:var(--text-dim);text-align:center;">
+          Patch index refreshed ${escHtml(data.patch_index_meta.LAST_REFRESHED || 'recently')} · Next refresh due ${escHtml(data.patch_index_meta.next_refresh_due || '')} · Source: MOS Doc 2118136.2
+        </div>`;
+      }
+
+      el.innerHTML = html;
+      initPatchInventory();
+    }
+
+    // ── Summary Dashboard ─────────────────────────────────────────────────────
+
+    function renderSummaryDashboard(data) {
+      const gap = data.gap_analysis;
+      const ebs = data.ebs_level;
+
+      const badges = [];
+
+      // DB RU status
+      if (gap) {
+        if (gap.fully_patched) {
+          badges.push({ dot: 'sb-green', label: 'DB RU: Current' });
+        } else if (gap.quarters_behind != null) {
+          const cls = gap.quarters_behind <= 2 ? 'sb-yellow' : 'sb-red';
+          badges.push({ dot: cls, label: `DB RU: ${gap.quarters_behind}Q behind` });
+        } else {
+          badges.push({ dot: 'sb-dim', label: 'DB RU: Unknown' });
+        }
+      } else {
+        badges.push({ dot: 'sb-dim', label: 'DB RU: Not analyzed' });
+      }
+
+      // Apps CPU status (EBS only)
+      if (data.ebs_detected && ebs) {
+        const latestEbsPatch = ebs.applied_patches && ebs.applied_patches[0];
+        if (latestEbsPatch) {
+          const daysSince = daysSinceDate(latestEbsPatch.applied_date);
+          const cls = daysSince < 180 ? 'sb-green' : daysSince < 365 ? 'sb-yellow' : 'sb-red';
+          badges.push({ dot: cls, label: `Apps CPU: ${latestEbsPatch.maint_pack_name || latestEbsPatch.patch_name}` });
+        } else {
+          badges.push({ dot: 'sb-red', label: 'Apps CPU: None detected' });
+        }
+
+        // AD Codelevel
+        if (ebs.ad_codelevel) {
+          badges.push({ dot: 'sb-green', label: `AD: ${ebs.ad_codelevel}` });
+        } else {
+          badges.push({ dot: 'sb-dim', label: 'AD: Unknown' });
+        }
+
+        // TXK Codelevel
+        if (ebs.txk_codelevel) {
+          badges.push({ dot: 'sb-green', label: `TXK: ${ebs.txk_codelevel}` });
+        } else {
+          badges.push({ dot: 'sb-dim', label: 'TXK: Unknown' });
+        }
+
+        // ETCC (SSH required — always guidance-only for now)
+        badges.push({ dot: 'sb-dim', label: 'ETCC: SSH required' });
+      }
+
+      // INVALID objects
+      const inv = data.preflight?.invalid_objects_count;
+      if (inv != null) {
+        const cls = inv === 0 ? 'sb-green' : inv < 5 ? 'sb-yellow' : 'sb-red';
+        badges.push({ dot: cls, label: `INVALID: ${inv}` });
+      }
+
+      // Max unpatched CVSS
+      const cvssMax = gap?.missed_cves?.length > 0 ? Math.max(...gap.missed_cves.map(c => c.cvss || 0)) : 0;
+      if (cvssMax > 0) {
+        const cls = cvssMax >= 9 ? 'sb-red' : cvssMax >= 7 ? 'sb-yellow' : 'sb-dim';
+        badges.push({ dot: cls, label: `CVE Max CVSS: ${cvssMax.toFixed(1)}` });
+      }
+
+      // Health score
+      let greenCount = badges.filter(b => b.dot === 'sb-green').length;
+      let total = badges.filter(b => b.dot !== 'sb-dim').length || 1;
+      const score = Math.round((greenCount / total) * 100);
+      const scoreColor = score >= 80 ? 'var(--green)' : score >= 50 ? 'var(--yellow)' : 'var(--red)';
+
+      const badgesHtml = badges.map(b => `
+        <div class="summary-badge">
+          <div class="sb-dot ${b.dot}"></div>
+          <span>${escHtml(b.label)}</span>
+        </div>`).join('');
+
+      return `<div class="summary-dashboard" id="sec-summary">
+        <h3>Patch Health Overview — ${escHtml(data.connection_name || 'Connected Instance')}</h3>
+        <div class="summary-badges">${badgesHtml}</div>
+        <div class="summary-score">
+          <span style="font-size:12px;color:var(--text-dim);">Overall patch health</span>
+          <div class="score-bar"><div class="score-fill" style="width:${score}%;background:${scoreColor}"></div></div>
+          <span class="score-label" style="color:${scoreColor}">${score}%</span>
+        </div>
+      </div>`;
+    }
+
+    function daysSinceDate(dateStr) {
+      if (!dateStr) return 999;
+      try {
+        const d = new Date(dateStr);
+        return Math.floor((Date.now() - d.getTime()) / 86400000);
+      } catch (_) { return 999; }
+    }
+
+    // ── Status Cards ──────────────────────────────────────────────────────────
+
+    function renderStatusCards(data) {
+      const gap = data.gap_analysis;
+
+      const quartersStr = gap?.quarters_behind != null
+        ? (gap.quarters_behind === 0 ? 'Current' : `${gap.quarters_behind}Q behind`)
+        : '—';
+      const quartersColor = gap?.quarters_behind == null ? 'c-dim'
+        : gap.quarters_behind === 0 ? 'c-green'
+        : gap.quarters_behind <= 2 ? 'c-yellow'
+        : 'c-red';
+
+      const cvssMax = gap?.missed_cves?.length > 0
+        ? Math.max(...gap.missed_cves.map(c => c.cvss || 0))
+        : 0;
+      const cvssStr  = cvssMax > 0 ? cvssMax.toFixed(1) : '—';
+      const cvssColor = cvssMax >= 9 ? 'c-red' : cvssMax >= 7 ? 'c-orange' : cvssMax >= 4 ? 'c-yellow' : 'c-green';
+
+      const invalidCount = data.preflight?.invalid_objects_count;
+      const invalidStr = invalidCount != null ? String(invalidCount) : '—';
+      const invalidColor = invalidCount == null ? 'c-dim' : invalidCount === 0 ? 'c-green' : invalidCount < 5 ? 'c-yellow' : 'c-red';
+
+      const sevColor = { CRITICAL: 'c-red', HIGH: 'c-orange', MEDIUM: 'c-yellow', LOW: 'c-green' };
+      const sevStr = gap?.severity_summary || (gap?.quarters_behind === 0 ? 'None' : '—');
+      const sevColorClass = sevColor[gap?.severity_summary] || 'c-dim';
+
+      // Age of last applied patch
+      let agePill = '';
+      if (gap?.current_patch?.date) {
+        const days = daysSinceDate(gap.current_patch.date);
+        const ageLabel = days < 90 ? `${days}d ago` : days < 365 ? `${Math.floor(days/30)}mo ago` : `${Math.floor(days/365)}y ago`;
+        const ageCls = days < 90 ? 'age-green' : days < 180 ? 'age-yellow' : 'age-red';
+        agePill = `<span class="age-pill ${ageCls}">Applied ${ageLabel}</span>`;
+      }
+
+      return `<div class="status-grid" style="margin-top:16px;">
+        <div class="status-card">
+          <div class="card-label">DB Version</div>
+          <div class="card-value" style="font-size:15px;">${escHtml(data.db_version || '—')}</div>
+          <div class="card-sub">${data.ebs_detected ? '✦ EBS detected' : 'RDBMS only'}</div>
+        </div>
+        <div class="status-card">
+          <div class="card-label">Patch Gap</div>
+          <div class="card-value ${quartersColor}">${escHtml(quartersStr)}</div>
+          <div class="card-sub">${gap?.current_patch?.quarter ? `On ${escHtml(gap.current_patch.quarter)}` : 'Unknown quarter'}</div>
+        </div>
+        <div class="status-card">
+          <div class="card-label">Max CVSS Missed</div>
+          <div class="card-value ${cvssColor}">${cvssStr}</div>
+          <div class="card-sub">${gap?.missed_cves?.length || 0} CVE(s) unpatched</div>
+        </div>
+        <div class="status-card">
+          <div class="card-label">Severity</div>
+          <div class="card-value ${sevColorClass}">${escHtml(sevStr)}</div>
+          <div class="card-sub">Based on unpatched CVEs</div>
+        </div>
+        <div class="status-card">
+          <div class="card-label">Last Patch Applied</div>
+          <div class="card-value" style="font-size:13px;font-family:'JetBrains Mono',monospace;">${escHtml(gap?.current_patch?.date?.split(' ')[0] || '—')}</div>
+          <div class="card-sub">${agePill || 'Unknown date'}</div>
+        </div>
+        <div class="status-card">
+          <div class="card-label">INVALID Objects</div>
+          <div class="card-value ${invalidColor}">${invalidStr}</div>
+          <div class="card-sub">Baseline pre-patch count</div>
+        </div>
+      </div>`;
+    }
+
+    // ── Gap Analysis Card ─────────────────────────────────────────────────────
+
+    function renderGapCard(gap) {
+      let html = `<div class="gap-card" style="margin-top:16px;">
+        <h3>🔍 Patch Gap Analysis</h3>
+        <div class="gap-row">
+          <div class="gap-item">
+            <h4>Current (Applied)</h4>
+            <div class="patch-id">${escHtml(String(gap.current_patch.patch_id || '—'))}</div>
+            <div class="patch-meta">${escHtml(gap.current_patch.label || '')}</div>
+            <div class="patch-meta">Applied: ${escHtml(gap.current_patch.date || '—')}</div>
+            ${gap.current_patch.quarter ? `<div class="patch-meta">Quarter: ${escHtml(gap.current_patch.quarter)}</div>` : ''}
+          </div>
+          <div class="gap-item">
+            <h4>Latest Available</h4>
+            <div class="patch-id c-accent">${escHtml(String(gap.latest_patch.patch_number || '—'))}</div>
+            <div class="patch-meta">${escHtml(gap.latest_patch.label || '')}</div>
+            <div class="patch-meta">Released: ${escHtml(gap.latest_patch.date || '—')}</div>
+            ${gap.latest_patch.quarter ? `<div class="patch-meta">Quarter: ${escHtml(gap.latest_patch.quarter)}</div>` : ''}
+            ${gap.next_cpu_estimate ? `<div class="patch-meta">Next CPU: ${escHtml(gap.next_cpu_estimate)}</div>` : ''}
+          </div>
+        </div>`;
+
+      // CVE list
+      if (gap.missed_cves && gap.missed_cves.length > 0) {
+        html += `<div class="cve-list">
+          <h4>Unpatched CVEs (sorted by CVSS)</h4>`;
+        for (const cve of gap.missed_cves) {
+          const cls = cve.cvss >= 9 ? 'cvss-critical' : cve.cvss >= 7 ? 'cvss-high' : cve.cvss >= 4 ? 'cvss-medium' : 'cvss-low';
+          html += `<div class="cve-row">
+            <span class="cve-id">${escHtml(cve.cve)}</span>
+            <span class="cvss-badge ${cls}">CVSS ${cve.cvss != null ? cve.cvss.toFixed(1) : '—'}</span>
+            <span class="cve-patch-label">${escHtml(cve.label || '')}</span>
+            ${cve.mos_doc_id ? `<span class="mos-link">MOS ${escHtml(cve.mos_doc_id)}</span>` : ''}
+          </div>`;
+        }
+        html += `</div>`;
+      } else if (gap.quarters_behind > 0) {
+        html += `<div style="margin-top:14px;font-size:13px;color:var(--text-dim);">CVE detail not available for this patch level. Refer to MOS Doc 2118136.2.</div>`;
+      }
+
+      html += `</div>`; // gap-card
+      return html;
+    }
+
+    // ── Patch Inventory ───────────────────────────────────────────────────────
+
+    // Store patches globally so we can filter/sort without re-fetch
+    let _inventoryPatches = [];
+    let _sortCol = 'action_time';
+    let _sortDir = 'desc';
+
+    function renderPatchInventory(currentLevel) {
+      if (!currentLevel || !currentLevel.patches || currentLevel.patches.length === 0) {
+        return `<div class="card-block">
+          <p style="font-size:13px;color:var(--text-dim);">No patch history retrieved. The user may lack SELECT privilege on DBA_REGISTRY_SQLPATCH.</p>
+        </div>`;
+      }
+      _inventoryPatches = currentLevel.patches;
+      return `<div class="card-block">
+        <div class="inv-controls">
+          <input class="inv-search" type="text" id="inv-search" placeholder="Filter by ID, description…" oninput="filterInventory()">
+          <button class="inv-filter-btn active" data-filter="all" onclick="setFilter(this,'all')">All</button>
+          <button class="inv-filter-btn" data-filter="apply" onclick="setFilter(this,'apply')">APPLY</button>
+          <button class="inv-filter-btn" data-filter="rollback" onclick="setFilter(this,'rollback')">ROLLBACK</button>
+          <span style="font-size:12px;color:var(--text-dim);margin-left:auto;" id="inv-count">${_inventoryPatches.length} patches</span>
+        </div>
+        <div class="table-wrap">
+          <table class="patch-table" id="inv-table">
+            <thead>
+              <tr>
+                <th onclick="sortInventory('patch_id')" class="sort-desc"><span>Patch ID</span><span class="sort-icon"></span></th>
+                <th onclick="sortInventory('action_time')" class="sort-desc"><span>Applied</span><span class="sort-icon"></span></th>
+                <th onclick="sortInventory('action')"><span>Action</span><span class="sort-icon"></span></th>
+                <th onclick="sortInventory('status')"><span>Status</span><span class="sort-icon"></span></th>
+                <th><span>Description</span></th>
+                <th onclick="sortInventory('bundle_series')"><span>Type</span><span class="sort-icon"></span></th>
+              </tr>
+            </thead>
+            <tbody id="inv-tbody"></tbody>
+          </table>
+        </div>
+      </div>`;
+    }
+
+    let _activeFilter = 'all';
+
+    function setFilter(btn, filter) {
+      _activeFilter = filter;
+      document.querySelectorAll('.inv-filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderInventoryRows();
+    }
+
+    function filterInventory() { renderInventoryRows(); }
+
+    function sortInventory(col) {
+      if (_sortCol === col) {
+        _sortDir = _sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        _sortCol = col;
+        _sortDir = 'desc';
+      }
+      // Update header classes
+      document.querySelectorAll('#inv-table th').forEach(th => {
+        th.classList.remove('sort-asc', 'sort-desc');
+      });
+      renderInventoryRows();
+    }
+
+    function initPatchInventory() {
+      if (_inventoryPatches.length === 0) return;
+      renderInventoryRows();
+    }
+
+    function renderInventoryRows() {
+      const tbody = document.getElementById('inv-tbody');
+      if (!tbody) return;
+      const q = (document.getElementById('inv-search')?.value || '').toLowerCase();
+
+      let rows = _inventoryPatches.filter(p => {
+        const matchFilter = _activeFilter === 'all' ||
+          (p.action || '').toLowerCase() === _activeFilter;
+        const matchSearch = !q ||
+          String(p.patch_id || '').includes(q) ||
+          (p.description || '').toLowerCase().includes(q) ||
+          (p.bundle_series || '').toLowerCase().includes(q);
+        return matchFilter && matchSearch;
+      });
+
+      // Sort
+      rows.sort((a, b) => {
+        let va = a[_sortCol] || '';
+        let vb = b[_sortCol] || '';
+        if (_sortCol === 'action_time') {
+          va = va || '0000'; vb = vb || '0000';
+        }
+        const cmp = String(va).localeCompare(String(vb));
+        return _sortDir === 'asc' ? cmp : -cmp;
+      });
+
+      document.getElementById('inv-count').textContent = `${rows.length} of ${_inventoryPatches.length} patches`;
+
+      tbody.innerHTML = rows.map(p => {
+        const statusClass = (p.status || '').toUpperCase() === 'SUCCESS' ? 'patch-status-ok' : 'patch-status-err';
+        const series = (p.bundle_series || '').toUpperCase();
+        let typeBadge = '';
+        if (series.includes('RU') || series.includes('RUR')) typeBadge = `<span class="patch-type-badge ptb-ru">RU</span>`;
+        else if (series.includes('PSU')) typeBadge = `<span class="patch-type-badge ptb-psu">PSU</span>`;
+        else typeBadge = `<span class="patch-type-badge ptb-one">${escHtml(series || 'ONE-OFF')}</span>`;
+
+        return `<tr>
+          <td class="mono">${escHtml(String(p.patch_id || '—'))}</td>
+          <td class="mono" style="white-space:nowrap;">${escHtml((p.action_time || '—').split(' ')[0])}</td>
+          <td>${escHtml(p.action || '—')}</td>
+          <td class="${statusClass}">${escHtml(p.status || '—')}</td>
+          <td style="color:var(--text-dim);font-size:12px;">${escHtml(p.description || '—')}</td>
+          <td>${typeBadge}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    // ── EBS History ───────────────────────────────────────────────────────────
+
+    function renderEbsHistory(ebsLevel) {
+      const patches = ebsLevel.applied_patches || [];
+      let rows = patches.map(p => `<tr>
+        <td class="mono">${escHtml(p.patch_name || '—')}</td>
+        <td>${escHtml(p.patch_type || '—')}</td>
+        <td class="mono">${escHtml(p.applied_date || '—')}</td>
+        <td style="color:var(--text-dim);font-size:12px;">${escHtml(p.maint_pack_name || '—')}</td>
+      </tr>`).join('');
+
+      return `<div class="card-block" style="margin-bottom:16px;">
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px;">📋 EBS Applied Patches (recent)</h3>
+        <div class="table-wrap">
+          <table class="adop-table">
+            <thead><tr><th>Patch #</th><th>Type</th><th>Applied</th><th>Maint Pack</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>`;
+    }
+
+    // ── AD/TXK Codelevels ─────────────────────────────────────────────────────
+
+    function renderAdTxkCodelevels(ebsLevel) {
+      const ad = ebsLevel.ad_codelevel;
+      const txk = ebsLevel.txk_codelevel;
+      if (!ad && !txk) return '';
+
+      return `<div class="card-block" style="margin-bottom:16px;">
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px;">🔖 AD / TXK Codelevels</h3>
+        <div class="codelevel-grid">
+          <div class="codelevel-card">
+            <div class="cl-label">AD Codelevel</div>
+            <div class="cl-value">${escHtml(ad || '—')}</div>
+            <div class="cl-sub">Application DBA patch framework</div>
+          </div>
+          <div class="codelevel-card">
+            <div class="cl-label">TXK Codelevel</div>
+            <div class="cl-value">${escHtml(txk || '—')}</div>
+            <div class="cl-sub">Technology Core codelevel</div>
+          </div>
+        </div>
+        <p style="margin-top:12px;font-size:12px;color:var(--text-dim);">
+          Query: <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">SELECT abbreviation, codelevel FROM apps.ad_trackable_entities WHERE abbreviation IN ('AD','TXK');</code>
+        </p>
+      </div>`;
+    }
+
+    // ── ADOP Session History ──────────────────────────────────────────────────
+
+    function renderAdopSessionHistory(sessions) {
+      const rows = sessions.map(s => {
+        const phaseIcon = (status) => {
+          const u = (status || 'N/A').toUpperCase();
+          if (u === 'C') return `<span class="phase-cell phase-ok">✓</span>`;
+          if (u === 'F') return `<span class="phase-cell phase-fail">✗</span>`;
+          return `<span class="phase-cell phase-skip">—</span>`;
+        };
+        // Determine overall status
+        const allComplete = ['C','C','C','C','C'].every(
+          (v, i) => [s.prepare_status, s.apply_status, s.finalize_status, s.cutover_status, s.cleanup_status][i] === 'C'
+        );
+        const anyFail = [s.prepare_status, s.apply_status, s.finalize_status, s.cutover_status, s.cleanup_status]
+          .some(v => v === 'F');
+        const rowStyle = anyFail ? 'background:rgba(248,113,113,0.04);' : '';
+
+        return `<tr style="${rowStyle}">
+          <td class="mono">${escHtml(String(s.session_id || '—'))}</td>
+          <td class="mono" style="white-space:nowrap;">${escHtml(s.start_date || '—')}</td>
+          <td class="mono" style="white-space:nowrap;">${escHtml(s.cutover_time || '—')}</td>
+          <td><div class="adop-phases">
+            ${phaseIcon(s.prepare_status)}
+            ${phaseIcon(s.apply_status)}
+            ${phaseIcon(s.finalize_status)}
+            ${phaseIcon(s.cutover_status)}
+            ${phaseIcon(s.cleanup_status)}
+          </div></td>
+          <td style="font-size:11px;color:var(--text-dim);">${escHtml(s.node_name || '—')}</td>
+          <td>${anyFail ? '<span style="color:var(--red);font-size:11px;font-weight:600;">FAILED</span>' : allComplete ? '<span style="color:var(--green);font-size:11px;font-weight:600;">COMPLETE</span>' : '<span style="color:var(--yellow);font-size:11px;font-weight:600;">PARTIAL</span>'}</td>
+        </tr>`;
+      }).join('');
+
+      return `<div class="card-block" style="margin-bottom:16px;">
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:8px;">📂 ADOP Session History</h3>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;">Phase columns: Prepare · Apply · Finalize · Cutover · Cleanup</p>
+        <div class="table-wrap">
+          <table class="adop-table">
+            <thead><tr><th>Session ID</th><th>Started</th><th>Cutover</th><th>Phases</th><th>Node</th><th>Result</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        ${sessions.some(s => [s.prepare_status,s.apply_status,s.finalize_status,s.cutover_status,s.cleanup_status].some(v => v === 'F')) ? `
+        <div class="banner banner-warn" style="margin-top:14px;">
+          <span class="b-icon">⚠️</span>
+          <div class="banner-text"><strong>Failed ADOP session detected</strong>
+          <span>A previous ADOP session has a failed phase. Run: <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">adop phase=cleanup cleanup_mode=full</code> to reset before starting a new patching cycle.</span></div>
+        </div>` : ''}
+      </div>`;
+    }
+
+    // ── ETCC Section ──────────────────────────────────────────────────────────
+
+    function renderEtccSection() {
+      return `<div class="etcc-card">
+        <h3>🔍 ETCC — Enterprise Technology Codelevel Checker</h3>
+        <p class="etcc-sub">Oracle's own tool that verifies DB tier and middle-tier (MT) patch currency. Every Oracle DBA runs <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">checkDBpatch.sh</code> and <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">checkMTpatch.sh</code> periodically.</p>
+
+        <div class="etcc-ssh-needed">
+          🔐 <strong>SSH access required.</strong> ETCC scripts run on the EBS server OS. Configure an SSH target in <a href="/settings/ssh-targets" style="color:var(--blue);">Settings → SSH Targets</a> to enable automated ETCC execution. Until then, use the commands below manually.
+        </div>
+
+        <div class="etcc-grid" style="margin-top:18px;">
+          <div class="etcc-check-card">
+            <h4>🗄 DB Tier Check</h4>
+            <p style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">Verifies all required DB patches are applied for the current EBS + DB version combination.</p>
+            <div class="etcc-cmd">
+              <pre># Run as oracle OS user from $ORACLE_HOME
+cd $AD_TOP/bin
+./checkDBpatch.sh</pre>
+              <button class="etcc-cmd-copy" onclick="copyEtccCmd(this)">Copy</button>
+            </div>
+            <div class="etcc-cmd" style="margin-top:8px;">
+              <pre># Find the script if $AD_TOP not set:
+find / -name checkDBpatch.sh 2>/dev/null | head -3</pre>
+              <button class="etcc-cmd-copy" onclick="copyEtccCmd(this)">Copy</button>
+            </div>
+            <div class="etcc-what-to-look">
+              <strong>What to look for:</strong><br>
+              ✅ &quot;No patches required&quot; — DB tier is current<br>
+              🔴 List of missing patch numbers — apply each via OPatch<br>
+              Check output log at: <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">$AD_TOP/bin/checkDBpatch.log</code>
+            </div>
+          </div>
+
+          <div class="etcc-check-card">
+            <h4>⚙️ MT (Middle Tier) Check</h4>
+            <p style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">Verifies all required technology stack patches are applied on the Applications tier.</p>
+            <div class="etcc-cmd">
+              <pre># Run as applmgr OS user from $APPL_TOP
+cd $AD_TOP/bin
+./checkMTpatch.sh</pre>
+              <button class="etcc-cmd-copy" onclick="copyEtccCmd(this)">Copy</button>
+            </div>
+            <div class="etcc-cmd" style="margin-top:8px;">
+              <pre># Find the script:
+find / -name checkMTpatch.sh 2>/dev/null | head -3</pre>
+              <button class="etcc-cmd-copy" onclick="copyEtccCmd(this)">Copy</button>
+            </div>
+            <div class="etcc-what-to-look">
+              <strong>What to look for:</strong><br>
+              ✅ &quot;All required patches are present&quot; — MT is current<br>
+              🔴 Missing patch numbers — apply via adop<br>
+              Check output log at: <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">$AD_TOP/bin/checkMTpatch.log</code>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-block" style="margin-top:16px;padding:16px 20px;">
+          <h4 style="font-size:13px;font-weight:600;margin-bottom:10px;">📖 Manual ETCC interpretation guide</h4>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--border);">
+                <th style="text-align:left;padding:6px 10px;color:var(--text-dim);font-size:11px;text-transform:uppercase;">Output line</th>
+                <th style="text-align:left;padding:6px 10px;color:var(--text-dim);font-size:11px;text-transform:uppercase;">Meaning</th>
+                <th style="text-align:left;padding:6px 10px;color:var(--text-dim);font-size:11px;text-transform:uppercase;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:7px 10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--green);">No patches required</td>
+                <td style="padding:7px 10px;color:var(--text-dim);">DB/MT tier is fully patched</td>
+                <td style="padding:7px 10px;">None</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:7px 10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--red);">Patch XXXXXXX not found</td>
+                <td style="padding:7px 10px;color:var(--text-dim);">Required patch is missing</td>
+                <td style="padding:7px 10px;">Apply via OPatch (DB) or adop (MT)</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:7px 10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--yellow);">Prerequisite check failed</td>
+                <td style="padding:7px 10px;color:var(--text-dim);">Dependency patch missing</td>
+                <td style="padding:7px 10px;">Apply prereq first, then retry</td>
+              </tr>
+              <tr>
+                <td style="padding:7px 10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);">AD/TXK codelevel mismatch</td>
+                <td style="padding:7px 10px;color:var(--text-dim);">AD or TXK codelevel behind</td>
+                <td style="padding:7px 10px;">Apply delta AD/TXK patches</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+    }
+
+    // ── Preflight Card ────────────────────────────────────────────────────────
+
+    function renderPreflightCard(preflight, ebsLevel) {
+      const arch = preflight.archive_space;
+      const inv  = preflight.invalid_objects_count;
+      const cutover = ebsLevel?.last_cutover;
+
+      const archFreeStr = arch ? `${arch.free_gb}GB free` : '—';
+      const archColor   = !arch ? 'c-dim' : arch.free_gb < 10 ? 'c-red' : arch.free_gb < 20 ? 'c-yellow' : 'c-green';
+      const archSub     = arch ? `${arch.used_pct}% used · ${arch.dest_name || 'FRA'}` : 'Could not read FRA';
+
+      const invColor = inv == null ? 'c-dim' : inv === 0 ? 'c-green' : inv < 5 ? 'c-yellow' : 'c-red';
+
+      const cutoverStr = cutover ? cutover.split(' ')[0] : '—';
+      const cutoverColor = !cutover ? 'c-dim' : 'c-blue';
+
+      let html = `<div class="preflight-card">
+        <h3>🔧 Pre-flight Checks</h3>
+        <div class="preflight-grid">
+          <div class="preflight-item">
+            <div class="pi-label">Archive Log Space</div>
+            <div class="pi-value ${archColor}">${escHtml(archFreeStr)}</div>
+            <div class="pi-sub">${escHtml(archSub)}</div>
+          </div>
+          <div class="preflight-item">
+            <div class="pi-label">INVALID Objects</div>
+            <div class="pi-value ${invColor}">${inv != null ? inv : '—'}</div>
+            <div class="pi-sub">Baseline before patching</div>
+          </div>
+          ${cutover ? `<div class="preflight-item">
+            <div class="pi-label">Last fs_clone Cutover</div>
+            <div class="pi-value ${cutoverColor}">${escHtml(cutoverStr)}</div>
+            <div class="pi-sub">ADOP session freshness</div>
+          </div>` : ''}
+        </div>
+        ${arch && arch.free_gb < 20 ? `
+        <div class="banner banner-warn" style="margin-top:14px;">
+          <span class="b-icon">⚠️</span>
+          <div class="banner-text"><strong>Low archive space</strong>
+          <span>Only ${arch.free_gb}GB free in ${arch.dest_name || 'FRA'}. adop generates significant redo during apply. Extend to ≥30GB before proceeding.</span></div>
+        </div>` : ''}
+      </div>`;
+      return html;
+    }
+
+    // ── Runbook ───────────────────────────────────────────────────────────────
+
+    function renderRunbook(steps, ebsDetected, gap) {
+      const subtitle = ebsDetected
+        ? `Full EBS patching sequence with prerequisite checks. Target: ${gap?.latest_patch?.patch_number || 'latest CPU'}.`
+        : `OPatch sequence for RDBMS-only instance. Target: ${gap?.latest_patch?.patch_number || 'latest CPU'}.`;
+
+      let stepsHtml = '';
+      steps.forEach((step, i) => {
+        const isRollback = step.step === 'rollback';
+        const numLabel = isRollback ? '↩' : String(i);
+        const open = i === 0 ? ' open' : '';
+
+        const formattedCommands = (step.commands || [])
+          .map(line => {
+            if (!line.trim()) return '';
+            if (line.startsWith('#') || line.startsWith('--')) {
+              return `<span class="comment">${escHtml(line)}</span>`;
+            }
+            return escHtml(line).replace(
+              /\b(SELECT|FROM|WHERE|ORDER BY|FETCH|INSERT|UPDATE|DELETE|AND|JOIN|GROUP BY|HAVING)\b/g,
+              '<span class="keyword">$1</span>'
+            );
+          })
+          .join('\n');
+
+        const notesHtml = (step.notes || []).map(n => `
+          <div class="step-note">
+            <span>${n.startsWith('⚠') ? '⚠' : n.startsWith('✅') ? '✅' : '·'}</span>
+            <span>${escHtml(n.replace(/^[⚠✅]\s*/, ''))}</span>
+          </div>`).join('');
+
+        stepsHtml += `<div class="step-card${isRollback ? ' rollback' : ''}${open}" onclick="toggleStep(this)">
+          <div class="step-header">
+            <div class="step-number">${numLabel}</div>
+            <div class="step-title">${escHtml(step.title)}</div>
+            <span class="step-chevron">▶</span>
+          </div>
+          <div class="step-body">
+            ${notesHtml ? `<div class="step-notes">${notesHtml}</div>` : ''}
+            ${formattedCommands ? `<div class="cmd-block">
+              <pre>${formattedCommands}</pre>
+              <button class="cmd-copy" onclick="copyCommands(event, this)">Copy</button>
+            </div>` : ''}
+            ${step.verification ? `<div class="verification-block">
+              <div class="vb-label">Verification query</div>
+              <pre>${escHtml(step.verification)}</pre>
+            </div>` : ''}
+          </div>
+        </div>`;
+      });
+
+      return `<div class="runbook-section">
+        <p class="runbook-note">${escHtml(subtitle)}</p>
+        <div class="change-window-banner">
+          ⚠️ Patching requires a change window. TuneVault generates the command sequence; your team executes during approved maintenance.
+        </div>
+        ${stepsHtml}
+      </div>`;
+    }
+
+    // ── Interactions ──────────────────────────────────────────────────────────
+
+    function toggleStep(card) {
+      if (event.target.classList.contains('cmd-copy')) return;
+      card.classList.toggle('open');
+    }
+
+    function copyCommands(event, btn) {
+      event.stopPropagation();
+      const pre = btn.previousElementSibling;
+      const text = pre.textContent || '';
+      navigator.clipboard.writeText(text).then(() => {
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = 'Copy'; }, 1800);
+      }).catch(() => {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = 'Copy'; }, 1800);
+      });
+    }
+
+    function copyEtccCmd(btn) {
+      const pre = btn.previousElementSibling;
+      const text = pre.textContent || '';
+      navigator.clipboard.writeText(text).then(() => {
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = 'Copy'; }, 1800);
+      }).catch(() => {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = 'Copy'; }, 1800);
+      });
+    }
+
+    // ── Utility ───────────────────────────────────────────────────────────────
+
+    function escHtml(str) {
+      if (str == null) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+
+    (async () => {
+      await checkAuth();
+      await loadConnections();
+    })();
+  </script>
+<div style="text-align:center;padding:24px 16px 16px;border-top:1px solid rgba(255,255,255,0.05);margin-top:32px;">
+  <span style="font-size:12px;color:#9898a8;">Need help? <a href="mailto:support@tunevault.app" style="color:#f0a830;text-decoration:none;">support@tunevault.app</a></span>
+</div>
+<script src="/nav-component.js"></script>
+<script>window.tvNav.init('main');</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Oracle Privilege Model — TuneVault Docs</title>
+  <meta name="description" content="TuneVault privilege model: tunevault_reader least-privilege role vs OS Auth/SYSDBA. Exact grant list, Oracle documentation references, DBA setup guide."/>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
+  <style>
+    :root {
+      --bg: #0e0e14;
+      --bg2: #16161f;
+      --bg3: #1e1e2a;
+      --border: #2a2a3a;
+      --accent: #f0a830;
+      --green: #22c55e;
+      --text: #e8e8f0;
+      --text-muted: #9898a8;
+      --blue: #60a5fa;
+      --red: #ef4444;
+      --radius: 10px;
+      --code-bg: #12121a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    /* Nav */
+    .nav {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 24px;
+      height: 56px;
+    }
+    .nav-logo { font-weight: 700; font-size: 18px; color: var(--accent); text-decoration: none; }
+    .nav-links { display: flex; align-items: center; gap: 4px; margin-left: 8px; }
+    .nav-link {
+      font-size: 13px; color: var(--text-muted); text-decoration: none;
+      padding: 6px 10px; border-radius: 5px;
+    }
+    .nav-link:hover { color: var(--text); background: var(--bg3); }
+    .nav-cta {
+      margin-left: auto;
+      background: var(--accent); color: #000;
+      font-size: 13px; font-weight: 600;
+      padding: 7px 14px; border-radius: 6px; text-decoration: none;
+    }
+
+    /* Layout */
+    .page-wrap { max-width: 820px; margin: 0 auto; padding: 48px 24px 100px; }
+
+    /* Hero */
+    .hero { margin-bottom: 48px; }
+    .hero-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 12px;
+    }
+    .hero h1 { font-size: 36px; font-weight: 800; line-height: 1.2; margin-bottom: 14px; }
+    .hero p { font-size: 16px; color: var(--text-muted); max-width: 600px; }
+
+    /* Section */
+    .section { margin-bottom: 52px; }
+    .section h2 {
+      font-size: 22px; font-weight: 700; margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section h3 { font-size: 17px; font-weight: 700; margin: 24px 0 10px; }
+    .section p { color: var(--text-muted); margin-bottom: 14px; }
+    .section p strong { color: var(--text); }
+
+    /* Tier comparison table */
+    .tier-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    .tier-table th, .tier-table td {
+      padding: 12px 16px; text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+    .tier-table th {
+      background: var(--bg3); font-weight: 700;
+      font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted);
+    }
+    .tier-table tr:last-child td { border-bottom: none; }
+    .tier-table .cap { color: var(--text-muted); font-size: 13px; }
+    .yes { color: var(--green); }
+    .no { color: var(--red); }
+    .warn { color: var(--accent); }
+    .badge {
+      display: inline-block;
+      font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .badge-green { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
+    .badge-yellow { background: rgba(240,168,48,0.12); color: var(--accent); border: 1px solid rgba(240,168,48,0.25); }
+
+    /* Grant list */
+    .grant-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+    .grant-item {
+      background: var(--bg2); border: 1px solid var(--border); border-radius: 8px;
+      padding: 14px 16px;
+      display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: start;
+    }
+    .grant-name {
+      font-family: 'Courier New', monospace; font-size: 13px; color: #b0e0ff;
+      font-weight: 600; margin-bottom: 4px;
+    }
+    .grant-desc { font-size: 13px; color: var(--text-muted); }
+    .grant-link { font-size: 12px; color: var(--blue); text-decoration: none; white-space: nowrap; }
+    .grant-link:hover { text-decoration: underline; }
+
+    /* SQL block */
+    .sql-block {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+    .sql-block-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px;
+      background: rgba(255,255,255,0.03);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px; font-weight: 600; color: var(--text-muted);
+    }
+    .sql-text {
+      padding: 20px 18px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px; line-height: 1.8;
+      color: #d4d4d4;
+      white-space: pre;
+      overflow-x: auto;
+    }
+    .sql-text .comment { color: #6a9955; }
+    .sql-text .kw { color: #569cd6; }
+    .sql-text .obj { color: #4ec9b0; }
+    .btn-copy {
+      background: var(--bg3); border: 1px solid var(--border);
+      color: var(--text-muted); padding: 5px 12px;
+      font-size: 12px; font-weight: 600; border-radius: 5px;
+      cursor: pointer; transition: color 0.15s, border-color 0.15s;
+    }
+    .btn-copy:hover { color: var(--accent); border-color: var(--accent); }
+
+    /* Info / warning boxes */
+    .info-box {
+      background: rgba(96,165,250,0.07);
+      border: 1px solid rgba(96,165,250,0.2);
+      border-radius: 8px; padding: 14px 16px;
+      font-size: 14px; color: #9dcfff; margin-bottom: 20px;
+    }
+    .warn-box {
+      background: rgba(240,168,48,0.07);
+      border: 1px solid rgba(240,168,48,0.2);
+      border-radius: 8px; padding: 14px 16px;
+      font-size: 14px; color: #f0c860; margin-bottom: 20px;
+    }
+
+    /* Checklist */
+    .checklist { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+    .check-item { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; }
+    .check-icon { flex-shrink: 0; margin-top: 1px; }
+
+    /* Footnote */
+    .footnote { font-size: 13px; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 20px; margin-top: 40px; }
+    .footnote a { color: var(--blue); text-decoration: none; }
+    .footnote a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">TuneVault</a>
+  <div class="nav-links">
+    <a href="/docs/oracle-setup" class="nav-link">Oracle Setup</a>
+    <a href="/docs/ssh-prereqs" class="nav-link">SSH Prereqs</a>
+    <a href="/docs/privileges" class="nav-link" style="color:var(--accent);">Privileges</a>
+  </div>
+  <a href="/connections/new" class="nav-cta">Add Connection →</a>
+</nav>
+
+<div class="page-wrap">
+
+  <div class="hero">
+    <div class="hero-label">Documentation</div>
+    <h1>Oracle Privilege Model</h1>
+    <p>TuneVault never requires SYSDBA. The <code>tunevault_reader</code> role gives read-only access to everything needed for 200+ health checks, ADDM analysis, and SQL Tuning Advisor — with zero write permissions.</p>
+  </div>
+
+  <!-- ── Section 1: Two tiers ────────────────────────────────────────────── -->
+  <div class="section">
+    <h2>Two Privilege Tiers</h2>
+
+    <table class="tier-table">
+      <thead>
+        <tr>
+          <th>Capability</th>
+          <th>Standard — <code>tunevault_reader</code> <span class="badge badge-green">Recommended</span></th>
+          <th>Advanced — OS Auth / SYSDBA</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>All 200+ health checks</td>
+          <td><span class="yes">✅ Yes</span></td>
+          <td><span class="yes">✅ Yes</span></td>
+        </tr>
+        <tr>
+          <td>ADDM analysis</td>
+          <td><span class="yes">✅ Yes</span></td>
+          <td><span class="yes">✅ Yes</span></td>
+        </tr>
+        <tr>
+          <td>SQL Tuning Advisor</td>
+          <td><span class="yes">✅ Yes</span></td>
+          <td><span class="yes">✅ Yes</span></td>
+        </tr>
+        <tr>
+          <td>Wait event analysis</td>
+          <td><span class="yes">✅ Yes</span></td>
+          <td><span class="yes">✅ Yes</span></td>
+        </tr>
+        <tr>
+          <td>Read-only access only</td>
+          <td><span class="yes">✅ Enforced — QUOTA 0, no DML</span></td>
+          <td><span class="no">❌ Full write access</span></td>
+        </tr>
+        <tr>
+          <td>Kill session</td>
+          <td><span class="no">❌ Not available</span></td>
+          <td><span class="yes">✅ Requires ALTER SYSTEM</span></td>
+        </tr>
+        <tr>
+          <td>RMAN backup / recovery</td>
+          <td><span class="no">❌ Not available</span></td>
+          <td><span class="yes">✅ Yes</span></td>
+        </tr>
+        <tr>
+          <td>Listener bounce</td>
+          <td><span class="no">❌ Not available</span></td>
+          <td><span class="yes">✅ Via agent SSH tunnel</span></td>
+        </tr>
+        <tr>
+          <td>ADOP phases (EBS)</td>
+          <td><span class="no">❌ Not available</span></td>
+          <td><span class="yes">✅ Yes</span></td>
+        </tr>
+        <tr>
+          <td>EBS health checks</td>
+          <td><span class="warn">⚠️ With EBS APPS grants</span></td>
+          <td><span class="yes">✅ Yes</span></td>
+        </tr>
+        <tr>
+          <td>Enterprise security approval</td>
+          <td><span class="yes">✅ Standard security review</span></td>
+          <td><span class="warn">⚠️ DBA-tier sign-off required</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>For most organizations: use <strong>Standard</strong>. It covers everything you need for monitoring and optimization. Advanced is for teams that also want TuneVault to execute remediation actions (kill sessions, bounce listeners, run ADOP).</p>
+  </div>
+
+  <!-- ── Section 2: Grant list ───────────────────────────────────────────── -->
+  <div class="section">
+    <h2>What Each Grant Does</h2>
+    <p>Every grant in <code>tunevault_reader</code> is mapped to a specific capability. Nothing extraneous was added.</p>
+
+    <div class="grant-list">
+      <div class="grant-item">
+        <div>
+          <div class="grant-name">CREATE SESSION</div>
+          <div class="grant-desc">Allows the user to connect to the database. Without this, nothing else works.</div>
+        </div>
+        <a class="grant-link" href="https://docs.oracle.com/en/database/oracle/oracle-database/19/dbseg/managing-security-for-oracle-database-users.html" target="_blank" rel="noopener">Oracle Docs ↗</a>
+      </div>
+
+      <div class="grant-item">
+        <div>
+          <div class="grant-name">SELECT_CATALOG_ROLE</div>
+          <div class="grant-desc">Read access to all DBA_* and ALL_* data dictionary views: tablespace usage, segment sizes, object counts, undo stats, redo log status, backup status, object invalids, constraint status, and 80+ other health check queries.</div>
+        </div>
+        <a class="grant-link" href="https://docs.oracle.com/en/database/oracle/oracle-database/19/dbseg/configuring-privilege-and-role-authorization.html#GUID-6EA09AF6-12BA-4C16-8C47-05E72A40C4C4" target="_blank" rel="noopener">Oracle Docs ↗</a>
+      </div>
+
+      <div class="grant-item">
+        <div>
+          <div class="grant-name">SELECT ANY DICTIONARY</div>
+          <div class="grant-desc">Read access to V$ dynamic performance views: V$SESSION (active sessions, wait events, blocking locks), V$SQL / V$SQLAREA (top SQL by CPU/IO), V$WAIT_CLASS (system-level wait analysis), GV$ views for RAC environments.</div>
+        </div>
+        <a class="grant-link" href="https://docs.oracle.com/en/database/oracle/oracle-database/19/refrn/SELECT_CATALOG_ROLE.html" target="_blank" rel="noopener">Oracle Docs ↗</a>
+      </div>
+
+      <div class="grant-item">
+        <div>
+          <div class="grant-name">EXECUTE ON DBMS_WORKLOAD_REPOSITORY</div>
+          <div class="grant-desc">Required to read AWR snapshots (DBA_HIST_* views) and snap IDs for ADDM analysis windows. Covered by Oracle Diagnostics Pack license on Enterprise Edition.</div>
+        </div>
+        <a class="grant-link" href="https://docs.oracle.com/en/database/oracle/oracle-database/19/arpls/DBMS_WORKLOAD_REPOSITORY.html" target="_blank" rel="noopener">Oracle Docs ↗</a>
+      </div>
+
+      <div class="grant-item">
+        <div>
+          <div class="grant-name">EXECUTE ON DBMS_ADDM</div>
+          <div class="grant-desc">Allows TuneVault to create and run ADDM analysis tasks and retrieve findings. The ADDM task itself is read-only — it analyzes AWR data in memory, no schema changes.</div>
+        </div>
+        <a class="grant-link" href="https://docs.oracle.com/en/database/oracle/oracle-database/19/arpls/DBMS_ADDM.html" target="_blank" rel="noopener">Oracle Docs ↗</a>
+      </div>
+
+      <div class="grant-item">
+        <div>
+          <div class="grant-name">EXECUTE ON DBMS_SQLTUNE</div>
+          <div class="grant-desc">SQL Tuning Advisor — analyzes specific SQL statements and returns index/hint/rewrite recommendations. Task execution is transient; no persistent schema objects created under <code>tunevault</code>.</div>
+        </div>
+        <a class="grant-link" href="https://docs.oracle.com/en/database/oracle/oracle-database/19/arpls/DBMS_SQLTUNE.html" target="_blank" rel="noopener">Oracle Docs ↗</a>
+      </div>
+
+      <div class="grant-item">
+        <div>
+          <div class="grant-name">EXECUTE ON DBMS_STATS</div>
+          <div class="grant-desc">Read optimizer statistics (table row counts, column histograms, index stats). TuneVault uses read-only procedures — no stats are gathered or deleted.</div>
+        </div>
+        <a class="grant-link" href="https://docs.oracle.com/en/database/oracle/oracle-database/19/arpls/DBMS_STATS.html" target="_blank" rel="noopener">Oracle Docs ↗</a>
+      </div>
+
+      <div class="grant-item">
+        <div>
+          <div class="grant-name">EXECUTE ON DBMS_SQL_MONITOR</div>
+          <div class="grant-desc">Real-Time SQL Monitoring — reads execution plans, elapsed time, I/O for currently running SQL. Used for the top-SQL and wait-event panels.</div>
+        </div>
+        <a class="grant-link" href="https://docs.oracle.com/en/database/oracle/oracle-database/19/arpls/DBMS_SQL_MONITOR.html" target="_blank" rel="noopener">Oracle Docs ↗</a>
+      </div>
+
+      <div class="grant-item">
+        <div>
+          <div class="grant-name">ADVISOR</div>
+          <div class="grant-desc">System privilege required to create advisor tasks (ADDM and SQL Tuning). Without this, DBMS_ADDM and DBMS_SQLTUNE calls that create tasks fail with ORA-13605. Tasks created by <code>tunevault</code> are owned by <code>tunevault</code> and do not affect other users' advisor tasks.</div>
+        </div>
+        <a class="grant-link" href="https://docs.oracle.com/en/database/oracle/oracle-database/19/dbseg/configuring-privilege-and-role-authorization.html" target="_blank" rel="noopener">Oracle Docs ↗</a>
+      </div>
+
+      <div class="grant-item">
+        <div>
+          <div class="grant-name">SELECT ON V_$SESSION, V_$SQL, V_$SQL_PLAN, V_$SQLAREA</div>
+          <div class="grant-desc">Explicit grants on individual V$ synonyms for databases where SELECT ANY DICTIONARY does not automatically expose V$ views (common on 11g and some 12c configurations). Belt-and-suspenders approach to ensure session + SQL data is accessible.</div>
+        </div>
+        <a class="grant-link" href="https://docs.oracle.com/en/database/oracle/oracle-database/19/refrn/V-SESSION.html" target="_blank" rel="noopener">Oracle Docs ↗</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Section 3: SQL script ───────────────────────────────────────────── -->
+  <div class="section">
+    <h2>Setup SQL Script</h2>
+    <p>Hand this to your DBA. Run it as <strong>SYSTEM</strong> (or any user with the DBA role). TuneVault never asks for SYSDBA unless you choose the Advanced privilege model.</p>
+
+    <div class="info-box">
+      <strong>Diagnostics Pack note:</strong> DBMS_WORKLOAD_REPOSITORY (AWR) and DBMS_ADDM require Oracle Diagnostics Pack license on Enterprise Edition. If you're on Standard Edition or don't have Diagnostics Pack, ADDM tab will be unavailable — all other health checks work without it.
+    </div>
+
+    <div class="sql-block">
+      <div class="sql-block-head">
+        <span>SQL — run as SYSTEM</span>
+        <button class="btn-copy" id="copy-sql-btn" onclick="copySql()">Copy script</button>
+      </div>
+      <div class="sql-text" id="sql-content">Loading…</div>
+    </div>
+
+    <p style="font-size:13px; color: var(--text-muted);">
+      The same script is available at <a href="/setup/role-script" style="color:var(--blue);">/setup/role-script</a> for programmatic download.
+    </p>
+  </div>
+
+  <!-- ── Section 4: EBS grants ──────────────────────────────────────────── -->
+  <div class="section">
+    <h2>Oracle E-Business Suite Additional Grants</h2>
+    <p>EBS health checks query the <code>APPS</code> schema (FND tables, WF, AD). These grants are in the setup script as commented-out blocks — uncomment them only if this database hosts EBS.</p>
+
+    <div class="warn-box">
+      The EBS grants cover <strong>read access only</strong> to FND and WF tables. No concurrent program submission, no user admin, no patching. TuneVault uses these to report on queue depth and patch levels — not to modify them.
+    </div>
+
+    <div class="grant-list">
+      <div class="grant-item">
+        <div>
+          <div class="grant-name">APPS.FND_CONCURRENT_REQUESTS / _PROGRAMS / _PROGRAMS_TL</div>
+          <div class="grant-desc">Concurrent Manager queue: running, pending, completed requests; program names and application ownership. Powers the CM queue depth and stuck-job checks.</div>
+        </div>
+      </div>
+      <div class="grant-item">
+        <div>
+          <div class="grant-name">APPS.WF_DEFERRED / WF_ERROR</div>
+          <div class="grant-desc">Workflow background engine queue depth and error queue. TuneVault alerts when either queue exceeds thresholds — indicator of a stalled Workflow Mailer or stuck BG process.</div>
+        </div>
+      </div>
+      <div class="grant-item">
+        <div>
+          <div class="grant-name">APPS.AD_BUGS / AD_APPLIED_PATCHES</div>
+          <div class="grant-desc">Applied Oracle patch history. Used to detect patch-level gaps and generate ADOP runbook context.</div>
+        </div>
+      </div>
+      <div class="grant-item">
+        <div>
+          <div class="grant-name">APPS.FND_NODES / FND_OAM_APP_SYS_STATUS</div>
+          <div class="grant-desc">EBS node topology (app tier nodes) and OAM system status for the EBS deep-health panel.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Section 5: Verification ─────────────────────────────────────────── -->
+  <div class="section">
+    <h2>Verifying the Grant</h2>
+    <p>After running the script, verify access by connecting as <code>tunevault</code> and running:</p>
+
+    <div class="sql-block">
+      <div class="sql-block-head">
+        <span>SQL — verification queries</span>
+        <button class="btn-copy" onclick="copyEl(this, 'verify-sql')">Copy</button>
+      </div>
+      <div class="sql-text" id="verify-sql">-- Connect as tunevault user first
+-- sqlplus tunevault/&lt;password&gt;@&lt;host&gt;:&lt;port&gt;/&lt;service&gt;
+
+-- Should return a row count (any number)
+SELECT COUNT(*) FROM dba_segments;
+
+-- Should return active sessions count
+SELECT COUNT(*) FROM v$session WHERE status = 'ACTIVE';
+
+-- Should return the role definition (confirms ADVISOR grant)
+SELECT grantee, granted_role FROM dba_role_privs WHERE grantee = 'TUNEVAULT';
+
+-- Should return EXECUTE privs
+SELECT privilege, table_name FROM dba_tab_privs
+WHERE grantee IN ('TUNEVAULT', 'TUNEVAULT_READER')
+ORDER BY table_name;</div>
+    </div>
+  </div>
+
+  <!-- ── Section 6: FAQ ──────────────────────────────────────────────────── -->
+  <div class="section">
+    <h2>Frequently Asked Questions</h2>
+
+    <h3>Why SELECT ANY DICTIONARY instead of individual V$ grants?</h3>
+    <p>SELECT ANY DICTIONARY is the <a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/refrn/SELECT_CATALOG_ROLE.html" style="color:var(--blue);" target="_blank">Oracle-recommended</a> approach for monitoring tools. It grants read access to all data dictionary views without requiring individual grants for each new V$ view added across Oracle versions. The individual V$ grants in the script are belt-and-suspenders for 11g installs where this doesn't auto-propagate to V$ synonyms.</p>
+
+    <h3>Does QUOTA 0 prevent any health checks?</h3>
+    <p>No. QUOTA 0 means the user has no space allocation — it cannot create tables or store data. All health checks are SELECT-only. ADDM and SQL Tuning tasks are transient (created in SGA, not permanent schema objects under the tunevault schema). DBMS_STATS reads are all SELECT.</p>
+
+    <h3>What happens if I use tunevault_reader with the ADDM tab?</h3>
+    <p>ADDM works with tunevault_reader. The ADVISOR privilege + DBMS_ADDM EXECUTE grant covers task creation and retrieval. You need Oracle Diagnostics Pack license to access AWR data (DBA_HIST_* views) — that's an Oracle licensing requirement, not a TuneVault restriction.</p>
+
+    <h3>Can I restrict which databases the user can connect to?</h3>
+    <p>Yes. Oracle connection-level security (sqlnet.ora) can restrict which hostnames and services a user can connect from. The tunevault user should only have network access to your Oracle listener — it doesn't need access to anything else. Use Oracle's Connection Manager (CMAN) or network ACLs to further restrict if needed.</p>
+
+    <h3>What about CDB/PDB environments?</h3>
+    <p>For CDB root connections, the grants above apply to the root container. To monitor individual PDBs, connect TuneVault directly to the PDB service name and run the script inside that PDB. TuneVault auto-detects CDB vs non-CDB via <code>SELECT CDB FROM V$DATABASE</code>.</p>
+  </div>
+
+  <div class="footnote">
+    <p>Questions? <a href="mailto:support@tunevault.app">support@tunevault.app</a> · <a href="/security">Security page</a> · <a href="/docs/oracle-setup">Oracle setup guide</a> · <a href="/connections/new">Add a connection →</a></p>
+  </div>
+
+</div>
+
+<script>
+// Load the SQL script from the server
+async function loadSql() {
+  try {
+    const res = await fetch('/setup/role-script');
+    const text = await res.text();
+    document.getElementById('sql-content').textContent = text;
+  } catch {
+    document.getElementById('sql-content').textContent = '-- Could not load script. Visit /setup/role-script directly.';
+  }
+}
+
+async function copySql() {
+  const text = document.getElementById('sql-content').textContent;
+  await copyText(text, document.getElementById('copy-sql-btn'));
+}
+
+function copyEl(btn, id) {
+  const text = document.getElementById(id).textContent;
+  copyText(text, btn);
+}
+
+async function copyText(text, btn) {
+  try {
+    await navigator.clipboard.writeText(text);
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copied';
+    btn.style.color = 'var(--green)';
+    setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 2000);
+  } catch { /* ignore */ }
+}
+
+loadSql();
+</script>
+
+</body>
+</html>

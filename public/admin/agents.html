@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agents — TuneVault Admin</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="canonical" href="https://tunevault.app/admin/agents">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0c;
+            --surface: #111114;
+            --surface-2: #1a1a1f;
+            --border: #2a2a30;
+            --text: #e8e8ed;
+            --text-dim: #9898a8;
+            --accent: #f0a830;
+            --accent-dim: rgba(240, 168, 48, 0.12);
+            --green: #34d399;
+            --green-dim: rgba(52, 211, 153, 0.12);
+            --red: #f87171;
+            --red-dim: rgba(248, 113, 113, 0.12);
+            --yellow: #fbbf24;
+            --yellow-dim: rgba(251, 191, 36, 0.12);
+            --blue: #60a5fa;
+            --purple: #a78bfa;
+            --gray: #6b7280;
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .grain {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 48px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: var(--text);
+        }
+
+        .logo-icon {
+            width: 26px;
+            height: 26px;
+            background: var(--accent);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--bg);
+        }
+
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .nav-link {
+            font-size: 13px;
+            color: var(--text-dim);
+            text-decoration: none;
+            font-family: 'JetBrains Mono', monospace;
+            transition: color 0.2s;
+        }
+
+        .nav-link:hover { color: var(--accent); }
+        .nav-link.active { color: var(--text); }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 48px 80px;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 32px;
+            gap: 20px;
+        }
+
+        .page-header h1 {
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: -1px;
+        }
+
+        .header-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+
+        .total-badge {
+            font-size: 12px;
+            color: var(--text-dim);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            padding: 4px 12px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .btn {
+            font-size: 12px;
+            color: var(--text-dim);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 14px;
+            cursor: pointer;
+            font-family: 'Space Grotesk', sans-serif;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+        }
+
+        .btn:hover { border-color: var(--accent); color: var(--accent); }
+        .btn svg { transition: transform 0.3s; }
+        .btn.spinning svg { animation: spin 0.6s linear infinite; }
+        .btn.export { color: var(--green); border-color: rgba(52, 211, 153, 0.3); }
+        .btn.export:hover { border-color: var(--green); background: var(--green-dim); }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Stats row */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px 20px;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+
+        .stat-count {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -1px;
+        }
+
+        .stat-count.green { color: var(--green); }
+        .stat-count.yellow { color: var(--yellow); }
+        .stat-count.red { color: var(--red); }
+        .stat-count.accent { color: var(--accent); }
+        .stat-count.gray { color: var(--text-dim); }
+
+        /* Filters */
+        .filters-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-input {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 7px 14px;
+            font-size: 13px;
+            font-family: 'Space Grotesk', sans-serif;
+            color: var(--text);
+            outline: none;
+            transition: border-color 0.2s;
+            min-width: 180px;
+        }
+
+        .filter-input:focus { border-color: var(--accent); }
+        .filter-input::placeholder { color: var(--text-dim); }
+
+        .filter-select {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 7px 14px;
+            font-size: 13px;
+            font-family: 'Space Grotesk', sans-serif;
+            color: var(--text);
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .filter-select:focus { border-color: var(--accent); }
+
+        .filter-label {
+            font-size: 12px;
+            color: var(--text-dim);
+            white-space: nowrap;
+        }
+
+        .filter-clear {
+            font-size: 12px;
+            color: var(--text-dim);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: color 0.2s;
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        .filter-clear:hover { color: var(--red); }
+
+        /* Table */
+        .table-wrap {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1100px;
+        }
+
+        thead th {
+            text-align: left;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-dim);
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 500;
+            background: var(--surface-2);
+            cursor: pointer;
+            white-space: nowrap;
+            user-select: none;
+        }
+
+        thead th:hover { color: var(--text); }
+        thead th.sort-asc::after { content: ' ↑'; color: var(--accent); }
+        thead th.sort-desc::after { content: ' ↓'; color: var(--accent); }
+
+        tbody tr {
+            border-bottom: 1px solid rgba(42, 42, 48, 0.5);
+            transition: background 0.15s;
+        }
+
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: rgba(26, 26, 31, 0.7); cursor: pointer; }
+
+        td {
+            padding: 12px 16px;
+            font-size: 13px;
+            vertical-align: middle;
+        }
+
+        /* Status pill */
+        .status-pill {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 100px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+        }
+
+        .status-pill::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        .status-pill.online {
+            color: var(--green);
+            background: var(--green-dim);
+            border: 1px solid rgba(52, 211, 153, 0.3);
+        }
+        .status-pill.online::before { background: var(--green); }
+
+        .status-pill.stale {
+            color: var(--yellow);
+            background: var(--yellow-dim);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+        }
+        .status-pill.stale::before { background: var(--yellow); animation: pulse 1.5s ease-in-out infinite; }
+
+        .status-pill.offline {
+            color: var(--red);
+            background: var(--red-dim);
+            border: 1px solid rgba(248, 113, 113, 0.3);
+        }
+        .status-pill.offline::before { background: var(--red); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* Agent status pill (oracle health) */
+        .agent-status-pill {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            padding: 2px 7px;
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+        .agent-status-pill.healthy { color: var(--green); background: var(--green-dim); }
+        .agent-status-pill.oracle_unreachable { color: var(--red); background: var(--red-dim); }
+        .agent-status-pill.starting { color: var(--yellow); background: var(--yellow-dim); }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        .conn-name {
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .conn-meta {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
+
+        .hb-time {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text);
+        }
+
+        .hb-abs {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
+
+        .action-btn {
+            font-size: 11px;
+            color: var(--text-dim);
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            padding: 4px 10px;
+            cursor: pointer;
+            font-family: 'JetBrains Mono', monospace;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .action-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* Loading / empty states */
+        .loading-row td {
+            padding: 24px;
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 13px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 80px 40px;
+        }
+
+        .empty-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+        }
+
+        .empty-state h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .empty-state p {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        /* ── Log-tail modal ────────────────────────────────────────────────── */
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 24px;
+        }
+
+        .modal-overlay.hidden { display: none; }
+
+        .modal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            width: 100%;
+            max-width: 900px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .modal-title {
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+
+        .modal-meta {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-top: 4px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-dim);
+            transition: all 0.2s;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .modal-close:hover { border-color: var(--red); color: var(--red); }
+
+        .modal-body {
+            overflow-y: auto;
+            flex: 1;
+            padding: 0;
+        }
+
+        .log-pre {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            line-height: 1.6;
+            color: #c8c8d8;
+            padding: 20px 24px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            background: #080810;
+            min-height: 200px;
+        }
+
+        .log-empty {
+            padding: 60px 24px;
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 13px;
+        }
+
+        .modal-footer {
+            padding: 14px 24px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .modal-footer .line-count {
+            font-size: 12px;
+            color: var(--text-dim);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .modal-footer .updated-at {
+            font-size: 11px;
+            color: var(--text-dim);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Detail panel inside modal */
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface-2);
+        }
+
+        .detail-item label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-dim);
+            display: block;
+            margin-bottom: 3px;
+        }
+
+        .detail-item span {
+            font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text);
+        }
+
+        /* ── Installer Health card ─────────────────────────────────────────── */
+
+        .installer-health {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px 24px;
+            margin-bottom: 24px;
+        }
+
+        .installer-health-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .installer-health-title {
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+
+        .installer-health-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .installer-health-dot.green  { background: var(--green); box-shadow: 0 0 6px rgba(52,211,153,0.4); }
+        .installer-health-dot.red    { background: var(--red);   box-shadow: 0 0 6px rgba(248,113,113,0.4); }
+        .installer-health-dot.gray   { background: var(--gray); }
+
+        .smoke-run-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .smoke-run-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 5px 10px;
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            cursor: default;
+            position: relative;
+        }
+
+        .smoke-run-chip:hover .smoke-run-tooltip { display: block; }
+
+        .smoke-run-chip .dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .smoke-run-chip .dot.pass  { background: var(--green); }
+        .smoke-run-chip .dot.fail  { background: var(--red); }
+        .smoke-run-chip .dot.error { background: var(--yellow); }
+
+        .smoke-run-tooltip {
+            display: none;
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #0a0a10;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 11px;
+            white-space: nowrap;
+            z-index: 100;
+            min-width: 200px;
+            color: var(--text);
+            pointer-events: none;
+        }
+
+        .smoke-run-tooltip .tip-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 3px;
+        }
+
+        .smoke-run-tooltip .tip-label { color: var(--text-dim); }
+
+        .smoke-empty {
+            font-size: 13px;
+            color: var(--text-dim);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .installer-health-meta {
+            margin-top: 12px;
+            font-size: 12px;
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .run-smoke-btn {
+            background: none;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-dim);
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            padding: 4px 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .run-smoke-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            nav { padding: 14px 24px; }
+            .container { padding: 28px 24px 60px; }
+            .stats-row { grid-template-columns: repeat(3, 1fr); }
+            .page-header { flex-direction: column; }
+        }
+
+        @media (max-width: 640px) {
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            .nav-right .nav-link { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="grain"></div>
+
+    <nav id="nav-root"></nav>
+
+    <div class="container">
+        <div class="page-header">
+            <h1>Agents Fleet</h1>
+            <div class="header-meta">
+                <span class="total-badge" id="total-badge">Loading...</span>
+                <a href="/api/admin/agents/export.csv" class="btn export" id="export-btn">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path d="M6 1v7M3 6l3 3 3-3M1 10h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Export CSV
+                </a>
+                <button class="btn" id="refresh-btn" onclick="loadAgents()">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path d="M10.5 2A5 5 0 1 0 11 6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        <path d="M10.5 2v3h-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Refresh
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats row -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-label">Online</div>
+                <div class="stat-count green" id="stat-online">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Stale</div>
+                <div class="stat-count yellow" id="stat-stale">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Offline</div>
+                <div class="stat-count red" id="stat-offline">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Agents</div>
+                <div class="stat-count accent" id="stat-total">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Oracle Issues</div>
+                <div class="stat-count gray" id="stat-oracle-err">—</div>
+            </div>
+        </div>
+
+        <!-- Installer Health card -->
+        <div class="installer-health">
+            <div class="installer-health-header">
+                <div class="installer-health-dot gray" id="smoke-dot"></div>
+                <div class="installer-health-title">Installer Health</div>
+                <button class="run-smoke-btn" id="smoke-token-btn" onclick="copySmokeTrigger()">
+                    Copy trigger command
+                </button>
+                <span class="installer-health-meta" id="smoke-last-run" style="margin-top:0;"></span>
+            </div>
+            <div class="smoke-run-grid" id="smoke-run-grid">
+                <span class="smoke-empty">Loading smoke history…</span>
+            </div>
+            <div class="installer-health-meta">
+                <span>Each dot = one OS container run (ubuntu22 or ol8) · hover for step detail</span>
+                <span id="smoke-pass-rate"></span>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters-bar">
+            <span class="filter-label">Filter:</span>
+            <select class="filter-select" id="filter-status" onchange="applyFilters()">
+                <option value="">All Status</option>
+                <option value="online">Online</option>
+                <option value="stale">Stale</option>
+                <option value="offline">Offline</option>
+            </select>
+            <input type="text" class="filter-input" id="filter-company" placeholder="Company / email..." oninput="applyFilters()">
+            <input type="text" class="filter-input" id="filter-version" placeholder="Agent version..." oninput="applyFilters()">
+            <button class="filter-clear" onclick="clearFilters()">✕ Clear</button>
+            <span class="filter-label" id="filter-count" style="margin-left:auto;"></span>
+        </div>
+
+        <!-- Table -->
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th data-col="status" onclick="sortBy('status')">Status</th>
+                        <th data-col="hostname" onclick="sortBy('hostname')">Hostname</th>
+                        <th data-col="companyDomain" onclick="sortBy('companyDomain')">Company</th>
+                        <th data-col="osInfo" onclick="sortBy('osInfo')">OS + Kernel</th>
+                        <th data-col="pythonVersion" onclick="sortBy('pythonVersion')">Python</th>
+                        <th data-col="agentVersion" onclick="sortBy('agentVersion')">Agent Ver</th>
+                        <th data-col="connectionCount" onclick="sortBy('connectionCount')">Conns</th>
+                        <th data-col="lastHeartbeat" onclick="sortBy('lastHeartbeat')">Last Heartbeat</th>
+                        <th>Oracle</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                    <tr class="loading-row">
+                        <td colspan="10">Loading agents...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Log-tail modal -->
+    <div class="modal-overlay hidden" id="modal-overlay" onclick="closeModal(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title" id="modal-title">Agent Log</div>
+                    <div class="modal-meta" id="modal-meta"></div>
+                </div>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="detail-grid" id="modal-details"></div>
+            <div class="modal-body">
+                <div id="modal-log-content">
+                    <div class="log-empty">Loading log tail...</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <span class="line-count" id="modal-line-count"></span>
+                <span class="updated-at" id="modal-updated-at"></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ── State ────────────────────────────────────────────────────────────
+        let allAgents = [];
+        let filteredAgents = [];
+        let sortCol = 'status';
+        let sortDir = 'desc';
+
+        // ── Data load ────────────────────────────────────────────────────────
+
+        async function loadAgents() {
+            const refreshBtn = document.getElementById('refresh-btn');
+            refreshBtn.classList.add('spinning');
+
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '<tr class="loading-row"><td colspan="10">Loading agents...</td></tr>';
+
+            try {
+                const res = await fetch('/api/admin/agents');
+                if (res.status === 401) {
+                    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text-dim);">Sign in first, then return to this page.</td></tr>';
+                    document.getElementById('total-badge').textContent = '—';
+                    updateStats([]);
+                    return;
+                }
+                if (res.status === 403) {
+                    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--red);">Admin access required.</td></tr>';
+                    document.getElementById('total-badge').textContent = 'Access denied';
+                    updateStats([]);
+                    return;
+                }
+                if (!res.ok) throw new Error('Request failed');
+
+                allAgents = await res.json();
+                applyFilters();
+                updateStats(allAgents);
+                document.getElementById('total-badge').textContent = `${allAgents.length} agents`;
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--red);">
+                    Failed to load agents.
+                    <button onclick="loadAgents()" style="background:none;border:none;color:var(--accent);cursor:pointer;text-decoration:underline;font-size:13px;">Try again</button>
+                </td></tr>`;
+                document.getElementById('total-badge').textContent = 'Error';
+                updateStats([]);
+            } finally {
+                refreshBtn.classList.remove('spinning');
+            }
+        }
+
+        // ── Filters + Sort ───────────────────────────────────────────────────
+
+        function applyFilters() {
+            const statusF  = document.getElementById('filter-status').value.toLowerCase();
+            const companyF = document.getElementById('filter-company').value.toLowerCase().trim();
+            const versionF = document.getElementById('filter-version').value.toLowerCase().trim();
+
+            filteredAgents = allAgents.filter(a => {
+                if (statusF  && a.status !== statusF) return false;
+                if (companyF && !((a.companyDomain || '').toLowerCase().includes(companyF) ||
+                                  (a.userEmail     || '').toLowerCase().includes(companyF))) return false;
+                if (versionF && !(a.agentVersion   || '').toLowerCase().includes(versionF)) return false;
+                return true;
+            });
+
+            sortAgents();
+
+            const fc = document.getElementById('filter-count');
+            fc.textContent = filteredAgents.length < allAgents.length
+                ? `${filteredAgents.length} of ${allAgents.length} shown`
+                : '';
+        }
+
+        function clearFilters() {
+            document.getElementById('filter-status').value  = '';
+            document.getElementById('filter-company').value = '';
+            document.getElementById('filter-version').value = '';
+            applyFilters();
+        }
+
+        function sortBy(col) {
+            if (sortCol === col) {
+                sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortCol = col;
+                // offline-first as default for status
+                sortDir = col === 'status' ? 'desc' : 'asc';
+            }
+            sortAgents();
+            updateSortIndicators();
+        }
+
+        const STATUS_ORDER = { 'offline': 0, 'stale': 1, 'online': 2 };
+
+        function sortAgents() {
+            filteredAgents.sort((a, b) => {
+                let va = a[sortCol];
+                let vb = b[sortCol];
+
+                if (sortCol === 'status') {
+                    va = STATUS_ORDER[a.status] ?? 0;
+                    vb = STATUS_ORDER[b.status] ?? 0;
+                } else if (sortCol === 'lastHeartbeat') {
+                    va = va ? new Date(va).getTime() : 0;
+                    vb = vb ? new Date(vb).getTime() : 0;
+                } else if (sortCol === 'connectionCount') {
+                    va = parseInt(va) || 0;
+                    vb = parseInt(vb) || 0;
+                } else {
+                    va = (va || '').toString().toLowerCase();
+                    vb = (vb || '').toString().toLowerCase();
+                }
+
+                if (va < vb) return sortDir === 'asc' ? -1 : 1;
+                if (va > vb) return sortDir === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            renderTable();
+        }
+
+        function updateSortIndicators() {
+            document.querySelectorAll('thead th').forEach(th => {
+                th.classList.remove('sort-asc', 'sort-desc');
+                if (th.dataset.col === sortCol) {
+                    th.classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+                }
+            });
+        }
+
+        // ── Render ───────────────────────────────────────────────────────────
+
+        function renderTable() {
+            const tbody = document.getElementById('table-body');
+
+            if (filteredAgents.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="10">
+                            <div class="empty-state">
+                                <div class="empty-icon">
+                                    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                                        <rect x="3" y="3" width="16" height="16" rx="3" stroke="#9898a8" stroke-width="1.5"/>
+                                        <path d="M7 11h8M7 7h8M7 15h4" stroke="#9898a8" stroke-width="1.5" stroke-linecap="round"/>
+                                    </svg>
+                                </div>
+                                <h3>No agents found</h3>
+                                <p>${(allAgents && allAgents.length === 0) ? 'No agents have connected yet.' : 'No agents match the current filters.'}</p>
+                            </div>
+                        </td>
+                    </tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filteredAgents.map(a => {
+                const statusRaw = a && a.status;
+                const statusClass = statusRaw || 'offline';
+                const statusLabel = statusRaw
+                    ? statusRaw.charAt(0).toUpperCase() + statusRaw.slice(1)
+                    : 'Offline';
+
+                const osDisplay   = [a.osId, a.osInfo].filter(Boolean).join(' / ') || '—';
+                const kernelText  = a.kernelVersion ? `<div class="mono" style="margin-top:2px;">${escHtml(a.kernelVersion)}</div>` : '';
+
+                const hbRel = a.lastHeartbeat ? timeAgo(a.lastHeartbeat) : 'Never';
+                const hbAbs = a.lastHeartbeat ? new Date(a.lastHeartbeat).toISOString().replace('T', ' ').slice(0, 19) + 'Z' : '';
+
+                const agentStatusHtml = a.agentStatus
+                    ? `<span class="agent-status-pill ${a.agentStatus}">${escHtml(a.agentStatus.replace('_', ' '))}</span>`
+                    : '<span class="mono">—</span>';
+
+                const connIdAttr  = `data-conn-id="${a.connectionId}"`;
+                const nameDisplay = escHtml(a.connectionName || `conn-${a.connectionId}`);
+                const company     = escHtml(a.companyDomain || a.userEmail || '—');
+
+                return `<tr data-testid="agent-row-${a.connectionId}" onclick="openLogModal(${a.connectionId}, ${JSON.stringify(a).replace(/</g, '\\u003c')})">
+                    <td>
+                        <span class="status-pill ${statusClass}" data-testid="status-pill-${a.connectionId}">${statusLabel}</span>
+                    </td>
+                    <td>
+                        <div class="conn-name">${escHtml(a.hostname || a.connectionName || '—')}</div>
+                        <div class="conn-meta">${nameDisplay}</div>
+                    </td>
+                    <td>
+                        <div style="font-weight:500;">${company}</div>
+                        <div class="conn-meta">${escHtml(a.userEmail || '')}</div>
+                    </td>
+                    <td>
+                        <div class="mono">${escHtml(truncate(osDisplay, 28))}</div>
+                        ${kernelText}
+                    </td>
+                    <td>
+                        <span class="mono">${escHtml(a.pythonVersion || '—')}</span>
+                    </td>
+                    <td>
+                        <span class="mono">${escHtml(a.agentVersion || a.proxyVersion || '—')}</span>
+                    </td>
+                    <td>
+                        <span class="mono">${a.connectionCount}</span>
+                    </td>
+                    <td>
+                        <div class="hb-time">${hbRel}</div>
+                        ${hbAbs ? `<div class="hb-abs">${hbAbs}</div>` : ''}
+                    </td>
+                    <td>${agentStatusHtml}</td>
+                    <td onclick="event.stopPropagation()">
+                        <button class="action-btn" onclick="openLogModal(${a.connectionId}, ${JSON.stringify(a).replace(/</g, '\\u003c')})">
+                            View Log
+                        </button>
+                    </td>
+                </tr>`;
+            }).join('');
+
+            updateSortIndicators();
+        }
+
+        // ── Stats ────────────────────────────────────────────────────────────
+
+        function updateStats(agents) {
+            const list = agents || allAgents || [];
+            const online    = list.filter(a => a && a.status === 'online').length;
+            const stale     = list.filter(a => a && a.status === 'stale').length;
+            const offline   = list.filter(a => a && a.status === 'offline').length;
+            const oracleErr = list.filter(a => a && a.agentStatus === 'oracle_unreachable').length;
+
+            document.getElementById('stat-online').textContent    = online;
+            document.getElementById('stat-stale').textContent     = stale;
+            document.getElementById('stat-offline').textContent   = offline;
+            document.getElementById('stat-total').textContent     = list.length;
+            document.getElementById('stat-oracle-err').textContent = oracleErr;
+        }
+
+        // ── Log-tail modal ───────────────────────────────────────────────────
+
+        async function openLogModal(connectionId, agentData) {
+            const overlay = document.getElementById('modal-overlay');
+            overlay.classList.remove('hidden');
+
+            const a = typeof agentData === 'string' ? JSON.parse(agentData) : agentData;
+            document.getElementById('modal-title').textContent =
+                `Agent Log — ${a.hostname || a.connectionName || 'conn-' + connectionId}`;
+            document.getElementById('modal-meta').textContent =
+                `${a.companyDomain || a.userEmail || ''} · Agent ${a.agentVersion || '?'} · ${a.osId || ''}`;
+
+            // Detail panel
+            document.getElementById('modal-details').innerHTML = `
+                <div class="detail-item"><label>Connection</label><span>${escHtml(a.connectionName || '—')}</span></div>
+                <div class="detail-item"><label>Company</label><span>${escHtml(a.companyDomain || '—')}</span></div>
+                <div class="detail-item"><label>Agent Version</label><span>${escHtml(a.agentVersion || a.proxyVersion || '—')}</span></div>
+                <div class="detail-item"><label>Python</label><span>${escHtml(a.pythonVersion || '—')}</span></div>
+                <div class="detail-item"><label>Oracle Mode</label><span>${escHtml(a.oracleMode || '—')}</span></div>
+                <div class="detail-item"><label>Uptime</label><span>${a.uptimeSeconds != null ? fmtUptime(a.uptimeSeconds) : '—'}</span></div>
+                <div class="detail-item"><label>Oracle Status</label><span>${escHtml(a.agentStatus || '—')}</span></div>
+                <div class="detail-item"><label>Oracle Retries</label><span>${a.oracleRetryCount != null ? a.oracleRetryCount : '—'}</span></div>
+            `;
+
+            document.getElementById('modal-log-content').innerHTML =
+                '<div class="log-empty">Fetching log tail...</div>';
+            document.getElementById('modal-line-count').textContent = '';
+            document.getElementById('modal-updated-at').textContent = '';
+
+            try {
+                const res = await fetch(`/api/admin/agents/${connectionId}/log-tail`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+
+                if (!data.lines || data.lines.length === 0) {
+                    document.getElementById('modal-log-content').innerHTML =
+                        `<div class="log-empty">${escHtml(data.note || 'No log lines buffered yet.')}</div>`;
+                } else {
+                    document.getElementById('modal-log-content').innerHTML =
+                        `<pre class="log-pre">${escHtml(data.lines.join('\n'))}</pre>`;
+                    document.getElementById('modal-line-count').textContent =
+                        `${data.lines.length} lines`;
+                    document.getElementById('modal-updated-at').textContent = data.updatedAt
+                        ? `Updated ${timeAgo(data.updatedAt)}`
+                        : '';
+                    // Scroll to bottom
+                    const body = document.querySelector('.modal-body');
+                    body.scrollTop = body.scrollHeight;
+                }
+            } catch (err) {
+                document.getElementById('modal-log-content').innerHTML =
+                    `<div class="log-empty" style="color:var(--red);">Failed to load log: ${escHtml(err.message)}</div>`;
+            }
+        }
+
+        function closeModal(event) {
+            if (event && event.target !== document.getElementById('modal-overlay')) return;
+            document.getElementById('modal-overlay').classList.add('hidden');
+        }
+
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') document.getElementById('modal-overlay').classList.add('hidden');
+        });
+
+        // ── Utilities ────────────────────────────────────────────────────────
+
+        function timeAgo(iso) {
+            const ageMs = Date.now() - new Date(iso).getTime();
+            const ageS  = Math.floor(ageMs / 1000);
+            if (ageS < 5)   return 'just now';
+            if (ageS < 60)  return `${ageS}s ago`;
+            if (ageS < 3600) return `${Math.floor(ageS / 60)}m ago`;
+            if (ageS < 86400) return `${Math.floor(ageS / 3600)}h ago`;
+            return `${Math.floor(ageS / 86400)}d ago`;
+        }
+
+        function fmtUptime(seconds) {
+            if (seconds < 60)    return `${seconds}s`;
+            if (seconds < 3600)  return `${Math.floor(seconds / 60)}m`;
+            if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+            return `${Math.floor(seconds / 86400)}d`;
+        }
+
+        function truncate(str, n) {
+            if (!str) return '';
+            return str.length > n ? str.slice(0, n) + '…' : str;
+        }
+
+        function escHtml(str) {
+            if (str == null) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        // ── Installer Health card ─────────────────────────────────────────────
+
+        async function loadSmokeRuns() {
+            try {
+                const res = await fetch('/api/admin/smoke-runs');
+                if (!res.ok) return;
+                const runs = await res.json();
+                renderSmokeCard(runs);
+            } catch (_) {
+                // non-fatal — card stays in loading state
+            }
+        }
+
+        function renderSmokeCard(runs) {
+            const grid = document.getElementById('smoke-run-grid');
+            const dot  = document.getElementById('smoke-dot');
+            const meta = document.getElementById('smoke-last-run');
+            const rate = document.getElementById('smoke-pass-rate');
+
+            if (!runs || runs.length === 0) {
+                grid.innerHTML = '<span class="smoke-empty">No smoke runs yet — run <code>npm run smoke:installer</code></span>';
+                dot.className = 'installer-health-dot gray';
+                return;
+            }
+
+            // Latest run overall — guard against null/undefined overall
+            const latest = runs[0];
+            const latestOverall = latest.overall || 'unknown';
+            const latestOk = latestOverall === 'pass';
+            dot.className = 'installer-health-dot ' + (latestOk ? 'green' : 'red');
+
+            if (latest.started_at) {
+                const ago = timeAgo(latest.started_at);
+                meta.textContent = `Last: ${ago} · ${latestOverall.toUpperCase()}`;
+            }
+
+            const passed = runs.filter(r => r.overall === 'pass').length;
+            rate.textContent = `${passed}/${runs.length} passed`;
+
+            // Build chips — newest first, last 20
+            grid.innerHTML = runs.slice(0, 20).map(r => {
+                const chipClass = r.overall === 'pass' ? 'pass' : r.overall === 'error' ? 'error' : 'fail';
+                const label = (r.os || '?') + ' · ' + timeAgo(r.started_at);
+                const steps = buildStepRows(r);
+                const failReason = buildFailReason(r);
+                return `<div class="smoke-run-chip">
+                    <div class="dot ${chipClass}"></div>
+                    <span>${escHtml(label)}</span>
+                    <div class="smoke-run-tooltip">
+                        <div class="tip-row"><span class="tip-label">OS</span><span>${escHtml(r.os)}</span></div>
+                        <div class="tip-row"><span class="tip-label">Overall</span><span>${escHtml(r.overall)}</span></div>
+                        <div class="tip-row"><span class="tip-label">Duration</span><span>${r.duration_total_ms != null ? r.duration_total_ms + 'ms' : '—'}</span></div>
+                        ${steps}
+                        ${failReason}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function buildStepRows(r) {
+            const steps = [
+                { key: 'install',   label: 'Install' },
+                { key: 'register',  label: 'Register' },
+                { key: 'heartbeat', label: 'Heartbeat' },
+                { key: 'systemd',   label: 'Systemd' },
+                { key: 'command',   label: 'Command' },
+            ];
+            return steps.map(s => {
+                const ok  = r[`step_${s.key}_ok`];
+                const ms  = r[`step_${s.key}_ms`];
+                const icon = ok === true ? '✓' : ok === false ? '✗' : '·';
+                const msStr = ms != null ? ` ${ms}ms` : '';
+                return `<div class="tip-row"><span class="tip-label">${s.label}</span><span>${icon}${msStr}</span></div>`;
+            }).join('');
+        }
+
+        function buildFailReason(r) {
+            const steps = ['install', 'register', 'heartbeat', 'systemd', 'command'];
+            for (const s of steps) {
+                const err = r[`step_${s}_err`];
+                if (err) return `<div class="tip-row" style="margin-top:4px;"><span class="tip-label">Error</span><span style="color:var(--red);max-width:160px;overflow:hidden;text-overflow:ellipsis;">${escHtml(err)}</span></div>`;
+            }
+            return '';
+        }
+
+        async function copySmokeTrigger() {
+            // Issue a one-shot smoke token from the API and compose the shell command
+            try {
+                const res = await fetch('/api/admin/smoke-token', { method: 'POST' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const { token, expiresAt } = await res.json();
+                const cmd = `SMOKE_ADMIN_TOKEN=${token} SMOKE_REPORT_SECRET=<your-secret> npm run smoke:installer`;
+                await navigator.clipboard.writeText(cmd).catch(() => {});
+                const btn = document.getElementById('smoke-token-btn');
+                const orig = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(() => { btn.textContent = orig; }, 2000);
+            } catch (err) {
+                alert('Could not issue smoke token: ' + err.message);
+            }
+        }
+
+        // ── Init ─────────────────────────────────────────────────────────────
+
+        window.onerror = function(msg, src, lineno, colno, err) {
+            // Catch any uncaught JS errors — display a visible error banner
+            // instead of silently breaking the page
+            const existing = document.getElementById('js-error-banner');
+            if (existing) return;
+            const banner = document.createElement('div');
+            banner.id = 'js-error-banner';
+            banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#f87171;color:#1a0000;padding:10px 48px;font-size:12px;font-family:JetBrains Mono,monospace;z-index:9999;display:flex;justify-content:space-between;align-items:center;';
+            banner.innerHTML = '<span>⚠ Page error: ' + escHtml(String(err && err.message ? err.message : msg)) + '</span><button onclick="this.parentElement.remove()" style="background:none;border:none;color:#1a0000;cursor:pointer;font-size:14px;">✕</button>';
+            document.body.prepend(banner);
+            return true; // prevent default error handling
+        };
+
+        loadAgents();
+        loadSmokeRuns();
+        // Auto-refresh every 30s
+        setInterval(loadAgents, 30000);
+        setInterval(loadSmokeRuns, 60000);
+    </script>
+
+    <script src="/nav-component.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        window.tvNav.init('admin');
+    });
+    </script>
+    <script src="/tunebot.js"></script>
+</body>
+</html>

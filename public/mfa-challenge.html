@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Two-Factor Verification — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c; --surface: #111114; --surface-2: #181820;
+      --border: #2a2a30; --text: #e8e8ed; --text-dim: #b8b8c8;
+      --accent: #f0a830; --accent-dim: rgba(240,168,48,.12);
+      --green: #34d399; --green-dim: rgba(52,211,153,.10);
+      --red: #f87171; --red-dim: rgba(248,113,113,.10);
+      --mono: 'JetBrains Mono', monospace;
+    }
+    html, body {
+      min-height: 100vh; overflow-x: hidden;
+      background: var(--bg); color: var(--text);
+      font-family: 'Space Grotesk', sans-serif;
+    }
+    body { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
+
+    /* Subtle grain texture */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.025'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 1;
+    }
+
+    .card {
+      position: relative; z-index: 2;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      width: 100%; max-width: 400px;
+      padding: 40px 36px;
+      box-shadow: 0 24px 80px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.04);
+    }
+
+    .logo-wrap {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 36px;
+    }
+    .logo-mark {
+      width: 34px; height: 34px;
+      background: var(--accent); border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 14px; color: #0a0a0c; letter-spacing: -.5px;
+    }
+    .logo-name { font-size: 18px; font-weight: 700; letter-spacing: -.4px; }
+
+    .shield-icon {
+      width: 56px; height: 56px;
+      background: var(--accent-dim);
+      border: 1px solid rgba(240,168,48,.25);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px;
+      margin-bottom: 20px;
+    }
+
+    h1 { font-size: 22px; font-weight: 700; letter-spacing: -.4px; margin-bottom: 8px; }
+    .subtitle { font-size: 14px; color: var(--text-dim); line-height: 1.6; margin-bottom: 28px; }
+
+    /* Digit input */
+    .code-group {
+      display: flex; gap: 8px; justify-content: center;
+      margin-bottom: 20px;
+    }
+    .digit-input {
+      width: 48px; height: 60px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-family: var(--mono); font-size: 24px; font-weight: 500;
+      color: var(--text); text-align: center;
+      outline: none; transition: border-color .15s, box-shadow .15s;
+      caret-color: var(--accent);
+    }
+    .digit-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(240,168,48,.12);
+    }
+    .digit-input.filled { border-color: rgba(240,168,48,.4); color: var(--accent); }
+
+    /* Separator between groups of 3 */
+    .code-sep { display: flex; align-items: center; color: var(--border); font-size: 18px; padding-bottom: 4px; }
+
+    .btn {
+      width: 100%; padding: 14px; border-radius: 10px;
+      font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 600;
+      cursor: pointer; border: none; transition: all .15s; outline: none;
+    }
+    .btn-primary { background: var(--accent); color: #0a0a0c; }
+    .btn-primary:hover:not(:disabled) { background: #f7b84a; transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+    .recovery-toggle {
+      text-align: center; margin-top: 16px;
+      font-size: 13px; color: var(--text-dim);
+    }
+    .recovery-toggle a {
+      color: var(--accent); text-decoration: none; font-weight: 500;
+    }
+    .recovery-toggle a:hover { text-decoration: underline; }
+
+    /* Recovery code input (hidden by default) */
+    .recovery-panel { display: none; }
+    .recovery-panel.visible { display: block; }
+    .recovery-input {
+      width: 100%; padding: 12px 16px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text);
+      font-family: var(--mono); font-size: 15px; letter-spacing: .08em;
+      text-align: center; outline: none; margin-bottom: 14px;
+      transition: border-color .15s;
+    }
+    .recovery-input:focus { border-color: var(--accent); }
+    .recovery-input::placeholder { color: var(--text-dim); font-size: 13px; letter-spacing: 0; }
+
+    .msg {
+      padding: 11px 14px; border-radius: 9px;
+      font-size: 13px; margin-bottom: 16px;
+      display: none;
+    }
+    .msg.visible { display: block; }
+    .msg-error { background: var(--red-dim); color: var(--red); border: 1px solid rgba(248,113,113,.2); }
+    .msg-warn { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(240,168,48,.2); }
+
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(10,10,12,.3); border-top-color: #0a0a0c; border-radius: 50%; animation: spin .6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .trust-row { display: flex; align-items: center; gap: 8px; margin: 14px 0 20px; }
+    .trust-row input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
+    .trust-row label { font-size: 13px; color: var(--text-dim); cursor: pointer; }
+
+    .attempts-bar {
+      height: 3px; background: var(--surface-2); border-radius: 99px;
+      margin-bottom: 18px; overflow: hidden;
+    }
+    .attempts-fill { height: 100%; background: var(--red); border-radius: 99px; transition: width .3s; }
+
+    footer { position: relative; z-index: 2; margin-top: 28px; font-size: 12px; color: var(--text-dim); }
+    footer a { color: inherit; text-decoration: none; }
+    footer a:hover { color: var(--text); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo-wrap">
+      <div class="logo-mark">TV</div>
+      <span class="logo-name">TuneVault</span>
+    </div>
+
+    <!-- TOTP panel (default) -->
+    <div id="totp-panel">
+      <div class="shield-icon">🔐</div>
+      <h1>Verify your identity</h1>
+      <p class="subtitle" id="subtitle-text">Enter the 6-digit code from your authenticator app.</p>
+
+      <div id="error-msg" class="msg msg-error"></div>
+
+      <div class="code-group" id="digit-group">
+        <input class="digit-input" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" data-idx="0">
+        <input class="digit-input" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" data-idx="1">
+        <input class="digit-input" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" data-idx="2">
+        <span class="code-sep">·</span>
+        <input class="digit-input" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" data-idx="3">
+        <input class="digit-input" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" data-idx="4">
+        <input class="digit-input" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off" data-idx="5">
+      </div>
+
+      <div class="attempts-bar" id="attempts-bar" style="display:none">
+        <div class="attempts-fill" id="attempts-fill" style="width:0%"></div>
+      </div>
+
+      <div class="trust-row">
+        <input type="checkbox" id="trust-device" name="trust-device">
+        <label for="trust-device">Trust this device for 30 days</label>
+      </div>
+
+      <button class="btn btn-primary" id="btn-verify" disabled>Verify →</button>
+
+      <div class="recovery-toggle">
+        Lost your authenticator? <a href="#" id="toggle-recovery">Use a recovery code</a>
+      </div>
+    </div>
+
+    <!-- Recovery code panel -->
+    <div class="recovery-panel" id="recovery-panel">
+      <div class="shield-icon">🔑</div>
+      <h1>Recovery code</h1>
+      <p class="subtitle">Enter one of your 10 one-time recovery codes.</p>
+
+      <div id="recovery-error-msg" class="msg msg-error"></div>
+
+      <input class="recovery-input" type="text" id="recovery-input"
+        placeholder="XXXX-XXXX-XXXX" maxlength="14" autocomplete="off"
+        spellcheck="false">
+      <button class="btn btn-primary" id="btn-recovery-verify">Use Recovery Code →</button>
+
+      <div class="recovery-toggle" style="margin-top:14px">
+        <a href="#" id="toggle-back-totp">← Back to authenticator app</a>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Need help? <a href="mailto:support@tunevault.app">support@tunevault.app</a>
+  </footer>
+
+  <script>
+    const MAX_ATTEMPTS = 5;
+    let attemptsFailed = 0;
+    let isRecoveryMode = false;
+    const digits = Array.from(document.querySelectorAll('.digit-input'));
+    const btnVerify = document.getElementById('btn-verify');
+    const errorMsg = document.getElementById('error-msg');
+    const attemptsBar = document.getElementById('attempts-bar');
+    const attemptsFill = document.getElementById('attempts-fill');
+
+    // ===== Digit inputs =====
+    digits.forEach((input, i) => {
+      input.addEventListener('input', (e) => {
+        const val = e.target.value.replace(/\D/g, '');
+        e.target.value = val ? val[0] : '';
+        if (val && i < digits.length - 1) digits[i + 1].focus();
+        updateFilled();
+        updateVerifyBtn();
+      });
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !e.target.value && i > 0) {
+          digits[i - 1].focus();
+          digits[i - 1].value = '';
+          updateFilled();
+          updateVerifyBtn();
+        }
+        // Allow paste on first digit
+        if ((e.ctrlKey || e.metaKey) && e.key === 'v') return;
+      });
+
+      // Handle paste on any digit
+      input.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
+        if (!pasted) return;
+        digits.forEach((d, j) => {
+          d.value = pasted[j] || '';
+          if (pasted[j]) d.classList.add('filled'); else d.classList.remove('filled');
+        });
+        const nextEmpty = digits.findIndex(d => !d.value);
+        (nextEmpty >= 0 ? digits[nextEmpty] : digits[digits.length - 1]).focus();
+        updateVerifyBtn();
+      });
+    });
+
+    // Focus first digit on load
+    digits[0].focus();
+
+    function getCode() {
+      return digits.map(d => d.value).join('');
+    }
+
+    function updateFilled() {
+      digits.forEach(d => d.classList.toggle('filled', !!d.value));
+    }
+
+    function updateVerifyBtn() {
+      btnVerify.disabled = getCode().length < 6;
+    }
+
+    function clearDigits() {
+      digits.forEach(d => { d.value = ''; d.classList.remove('filled'); });
+      digits[0].focus();
+      btnVerify.disabled = true;
+    }
+
+    function showError(container, msg) {
+      container.textContent = msg;
+      container.classList.add('visible');
+    }
+
+    function hideError(container) {
+      container.classList.remove('visible');
+      container.textContent = '';
+    }
+
+    // ===== Recovery mode toggle =====
+    document.getElementById('toggle-recovery').addEventListener('click', (e) => {
+      e.preventDefault();
+      isRecoveryMode = true;
+      document.getElementById('totp-panel').style.display = 'none';
+      document.getElementById('recovery-panel').classList.add('visible');
+      document.getElementById('recovery-input').focus();
+    });
+
+    document.getElementById('toggle-back-totp').addEventListener('click', (e) => {
+      e.preventDefault();
+      isRecoveryMode = false;
+      document.getElementById('recovery-panel').classList.remove('visible');
+      document.getElementById('totp-panel').style.display = '';
+      digits[0].focus();
+    });
+
+    // ===== Submit TOTP =====
+    async function submitTotp() {
+      const code = getCode();
+      if (code.length < 6) return;
+
+      btnVerify.disabled = true;
+      btnVerify.innerHTML = '<span class="spinner"></span>';
+      hideError(errorMsg);
+
+      const res = await fetch('/api/mfa/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code })
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        btnVerify.innerHTML = '✓ Verified!';
+        btnVerify.style.background = 'var(--green)';
+        setTimeout(() => { window.location.href = data.redirect || '/dashboard'; }, 400);
+        return;
+      }
+
+      btnVerify.disabled = false;
+      btnVerify.textContent = 'Verify →';
+      clearDigits();
+
+      if (res.status === 429 || data.locked_out) {
+        showError(errorMsg, 'Too many failed attempts. Wait 15 minutes and try again.');
+        btnVerify.disabled = true;
+        return;
+      }
+
+      attemptsFailed++;
+      const remaining = data.attempts_remaining ?? (MAX_ATTEMPTS - attemptsFailed);
+      const pct = (attemptsFailed / MAX_ATTEMPTS) * 100;
+
+      attemptsBar.style.display = '';
+      attemptsFill.style.width = pct + '%';
+
+      showError(errorMsg, remaining > 0
+        ? `Invalid code. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.`
+        : 'Invalid code. Too many failed attempts.'
+      );
+    }
+
+    btnVerify.addEventListener('click', submitTotp);
+
+    // Enter key from any digit
+    digits.forEach(d => d.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submitTotp();
+    }));
+
+    // ===== Submit Recovery Code =====
+    document.getElementById('btn-recovery-verify').addEventListener('click', async () => {
+      const code = document.getElementById('recovery-input').value.trim();
+      if (!code) return;
+
+      const btn = document.getElementById('btn-recovery-verify');
+      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+      const recoveryErr = document.getElementById('recovery-error-msg');
+      hideError(recoveryErr);
+
+      const res = await fetch('/api/mfa/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recovery_code: code })
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        btn.innerHTML = '✓ Verified!';
+        btn.style.background = 'var(--green)';
+        setTimeout(() => { window.location.href = data.redirect || '/dashboard'; }, 400);
+        return;
+      }
+
+      btn.disabled = false; btn.textContent = 'Use Recovery Code →';
+      showError(recoveryErr, data.error || 'Invalid recovery code');
+    });
+
+    document.getElementById('recovery-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('btn-recovery-verify').click();
+    });
+  </script>
+</body>
+</html>

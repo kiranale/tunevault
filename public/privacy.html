@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TuneVault Privacy Policy — Data Collection &amp; Your Rights</title>
+    <meta name="application-name" content="TuneVault">
+    <meta name="description" content="TuneVault Privacy Policy — what data we collect, how it's protected, and your rights.">
+    <link rel="canonical" href="https://tunevault.app/privacy">
+    <!-- Open Graph -->
+    <meta property="og:title" content="Privacy Policy — TuneVault">
+    <meta property="og:description" content="TuneVault Privacy Policy — what data we collect, how it's protected, and your rights.">
+    <meta property="og:url" content="https://tunevault.app/privacy">
+    <meta property="og:image" content="https://tunevault.app/og/home.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="TuneVault — AI Oracle DBA Agent with 100+ health checks">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="TuneVault">
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Privacy Policy — TuneVault">
+    <meta name="twitter:description" content="TuneVault Privacy Policy — what data we collect, how it's protected, and your rights.">
+    <meta name="twitter:image" content="https://tunevault.app/og/home.png">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://tunevault.app/#organization","name":"TuneVault","url":"https://tunevault.app","logo":{"@type":"ImageObject","url":"https://tunevault.app/logo.png","width":512,"height":512}},{"@type":"WebSite","@id":"https://tunevault.app/#website","name":"TuneVault","url":"https://tunevault.app","publisher":{"@id":"https://tunevault.app/#organization"}}]}</script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0c;
+            --surface: #111114;
+            --surface-2: #1a1a1f;
+            --border: #2a2a30;
+            --text: #e8e8ed;
+            --text-dim: #b8b8c8;
+            --accent: #f0a830;
+            --accent-dim: rgba(240, 168, 48, 0.12);
+            --green: #34d399;
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        .grain {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 999;
+        }
+
+
+
+        /* Hero */
+        .hero {
+            max-width: 760px;
+            margin: 64px auto 0;
+            padding: 0 32px;
+        }
+
+        .page-tag {
+            display: inline-block;
+            font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--accent);
+            background: var(--accent-dim);
+            padding: 4px 12px;
+            border-radius: 100px;
+            margin-bottom: 20px;
+            letter-spacing: 0.05em;
+        }
+
+        h1 {
+            font-size: clamp(28px, 4vw, 40px);
+            font-weight: 700;
+            letter-spacing: -1px;
+            line-height: 1.1;
+            margin-bottom: 16px;
+        }
+
+        .effective-date {
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 48px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Content */
+        .content {
+            max-width: 760px;
+            margin: 0 auto 80px;
+            padding: 0 32px;
+        }
+
+        .toc {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 24px 28px;
+            margin-bottom: 48px;
+        }
+
+        .toc h3 {
+            font-size: 13px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 14px;
+        }
+
+        .toc ol {
+            list-style: decimal;
+            padding-left: 18px;
+        }
+
+        .toc li {
+            margin-bottom: 6px;
+        }
+
+        .toc a {
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 14px;
+            transition: opacity 0.2s;
+        }
+
+        .toc a:hover { opacity: 0.75; }
+
+        section {
+            margin-bottom: 48px;
+            padding-bottom: 48px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        section:last-child {
+            border-bottom: none;
+        }
+
+        h2 {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            margin-bottom: 16px;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h2::before {
+            content: '';
+            display: inline-block;
+            width: 3px;
+            height: 20px;
+            background: var(--accent);
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        p {
+            color: var(--text-dim);
+            margin-bottom: 14px;
+            font-size: 15px;
+        }
+
+        p:last-child { margin-bottom: 0; }
+
+        ul, ol {
+            padding-left: 20px;
+            margin-bottom: 14px;
+        }
+
+        li {
+            color: var(--text-dim);
+            font-size: 15px;
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+
+        .highlight-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--green);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 20px 0;
+        }
+
+        .highlight-box p {
+            font-size: 14px;
+            margin: 0;
+            color: var(--text);
+        }
+
+        .highlight-box strong {
+            color: var(--green);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+
+        .data-table th {
+            text-align: left;
+            padding: 10px 14px;
+            background: var(--surface-2);
+            color: var(--text-dim);
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .data-table td {
+            padding: 12px 14px;
+            color: var(--text-dim);
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+
+        .data-table tr:last-child td { border-bottom: none; }
+
+        .tag-no {
+            display: inline-block;
+            background: rgba(248, 113, 113, 0.12);
+            color: #f87171;
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            padding: 2px 8px;
+            border-radius: 100px;
+        }
+
+        .tag-yes {
+            display: inline-block;
+            background: rgba(52, 211, 153, 0.12);
+            color: var(--green);
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            padding: 2px 8px;
+            border-radius: 100px;
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        a:hover { text-decoration: underline; }
+
+        strong { color: var(--text); }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--border);
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 32px 48px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        footer span { font-size: 13px; color: var(--text-dim); }
+
+        footer .brand-name { color: var(--accent); }
+
+        .footer-links {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .footer-links a {
+            font-size: 13px;
+            color: var(--text-dim);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover { color: var(--accent); }
+        .footer-links a.active { color: var(--accent); }
+
+        @media (max-width: 640px) {
+            .hero, .content { padding: 0 20px; }
+            .hero { margin-top: 40px; }
+            footer { padding: 24px 20px; flex-direction: column; align-items: flex-start; }
+            .footer-links { flex-wrap: wrap; gap: 14px; }
+        }
+    </style>
+</head>
+<body>
+<div class="grain"></div>
+
+<nav id="nav-root"></nav>
+
+<div class="hero">
+    <div class="page-tag">LEGAL</div>
+    <h1>Privacy Policy</h1>
+    <div class="effective-date">Effective: May 12, 2026 · Last updated: May 12, 2026</div>
+</div>
+
+<div class="content">
+
+    <div class="toc">
+        <h3>Contents</h3>
+        <ol>
+            <li><a href="#what-we-collect">What We Collect</a></li>
+            <li><a href="#what-we-dont-collect">What We Do NOT Collect</a></li>
+            <li><a href="#how-we-use">How We Use Your Data</a></li>
+            <li><a href="#third-parties">Third-Party Services</a></li>
+            <li><a href="#data-retention">Data Retention</a></li>
+            <li><a href="#cookies">Cookies &amp; Session Storage</a></li>
+            <li><a href="#security">Security</a></li>
+            <li><a href="#your-rights">Your Rights (GDPR / CCPA)</a></li>
+            <li><a href="#contact">Contact</a></li>
+        </ol>
+    </div>
+
+    <section id="what-we-collect">
+        <h2>What We Collect</h2>
+        <p>TuneVault collects the minimum data required to operate the service.</p>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Data</th>
+                    <th>Why</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Account</strong></td>
+                    <td>Email address, name (from Google OAuth or magic-link sign-in)</td>
+                    <td>Authentication and communication</td>
+                </tr>
+                <tr>
+                    <td><strong>Connection metadata</strong></td>
+                    <td>Oracle host/port, connection type, proxy URL</td>
+                    <td>Establishing database connections</td>
+                </tr>
+                <tr>
+                    <td><strong>Health check results</strong></td>
+                    <td>Check scores, findings, AI analysis text</td>
+                    <td>Delivering diagnostic reports and trend tracking</td>
+                </tr>
+                <tr>
+                    <td><strong>Payment data</strong></td>
+                    <td>Order ID, payment status, plan tier (via Razorpay)</td>
+                    <td>Subscription management</td>
+                </tr>
+                <tr>
+                    <td><strong>Usage analytics</strong></td>
+                    <td>Page views, feature interactions, hashed IP</td>
+                    <td>Product improvement (no cross-site tracking)</td>
+                </tr>
+                <tr>
+                    <td><strong>Alert configuration</strong></td>
+                    <td>Alert email addresses, severity thresholds, schedules</td>
+                    <td>Autonomous monitoring and notifications</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section id="what-we-dont-collect">
+        <h2>What We Do NOT Collect</h2>
+        <div class="highlight-box">
+            <p><strong>No plaintext credentials stored.</strong> Oracle usernames and passwords are encrypted at rest with AES-256-GCM — only ciphertext is stored in our database. Direct-mode connections can also be used session-only with no persistence. We never log, cache, or export raw database credentials in plaintext.</p>
+        </div>
+        <ul>
+            <li><span class="tag-no">NEVER</span>&nbsp; Raw Oracle data from your database (tables, rows, business data)</li>
+            <li><span class="tag-no">NEVER</span>&nbsp; Oracle passwords or private keys in plaintext (proxy API keys are AES-256-GCM encrypted at rest)</li>
+            <li><span class="tag-no">NEVER</span>&nbsp; Credit card numbers (Razorpay handles payment data — we see only order/status metadata)</li>
+            <li><span class="tag-no">NEVER</span>&nbsp; SSH private keys in plaintext (encrypted with AES-256-GCM before storage)</li>
+            <li><span class="tag-no">NEVER</span>&nbsp; Cross-site tracking or third-party advertising pixels</li>
+        </ul>
+    </section>
+
+    <section id="how-we-use">
+        <h2>How We Use Your Data</h2>
+        <ul>
+            <li><strong>Service delivery:</strong> Running health checks, generating reports, sending alert emails, and displaying your diagnostic history.</li>
+            <li><strong>AI analysis:</strong> Health check results are sent to OpenAI (via Polsia's proxy) to generate natural-language summaries. Results are not used to train AI models.</li>
+            <li><strong>Billing:</strong> Order and subscription status from Razorpay is stored to manage your plan and quota.</li>
+            <li><strong>Product improvement:</strong> Aggregated, anonymized usage data helps us understand which features are most valuable.</li>
+            <li><strong>Security:</strong> Connection attempt logs and audit trails protect your account and detect unauthorized access.</li>
+        </ul>
+        <p>We do not sell, rent, or trade your personal data to any third party for marketing purposes.</p>
+    </section>
+
+    <section id="third-parties">
+        <h2>Third-Party Services</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>Purpose</th>
+                    <th>Data Shared</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Razorpay</strong></td>
+                    <td>Payment processing</td>
+                    <td>Payment amount, order ID (Razorpay handles card data directly)</td>
+                </tr>
+                <tr>
+                    <td><strong>Google OAuth</strong></td>
+                    <td>Sign-in authentication</td>
+                    <td>Google profile email and name (with your consent)</td>
+                </tr>
+                <tr>
+                    <td><strong>Postmark / Polsia email proxy</strong></td>
+                    <td>Transactional email (magic links, alerts, receipts)</td>
+                    <td>Your email address and alert content</td>
+                </tr>
+                <tr>
+                    <td><strong>OpenAI (via Polsia proxy)</strong></td>
+                    <td>AI-generated summaries of health check results</td>
+                    <td>Anonymized check result data — no PII, no raw database content</td>
+                </tr>
+                <tr>
+                    <td><strong>Cloud Database Provider</strong></td>
+                    <td>Database hosting</td>
+                    <td>All stored application data (hosted in their cloud)</td>
+                </tr>
+                <tr>
+                    <td><strong>Cloud Hosting Provider</strong></td>
+                    <td>Application hosting</td>
+                    <td>Application logs and server telemetry</td>
+                </tr>
+            </tbody>
+        </table>
+        <p>Each third party processes data under their own privacy policy. We select vendors that meet industry-standard security requirements.</p>
+    </section>
+
+    <section id="data-retention">
+        <h2>Data Retention</h2>
+        <ul>
+            <li><strong>Active accounts:</strong> Data is retained while your account is active.</li>
+            <li><strong>Health check history:</strong> Check results and AI analysis are retained for up to 12 months, then automatically purged.</li>
+            <li><strong>Deleted accounts:</strong> All personal data is deleted within <strong>30 days</strong> of account deletion. Aggregated, anonymized analytics data may be retained indefinitely.</li>
+            <li><strong>Payment records:</strong> Payment metadata is retained for 7 years for financial compliance requirements.</li>
+            <li><strong>Audit logs:</strong> SSH execution and control audit logs are retained for 90 days for security and compliance.</li>
+        </ul>
+    </section>
+
+    <section id="cookies">
+        <h2>Cookies &amp; Session Storage</h2>
+        <p>TuneVault uses minimal, functional cookies only:</p>
+        <ul>
+            <li><strong>Session cookie:</strong> Maintains your authenticated session. Expires when you close the browser or after 7 days of inactivity. No tracking data.</li>
+            <li><strong>Visitor ID (localStorage):</strong> A random UUID stored in your browser's localStorage for anonymous analytics deduplication. Not linked to your identity unless you sign in.</li>
+        </ul>
+        <p>We do not use advertising cookies, cross-site tracking cookies, or third-party analytics cookies (e.g., Google Analytics). No cookie consent banner is required for functional-only cookies under most regulatory frameworks.</p>
+    </section>
+
+    <section id="security">
+        <h2>Security</h2>
+        <p>Security is core to TuneVault's purpose — we're trusted with access to production Oracle databases. We take that seriously:</p>
+        <ul>
+            <li>All data in transit is encrypted via TLS 1.2+</li>
+            <li>Oracle proxy API keys and SSH private keys are encrypted at rest with AES-256-GCM</li>
+            <li>Database credentials encrypted at rest with AES-256-GCM; direct-mode connections can also be session-only with no persistence</li>
+            <li>Internal app queries use parameterized statements; user-submitted SQL via the SQL Console is allowlist-validated, audited, and executed against the customer's own database under their credentials</li>
+            <li>Session tokens are cryptographically signed and expire automatically</li>
+            <li>All EBS control actions are validated server-side against a whitelist and logged to an append-only audit trail</li>
+        </ul>
+        <p>For a full security overview, see our <a href="/security">Security &amp; Trust page</a>.</p>
+    </section>
+
+    <section id="your-rights">
+        <h2>Your Rights (GDPR / CCPA)</h2>
+        <p>Depending on your jurisdiction, you may have the following rights:</p>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Right</th>
+                    <th>GDPR (EU/UK)</th>
+                    <th>CCPA (California)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Access your data</td>
+                    <td><span class="tag-yes">YES</span></td>
+                    <td><span class="tag-yes">YES</span></td>
+                </tr>
+                <tr>
+                    <td>Request deletion</td>
+                    <td><span class="tag-yes">YES</span></td>
+                    <td><span class="tag-yes">YES</span></td>
+                </tr>
+                <tr>
+                    <td>Export your data</td>
+                    <td><span class="tag-yes">YES</span></td>
+                    <td><span class="tag-yes">YES</span></td>
+                </tr>
+                <tr>
+                    <td>Correct inaccurate data</td>
+                    <td><span class="tag-yes">YES</span></td>
+                    <td><span class="tag-yes">YES</span></td>
+                </tr>
+                <tr>
+                    <td>Opt out of sale</td>
+                    <td>N/A (we don't sell data)</td>
+                    <td><span class="tag-yes">YES</span> (we don't sell)</td>
+                </tr>
+                <tr>
+                    <td>Lodge a complaint</td>
+                    <td><span class="tag-yes">YES</span> (with your supervisory authority)</td>
+                    <td>N/A</td>
+                </tr>
+            </tbody>
+        </table>
+        <p>To exercise any of these rights, email <a href="mailto:privacy@tunevault.app">privacy@tunevault.app</a>. We will respond within 30 days. For account deletion, you may also delete your account directly from your account settings — data deletion follows within 30 days.</p>
+    </section>
+
+    <section id="contact">
+        <h2>Contact</h2>
+        <p>Privacy inquiries: <a href="mailto:privacy@tunevault.app">privacy@tunevault.app</a></p>
+        <p>General contact: <a href="mailto:hello@tunevault.app">hello@tunevault.app</a></p>
+        <p>We may update this policy as the product evolves. Material changes will be communicated via email to registered users. The effective date at the top of this page reflects the latest revision.</p>
+    </section>
+
+</div>
+
+<footer>
+    <span><span class="brand-name">TuneVault</span> &copy; 2026</span>
+    <div class="footer-links">
+        <a href="/about">About</a>
+        <a href="/blog">Blog</a>
+        <a href="/docs/oracle-setup">Setup Guide</a>
+        <a href="/security">Security</a>
+        <a href="/trust">Trust Center</a>
+        <a href="/privacy" class="active">Privacy Policy</a>
+        <a href="/terms">Terms of Service</a>
+    </div>
+</footer>
+
+<script src="/nav-component.js"></script>
+<script>window.tvNav.init("main");</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

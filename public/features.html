@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TuneVault Features — 200+ Oracle Health Checks Across 15 Categories</title>
+    <meta name="description" content="TuneVault covers 200+ Oracle health checks across 15 categories: storage, performance, SQL, RMAN backup, wait events, ADDM, and dedicated EBS checks for SE, EE, RAC, ASM, and E-Business Suite.">
+    <meta name="robots" content="index,follow">
+    <meta property="og:title" content="TuneVault Features — 200+ Oracle Health Checks Across 15 Categories">
+    <meta property="og:description" content="Full breakdown of Oracle diagnostic checks: storage, performance, SQL tuning, RMAN, wait events, ADDM, and 51 EBS-specific checks. Intelligent diagnostics + PDF/XLSX export included.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://tunevault.app/features">
+    <meta property="og:image" content="https://tunevault.app/og/features.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="TuneVault features — 100+ Oracle health checks across 15 categories">
+    <meta property="og:site_name" content="TuneVault">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="TuneVault Features — 200+ Oracle Health Checks Across 15 Categories">
+    <meta name="twitter:description" content="Oracle diagnostic checks across 15 categories: storage, performance, SQL, RMAN, ADDM, EBS. Intelligent diagnostics + PDF/XLSX export.">
+    <meta name="twitter:image" content="https://tunevault.app/og/features.png">
+    <meta name="keywords" content="Oracle health check features, Oracle DBA diagnostics, Oracle performance checks, Oracle storage monitoring, Oracle security checks, Oracle RMAN backup monitoring, Oracle SQL tuning, EBS health checks">
+    <meta name="application-name" content="TuneVault">
+    <link rel="canonical" href="https://tunevault.app/features">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="apple-touch-icon" href="/favicon.svg">
+    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://tunevault.app/#organization","name":"TuneVault","alternateName":"TuneVault.app","url":"https://tunevault.app","logo":{"@type":"ImageObject","url":"https://tunevault.app/logo.png","width":512,"height":512},"description":"AI agent that autonomously manages Oracle database operations.","foundingDate":"2026","sameAs":["https://www.linkedin.com/in/kirankumarale/","https://linuxappsdba.blogspot.com"]},{"@type":"WebSite","@id":"https://tunevault.app/#website","name":"TuneVault","alternateName":["TuneVault.app"],"url":"https://tunevault.app","publisher":{"@id":"https://tunevault.app/#organization"}}]}</script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0c;
+            --surface: #111114;
+            --surface-2: #1a1a1f;
+            --border: #2a2a30;
+            --text: #e8e8ed;
+            --text-dim: #b8b8c8;
+            --accent: #f0a830;
+            --accent-dim: rgba(240, 168, 48, 0.10);
+            --green: #34d399;
+            --red: #f87171;
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .grain {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        nav { display: flex; justify-content: space-between; align-items: center; padding: 24px 48px; max-width: 1200px; margin: 0 auto; }
+
+        /* ── Page header ─────────────────────────── */
+        .page-header {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 64px 48px 48px;
+            border-bottom: 1px solid var(--border);
+        }
+        .page-eyebrow {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2.5px;
+            color: var(--accent);
+            margin-bottom: 18px;
+        }
+        .page-header h1 {
+            font-size: clamp(36px, 5vw, 58px);
+            font-weight: 700;
+            letter-spacing: -2px;
+            line-height: 1.05;
+            margin-bottom: 20px;
+            max-width: 760px;
+        }
+        .page-header h1 em {
+            font-style: normal;
+            color: var(--accent);
+        }
+        .page-header p {
+            font-size: 17px;
+            color: var(--text-dim);
+            max-width: 580px;
+            line-height: 1.7;
+            margin-bottom: 32px;
+        }
+        .header-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .header-stat {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+        }
+        .header-stat .num {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 28px;
+            font-weight: 500;
+            color: var(--text);
+        }
+        .header-stat .lbl {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+        .header-stat-sep {
+            width: 1px;
+            height: 32px;
+            background: var(--border);
+            align-self: center;
+        }
+
+        /* ── Edition row ─────────────────────────── */
+        .edition-strip {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px 48px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            border-bottom: 1px solid var(--border);
+        }
+        .edition-strip-label {
+            font-size: 12px;
+            color: var(--text-dim);
+            font-family: 'JetBrains Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+        .ed-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 12px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text-dim);
+        }
+        .ed-badge.on {
+            border-color: rgba(240,168,48,0.35);
+            color: var(--text);
+            background: rgba(240,168,48,0.06);
+        }
+        .ed-badge .dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--text-dim);
+        }
+        .ed-badge.on .dot { background: var(--accent); }
+
+        /* ── Section layout ───────────────────────── */
+        .features-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 48px;
+        }
+
+        .section-sep {
+            border: none;
+            border-top: 1px solid rgba(42,42,48,0.4);
+            margin: 0;
+        }
+
+        /* ── Category section ─────────────────────── */
+        .category-section {
+            padding: 52px 0;
+            border-bottom: 1px solid rgba(42,42,48,0.4);
+        }
+        .category-section:last-child { border-bottom: none; }
+
+        .cat-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 32px;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+        .cat-header-left { flex: 1; min-width: 240px; }
+        .cat-number {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--accent);
+            letter-spacing: 1.5px;
+            margin-bottom: 8px;
+        }
+        .cat-header h2 {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.7px;
+            margin-bottom: 10px;
+        }
+        .cat-header p {
+            font-size: 14px;
+            color: var(--text-dim);
+            line-height: 1.7;
+            max-width: 480px;
+        }
+        .cat-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .cat-check-count {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 32px;
+            font-weight: 500;
+            color: var(--text);
+            line-height: 1;
+        }
+        .cat-check-label {
+            font-size: 11px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+        .cat-edition-badges {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+        .ced-badge {
+            font-size: 10px;
+            font-family: 'JetBrains Mono', monospace;
+            padding: 2px 7px;
+            border-radius: 3px;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            background: var(--surface);
+        }
+        .ced-badge.all {
+            border-color: rgba(52,211,153,0.3);
+            color: var(--green);
+        }
+        .ced-badge.ee {
+            border-color: rgba(240,168,48,0.3);
+            color: var(--accent);
+        }
+
+        /* ── Check grid ───────────────────────────── */
+        .check-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        .check-item {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            transition: border-color 0.2s;
+        }
+        .check-item:hover { border-color: rgba(240,168,48,0.3); }
+        .check-item-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        .check-id {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--accent);
+            flex-shrink: 0;
+        }
+        .check-name {
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: -0.2px;
+        }
+        .check-desc {
+            font-size: 12px;
+            color: var(--text-dim);
+            line-height: 1.5;
+        }
+
+        /* ── EBS section (collapsible) ─────────────── */
+        .ebs-section-wrapper {
+            margin-top: 8px;
+            border: 1px solid rgba(240,168,48,0.2);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .ebs-toggle-btn {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 24px 28px;
+            background: rgba(240,168,48,0.04);
+            border: none;
+            cursor: pointer;
+            font-family: 'Space Grotesk', sans-serif;
+            color: var(--text);
+            gap: 16px;
+            text-align: left;
+        }
+        .ebs-toggle-btn:hover { background: rgba(240,168,48,0.07); }
+        .ebs-toggle-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .ebs-toggle-icon {
+            width: 36px;
+            height: 36px;
+            background: rgba(240,168,48,0.12);
+            border: 1px solid rgba(240,168,48,0.25);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        .ebs-toggle-text { flex: 1; }
+        .ebs-toggle-title {
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: -0.4px;
+            color: var(--text);
+            margin-bottom: 2px;
+        }
+        .ebs-toggle-sub {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+        .ebs-toggle-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-shrink: 0;
+        }
+        .ebs-count-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 12px;
+            background: rgba(240,168,48,0.1);
+            border: 1px solid rgba(240,168,48,0.25);
+            border-radius: 100px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--accent);
+        }
+        .ebs-chevron {
+            font-size: 18px;
+            color: var(--text-dim);
+            transition: transform 0.25s ease;
+        }
+        .ebs-section-wrapper.open .ebs-chevron { transform: rotate(180deg); }
+
+        .ebs-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.35s ease;
+        }
+        .ebs-content-inner {
+            padding: 0 28px 28px;
+        }
+        .ebs-detect-note {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px 16px;
+            background: rgba(240,168,48,0.05);
+            border: 1px solid rgba(240,168,48,0.15);
+            border-radius: 8px;
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-bottom: 24px;
+        }
+        .ebs-detect-note svg { flex-shrink: 0; margin-top: 2px; }
+        .ebs-detect-note strong { color: var(--text); }
+        .ebs-subcategories {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        .ebs-subcat {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+        }
+        .ebs-subcat h4 {
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .ebs-subcat-count {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--accent);
+            font-weight: 400;
+        }
+        .ebs-subcat-desc {
+            font-size: 12px;
+            color: var(--text-dim);
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+        .ebs-check-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .ebs-check-list li {
+            display: flex;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+        .ebs-check-list li .eid {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--accent);
+            flex-shrink: 0;
+            min-width: 36px;
+            padding-top: 1px;
+        }
+
+        /* ── Bottom CTA ───────────────────────────── */
+        .bottom-cta {
+            text-align: center;
+            padding: 72px 48px;
+            border-top: 1px solid var(--border);
+        }
+        .bottom-cta h2 {
+            font-size: clamp(28px, 4vw, 44px);
+            font-weight: 700;
+            letter-spacing: -1.5px;
+            margin-bottom: 16px;
+        }
+        .bottom-cta p {
+            color: var(--text-dim);
+            font-size: 16px;
+            margin-bottom: 32px;
+            max-width: 480px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .cta-group {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            background: var(--accent);
+            color: #fff;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .btn-primary:hover { background: #e09820; transform: translateY(-2px); }
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            background: transparent;
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .btn-secondary:hover { background: var(--surface); border-color: var(--text-dim); transform: translateY(-2px); }
+
+        /* ── Footer ───────────────────────────────── */
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 24px 48px;
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        footer .brand-name {
+            color: var(--accent);
+        }
+
+        /* ── Responsive ───────────────────────────── */
+        @media (max-width: 900px) {
+            .check-grid { grid-template-columns: repeat(2, 1fr); }
+            .ebs-subcategories { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 768px) {
+            nav, .page-header, .edition-strip, .features-content, .bottom-cta, footer {
+                padding-left: 24px;
+                padding-right: 24px;
+            }
+            .page-header { padding-top: 44px; padding-bottom: 32px; }
+            .check-grid { grid-template-columns: 1fr 1fr; }
+            .cat-meta { flex-direction: row; align-items: center; gap: 16px; }
+            .ebs-content-inner { padding: 0 16px 20px; }
+            .ebs-toggle-btn { padding: 18px 16px; }
+        }
+        @media (max-width: 520px) {
+            .check-grid { grid-template-columns: 1fr; }
+            .header-meta { gap: 12px; }
+            .ebs-toggle-right .ebs-count-pill { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="grain"></div>
+    <nav id="nav-root"></nav>
+
+    <!-- Page header -->
+    <div class="page-header">
+        <div class="page-eyebrow">What we check</div>
+        <h1>200+ Oracle health checks.<br>Every edition. <em>Every layer.</em></h1>
+        <p>From tablespace pressure to SQL plan regressions — TuneVault runs comprehensive diagnostics across every layer of your Oracle stack and surfaces exactly what needs attention.</p>
+        <div class="header-meta">
+            <div class="header-stat">
+                <span class="num">100+</span>
+                <span class="lbl">diagnostic checks</span>
+            </div>
+            <div class="header-stat-sep"></div>
+            <div class="header-stat">
+                <span class="num">15</span>
+                <span class="lbl">check categories</span>
+            </div>
+            <div class="header-stat-sep"></div>
+            <div class="header-stat">
+                <span class="num">51</span>
+                <span class="lbl">EBS-specific checks</span>
+            </div>
+            <div class="header-stat-sep"></div>
+            <div class="header-stat">
+                <span class="num" style="font-size:20px;">Autonomous</span>
+                <span class="lbl">monitoring + email alerts</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edition support strip -->
+    <div class="edition-strip">
+        <span class="edition-strip-label">Editions:</span>
+        <span class="ed-badge on"><span class="dot"></span> SE / SE2</span>
+        <span class="ed-badge on"><span class="dot"></span> EE</span>
+        <span class="ed-badge on"><span class="dot"></span> RAC</span>
+        <span class="ed-badge on"><span class="dot"></span> ASM</span>
+        <span class="ed-badge on"><span class="dot"></span> EBS</span>
+        <span class="ed-badge"><span class="dot"></span> 11g → 21c</span>
+    </div>
+
+    <!-- Core Oracle checks — applies to ALL editions -->
+    <div class="features-content">
+
+        <div class="category-section">
+            <div class="cat-header">
+                <div class="cat-header-left">
+                    <div class="cat-number">CATEGORY 01</div>
+                    <h2>Storage &amp; Tablespaces</h2>
+                    <p>Tablespace utilization, autoextend health, segment growth patterns, temp space pressure, and undo configuration.</p>
+                    <div class="cat-edition-badges" style="margin-top:12px;">
+                        <span class="ced-badge all">SE / SE2</span>
+                        <span class="ced-badge all">EE</span>
+                        <span class="ced-badge all">RAC</span>
+                    </div>
+                </div>
+                <div class="cat-meta">
+                    <span class="cat-check-count">18</span>
+                    <span class="cat-check-label">checks</span>
+                </div>
+            </div>
+            <div class="check-grid">
+                <div class="check-item"><div class="check-item-head"><span class="check-id">TS01</span><span class="check-name">Tablespace usage %</span></div><p class="check-desc">Percent-full flag with warn/crit thresholds per tablespace.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">TS02</span><span class="check-name">Autoextend status</span></div><p class="check-desc">Identifies datafiles with autoextend off when tablespace is filling.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">TS03</span><span class="check-name">Segment growth trend</span></div><p class="check-desc">Top growing segments and projected days-to-full.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">TS04</span><span class="check-name">Temp tablespace pressure</span></div><p class="check-desc">Current temp usage and sort-to-disk events.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">TS05</span><span class="check-name">Undo configuration</span></div><p class="check-desc">UNDO_RETENTION setting vs. peak active transaction duration.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">TS06</span><span class="check-name">SYSAUX growth</span></div><p class="check-desc">SYSAUX occupant inventory and top consumers.</p></div>
+            </div>
+        </div>
+
+        <div class="category-section">
+            <div class="cat-header">
+                <div class="cat-header-left">
+                    <div class="cat-number">CATEGORY 02</div>
+                    <h2>Performance &amp; Wait Events</h2>
+                    <p>Top wait events, latch contention, active session history (ASH), and resource saturation indicators.</p>
+                    <div class="cat-edition-badges" style="margin-top:12px;">
+                        <span class="ced-badge all">SE / SE2</span>
+                        <span class="ced-badge all">EE</span>
+                        <span class="ced-badge all">RAC</span>
+                    </div>
+                </div>
+                <div class="cat-meta">
+                    <span class="cat-check-count">14</span>
+                    <span class="cat-check-label">checks</span>
+                </div>
+            </div>
+            <div class="check-grid">
+                <div class="check-item"><div class="check-item-head"><span class="check-id">PF01</span><span class="check-name">Top 10 wait events</span></div><p class="check-desc">Session wait events ranked by total wait time.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">PF02</span><span class="check-name">DB CPU ratio</span></div><p class="check-desc">CPU vs. wait time breakdown from recent workload.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">PF03</span><span class="check-name">Latch contention</span></div><p class="check-desc">Top latches with sleep ratios and wait counts.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">PF04</span><span class="check-name">Buffer cache hit ratio</span></div><p class="check-desc">Logical vs. physical read efficiency.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">PF05</span><span class="check-name">I/O distribution</span></div><p class="check-desc">Datafile I/O hotspots and response time outliers.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">PF06</span><span class="check-name">Shared pool utilization</span></div><p class="check-desc">Library cache hit rate, parse-to-execute ratio.</p></div>
+            </div>
+        </div>
+
+        <div class="category-section">
+            <div class="cat-header">
+                <div class="cat-header-left">
+                    <div class="cat-number">CATEGORY 03</div>
+                    <h2>SQL Tuning &amp; Execution Plans</h2>
+                    <p>Worst-performing SQL by elapsed time, CPU, and logical I/O. Full-table scan detection, cartesian join flags, and index suggestion.</p>
+                    <div class="cat-edition-badges" style="margin-top:12px;">
+                        <span class="ced-badge all">SE / SE2</span>
+                        <span class="ced-badge all">EE</span>
+                        <span class="ced-badge ee">EE: DBMS_SQLTUNE</span>
+                    </div>
+                </div>
+                <div class="cat-meta">
+                    <span class="cat-check-count">12</span>
+                    <span class="cat-check-label">checks</span>
+                </div>
+            </div>
+            <div class="check-grid">
+                <div class="check-item"><div class="check-item-head"><span class="check-id">SQ01</span><span class="check-name">Top SQL by elapsed time</span></div><p class="check-desc">Top 5 high-elapsed SQL with execution count and plan info.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">SQ02</span><span class="check-name">Full table scans</span></div><p class="check-desc">Large FTS candidates with row count and missing index hints.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">SQ03</span><span class="check-name">Cartesian joins</span></div><p class="check-desc">Plans containing MERGE JOIN CARTESIAN operations.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">SQ04</span><span class="check-name">High-parse SQL</span></div><p class="check-desc">Statements with parse count &gt; executions (unshared cursors).</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">SQ05</span><span class="check-name">Index usage efficiency</span></div><p class="check-desc">Unused or rarely-used indexes that add DML overhead.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">SQ06</span><span class="check-name">DBMS_SQLTUNE advisor</span></div><p class="check-desc">Tuning task results for top workload SQL (EE only).</p></div>
+            </div>
+        </div>
+
+        <div class="category-section">
+            <div class="cat-header">
+                <div class="cat-header-left">
+                    <div class="cat-number">CATEGORY 04</div>
+                    <h2>Security &amp; Privilege Audit</h2>
+                    <p>Privileged user inventory, default passwords, audit trail health, role proliferation, and public grants.</p>
+                    <div class="cat-edition-badges" style="margin-top:12px;">
+                        <span class="ced-badge all">SE / SE2</span>
+                        <span class="ced-badge all">EE</span>
+                        <span class="ced-badge all">RAC</span>
+                    </div>
+                </div>
+                <div class="cat-meta">
+                    <span class="cat-check-count">13</span>
+                    <span class="cat-check-label">checks</span>
+                </div>
+            </div>
+            <div class="check-grid">
+                <div class="check-item"><div class="check-item-head"><span class="check-id">SEC01</span><span class="check-name">DBA-privileged users</span></div><p class="check-desc">All users with DBA role or ANY system privilege.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">SEC02</span><span class="check-name">Default password accounts</span></div><p class="check-desc">Oracle-supplied accounts that retain default credentials.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">SEC03</span><span class="check-name">Audit trail status</span></div><p class="check-desc">Audit trail enabled, trail size, and cleanup schedule.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">SEC04</span><span class="check-name">Excessive PUBLIC grants</span></div><p class="check-desc">Sensitive privileges granted to PUBLIC role.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">SEC05</span><span class="check-name">Password profile compliance</span></div><p class="check-desc">UNLIMITED password lifetime and no complexity check profiles.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">SEC06</span><span class="check-name">Role proliferation</span></div><p class="check-desc">Custom roles with excessive privilege counts.</p></div>
+            </div>
+        </div>
+
+        <div class="category-section">
+            <div class="cat-header">
+                <div class="cat-header-left">
+                    <div class="cat-number">CATEGORY 05</div>
+                    <h2>RMAN Backup Health</h2>
+                    <p>Backup job success rate, archive log gap, last successful full backup age, and RMAN catalog status.</p>
+                    <div class="cat-edition-badges" style="margin-top:12px;">
+                        <span class="ced-badge all">SE / SE2</span>
+                        <span class="ced-badge all">EE</span>
+                        <span class="ced-badge all">RAC</span>
+                    </div>
+                </div>
+                <div class="cat-meta">
+                    <span class="cat-check-count">8</span>
+                    <span class="cat-check-label">checks</span>
+                </div>
+            </div>
+            <div class="check-grid">
+                <div class="check-item"><div class="check-item-head"><span class="check-id">BK01</span><span class="check-name">Last full backup age</span></div><p class="check-desc">Hours since last successful full or level-0 incremental backup.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">BK02</span><span class="check-name">Backup failure rate</span></div><p class="check-desc">Failed vs. completed backup jobs over the last 7 days.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">BK03</span><span class="check-name">Archivelog generation rate</span></div><p class="check-desc">Archivelog volume per hour and retention gap.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">BK04</span><span class="check-name">FRA utilization</span></div><p class="check-desc">Fast Recovery Area space used vs. allocated.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">BK05</span><span class="check-name">RMAN catalog connectivity</span></div><p class="check-desc">Recovery catalog accessible and metadata current.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">BK06</span><span class="check-name">Backup duration trend</span></div><p class="check-desc">Backup window growth over 30 days — catches silent expansion.</p></div>
+            </div>
+        </div>
+
+        <div class="category-section">
+            <div class="cat-header">
+                <div class="cat-header-left">
+                    <div class="cat-number">CATEGORY 06</div>
+                    <h2>Memory: SGA &amp; PGA</h2>
+                    <p>SGA component sizes, shared pool fragmentation, PGA target adherence, and overallocation indicators.</p>
+                    <div class="cat-edition-badges" style="margin-top:12px;">
+                        <span class="ced-badge all">SE / SE2</span>
+                        <span class="ced-badge all">EE</span>
+                        <span class="ced-badge all">RAC</span>
+                    </div>
+                </div>
+                <div class="cat-meta">
+                    <span class="cat-check-count">9</span>
+                    <span class="cat-check-label">checks</span>
+                </div>
+            </div>
+            <div class="check-grid">
+                <div class="check-item"><div class="check-item-head"><span class="check-id">MEM01</span><span class="check-name">SGA breakdown</span></div><p class="check-desc">Shared pool, buffer cache, redo buffer sizes vs. totals.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">MEM02</span><span class="check-name">Shared pool fragmentation</span></div><p class="check-desc">Free chunk count and largest contiguous free chunk ratio.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">MEM03</span><span class="check-name">PGA target adherence</span></div><p class="check-desc">Actual PGA usage vs. PGA_AGGREGATE_TARGET.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">MEM04</span><span class="check-name">Memory advisor</span></div><p class="check-desc">DBMS_ADVISOR memory recommendations for SGA/PGA tuning.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">MEM05</span><span class="check-name">Large pool utilization</span></div><p class="check-desc">Large pool usage and ORA-4031 risk indicator.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">MEM06</span><span class="check-name">Java pool pressure</span></div><p class="check-desc">Java pool used vs. allocated (EBS and Java-heavy workloads).</p></div>
+            </div>
+        </div>
+
+        <div class="category-section">
+            <div class="cat-header">
+                <div class="cat-header-left">
+                    <div class="cat-number">CATEGORY 07</div>
+                    <h2>Sessions &amp; Locking</h2>
+                    <p>Active session inventory, blocking lock chains, long-running queries, and deadlock history.</p>
+                    <div class="cat-edition-badges" style="margin-top:12px;">
+                        <span class="ced-badge all">SE / SE2</span>
+                        <span class="ced-badge all">EE</span>
+                        <span class="ced-badge all">RAC</span>
+                    </div>
+                </div>
+                <div class="cat-meta">
+                    <span class="cat-check-count">8</span>
+                    <span class="cat-check-label">checks</span>
+                </div>
+            </div>
+            <div class="check-grid">
+                <div class="check-item"><div class="check-item-head"><span class="check-id">LK01</span><span class="check-name">Active blocking sessions</span></div><p class="check-desc">Lock chain depth, blocked session count, waiter SQL.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">LK02</span><span class="check-name">Long-running operations</span></div><p class="check-desc">Sessions with estimated completion time and percent done.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">LK03</span><span class="check-name">Deadlock frequency</span></div><p class="check-desc">ORA-00060 events in alert log over rolling 7 days.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">LK04</span><span class="check-name">Session limit utilization</span></div><p class="check-desc">Active vs. max sessions and processes parameter headroom.</p></div>
+            </div>
+        </div>
+
+        <div class="category-section">
+            <div class="cat-header">
+                <div class="cat-header-left">
+                    <div class="cat-number">CATEGORY 08</div>
+                    <h2>Index Health</h2>
+                    <p>Unusable indexes, stale statistics, invisible indexes, and index fragmentation candidates.</p>
+                    <div class="cat-edition-badges" style="margin-top:12px;">
+                        <span class="ced-badge all">SE / SE2</span>
+                        <span class="ced-badge all">EE</span>
+                        <span class="ced-badge all">RAC</span>
+                    </div>
+                </div>
+                <div class="cat-meta">
+                    <span class="cat-check-count">7</span>
+                    <span class="cat-check-label">checks</span>
+                </div>
+            </div>
+            <div class="check-grid">
+                <div class="check-item"><div class="check-item-head"><span class="check-id">IDX01</span><span class="check-name">Unusable indexes</span></div><p class="check-desc">Indexes with UNUSABLE status requiring rebuild.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">IDX02</span><span class="check-name">Stale statistics</span></div><p class="check-desc">Tables with row churn &gt; 10% since last analyze.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">IDX03</span><span class="check-name">Invisible indexes</span></div><p class="check-desc">INVISIBLE indexes not visible to the optimizer.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">IDX04</span><span class="check-name">Index fragmentation</span></div><p class="check-desc">Indexes with BLKS_GETS_PER_ACCESS ratio indicating need for coalesce.</p></div>
+            </div>
+        </div>
+
+        <div class="category-section">
+            <div class="cat-header">
+                <div class="cat-header-left">
+                    <div class="cat-number">CATEGORY 09</div>
+                    <h2>ADDM &amp; AWR Diagnostics</h2>
+                    <p>Automatic Diagnostic Database Monitor findings, workload repository snapshots, and ADDM task recommendations.</p>
+                    <div class="cat-edition-badges" style="margin-top:12px;">
+                        <span class="ced-badge ee">EE only</span>
+                        <span class="ced-badge ee">Diagnostics Pack required</span>
+                    </div>
+                </div>
+                <div class="cat-meta">
+                    <span class="cat-check-count">6</span>
+                    <span class="cat-check-label">checks</span>
+                </div>
+            </div>
+            <div class="check-grid">
+                <div class="check-item"><div class="check-item-head"><span class="check-id">ADDM01</span><span class="check-name">Top ADDM findings</span></div><p class="check-desc">Most impactful ADDM task recommendations from recent period.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">ADDM02</span><span class="check-name">SQL consuming top DB time</span></div><p class="check-desc">AWR top SQL by DB time contribution from last snapshot pair.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">ADDM03</span><span class="check-name">Segment I/O hotspots</span></div><p class="check-desc">Top segments by physical reads from AWR.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">ADDM04</span><span class="check-name">AWR snapshot lag</span></div><p class="check-desc">Hours since last successful AWR snapshot — alerts on collection gaps.</p></div>
+            </div>
+        </div>
+
+        <div class="category-section">
+            <div class="cat-header">
+                <div class="cat-header-left">
+                    <div class="cat-number">CATEGORIES 10 – 15</div>
+                    <h2>Housekeeping, Parameters, Objects &amp; More</h2>
+                    <p>Auto optimizer stats tasks, SQL Tuning Advisor status, invalid objects, network latency, key parameter review, and OS-level resource indicators.</p>
+                    <div class="cat-edition-badges" style="margin-top:12px;">
+                        <span class="ced-badge all">SE / SE2</span>
+                        <span class="ced-badge all">EE</span>
+                        <span class="ced-badge all">RAC</span>
+                    </div>
+                </div>
+                <div class="cat-meta">
+                    <span class="cat-check-count">14+</span>
+                    <span class="cat-check-label">checks</span>
+                </div>
+            </div>
+            <div class="check-grid">
+                <div class="check-item"><div class="check-item-head"><span class="check-id">HK01</span><span class="check-name">Auto optimizer stats task</span></div><p class="check-desc">DBMS_STATS auto gather job status and last run time.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">HK02</span><span class="check-name">SQL Tuning Advisor status</span></div><p class="check-desc">Automatic STA task completion, recommendations count.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">OBJ01</span><span class="check-name">Invalid objects</span></div><p class="check-desc">Compiled invalid procedures, packages, triggers, views.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">OBJ02</span><span class="check-name">Disabled constraints</span></div><p class="check-desc">Foreign key and check constraints left disabled after load.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">PAR01</span><span class="check-name">Key parameter review</span></div><p class="check-desc">35 parameters reviewed: memory, security, undo, performance groups.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">OS01</span><span class="check-name">OS resource indicators</span></div><p class="check-desc">CPU, memory, swap, disk I/O signals from V$ views (proxy mode).</p></div>
+            </div>
+        </div>
+
+        <!-- Autonomous Monitoring section -->
+        <div class="category-section">
+            <div class="cat-header">
+                <div class="cat-header-left">
+                    <div class="cat-number">PLATFORM FEATURE</div>
+                    <h2>Autonomous Monitoring &amp; Email Alerts</h2>
+                    <p>Schedule health checks on a cadence (hourly, daily, weekly) and receive email alerts the moment new critical or warning findings are detected. Delta-aware logic suppresses noise — you only get alerted when the finding is new or changes severity, not on every run.</p>
+                    <div class="cat-edition-badges" style="margin-top:12px;">
+                        <span class="ced-badge all">All editions</span>
+                        <span class="ced-badge all">EBS</span>
+                    </div>
+                </div>
+                <div class="cat-meta">
+                    <span class="cat-check-count" style="font-size:20px;">Live</span>
+                    <span class="cat-check-label">shipped</span>
+                </div>
+            </div>
+            <div class="check-grid">
+                <div class="check-item"><div class="check-item-head"><span class="check-id">MON01</span><span class="check-name">Scheduled health checks</span></div><p class="check-desc">Configure cadence per connection: every N minutes, daily, or weekly. Runs automatically in the background.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">MON02</span><span class="check-name">Delta-aware alerting</span></div><p class="check-desc">Compares each run against prior findings. Alerts only on new or worsened findings — no duplicate noise on stable issues.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">MON03</span><span class="check-name">Email notifications</span></div><p class="check-desc">Configurable alert email per connection. Severity threshold filter: alert on CRITICAL only, or include WARNING findings.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">MON04</span><span class="check-name">Snooze control</span></div><p class="check-desc">Snooze alerts per connection for a defined window. Useful during planned maintenance windows.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">MON05</span><span class="check-name">Finding history</span></div><p class="check-desc">Per-check finding history across runs: first_seen, last_seen, resolved_at. Track when issues first appeared and when they cleared.</p></div>
+                <div class="check-item"><div class="check-item-head"><span class="check-id">MON06</span><span class="check-name">Fleet overview</span></div><p class="check-desc">Dashboard showing latest health score and alert status across all monitored connections at a glance.</p></div>
+            </div>
+        </div>
+
+        <!-- EBS section — clearly separated, collapsible -->
+        <div class="category-section">
+            <div class="cat-header" style="margin-bottom:20px;">
+                <div class="cat-header-left">
+                    <div class="cat-number">EBS LAYER</div>
+                    <h2>Oracle E-Business Suite</h2>
+                    <p>51 dedicated checks activate automatically when TuneVault detects an EBS environment. Non-EBS databases see none of these.</p>
+                </div>
+            </div>
+
+            <div class="ebs-section-wrapper" id="ebs-wrapper">
+                <button class="ebs-toggle-btn" onclick="toggleEbs()" aria-expanded="false" aria-controls="ebs-content">
+                    <div class="ebs-toggle-left">
+                        <div class="ebs-toggle-icon">🏢</div>
+                        <div class="ebs-toggle-text">
+                            <div class="ebs-toggle-title">Expand EBS-Specific Checks</div>
+                            <div class="ebs-toggle-sub">Concurrent Managers · Workflow · Security · ADOP · OACore · Forms</div>
+                        </div>
+                    </div>
+                    <div class="ebs-toggle-right">
+                        <span class="ebs-count-pill">51 checks</span>
+                        <span class="ebs-chevron">&#8964;</span>
+                    </div>
+                </button>
+                <div class="ebs-content" id="ebs-content" role="region">
+                    <div class="ebs-content-inner">
+                        <div class="ebs-detect-note">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--accent)"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                            <span><strong>Auto-detected at connection time.</strong> TuneVault queries <code style="font-family:JetBrains Mono,monospace;font-size:12px;color:var(--text-dim);">APPS.DUAL</code> — if it resolves, EBS checks activate in your report. No flag to set, no separate connection.</span>
+                        </div>
+                        <div class="ebs-subcategories">
+                            <div class="ebs-subcat">
+                                <h4>Concurrent Managers <span class="ebs-subcat-count">CM01–CM10 · 12 checks</span></h4>
+                                <p class="ebs-subcat-desc">Manager status, load, request backlogs, and long-running requests.</p>
+                                <ul class="ebs-check-list">
+                                    <li><span class="eid">CM01</span>ICM (Internal Concurrent Manager) status</li>
+                                    <li><span class="eid">CM02</span>Standard Manager load and request queue</li>
+                                    <li><span class="eid">CM03</span>Long-running concurrent requests (&gt;1h)</li>
+                                    <li><span class="eid">CM05</span>CM running/inactive worker ratio</li>
+                                    <li><span class="eid">CM06</span>Output Post Processor (OPP) status</li>
+                                    <li><span class="eid">CM09</span>Concurrent request error rate (last 24h)</li>
+                                    <li><span class="eid">CM10</span>Completed-with-warning request inventory</li>
+                                </ul>
+                            </div>
+                            <div class="ebs-subcat">
+                                <h4>Workflow &amp; Mailer <span class="ebs-subcat-count">WF01–WF09 · 13 checks</span></h4>
+                                <p class="ebs-subcat-desc">Workflow agent status, error log depth, notification backlog, and purgeable items.</p>
+                                <ul class="ebs-check-list">
+                                    <li><span class="eid">WF01</span>Workflow agent status (Java/background)</li>
+                                    <li><span class="eid">WF02</span>Workflow error log depth</li>
+                                    <li><span class="eid">WF03</span>Deferred queue depth</li>
+                                    <li><span class="eid">WF07</span>Notification mailer status</li>
+                                    <li><span class="eid">WF08</span>Purgeable workflow items</li>
+                                    <li><span class="eid">WF09</span>Notification backlog (unread &gt;7 days)</li>
+                                </ul>
+                            </div>
+                            <div class="ebs-subcat">
+                                <h4>EBS Security <span class="ebs-subcat-count">FB01–FB04 · 7 checks</span></h4>
+                                <p class="ebs-subcat-desc">Sign-on audit anomalies, sysadmin users, and password policy compliance.</p>
+                                <ul class="ebs-check-list">
+                                    <li><span class="eid">FB01</span>Sign-on audit log anomalies</li>
+                                    <li><span class="eid">FB03</span>SYSADMIN-level user inventory</li>
+                                    <li><span class="eid">FB04</span>Password policy — complexity and expiry</li>
+                                </ul>
+                            </div>
+                            <div class="ebs-subcat">
+                                <h4>ADOP &amp; App Tier <span class="ebs-subcat-count">SC/OT/CD · 19 checks</span></h4>
+                                <p class="ebs-subcat-desc">ADOP session health, OACore services, Forms availability, and app-tier observability.</p>
+                                <ul class="ebs-check-list">
+                                    <li><span class="eid">SC12</span>ADOP patch session status</li>
+                                    <li><span class="eid">SC14</span>Abandoned ADOP sessions</li>
+                                    <li><span class="eid">OT05</span>OACore connection pool health</li>
+                                    <li><span class="eid">CD07</span>Forms server process status</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /features-content -->
+
+    <!-- Security trust callout -->
+    <div style="max-width:840px;margin:0 auto 32px;padding:0 24px;">
+        <div style="background:#111114;border:1px solid #2a2a30;border-radius:10px;padding:22px 28px;display:flex;align-items:center;gap:28px;flex-wrap:wrap;">
+            <div style="font-size:28px;flex-shrink:0;">🛡️</div>
+            <div style="flex:1;min-width:200px;">
+                <div style="font-size:14px;font-weight:700;margin-bottom:4px;">Safe for production Oracle environments</div>
+                <div style="font-size:13px;color:#b8b8c8;line-height:1.55;">Outbound-only HTTPS agent &nbsp;·&nbsp; No inbound ports opened on your server &nbsp;·&nbsp; AES-256 encrypted credentials &nbsp;·&nbsp; Command allowlist enforced on-agent &nbsp;·&nbsp; Every EBS control action audit-logged</div>
+            </div>
+            <a href="/security" style="display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border:1px solid #2a2a30;border-radius:6px;font-size:13px;font-weight:600;color:#e8e8ed;text-decoration:none;white-space:nowrap;transition:all 0.2s;" onmouseover="this.style.borderColor='#f0a830';this.style.color='#f0a830'" onmouseout="this.style.borderColor='#2a2a30';this.style.color='#e8e8ed'">Security review →</a>
+        </div>
+    </div>
+
+    <!-- Bottom CTA -->
+    <div class="bottom-cta">
+        <h2>See the checks in action.</h2>
+        <p>See a real Oracle diagnostic report — anonymized data from a representative deployment. No sign-up, no credentials.</p>
+        <div class="cta-group">
+            <a href="/sample-report" class="btn-primary">View Sample Report &rarr;</a>
+            <a href="/signup?path=health-check&redirect=/dashboard" class="btn-secondary" data-auth-guard style="opacity:0;">Connect Your Database &rarr;</a>
+        </div>
+    </div>
+
+    <footer>
+        <span><span class="brand-name">TuneVault</span> &copy; 2026</span>
+        <span style="display:flex;align-items:center;gap:20px;">
+            <a href="/blog" style="color:inherit;text-decoration:none;transition:color 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='inherit'">Blog</a>
+            <a href="/about" style="color:inherit;text-decoration:none;transition:color 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='inherit'">About</a>
+            <a href="/pricing" style="color:inherit;text-decoration:none;transition:color 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='inherit'">Pricing</a>
+            <a href="/architecture" style="color:inherit;text-decoration:none;transition:color 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='inherit'">Architecture</a>
+            <a href="/docs/oracle-setup" style="color:inherit;text-decoration:none;transition:color 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='inherit'">Setup Guide</a>
+            <a href="/security" style="color:inherit;text-decoration:none;transition:color 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='inherit'">Security</a>
+            <a href="/trust" style="color:inherit;text-decoration:none;transition:color 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='inherit'">Trust Center</a>
+            <a href="mailto:hello@tunevault.app" style="color:inherit;text-decoration:none;transition:color 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='inherit'">hello@tunevault.app</a>
+            <a href="mailto:support@tunevault.app" style="color:inherit;text-decoration:none;transition:color 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='inherit'">support@tunevault.app</a>
+        </span>
+    </footer>
+
+    <script src="/nav-component.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        window.tvNav.init('features');
+    });
+
+    function toggleEbs() {
+        var wrapper = document.getElementById('ebs-wrapper');
+        var content = document.getElementById('ebs-content');
+        var btn = wrapper.querySelector('.ebs-toggle-btn');
+        var isOpen = wrapper.classList.contains('open');
+
+        if (isOpen) {
+            wrapper.classList.remove('open');
+            content.style.maxHeight = '0';
+            btn.setAttribute('aria-expanded', 'false');
+        } else {
+            wrapper.classList.add('open');
+            content.style.maxHeight = content.scrollHeight + 'px';
+            btn.setAttribute('aria-expanded', 'true');
+        }
+    }
+    </script>
+
+    <!-- Polsia Analytics -->
+    <script>
+    (function() {
+        var slug = 'tunevault';
+        if (!slug) return;
+        var vid = localStorage.getItem('polsia_vid');
+        if (!vid) {
+            vid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                var r = Math.random() * 16 | 0;
+                return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+            });
+            localStorage.setItem('polsia_vid', vid);
+        }
+        new Image().src = 'https://polsia.com/api/beacon/pixel?s=' + encodeURIComponent(slug) + '&v=' + encodeURIComponent(vid);
+    })();
+    </script>
+<script src="/tv-tracker.js"></script>
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "TuneVault",
+      "applicationCategory": "BusinessApplication",
+      "applicationSubCategory": "Database Management",
+      "operatingSystem": "Web",
+      "url": "https://tunevault.app",
+      "keywords": "Oracle DBA, Oracle EBS, database monitoring, Oracle health check, EBS operations, RAC monitoring, ASM monitoring, Oracle diagnostics",
+      "description": "Oracle Operational Intelligence Platform — encoded DBA heuristics, diagnostics, and operational control for Oracle Database, RAC, ASM, and E-Business Suite (EBS). NOT a music, audio, or media application.",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD",
+        "description": "Free demo + 1 free health check per company"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "TuneVault",
+        "url": "https://tunevault.app",
+        "description": "Oracle Operational Intelligence Platform",
+        "knowsAbout": ["Oracle Database", "Oracle E-Business Suite", "Oracle RAC", "Oracle ASM", "Database Performance Tuning", "DBA Operations"]
+      }
+    }
+    </script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

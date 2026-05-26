@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Auto-Upgrades — TuneVault Admin</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0c;
+      --surface: #111114;
+      --surface-2: #1a1a1f;
+      --border: #2a2a30;
+      --text: #e8e8ed;
+      --text-dim: #9898a8;
+      --accent: #f0a830;
+      --accent-dim: rgba(240,168,48,0.12);
+      --green: #34d399;
+      --green-dim: rgba(52,211,153,0.10);
+      --red: #f87171;
+      --red-dim: rgba(248,113,113,0.10);
+      --yellow: #fbbf24;
+      --yellow-dim: rgba(251,191,36,0.10);
+      --blue: #60a5fa;
+      --blue-dim: rgba(96,165,250,0.10);
+      --gray: #6b7280;
+      --mono: 'JetBrains Mono', monospace;
+    }
+
+    body {
+      font-family: 'Space Grotesk', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    nav {
+      display: flex; align-items: center; gap: 16px;
+      padding: 14px 32px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    nav a { color: var(--text-dim); text-decoration: none; font-size: 14px; }
+    nav a:hover { color: var(--text); }
+    nav .logo { font-weight: 700; font-size: 16px; color: var(--accent); margin-right: 8px; }
+    nav .sep { color: var(--border); }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+
+    h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    .subtitle { font-size: 14px; color: var(--text-dim); margin-bottom: 28px; }
+
+    .toolbar {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: 8px; font-size: 13px;
+      font-weight: 600; cursor: pointer; border: none;
+      font-family: inherit; transition: opacity .15s;
+    }
+    .btn:hover { opacity: .85; }
+    .btn-primary { background: var(--accent); color: #0a0a0c; }
+    .btn-secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;
+    }
+    .badge-queued     { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(96,165,250,.2); }
+    .badge-in_progress { background: var(--yellow-dim); color: var(--yellow); border: 1px solid rgba(251,191,36,.2); }
+    .badge-completed  { background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,.2); }
+    .badge-failed     { background: var(--red-dim); color: var(--red); border: 1px solid rgba(248,113,113,.2); }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th {
+      text-align: left; padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-dim); font-weight: 600; font-size: 11px;
+      text-transform: uppercase; letter-spacing: .04em;
+    }
+    tbody tr { border-bottom: 1px solid var(--border); }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--surface-2); }
+    tbody td { padding: 10px 12px; vertical-align: middle; }
+
+    .mono { font-family: var(--mono); font-size: 12px; }
+    .text-dim { color: var(--text-dim); }
+    .error-cell { color: var(--red); font-family: var(--mono); font-size: 11px; max-width: 260px; word-break: break-all; }
+
+    .stat-bar {
+      display: flex; gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat {
+      flex: 1; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 16px;
+    }
+    .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-dim); margin-bottom: 4px; }
+    .stat-val { font-size: 24px; font-weight: 700; }
+
+    .empty { text-align: center; padding: 48px 24px; color: var(--text-dim); font-size: 14px; }
+
+    #loadState { text-align: center; padding: 48px; color: var(--text-dim); }
+
+    .spinner {
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid var(--border); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+<nav>
+  <a href="/" class="logo">TuneVault</a>
+  <span class="sep">/</span>
+  <a href="/connections">Connections</a>
+  <span class="sep">/</span>
+  <span style="color:var(--text)">Agent Auto-Upgrades</span>
+</nav>
+
+<div class="container">
+  <h1>Agent Auto-Upgrades</h1>
+  <p class="subtitle">Last 100 auto-upgrade events. Policy: agents reporting <code style="background:#1a1a1f;padding:1px 5px;border-radius:4px">agent_version &lt; 6.0.0</code> are automatically upgraded via the long-poll channel.</p>
+
+  <div class="stat-bar" id="statBar">
+    <div class="stat"><div class="stat-label">Total</div><div class="stat-val" id="statTotal">—</div></div>
+    <div class="stat"><div class="stat-label">Completed</div><div class="stat-val" id="statCompleted" style="color:var(--green)">—</div></div>
+    <div class="stat"><div class="stat-label">In Progress</div><div class="stat-val" id="statInProgress" style="color:var(--yellow)">—</div></div>
+    <div class="stat"><div class="stat-label">Failed</div><div class="stat-val" id="statFailed" style="color:var(--red)">—</div></div>
+    <div class="stat"><div class="stat-label">Avg Duration</div><div class="stat-val" id="statAvgDuration">—</div></div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn btn-primary" onclick="loadAudits()">↺ Refresh</button>
+    <a id="csvBtn" href="/api/admin/agent-upgrades/csv" class="btn btn-secondary">⬇ Export CSV</a>
+  </div>
+
+  <div id="loadState"><span class="spinner"></span> Loading…</div>
+  <div id="tableWrap" style="display:none">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Connection</th>
+          <th>From Version</th>
+          <th>To Version</th>
+          <th>Triggered</th>
+          <th>Completed</th>
+          <th>Duration</th>
+          <th>Triggered By</th>
+          <th>Status</th>
+          <th>Error</th>
+        </tr>
+      </thead>
+      <tbody id="auditBody"></tbody>
+    </table>
+    <div id="emptyState" class="empty" style="display:none">No auto-upgrade events yet. They'll appear here once an agent with version &lt;6.0.0 sends a heartbeat.</div>
+  </div>
+</div>
+
+<script>
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function relTime(ts) {
+  if (!ts) return '—';
+  const secs = Math.floor((Date.now() - new Date(ts)) / 1000);
+  if (secs < 60) return secs + 's ago';
+  if (secs < 3600) return Math.floor(secs/60) + 'm ago';
+  if (secs < 86400) return Math.floor(secs/3600) + 'h ago';
+  return Math.floor(secs/86400) + 'd ago';
+}
+
+function fmtDuration(s) {
+  if (s === null || s === undefined) return '—';
+  if (s < 60) return s + 's';
+  return Math.floor(s/60) + 'm ' + (s % 60) + 's';
+}
+
+function statusBadge(status) {
+  const label = status === 'in_progress' ? '⟳ In Progress' :
+                status === 'queued'      ? '⏳ Queued'      :
+                status === 'completed'   ? '✓ Completed'   :
+                status === 'failed'      ? '✗ Failed'      : status;
+  return `<span class="badge badge-${escHtml(status)}">${escHtml(label)}</span>`;
+}
+
+async function loadAudits() {
+  document.getElementById('loadState').style.display = 'block';
+  document.getElementById('tableWrap').style.display = 'none';
+
+  try {
+    const res = await fetch('/api/admin/agent-upgrades', { credentials: 'include' });
+    if (res.status === 403) {
+      document.getElementById('loadState').innerHTML = '🔒 Admin access required.';
+      return;
+    }
+    const data = await res.json();
+    const rows = data.rows || [];
+
+    // Stats
+    const completed = rows.filter(r => r.status === 'completed').length;
+    const inProgress = rows.filter(r => r.status === 'in_progress').length;
+    const queued = rows.filter(r => r.status === 'queued').length;
+    const failed = rows.filter(r => r.status === 'failed').length;
+    const durations = rows.filter(r => r.duration_s !== null && r.duration_s > 0).map(r => r.duration_s);
+    const avgDur = durations.length ? Math.round(durations.reduce((a,b) => a+b, 0) / durations.length) : null;
+
+    document.getElementById('statTotal').textContent = rows.length;
+    document.getElementById('statCompleted').textContent = completed;
+    document.getElementById('statInProgress').textContent = inProgress + queued;
+    document.getElementById('statFailed').textContent = failed;
+    document.getElementById('statAvgDuration').textContent = avgDur !== null ? fmtDuration(avgDur) : '—';
+
+    const tbody = document.getElementById('auditBody');
+    if (!rows.length) {
+      tbody.innerHTML = '';
+      document.getElementById('emptyState').style.display = 'block';
+    } else {
+      document.getElementById('emptyState').style.display = 'none';
+      tbody.innerHTML = rows.map(r => `
+        <tr>
+          <td class="mono text-dim">${r.id}</td>
+          <td>
+            <a href="/connections" style="color:var(--text);text-decoration:none;font-weight:600">${escHtml(r.connection_name || `#${r.connection_id}`)}</a>
+            <div class="text-dim mono" style="font-size:11px">#${r.connection_id}</div>
+          </td>
+          <td class="mono">${escHtml(r.from_version || '—')}</td>
+          <td class="mono" style="color:var(--green)">${escHtml(r.to_version)}</td>
+          <td>
+            <span title="${escHtml(r.triggered_at)}">${relTime(r.triggered_at)}</span>
+          </td>
+          <td>
+            ${r.completed_at ? `<span title="${escHtml(r.completed_at)}">${relTime(r.completed_at)}</span>` : '<span class="text-dim">—</span>'}
+          </td>
+          <td class="mono">${fmtDuration(r.duration_s)}</td>
+          <td class="text-dim" style="font-size:12px">${escHtml(r.triggered_by)}</td>
+          <td>${statusBadge(r.status)}</td>
+          <td class="error-cell">${escHtml(r.error || '')}</td>
+        </tr>
+      `).join('');
+    }
+
+    document.getElementById('loadState').style.display = 'none';
+    document.getElementById('tableWrap').style.display = 'block';
+
+  } catch (err) {
+    document.getElementById('loadState').innerHTML = '✗ Failed to load: ' + err.message;
+  }
+}
+
+loadAudits();
+// Auto-refresh every 30s while page is open
+setInterval(loadAudits, 30000);
+</script>
+</body>
+</html>

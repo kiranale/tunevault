@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Billing — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+    <link rel="canonical" href="https://tunevault.app/settings/billing">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c; --surface: #111114; --surface-2: #1a1a1f; --surface-3: #222228;
+      --border: #2a2a30; --border-hover: #3a3a44;
+      --text: #e8e8ed; --text-dim: #b8b8c8; --text-muted: #9898a8;
+      --accent: #f0a830; --accent-dim: rgba(240,168,48,.12);
+      --green: #34d399; --green-dim: rgba(52,211,153,.10);
+      --red: #f87171; --red-dim: rgba(248,113,113,.10);
+      --blue: #60a5fa; --blue-dim: rgba(96,165,250,.10);
+      --amber: #fb923c; --amber-dim: rgba(251,146,60,.10);
+      --purple: #a78bfa; --purple-dim: rgba(167,139,250,.10);
+      --mono: 'JetBrains Mono', monospace;
+    }
+    html, body { overflow-x: hidden; }
+    body { font-family: 'Space Grotesk', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    nav { background: rgba(10,10,12,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 9999; }
+    main { max-width: 820px; margin: 0 auto; padding: 48px 24px 100px; }
+
+    .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: 13px; text-decoration: none; margin-bottom: 28px; transition: color .15s; }
+    .back-link:hover { color: var(--text); }
+    h1 { font-size: 26px; font-weight: 700; letter-spacing: -.5px; }
+    .subtitle { color: var(--text-dim); font-size: 14px; margin-top: 6px; }
+
+    .section { margin-top: 36px; }
+    .section-label { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 12px; padding-left: 2px; }
+
+    /* ── Buttons ── */
+    .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: 8px; font-family: 'Space Grotesk', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; text-decoration: none; white-space: nowrap; }
+    .btn:hover:not(:disabled) { opacity: .85; transform: translateY(-1px); }
+    .btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+    .btn-primary { background: var(--accent); color: #0a0a0c; }
+    .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-outline:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); opacity: 1; }
+    .btn-danger { background: var(--red-dim); color: var(--red); border: 1px solid rgba(248,113,113,.2); }
+    .btn-sm { padding: 7px 14px; font-size: 12px; }
+
+    /* ── Current Plan card ── */
+    .plan-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px 32px;
+    }
+    .plan-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; flex-wrap: wrap; }
+    .plan-tier-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 4px 13px; border-radius: 20px; font-size: 12px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px;
+    }
+    .badge-individual { background: rgba(136,136,160,.1); color: var(--text-dim); border: 1px solid var(--border); }
+    .badge-team       { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(96,165,250,.25); }
+    .badge-business   { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(240,168,48,.3); }
+    .badge-enterprise { background: var(--purple-dim); color: var(--purple); border: 1px solid rgba(167,139,250,.3); }
+    .badge-custom     { background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,.25); }
+
+    .plan-name  { font-size: 22px; font-weight: 700; }
+    .plan-price { font-size: 14px; color: var(--text-dim); margin-top: 4px; }
+    .plan-price strong { color: var(--text); }
+
+    .plan-meta-grid { display: flex; gap: 32px; flex-wrap: wrap; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); }
+    .plan-meta-item { }
+    .plan-meta-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--text-muted); margin-bottom: 4px; }
+    .plan-meta-value { font-size: 14px; font-weight: 600; color: var(--text); }
+    .plan-meta-value.dimmed { color: var(--text-dim); font-weight: 400; }
+
+    .plan-status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+    .status-active   { background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,.2); }
+    .status-cancels  { background: var(--red-dim);   color: var(--red);   border: 1px solid rgba(248,113,113,.2); }
+    .status-downgrades { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(251,146,60,.2); }
+
+    .plan-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+    /* ── Payment History table ── */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .history-table { width: 100%; border-collapse: collapse; }
+    .history-table th { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); padding: 12px 18px; text-align: left; border-bottom: 1px solid var(--border); }
+    .history-table td { padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,.04); font-size: 13px; vertical-align: middle; }
+    .history-table tr:last-child td { border-bottom: none; }
+    .history-table tr:hover td { background: rgba(255,255,255,.02); }
+    .status-paid { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 5px; font-size: 11px; font-weight: 700; background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,.2); }
+    .receipt-link { color: var(--text-muted); font-size: 12px; text-decoration: none; transition: color .15s; }
+    .receipt-link:hover { color: var(--accent); }
+    .empty-state { padding: 40px 24px; text-align: center; color: var(--text-dim); font-size: 14px; }
+    .empty-state a { color: var(--accent); text-decoration: none; }
+    .empty-state a:hover { text-decoration: underline; }
+
+    /* ── Payment Method card ── */
+    .method-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px 26px;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    }
+    .method-icon { font-size: 28px; flex-shrink: 0; }
+    .method-body { flex: 1; }
+    .method-title { font-size: 14px; font-weight: 600; }
+    .method-note  { font-size: 13px; color: var(--text-dim); margin-top: 3px; line-height: 1.5; }
+
+    /* ── Danger Zone ── */
+    .danger-zone { border: 1px solid rgba(248,113,113,.2); border-radius: 12px; overflow: hidden; }
+    .danger-toggle { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; cursor: pointer; user-select: none; background: var(--surface); transition: background .15s; }
+    .danger-toggle:hover { background: var(--surface-2); }
+    .danger-toggle-label { font-size: 13px; font-weight: 600; color: var(--red); }
+    .danger-toggle-arrow { color: var(--text-muted); font-size: 12px; transition: transform .2s; }
+    .danger-toggle-arrow.open { transform: rotate(180deg); }
+    .danger-body { display: none; padding: 20px; border-top: 1px solid rgba(248,113,113,.15); background: rgba(248,113,113,.03); }
+    .danger-body.open { display: block; }
+    .danger-action-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .danger-desc { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+    .danger-desc strong { color: var(--text); }
+
+    /* ── Modals ── */
+    .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 200; align-items: center; justify-content: center; padding: 24px; }
+    .modal-backdrop.open { display: flex; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 440px; overflow: hidden; }
+    .modal-header { padding: 28px 28px 0; }
+    .modal-title  { font-size: 19px; font-weight: 700; }
+    .modal-sub    { font-size: 13px; color: var(--text-dim); margin-top: 6px; line-height: 1.5; }
+    .modal-body   { padding: 20px 28px; }
+    .modal-footer { padding: 0 28px 28px; display: flex; gap: 10px; justify-content: flex-end; }
+    .warning-box { background: rgba(248,113,113,.08); border: 1px solid rgba(248,113,113,.25); border-radius: 10px; padding: 14px 16px; font-size: 13px; color: var(--red); line-height: 1.5; }
+
+    /* ── Toast ── */
+    #toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 20px; font-size: 13px; color: var(--text); box-shadow: 0 4px 24px rgba(0,0,0,.5); z-index: 9999; opacity: 0; pointer-events: none; transition: opacity .2s; white-space: nowrap; }
+    #toast.show { opacity: 1; }
+    #toast.success { border-color: rgba(52,211,153,.4); color: var(--green); }
+    #toast.error   { border-color: rgba(248,113,113,.4); color: var(--red); }
+
+    /* ── Skeleton ── */
+    .skeleton { background: linear-gradient(90deg, rgba(255,255,255,.04) 25%, rgba(255,255,255,.07) 50%, rgba(255,255,255,.04) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 6px; }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    @media (max-width: 600px) {
+      .plan-card { padding: 20px; }
+      .plan-meta-grid { gap: 16px; }
+      .history-table th:last-child, .history-table td:last-child { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<nav id="nav-root"></nav>
+
+<main>
+  <div data-auth-guard style="opacity:0">
+
+    <a href="/settings" class="back-link">← Back to Settings</a>
+    <h1>Billing</h1>
+    <p class="subtitle" id="page-subtitle">Manage your plan, view payment history, and cancel if needed.</p>
+
+    <!-- ── 1. Current Plan ── -->
+    <div class="section">
+      <div class="section-label">Current Plan</div>
+      <div class="plan-card" id="plan-card">
+        <div style="height:90px" class="skeleton"></div>
+      </div>
+    </div>
+
+    <!-- ── 2. Payment History ── -->
+    <div class="section" id="history-section">
+      <div class="section-label">Payment History</div>
+      <div class="card" id="history-container">
+        <div class="empty-state">Loading…</div>
+      </div>
+    </div>
+
+    <!-- ── 3. Payment Method ── -->
+    <div class="section">
+      <div class="section-label">Payment Method</div>
+      <div class="method-card">
+        <div class="method-icon">💳</div>
+        <div class="method-body">
+          <div class="method-title">Card collected at each renewal</div>
+          <div class="method-note">TuneVault uses Razorpay checkout — your card is not stored between transactions. At each renewal or upgrade, you'll enter your payment details through the secure checkout flow.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 4. Danger Zone ── -->
+    <div class="section" id="danger-section" style="display:none">
+      <div class="danger-zone">
+        <div class="danger-toggle" onclick="toggleDanger()" id="danger-toggle-btn">
+          <span class="danger-toggle-label">⚠ Danger Zone</span>
+          <span class="danger-toggle-arrow" id="danger-arrow">▼</span>
+        </div>
+        <div class="danger-body" id="danger-body">
+          <div class="danger-action-row">
+            <div class="danger-desc">
+              <strong>Cancel subscription</strong><br>
+              Your plan stays active until the end of the current billing period.
+              After that, you'll move to the free tier (5 health checks/company).
+            </div>
+            <button class="btn btn-danger btn-sm" onclick="openCancelModal()" id="cancel-btn">Cancel Subscription</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /data-auth-guard -->
+</main>
+
+<div id="toast"></div>
+
+<!-- ── Cancel Confirmation Modal ── -->
+<div class="modal-backdrop" id="cancel-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Cancel Subscription?</div>
+      <div class="modal-sub" id="cancel-modal-sub">Your plan stays active until the end of the billing period.</div>
+    </div>
+    <div class="modal-body">
+      <div class="warning-box" id="cancel-modal-warning">
+        After cancellation you'll move to the <strong>Free tier</strong>: 5 health checks per company domain.
+        All your connections and data remain — they just won't run new checks.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('cancel-modal')">Keep My Plan</button>
+      <button class="btn btn-danger" id="cancel-confirm-btn" onclick="confirmCancel()">Yes, Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script src="/nav-component.js"></script>
+<script>
+window.tvNav.init('billing');
+window.tvNav.onReady(initBillingHub);
+
+var _summary = null;
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+function initBillingHub() {
+  // Payment success toast (from /pricing redirect)
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('payment') === 'success') {
+    var plan = params.get('plan') || '';
+    showToast('Payment successful — ' + (plan ? plan.charAt(0).toUpperCase() + plan.slice(1) + ' plan active' : 'plan active') + '!', 'success');
+  }
+
+  Promise.all([
+    fetch('/api/billing/summary',         { credentials: 'include' }).then(function(r) { return r.ok ? r.json() : null; }),
+    fetch('/api/billing/payment-history', { credentials: 'include' }).then(function(r) { return r.ok ? r.json() : null; }),
+  ]).then(function(results) {
+    var summary  = results[0];
+    var payments = results[1];
+
+    if (!summary) {
+      document.getElementById('plan-card').innerHTML = '<div class="empty-state">Could not load billing data. <a href="">Retry</a></div>';
+      return;
+    }
+
+    // Free users bounced to /pricing
+    if (summary.is_free) {
+      window.location.href = '/pricing?flash=Pick a plan to get started';
+      return;
+    }
+
+    _summary = summary;
+    renderPlanCard(summary);
+    renderPaymentHistory(payments || []);
+
+    // Show danger zone for active paid users who can cancel
+    if (!summary.cancel_at_period_end && !summary.scheduled_change) {
+      document.getElementById('danger-section').style.display = 'block';
+    }
+  }).catch(function(err) {
+    console.error('[billing hub] init error:', err);
+    document.getElementById('plan-card').innerHTML = '<div class="empty-state">Something went wrong loading your billing data. <a href="" onclick="location.reload()">Retry</a></div>';
+  });
+}
+
+// ── Plan Card ─────────────────────────────────────────────────────────────────
+function renderPlanCard(s) {
+  var tierBadgeClass = 'badge-' + (s.tier || 'individual');
+  var tierLabel = s.plan_label || (s.tier ? s.tier.charAt(0).toUpperCase() + s.tier.slice(1) : 'Unknown');
+
+  // Status badge
+  var statusClass = 'status-active';
+  var statusText  = s.status || 'Active';
+  if (statusText.indexOf('Cancels') === 0)    statusClass = 'status-cancels';
+  if (statusText.indexOf('Downgrades') === 0) statusClass = 'status-downgrades';
+
+  // Renewal or period-end date
+  var renewalDisplay = '—';
+  if (s.renews_at) {
+    var d = new Date(s.renews_at);
+    renewalDisplay = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  }
+
+  // Last invoice
+  var lastInvoiceDisplay = '—';
+  if (s.last_invoice) {
+    var amt = s.last_invoice.amount_cents ? '$' + (s.last_invoice.amount_cents / 100).toFixed(2) : '';
+    var invDate = s.last_invoice.date
+      ? new Date(s.last_invoice.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : '';
+    lastInvoiceDisplay = [amt, invDate].filter(Boolean).join(' on ');
+  }
+
+  // Seats / connections display
+  var seatsDisplay = s.seats_used !== undefined
+    ? (s.seats_used + (s.seats_included !== null ? ' / ' + s.seats_included : ' — Unlimited'))
+    : '—';
+  var membersDisplay = s.members_used !== undefined
+    ? (s.members_used + (s.members_included !== null ? ' / ' + s.members_included : ' — Unlimited'))
+    : '—';
+
+  var html =
+    '<div class="plan-card-header">' +
+      '<div>' +
+        '<div class="plan-tier-badge ' + tierBadgeClass + '">' + tierLabel + '</div>' +
+        '<div class="plan-name">' + tierLabel + ' Plan</div>' +
+        '<div class="plan-price">' + esc(s.price_display || '') + '</div>' +
+      '</div>' +
+      '<div class="plan-actions">' +
+        '<a href="/pricing" class="btn btn-primary">Change Plan →</a>' +
+      '</div>' +
+    '</div>' +
+    '<div class="plan-meta-grid">' +
+      '<div class="plan-meta-item">' +
+        '<div class="plan-meta-label">Status</div>' +
+        '<div class="plan-meta-value"><span class="plan-status-badge ' + statusClass + '">' + esc(statusText) + '</span></div>' +
+      '</div>' +
+      '<div class="plan-meta-item">' +
+        '<div class="plan-meta-label">Renews / Ends</div>' +
+        '<div class="plan-meta-value' + (renewalDisplay === '—' ? ' dimmed' : '') + '">' + esc(renewalDisplay) + '</div>' +
+      '</div>' +
+      '<div class="plan-meta-item">' +
+        '<div class="plan-meta-label">Connections</div>' +
+        '<div class="plan-meta-value">' + esc(seatsDisplay) + '</div>' +
+      '</div>' +
+      '<div class="plan-meta-item">' +
+        '<div class="plan-meta-label">Team Members</div>' +
+        '<div class="plan-meta-value">' + esc(membersDisplay) + '</div>' +
+      '</div>' +
+      '<div class="plan-meta-item">' +
+        '<div class="plan-meta-label">Last Invoice</div>' +
+        '<div class="plan-meta-value' + (lastInvoiceDisplay === '—' ? ' dimmed' : '') + '">' + esc(lastInvoiceDisplay) + '</div>' +
+      '</div>' +
+    '</div>';
+
+  document.getElementById('plan-card').innerHTML = html;
+}
+
+// ── Payment History ───────────────────────────────────────────────────────────
+function renderPaymentHistory(payments) {
+  var container = document.getElementById('history-container');
+  if (!payments || payments.length === 0) {
+    container.innerHTML = '<div class="empty-state">No payments yet. <a href="/pricing">Pick a plan</a> to get started.</div>';
+    return;
+  }
+
+  var captured = payments.filter(function(p) { return p.status === 'captured'; });
+  if (captured.length === 0) {
+    container.innerHTML = '<div class="empty-state">No completed payments yet. Payments will appear here after your first purchase.</div>';
+    return;
+  }
+
+  var rows = '';
+  captured.slice(0, 12).forEach(function(p) {
+    var date = p.date
+      ? new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : '—';
+    var amt  = p.amount_cents ? '$' + (p.amount_cents / 100).toFixed(2) : '—';
+    var desc = esc(p.description || '—');
+    var receiptHtml = p.receipt_url
+      ? '<a href="' + esc(p.receipt_url) + '" target="_blank" rel="noopener" class="receipt-link">View ↗</a>'
+      : '<span style="color:var(--text-muted)">—</span>';
+    rows += '<tr><td>' + esc(date) + '</td><td>' + desc + '</td><td style="font-family:var(--mono)">' + esc(amt) + '</td><td><span class="status-paid">✓ Paid</span></td><td>' + receiptHtml + '</td></tr>';
+  });
+
+  container.innerHTML =
+    '<table class="history-table">' +
+    '<thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Status</th><th>Receipt</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody>' +
+    '</table>';
+}
+
+// ── Danger Zone ───────────────────────────────────────────────────────────────
+function toggleDanger() {
+  var body  = document.getElementById('danger-body');
+  var arrow = document.getElementById('danger-arrow');
+  var open  = body.classList.toggle('open');
+  arrow.classList.toggle('open', open);
+}
+
+function openCancelModal() {
+  if (!_summary) return;
+  var renewalDate = _summary.renews_at
+    ? new Date(_summary.renews_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    : null;
+  var subText = renewalDate
+    ? 'Your plan stays active until <strong>' + esc(renewalDate) + '</strong>. After that you move to the free tier.'
+    : 'Your plan stays active until the end of the billing period.';
+  document.getElementById('cancel-modal-sub').innerHTML = subText;
+  document.getElementById('cancel-modal').classList.add('open');
+}
+
+function confirmCancel() {
+  var btn = document.getElementById('cancel-confirm-btn');
+  btn.disabled = true;
+  btn.textContent = 'Cancelling…';
+
+  fetch('/api/billing/cancel', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' } })
+    .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+    .then(function(res) {
+      closeModal('cancel-modal');
+      if (res.ok) {
+        showToast('Subscription cancellation scheduled', 'success');
+        // Update card status inline without a full reload
+        if (_summary && res.data.effective_date) {
+          var d = new Date(res.data.effective_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          _summary.cancel_at_period_end = true;
+          _summary.status = 'Cancels on ' + d;
+          renderPlanCard(_summary);
+          document.getElementById('danger-section').style.display = 'none';
+        }
+      } else {
+        showToast((res.data && res.data.error) || 'Cancellation failed — please contact support', 'error');
+      }
+    })
+    .catch(function() {
+      closeModal('cancel-modal');
+      showToast('Network error — please try again', 'error');
+    })
+    .finally(function() {
+      btn.disabled = false;
+      btn.textContent = 'Yes, Cancel';
+    });
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+document.querySelectorAll('.modal-backdrop').forEach(function(el) {
+  el.addEventListener('click', function(e) { if (e.target === el) closeModal(el.id); });
+});
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') document.querySelectorAll('.modal-backdrop.open').forEach(function(m) { closeModal(m.id); });
+});
+
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+var _toastTimer;
+function showToast(msg, type) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show' + (type ? ' ' + type : '');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(function() { el.className = ''; }, 4500);
+}
+</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

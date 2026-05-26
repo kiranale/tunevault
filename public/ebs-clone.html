@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clone &amp; Scale — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    :root {
+      --bg:#0a0a0c; --surface:#111114; --surface-2:#1a1a1f; --surface-3:#22222a;
+      --border:#2a2a30; --text:#e8e8ed; --text-dim:#9898a8; --text-faint:#9898a8;
+      --accent:#f0a830; --accent-dim:rgba(240,168,48,.12); --accent-hover:rgba(240,168,48,.2);
+      --green:#34d399; --green-dim:rgba(52,211,153,.12);
+      --red:#f87171; --red-dim:rgba(248,113,113,.12);
+      --blue:#60a5fa; --blue-dim:rgba(96,165,250,.12);
+      --purple:#a78bfa; --purple-dim:rgba(167,139,250,.12);
+      --yellow:#fbbf24;
+    }
+    body { font-family:'Space Grotesk',-apple-system,sans-serif; background:var(--bg); color:var(--text); line-height:1.6; min-height:100vh; overflow-x:hidden; }
+    .grain { position:fixed; top:0; left:0; right:0; bottom:0; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"); pointer-events:none; z-index:999; }
+    nav { background:rgba(10,10,12,.95); border-bottom:1px solid var(--border); backdrop-filter:blur(12px); position:sticky; top:0; z-index:9999; }
+    .page-wrap { max-width:1100px; margin:0 auto; padding:40px 24px 80px; }
+
+    /* ── Header ── */
+    .page-header { margin-bottom:32px; }
+    .page-header h1 { font-size:24px; font-weight:700; display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+    .page-header p { font-size:13px; color:var(--text-dim); max-width:680px; }
+    .header-actions { display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; }
+
+    /* ── Tabs ── */
+    .view-tabs { display:flex; gap:4px; margin-bottom:24px; }
+    .view-tab { padding:8px 18px; border-radius:8px; font-size:13px; font-weight:600; border:1px solid var(--border); background:var(--surface); color:var(--text-dim); cursor:pointer; transition:all .15s; }
+    .view-tab.active { border-color:var(--accent); color:var(--accent); background:var(--accent-dim); }
+
+    /* ── Buttons ── */
+    .btn { display:inline-flex; align-items:center; gap:6px; padding:9px 18px; border-radius:8px; font-size:13px; font-weight:600; border:none; cursor:pointer; transition:all .15s; font-family:inherit; }
+    .btn-primary { background:var(--accent); color:#111; }
+    .btn-primary:hover { filter:brightness(1.1); }
+    .btn-secondary { background:var(--surface-2); color:var(--text); border:1px solid var(--border); }
+    .btn-secondary:hover { border-color:var(--accent); color:var(--accent); }
+    .btn-danger { background:var(--red-dim); color:var(--red); border:1px solid rgba(248,113,113,.3); }
+    .btn-danger:hover { background:rgba(248,113,113,.2); }
+    .btn-ghost { background:transparent; color:var(--text-dim); }
+    .btn-ghost:hover { color:var(--text); background:var(--surface-2); }
+    .btn-sm { padding:5px 12px; font-size:12px; }
+    .btn:disabled { opacity:.4; cursor:not-allowed; }
+    .btn-icon { width:32px; height:32px; padding:0; display:inline-flex; align-items:center; justify-content:center; }
+
+    /* ── Cards ── */
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; }
+    .card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+    .card-title { font-size:15px; font-weight:700; }
+    .card-subtitle { font-size:12px; color:var(--text-dim); margin-top:2px; }
+
+    /* ── Wizard ── */
+    .wizard-container { display:grid; grid-template-columns:220px 1fr; gap:24px; }
+    .wizard-steps { position:sticky; top:80px; align-self:start; }
+    .step-item { display:flex; align-items:flex-start; gap:10px; padding:10px 12px; border-radius:8px; cursor:pointer; transition:background .15s; }
+    .step-item:hover { background:var(--surface-2); }
+    .step-item.active { background:var(--accent-dim); }
+    .step-num { width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex-shrink:0; background:var(--surface-2); color:var(--text-dim); border:1px solid var(--border); }
+    .step-item.active .step-num { background:var(--accent); color:#111; border-color:var(--accent); }
+    .step-item.done .step-num { background:var(--green-dim); color:var(--green); border-color:rgba(52,211,153,.3); }
+    .step-item.done .step-num::before { content:'✓'; font-size:12px; }
+    .step-label { font-size:13px; font-weight:600; }
+    .step-item.active .step-label { color:var(--accent); }
+    .step-item.done .step-label { color:var(--text-dim); }
+    .step-divider { width:2px; height:16px; background:var(--border); margin:2px 0 2px 22px; }
+
+    .wizard-panel { display:none; }
+    .wizard-panel.active { display:block; }
+
+    /* ── Form controls ── */
+    label { font-size:12px; font-weight:600; color:var(--text-dim); display:block; margin-bottom:5px; text-transform:uppercase; letter-spacing:.05em; }
+    input, select, textarea { background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-family:inherit; font-size:13px; padding:9px 12px; border-radius:8px; width:100%; transition:border-color .15s; }
+    input:focus, select:focus, textarea:focus { outline:none; border-color:var(--accent); }
+    input::placeholder, textarea::placeholder { color:var(--text-faint); }
+    .field { margin-bottom:16px; }
+    .field-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .help-text { font-size:11px; color:var(--text-faint); margin-top:4px; }
+    .connection-select-wrap { position:relative; }
+    .connection-select-wrap select { appearance:none; padding-right:32px; }
+    .connection-select-wrap::after { content:'▾'; position:absolute; right:12px; top:50%; transform:translateY(-50%); color:var(--text-dim); pointer-events:none; }
+    .conn-badge { display:inline-flex; align-items:center; gap:5px; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:700; background:var(--blue-dim); color:var(--blue); margin-left:6px; }
+    .conn-badge.ebs { background:var(--accent-dim); color:var(--accent); }
+
+    /* ── Connection selector cards ── */
+    .conn-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:8px; }
+    .conn-card { background:var(--surface-2); border:2px solid var(--border); border-radius:10px; padding:14px; cursor:pointer; transition:all .15s; }
+    .conn-card:hover { border-color:rgba(240,168,48,.4); }
+    .conn-card.selected { border-color:var(--accent); background:var(--accent-dim); }
+    .conn-card-name { font-size:14px; font-weight:700; margin-bottom:3px; }
+    .conn-card-host { font-size:11px; color:var(--text-dim); font-family:'JetBrains Mono',monospace; }
+    .conn-card-badge { margin-top:6px; }
+    .conn-section-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-dim); margin-bottom:8px; }
+    .arrow-divider { text-align:center; padding:12px 0; font-size:22px; color:var(--accent); font-weight:700; }
+
+    /* ── Pre-checks list ── */
+    .check-list { list-style:none; display:flex; flex-direction:column; gap:8px; }
+    .check-item { display:flex; align-items:center; gap:10px; padding:12px 14px; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; }
+    .check-status { width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; flex-shrink:0; }
+    .check-status.pending { background:var(--surface-3); color:var(--text-faint); border:1px solid var(--border); }
+    .check-status.running { background:var(--blue-dim); color:var(--blue); }
+    .check-status.pass { background:var(--green-dim); color:var(--green); }
+    .check-status.fail { background:var(--red-dim); color:var(--red); }
+    .check-status.warn { background:var(--accent-dim); color:var(--accent); }
+    .check-status.info { background:var(--purple-dim); color:var(--purple); }
+    .check-label { font-size:13px; font-weight:600; flex:1; }
+    .check-value { font-size:11px; color:var(--text-dim); font-family:'JetBrains Mono',monospace; }
+    .check-action { margin-left:auto; }
+
+    /* ── Steps list (clone/post-clone) ── */
+    .steps-list { display:flex; flex-direction:column; gap:6px; }
+    .step-row { display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; }
+    .step-row.running { border-color:var(--blue); background:var(--blue-dim); }
+    .step-row.success { border-color:rgba(52,211,153,.3); background:var(--green-dim); }
+    .step-row.failed { border-color:rgba(248,113,113,.3); background:var(--red-dim); }
+    .step-row.skipped { opacity:.5; }
+    .step-icon { width:28px; height:28px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; background:var(--surface-3); }
+    .step-row-label { font-size:13px; font-weight:600; flex:1; }
+    .step-row-sub { font-size:11px; color:var(--text-dim); }
+    .step-always { font-size:10px; color:var(--accent); background:var(--accent-dim); padding:2px 7px; border-radius:4px; font-weight:600; }
+    .step-optional { font-size:10px; color:var(--text-dim); background:var(--surface-3); padding:2px 7px; border-radius:4px; font-weight:600; }
+    .drag-handle { color:var(--text-faint); cursor:grab; font-size:14px; user-select:none; }
+    .drag-handle:active { cursor:grabbing; }
+
+    /* ── Terminal output ── */
+    .term-wrap { background:#0d0d10; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+    .term-header { background:var(--surface-2); padding:8px 14px; font-size:11px; color:var(--text-dim); font-family:'JetBrains Mono',monospace; display:flex; align-items:center; gap:8px; }
+    .term-dot { width:8px; height:8px; border-radius:50%; }
+    .term-body { padding:12px 14px; font-family:'JetBrains Mono',monospace; font-size:12px; white-space:pre-wrap; word-break:break-word; min-height:100px; max-height:280px; overflow-y:auto; line-height:1.5; }
+    .term-line-ok { color:var(--green); }
+    .term-line-err { color:var(--red); }
+    .term-line-info { color:var(--text-dim); }
+    .term-line-cmd { color:var(--accent); }
+    .spinner { display:inline-block; animation:spin 1s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* ── Recipe cards ── */
+    .recipe-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:14px; }
+    .recipe-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px; display:flex; flex-direction:column; gap:12px; }
+    .recipe-card:hover { border-color:rgba(240,168,48,.35); }
+    .recipe-card-title { font-size:15px; font-weight:700; }
+    .recipe-pair { font-size:12px; color:var(--text-dim); display:flex; align-items:center; gap:6px; }
+    .recipe-pair-arrow { color:var(--accent); }
+    .recipe-meta { display:flex; gap:10px; flex-wrap:wrap; }
+    .recipe-tag { font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; }
+    .tag-steps { background:var(--blue-dim); color:var(--blue); }
+    .tag-ok { background:var(--green-dim); color:var(--green); }
+    .tag-fail { background:var(--red-dim); color:var(--red); }
+    .tag-never { background:var(--surface-3); color:var(--text-faint); }
+    .recipe-footer { display:flex; gap:8px; padding-top:10px; border-top:1px solid var(--border); }
+
+    /* ── History ── */
+    .history-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .history-table th { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-dim); text-align:left; padding:8px 14px; border-bottom:1px solid var(--border); }
+    .history-table td { padding:10px 14px; border-bottom:1px solid rgba(42,42,48,.5); }
+    .history-table tr:last-child td { border-bottom:none; }
+    .status-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:5px; font-size:11px; font-weight:700; }
+    .status-success { background:var(--green-dim); color:var(--green); }
+    .status-failed  { background:var(--red-dim); color:var(--red); }
+    .status-running { background:var(--blue-dim); color:var(--blue); }
+    .status-aborted { background:var(--surface-3); color:var(--text-dim); }
+
+    /* ── Modal ── */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); backdrop-filter:blur(4px); z-index:500; display:none; align-items:center; justify-content:center; }
+    .modal-overlay.open { display:flex; }
+    .modal { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:28px; max-width:560px; width:90%; max-height:85vh; overflow-y:auto; }
+    .modal-title { font-size:18px; font-weight:700; margin-bottom:6px; }
+    .modal-sub { font-size:13px; color:var(--text-dim); margin-bottom:20px; }
+    .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
+
+    /* ── Inline alerts ── */
+    .alert { padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:14px; display:flex; align-items:flex-start; gap:8px; }
+    .alert-warn { background:var(--accent-dim); border:1px solid rgba(240,168,48,.3); color:var(--text); }
+    .alert-err { background:var(--red-dim); border:1px solid rgba(248,113,113,.3); color:var(--text); }
+    .alert-ok { background:var(--green-dim); border:1px solid rgba(52,211,153,.3); color:var(--text); }
+    .alert-info { background:var(--blue-dim); border:1px solid rgba(96,165,250,.3); color:var(--text); }
+
+    /* ── Progress bar ── */
+    .progress-wrap { background:var(--surface-2); border-radius:4px; height:6px; overflow:hidden; margin-top:6px; }
+    .progress-fill { height:100%; background:var(--accent); border-radius:4px; transition:width .4s; }
+
+    /* ── Empty states ── */
+    .empty { text-align:center; padding:48px 24px; color:var(--text-dim); }
+    .empty-icon { font-size:36px; margin-bottom:12px; }
+    .empty h3 { font-size:15px; color:var(--text); margin-bottom:5px; }
+    .empty p { font-size:13px; }
+
+    /* ── Mobile ── */
+    @media(max-width:768px) {
+      .wizard-container { grid-template-columns:1fr; }
+      .wizard-steps { position:static; display:flex; gap:4px; overflow-x:auto; }
+      .step-divider { display:none; }
+      .conn-grid { grid-template-columns:1fr; }
+      .field-row { grid-template-columns:1fr; }
+      .recipe-grid { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="grain"></div>
+<nav><div id="nav-root"></div></nav>
+
+<div class="page-wrap">
+
+  <div class="page-header">
+    <h1>🔁 EBS Clone &amp; Scale</h1>
+    <p>Rapid Clone Wizard with recipe recording — run adpreclone/adcfgclone with guided pre-checks, customizable post-clone steps, and auto-replay for future clones.</p>
+    <div class="header-actions">
+      <button class="btn btn-primary" data-action="new-wizard">+ New Clone Wizard</button>
+      <button class="btn btn-secondary" data-action="view-history">📋 Clone History</button>
+    </div>
+  </div>
+
+  <!-- ── View: Recipes list ── -->
+  <div id="view-recipes">
+    <div class="view-tabs">
+      <button class="view-tab active" data-tab="saved">Saved Recipes</button>
+      <button class="view-tab" data-tab="history">Run History</button>
+    </div>
+
+    <!-- Saved Recipes -->
+    <div id="tab-saved">
+      <div id="recipes-list">
+        <div class="empty"><div class="empty-icon">🔁</div><h3>No clone recipes yet</h3><p>Create a clone wizard to record your first recipe.</p></div>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div id="tab-history" style="display:none">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Clone Run History</div></div>
+        <div id="history-content">
+          <div class="empty"><div class="empty-icon">📋</div><h3>No runs yet</h3><p>Run a clone recipe to see history here.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Wizard ── -->
+  <div id="view-wizard" style="display:none">
+    <div style="margin-bottom:20px; display:flex; align-items:center; gap:12px;">
+      <button class="btn btn-ghost btn-sm" data-action="back-to-list">← Back to recipes</button>
+      <span id="wizard-title" style="font-size:16px; font-weight:700; color:var(--text)">New Clone Wizard</span>
+    </div>
+
+    <div class="wizard-container">
+      <!-- Step sidebar -->
+      <div class="wizard-steps" id="wizard-step-nav">
+        <div class="step-item active" data-step="1" data-action="go-step">
+          <div class="step-num">1</div>
+          <div><div class="step-label">Source &amp; Target</div><div style="font-size:11px;color:var(--text-faint)">Pick connections</div></div>
+        </div>
+        <div class="step-divider"></div>
+        <div class="step-item" data-step="2" data-action="go-step">
+          <div class="step-num">2</div>
+          <div><div class="step-label">Pre-Clone Checks</div><div style="font-size:11px;color:var(--text-faint)">Verify readiness</div></div>
+        </div>
+        <div class="step-divider"></div>
+        <div class="step-item" data-step="3" data-action="go-step">
+          <div class="step-num">3</div>
+          <div><div class="step-label">Clone Execution</div><div style="font-size:11px;color:var(--text-faint)">adpreclone / adcfgclone</div></div>
+        </div>
+        <div class="step-divider"></div>
+        <div class="step-item" data-step="4" data-action="go-step">
+          <div class="step-num">4</div>
+          <div><div class="step-label">Post-Clone Steps</div><div style="font-size:11px;color:var(--text-faint)">Customize &amp; run</div></div>
+        </div>
+        <div class="step-divider"></div>
+        <div class="step-item" data-step="5" data-action="go-step">
+          <div class="step-num">5</div>
+          <div><div class="step-label">Save Recipe</div><div style="font-size:11px;color:var(--text-faint)">Name &amp; store</div></div>
+        </div>
+      </div>
+
+      <!-- Step panels -->
+      <div id="wizard-panels">
+
+        <!-- Step 1: Source & Target -->
+        <div class="wizard-panel active" data-panel="1">
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-header"><div class="card-title">Select Source Connection</div><div class="card-subtitle">The EBS system to clone from</div></div>
+            <div class="conn-section-label">Your connections</div>
+            <div class="conn-grid" id="source-conn-grid">
+              <div style="color:var(--text-dim); font-size:13px">Loading connections…</div>
+            </div>
+          </div>
+
+          <div class="arrow-divider">↓</div>
+
+          <div class="card">
+            <div class="card-header"><div class="card-title">Select Target Connection</div><div class="card-subtitle">The EBS system to clone to</div></div>
+            <div class="conn-section-label">Your connections</div>
+            <div class="conn-grid" id="target-conn-grid">
+              <div style="color:var(--text-dim); font-size:13px">Loading connections…</div>
+            </div>
+          </div>
+
+          <div style="margin-top:16px; display:flex; gap:10px; justify-content:flex-end">
+            <button class="btn btn-primary" data-action="step1-next">Continue →</button>
+          </div>
+        </div>
+
+        <!-- Step 2: Pre-Clone Checks -->
+        <div class="wizard-panel" data-panel="2">
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-header">
+              <div><div class="card-title">Pre-Clone Checks</div><div class="card-subtitle">Verify both systems are ready before starting</div></div>
+              <button class="btn btn-secondary btn-sm" data-action="run-prechecks">▶ Run All Checks</button>
+            </div>
+            <ul class="check-list" id="prechecks-list">
+              <!-- Populated by JS -->
+            </ul>
+          </div>
+
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-header"><div class="card-title">SSH Targets</div><div class="card-subtitle">Required for disk space and service checks</div></div>
+            <div class="field-row">
+              <div class="field">
+                <label>Source SSH Target (apps/db tier)</label>
+                <div class="connection-select-wrap">
+                  <select id="source-ssh-target"><option value="">— select target —</option></select>
+                </div>
+              </div>
+              <div class="field">
+                <label>Target SSH Target (apps/db tier)</label>
+                <div class="connection-select-wrap">
+                  <select id="target-ssh-target"><option value="">— select target —</option></select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="prechecks-term" style="display:none; margin-bottom:16px">
+            <div class="term-wrap">
+              <div class="term-header"><span class="term-dot" style="background:#f87171"></span><span class="term-dot" style="background:#fbbf24"></span><span class="term-dot" style="background:#34d399"></span><span style="margin-left:8px">Pre-Check Output</span></div>
+              <div class="term-body" id="prechecks-output"></div>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:10px; justify-content:space-between">
+            <button class="btn btn-ghost btn-sm" data-action="step-back">← Back</button>
+            <button class="btn btn-primary" data-action="step2-next">Continue →</button>
+          </div>
+        </div>
+
+        <!-- Step 3: Clone Execution -->
+        <div class="wizard-panel" data-panel="3">
+          <div class="alert alert-warn" id="clone-exec-warn">⚠️ <strong>Review required.</strong> Each step runs via SSH. A green validation gate must pass before the next step starts. The clone will NOT proceed automatically — you control each step.</div>
+
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-header"><div class="card-title">Rapid Clone Steps</div><div class="card-subtitle">Standard adpreclone/adcfgclone sequence (strict order)</div></div>
+            <div class="steps-list" id="clone-steps-list">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
+          <div id="clone-step-output" style="display:none; margin-bottom:16px">
+            <div class="term-wrap">
+              <div class="term-header"><span class="term-dot" style="background:#f87171"></span><span class="term-dot" style="background:#fbbf24"></span><span class="term-dot" style="background:#34d399"></span><span id="clone-step-title" style="margin-left:8px">Step output</span></div>
+              <div class="term-body" id="clone-step-output-body"></div>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:10px; justify-content:space-between">
+            <button class="btn btn-ghost btn-sm" data-action="step-back">← Back</button>
+            <button class="btn btn-primary" data-action="step3-next">Continue to Post-Clone →</button>
+          </div>
+        </div>
+
+        <!-- Step 4: Post-Clone Steps -->
+        <div class="wizard-panel" data-panel="4">
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-header">
+              <div><div class="card-title">Post-Clone Steps</div><div class="card-subtitle">Add, remove, and reorder. Drag to reorder. All steps are fully customizable.</div></div>
+              <button class="btn btn-secondary btn-sm" data-action="add-post-step">+ Add Step</button>
+            </div>
+            <div class="steps-list" id="post-steps-list">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
+          <div id="post-step-output" style="display:none; margin-bottom:16px">
+            <div class="term-wrap">
+              <div class="term-header"><span class="term-dot" style="background:#f87171"></span><span class="term-dot" style="background:#fbbf24"></span><span class="term-dot" style="background:#34d399"></span><span id="post-step-title" style="margin-left:8px">Step output</span></div>
+              <div class="term-body" id="post-step-output-body"></div>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:10px; justify-content:space-between">
+            <button class="btn btn-ghost btn-sm" data-action="step-back">← Back</button>
+            <button class="btn btn-primary" data-action="step4-next">Continue →</button>
+          </div>
+        </div>
+
+        <!-- Step 5: Save Recipe -->
+        <div class="wizard-panel" data-panel="5">
+          <div class="card">
+            <div class="card-header"><div class="card-title">Save Clone Recipe</div><div class="card-subtitle">Name this recipe so it can be replayed later. Names are free text — no environment labels are auto-generated.</div></div>
+
+            <div class="field">
+              <label>Recipe Name *</label>
+              <input type="text" id="recipe-name" placeholder="e.g. Weekly refresh, EBS hotfix clone, UAT clone run" maxlength="255">
+              <div class="help-text">User-defined free text. Not auto-generated. Other team members can run this recipe.</div>
+            </div>
+
+            <div class="card" style="background:var(--surface-2); margin-top:16px">
+              <div class="card-title" style="font-size:13px; margin-bottom:10px">Recipe Summary</div>
+              <div id="recipe-summary" style="font-size:13px; color:var(--text-dim); line-height:1.8">
+                <!-- Populated by JS -->
+              </div>
+            </div>
+
+            <div style="display:flex; gap:10px; justify-content:space-between; margin-top:20px">
+              <button class="btn btn-ghost btn-sm" data-action="step-back">← Back</button>
+              <button class="btn btn-primary" data-action="save-recipe" id="save-recipe-btn">💾 Save Recipe</button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /wizard-panels -->
+    </div><!-- /wizard-container -->
+  </div><!-- /view-wizard -->
+
+</div><!-- /page-wrap -->
+
+<!-- ── Add Post-Step Modal ── -->
+<div class="modal-overlay" id="add-step-modal">
+  <div class="modal">
+    <div class="modal-title">Add Post-Clone Step</div>
+    <div class="modal-sub">Choose a step type or add a custom script. Steps are fully yours to configure.</div>
+
+    <div class="field">
+      <label>Step Type</label>
+      <div class="connection-select-wrap">
+        <select id="new-step-type" data-action="step-type-change">
+          <option value="autoconfig">AutoConfig (adautocfg.sh)</option>
+          <option value="services.check">Verify services stopped</option>
+          <option value="diskcheck">Disk space check</option>
+          <option value="ctxbackup">Context file backup</option>
+          <option value="nodecheck">Node health validation</option>
+          <option value="sql.fndnodes">FND_NODES cleanup (SQL guidance)</option>
+          <option value="custom">Custom shell command</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Step Label</label>
+      <input type="text" id="new-step-label" placeholder="Short description of what this step does">
+    </div>
+
+    <div id="custom-cmd-field" style="display:none" class="field">
+      <label>Custom Command / Script</label>
+      <textarea id="new-step-cmd" rows="4" style="font-family:'JetBrains Mono',monospace; font-size:12px" placeholder="echo hello world&#10;# or multi-line script..."></textarea>
+      <div class="help-text">⚠️ Custom commands run exactly as typed via SSH. You are responsible for what runs here.</div>
+    </div>
+
+    <div class="field">
+      <label>Run Mode</label>
+      <div class="connection-select-wrap">
+        <select id="new-step-mode">
+          <option value="always">Always run</option>
+          <option value="optional">Optional — ask me each time</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Target</label>
+      <div class="connection-select-wrap">
+        <select id="new-step-target">
+          <option value="apps_tier">Apps Tier</option>
+          <option value="db_tier">DB Tier</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-action="close-modal">Cancel</button>
+      <button class="btn btn-primary" data-action="confirm-add-step">Add Step</button>
+    </div>
+  </div>
+</div>
+
+<script src="/connection-state.js"></script>
+<script src="/nav-component.js"></script>
+<script>
+'use strict';
+
+window.tvNav.init('ebs-clone');
+
+// ── State ─────────────────────────────────────────────────────────────────────
+
+const S = {
+  currentStep: 1,
+  connections: [],
+  sourceConnId: null,
+  targetConnId: null,
+  sourceSshTarget: null,
+  targetSshTarget: null,
+  preChecks: [],
+  cloneSteps: [],     // execution state for step 3
+  postSteps: [],      // user-configured post-clone steps
+  runId: null,
+  existingRecipe: null, // when editing/re-running
+};
+
+// Standard clone step definitions (step 3 — always the same, strict order)
+const CLONE_STEPS = [
+  { key:'ebs.clone.preclone.db',    label:'adpreclone.pl dbTier (source)',    tier:'source', icon:'🔧', desc:'Prepare DB tier on source for cloning' },
+  { key:'ebs.clone.preclone.apps',  label:'adpreclone.pl appsTier (source)',  tier:'source', icon:'🔧', desc:'Prepare Apps tier on source for cloning' },
+  { key:null,                        label:'Copy/Restore DB to Target',         tier:'manual', icon:'💿', desc:'RMAN duplicate or file-level copy. Run this step manually and confirm when done.', manual:true },
+  { key:'ebs.clone.cfgclone.db',    label:'adcfgclone.pl dbTier (target)',    tier:'target', icon:'⚙️', desc:'Configure DB tier on target after clone' },
+  { key:'ebs.clone.cfgclone.apps',  label:'adcfgclone.pl appsTier (target)',  tier:'target', icon:'⚙️', desc:'Configure Apps tier on target after clone' },
+];
+
+// Pre-checks metadata
+const PRECHECKS_META = [
+  { id:'diskcheck',     label:'Target disk space',         tier:'target', cmd:'ebs.clone.diskcheck',       icon:'💾' },
+  { id:'ctxbackup',     label:'Context file backup',       tier:'target', cmd:'ebs.clone.ctxbackup',       icon:'📄' },
+  { id:'services.check',label:'Target services stopped',   tier:'target', cmd:'ebs.clone.services.check',  icon:'🛑' },
+  { id:'nodecheck.src', label:'Source node health',        tier:'source', cmd:'ebs.clone.nodecheck',       icon:'🏥' },
+];
+
+// ── API helpers ───────────────────────────────────────────────────────────────
+
+async function api(method, path, body) {
+  const opts = { method, headers:{ 'Content-Type':'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch('/api/ebs-clone' + path, opts);
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error || 'API error ' + r.status);
+  return data;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+async function init() {
+  try {
+    const { connections } = await api('GET', '/connections');
+    S.connections = connections || [];
+    renderRecipesList();
+    loadHistory();
+  } catch(e) {
+    S.connections = [];
+    console.error('init error', e.message);
+  }
+}
+
+// ── View switching ────────────────────────────────────────────────────────────
+
+function showView(view) {
+  document.getElementById('view-recipes').style.display = view === 'recipes' ? '' : 'none';
+  document.getElementById('view-wizard').style.display  = view === 'wizard'  ? '' : 'none';
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.view-tab[data-tab="${tab}"]`).classList.add('active');
+  document.getElementById('tab-saved').style.display   = tab === 'saved'   ? '' : 'none';
+  document.getElementById('tab-history').style.display = tab === 'history' ? '' : 'none';
+}
+
+// ── Recipes list ──────────────────────────────────────────────────────────────
+
+async function renderRecipesList() {
+  const container = document.getElementById('recipes-list');
+  try {
+    const { recipes } = await api('GET', '/recipes');
+    if (!recipes || recipes.length === 0) {
+      container.innerHTML = '<div class="empty"><div class="empty-icon">🔁</div><h3>No clone recipes yet</h3><p>Click "+ New Clone Wizard" to record your first recipe.</p></div>';
+      return;
+    }
+    const html = '<div class="recipe-grid">' + recipes.map(r => recipeCardHtml(r)).join('') + '</div>';
+    container.innerHTML = html;
+  } catch(e) {
+    container.innerHTML = '<div class="alert alert-err">⚠️ Failed to load recipes: ' + esc(e.message) + '</div>';
+  }
+}
+
+function recipeCardHtml(r) {
+  const totalSteps = (r.clone_steps ? r.clone_steps.length : 0) + (r.post_steps ? r.post_steps.length : 0);
+  let statusTag = '<span class="recipe-tag tag-never">Never run</span>';
+  if (r.last_run_status === 'success') statusTag = '<span class="recipe-tag tag-ok">Last: ✓ Success</span>';
+  if (r.last_run_status === 'failed')  statusTag = '<span class="recipe-tag tag-fail">Last: ✗ Failed</span>';
+  if (r.last_run_status === 'running') statusTag = '<span class="recipe-tag" style="background:var(--blue-dim);color:var(--blue)">⟳ Running</span>';
+
+  const src = r.source_display_name || '(connection deleted)';
+  const tgt = r.target_display_name || '(connection deleted)';
+  const lastRun = r.last_run_at ? new Date(r.last_run_at).toLocaleDateString() : '—';
+
+  return `<div class="recipe-card">
+    <div>
+      <div class="recipe-card-title">${esc(r.recipe_name)}</div>
+      <div class="recipe-pair">${esc(src)} <span class="recipe-pair-arrow">→</span> ${esc(tgt)}</div>
+    </div>
+    <div class="recipe-meta">
+      <span class="recipe-tag tag-steps">${totalSteps} steps</span>
+      ${statusTag}
+    </div>
+    <div style="font-size:11px;color:var(--text-faint)">Last run: ${lastRun} · Created by ${esc(r.created_by_email || '—')}</div>
+    <div class="recipe-footer">
+      <button class="btn btn-primary btn-sm" data-action="run-recipe" data-id="${r.id}">▶ Auto Clone</button>
+      <button class="btn btn-secondary btn-sm" data-action="edit-recipe" data-id="${r.id}">Edit</button>
+      <button class="btn btn-danger btn-sm" data-action="delete-recipe" data-id="${r.id}">Delete</button>
+    </div>
+  </div>`;
+}
+
+// ── History ───────────────────────────────────────────────────────────────────
+
+async function loadHistory() {
+  const container = document.getElementById('history-content');
+  try {
+    const { history } = await api('GET', '/history');
+    if (!history || history.length === 0) {
+      container.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><h3>No runs yet</h3><p>Run a clone recipe to see history here.</p></div>';
+      return;
+    }
+    let html = `<table class="history-table"><thead><tr>
+      <th>Recipe</th><th>Source → Target</th><th>Status</th><th>Steps</th><th>Duration</th><th>Started</th><th>By</th>
+    </tr></thead><tbody>`;
+    history.forEach(h => {
+      const src = h.source_display_name || '—';
+      const tgt = h.target_display_name || '—';
+      const dur = h.duration_ms ? Math.round(h.duration_ms / 1000) + 's' : '—';
+      const when = h.started_at ? new Date(h.started_at).toLocaleString() : '—';
+      const stepsDone = Array.isArray(h.step_results) ? h.step_results.length : 0;
+      html += `<tr>
+        <td>${h.recipe_id ? '—' : '<em>Ad-hoc</em>'}</td>
+        <td>${esc(src)} → ${esc(tgt)}</td>
+        <td><span class="status-badge status-${h.status}">${h.status}</span></td>
+        <td>${stepsDone}/${h.total_steps || '?'}</td>
+        <td>${dur}</td>
+        <td style="font-size:11px">${when}</td>
+        <td style="font-size:11px">${esc(h.started_by_email || '—')}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  } catch(e) {
+    container.innerHTML = '<div class="alert alert-err">Failed to load history: ' + esc(e.message) + '</div>';
+  }
+}
+
+// ── Wizard: start / navigation ────────────────────────────────────────────────
+
+function startNewWizard() {
+  S.currentStep = 1;
+  // Pre-select source from global connection state if available
+  var saved = tvConn.load();
+  S.sourceConnId = saved ? parseInt(saved, 10) : null;
+  S.targetConnId = null;
+  S.sourceSshTarget = null;
+  S.targetSshTarget = null;
+  S.preChecks = [];
+  S.postSteps = defaultPostSteps();
+  S.runId = null;
+  S.existingRecipe = null;
+  document.getElementById('wizard-title').textContent = 'New Clone Wizard';
+  showView('wizard');
+  renderConnectionPickers();
+  renderCloneSteps();
+  renderPostSteps();
+  activateWizardStep(1);
+}
+
+async function startRunRecipe(recipeId) {
+  try {
+    const { recipe } = await api('GET', `/recipes/${recipeId}`);
+    S.existingRecipe = recipe;
+    S.currentStep = 1;
+    S.sourceConnId = recipe.source_connection_id;
+    S.targetConnId = recipe.target_connection_id;
+    S.postSteps = recipe.post_steps || defaultPostSteps();
+    document.getElementById('wizard-title').textContent = 'Auto Clone: ' + recipe.recipe_name;
+    document.getElementById('recipe-name').value = recipe.recipe_name;
+    showView('wizard');
+    renderConnectionPickers();
+    renderCloneSteps();
+    renderPostSteps();
+    activateWizardStep(1);
+  } catch(e) {
+    alert('Failed to load recipe: ' + e.message);
+  }
+}
+
+function activateWizardStep(n) {
+  S.currentStep = n;
+  document.querySelectorAll('.step-item').forEach(el => {
+    const step = parseInt(el.dataset.step);
+    el.classList.remove('active', 'done');
+    if (step === n) el.classList.add('active');
+    if (step < n)  el.classList.add('done');
+  });
+  document.querySelectorAll('.wizard-panel').forEach(el => {
+    el.classList.remove('active');
+    if (parseInt(el.dataset.panel) === n) el.classList.add('active');
+  });
+  if (n === 2) loadSshTargets();
+  if (n === 5) renderRecipeSummary();
+}
+
+// ── Step 1: Connection pickers ─────────────────────────────────────────────
+
+function renderConnectionPickers() {
+  const conns = S.connections;
+  const emptyMsg = conns.length === 0
+    ? '<div style="color:var(--text-dim);font-size:13px;grid-column:1/-1">No connections found. <a href="/settings" style="color:var(--accent)">Add a connection</a>.</div>'
+    : '';
+
+  function makeGrid(targetId, exclude) {
+    const grid = document.getElementById(targetId);
+    if (!grid) return;
+    grid.innerHTML = emptyMsg || conns.map(c => {
+      const sel = (targetId === 'source-conn-grid' ? S.sourceConnId : S.targetConnId) === c.id;
+      const dim = exclude && c.id === exclude;
+      const badge = c.ebs_detected ? '<span class="conn-badge ebs">EBS</span>' : '';
+      return `<div class="conn-card${sel ? ' selected' : ''}${dim ? '" style="opacity:.35;pointer-events:none' : ''}"
+                   data-action="select-conn" data-side="${targetId === 'source-conn-grid' ? 'source' : 'target'}" data-id="${c.id}">
+        <div class="conn-card-name">${esc(c.display_name || c.host)}${badge}</div>
+        <div class="conn-card-host">${esc(c.host)}:${c.port || 1521}/${esc(c.service_name || '')}</div>
+        <div class="conn-card-badge">${c.connection_type === 'proxy' ? '<span class="conn-badge">via proxy</span>' : ''}</div>
+      </div>`;
+    }).join('');
+  }
+
+  makeGrid('source-conn-grid', S.targetConnId);
+  makeGrid('target-conn-grid', S.sourceConnId);
+}
+
+function selectConn(side, id) {
+  if (side === 'source') { S.sourceConnId = id; tvConn.save(id); }
+  else S.targetConnId = id;
+  renderConnectionPickers();
+}
+
+// ── Step 2: SSH targets ──────────────────────────────────────────────────────
+
+async function loadSshTargets() {
+  const srcSel = document.getElementById('source-ssh-target');
+  const tgtSel = document.getElementById('target-ssh-target');
+  renderPreChecksList();
+
+  for (const [sel, connId, side] of [[srcSel, S.sourceConnId, 'source'], [tgtSel, S.targetConnId, 'target']]) {
+    sel.innerHTML = '<option value="">Loading…</option>';
+    if (!connId) { sel.innerHTML = '<option value="">— no connection selected —</option>'; continue; }
+    try {
+      const { targets } = await api('GET', `/ssh-targets/${connId}`);
+      sel.innerHTML = '<option value="">— select SSH target —</option>';
+      (targets || []).forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.id;
+        opt.textContent = t.display_label;
+        sel.appendChild(opt);
+      });
+    } catch(e) {
+      sel.innerHTML = `<option value="">Error: ${e.message}</option>`;
+    }
+  }
+}
+
+function renderPreChecksList() {
+  const list = document.getElementById('prechecks-list');
+  list.innerHTML = PRECHECKS_META.map(c => `
+    <li class="check-item" data-check="${c.id}">
+      <div class="check-status pending" id="cs-${c.id}">·</div>
+      <div class="check-label">${c.icon} ${esc(c.label)}</div>
+      <div class="check-value" id="cv-${c.id}"></div>
+      <div class="check-action">
+        <button class="btn btn-secondary btn-sm" data-action="run-check" data-check="${c.id}">Run</button>
+      </div>
+    </li>`).join('');
+}
+
+async function runPreCheck(checkId) {
+  const meta = PRECHECKS_META.find(c => c.id === checkId);
+  if (!meta) return;
+
+  const tgtId = meta.tier === 'source'
+    ? document.getElementById('source-ssh-target').value
+    : document.getElementById('target-ssh-target').value;
+
+  if (!tgtId) { alert('Select an SSH target first.'); return; }
+
+  setCheckStatus(checkId, 'running', '⟳');
+  document.getElementById('prechecks-term').style.display = '';
+  appendTerm('prechecks-output', `\n[${meta.label}]`, 'cmd');
+  try {
+    const { result } = await api('POST', '/execute-step', { target_id: parseInt(tgtId), command_key: meta.cmd });
+    const out = result.stdout || result.stderr || '';
+    appendTerm('prechecks-output', out, result.success ? 'ok' : 'err');
+    document.getElementById(`cv-${checkId}`).textContent = out.split('\n')[0].slice(0, 60);
+    setCheckStatus(checkId, result.success ? 'pass' : 'fail', result.success ? '✓' : '✗');
+  } catch(e) {
+    appendTerm('prechecks-output', 'Error: ' + e.message, 'err');
+    setCheckStatus(checkId, 'fail', '✗');
+  }
+}
+
+async function runAllPreChecks() {
+  for (const c of PRECHECKS_META) await runPreCheck(c.id);
+}
+
+function setCheckStatus(id, cls, text) {
+  const el = document.getElementById(`cs-${id}`);
+  if (!el) return;
+  el.className = `check-status ${cls}`;
+  el.textContent = text;
+}
+
+// ── Step 3: Clone execution ──────────────────────────────────────────────────
+
+function renderCloneSteps() {
+  const list = document.getElementById('clone-steps-list');
+  list.innerHTML = CLONE_STEPS.map((step, i) => {
+    const isManual = step.manual;
+    return `<div class="step-row" id="cstep-${i}">
+      <div class="step-icon">${step.icon}</div>
+      <div style="flex:1">
+        <div class="step-row-label">${esc(step.label)}</div>
+        <div class="step-row-sub">${esc(step.desc)} · <em>${step.tier === 'manual' ? 'manual' : step.tier + ' tier'}</em></div>
+      </div>
+      ${isManual
+        ? `<button class="btn btn-secondary btn-sm" data-action="confirm-manual" data-step="${i}">Mark Done ✓</button>`
+        : `<button class="btn btn-secondary btn-sm" data-action="run-clone-step" data-step="${i}" id="cstep-btn-${i}">Run Step →</button>`
+      }
+    </div>`;
+  }).join('');
+}
+
+async function runCloneStep(stepIdx) {
+  const step = CLONE_STEPS[stepIdx];
+  if (!step || step.manual) return;
+
+  const btn = document.getElementById(`cstep-btn-${stepIdx}`);
+  if (btn) btn.disabled = true;
+
+  const tgtId = step.tier === 'source'
+    ? document.getElementById('source-ssh-target').value
+    : document.getElementById('target-ssh-target').value;
+
+  if (!tgtId) { alert('Select an SSH target for ' + step.tier + ' tier in Step 2.'); if(btn) btn.disabled=false; return; }
+
+  const row = document.getElementById(`cstep-${stepIdx}`);
+  if (row) row.classList.add('running');
+
+  document.getElementById('clone-step-output').style.display = '';
+  document.getElementById('clone-step-title').textContent = step.label;
+  clearTerm('clone-step-output-body');
+  appendTerm('clone-step-output-body', `$ ${step.key}`, 'cmd');
+
+  try {
+    const { result } = await api('POST', '/execute-step', {
+      target_id: parseInt(tgtId),
+      command_key: step.key,
+      run_id: S.runId,
+      step_index: stepIdx,
+    });
+    appendTerm('clone-step-output-body', result.stdout || '(no output)', result.success ? 'ok' : 'err');
+    if (result.stderr) appendTerm('clone-step-output-body', result.stderr, 'err');
+
+    if (row) { row.classList.remove('running'); row.classList.add(result.success ? 'success' : 'failed'); }
+    if (btn) { btn.textContent = result.success ? '✓ Done' : '✗ Retry'; btn.disabled = false; }
+  } catch(e) {
+    appendTerm('clone-step-output-body', 'Error: ' + e.message, 'err');
+    if (row) { row.classList.remove('running'); row.classList.add('failed'); }
+    if (btn) { btn.textContent = '✗ Retry'; btn.disabled = false; }
+  }
+}
+
+function confirmManualStep(stepIdx) {
+  const row = document.getElementById(`cstep-${stepIdx}`);
+  if (row) row.classList.add('success');
+  const btn = row && row.querySelector('button');
+  if (btn) { btn.textContent = '✓ Confirmed'; btn.disabled = true; }
+}
+
+// ── Step 4: Post-clone steps ──────────────────────────────────────────────────
+
+function defaultPostSteps() {
+  return [
+    { id: ps(), type:'autoconfig',    label:'AutoConfig Apps Tier',     tier:'apps_tier', mode:'always', icon:'⚙️',  cmd:'ebs.clone.autoconfig.apps' },
+    { id: ps(), type:'autoconfig',    label:'AutoConfig DB Tier',       tier:'db_tier',   mode:'always', icon:'⚙️',  cmd:'ebs.clone.autoconfig.db' },
+    { id: ps(), type:'sql.fndnodes',  label:'FND_NODES cleanup (SQL)',  tier:'apps_tier', mode:'always', icon:'🗂️', cmd:'ebs.clone.sql.fndnodes' },
+    { id: ps(), type:'nodecheck',     label:'Post-clone node health',   tier:'apps_tier', mode:'always', icon:'🏥', cmd:'ebs.clone.nodecheck' },
+  ];
+}
+function ps() { return 'ps_' + Math.random().toString(36).slice(2,8); }
+
+function renderPostSteps() {
+  const list = document.getElementById('post-steps-list');
+  if (S.postSteps.length === 0) {
+    list.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:12px">No post-clone steps configured. Click "+ Add Step".</div>';
+    return;
+  }
+  list.innerHTML = S.postSteps.map((step, i) => `
+    <div class="step-row" id="pstep-${step.id}" draggable="true" data-ps-id="${step.id}">
+      <span class="drag-handle" title="Drag to reorder">⠿</span>
+      <div class="step-icon">${step.icon || '📌'}</div>
+      <div style="flex:1">
+        <div class="step-row-label">${esc(step.label)}</div>
+        <div class="step-row-sub">${esc(step.tier)} · ${step.cmd || 'custom'}</div>
+      </div>
+      <span class="${step.mode === 'always' ? 'step-always' : 'step-optional'}">${step.mode === 'always' ? 'Always' : 'Optional'}</span>
+      <button class="btn btn-secondary btn-sm" data-action="run-post-step" data-psid="${step.id}" style="margin-left:8px">Run →</button>
+      <button class="btn btn-ghost btn-sm btn-icon" data-action="remove-post-step" data-psid="${step.id}" title="Remove step">✕</button>
+    </div>`).join('');
+
+  // Drag-to-reorder
+  list.querySelectorAll('[draggable]').forEach(el => {
+    el.addEventListener('dragstart', e => { e.dataTransfer.setData('text', el.dataset.psId); });
+    el.addEventListener('dragover', e => { e.preventDefault(); el.style.borderTop='2px solid var(--accent)'; });
+    el.addEventListener('dragleave', () => { el.style.borderTop=''; });
+    el.addEventListener('drop', e => {
+      el.style.borderTop = '';
+      const dragId = e.dataTransfer.getData('text');
+      const dropId = el.dataset.psId;
+      if (dragId === dropId) return;
+      const from = S.postSteps.findIndex(s => s.id === dragId);
+      const to   = S.postSteps.findIndex(s => s.id === dropId);
+      if (from < 0 || to < 0) return;
+      const [moved] = S.postSteps.splice(from, 1);
+      S.postSteps.splice(to, 0, moved);
+      renderPostSteps();
+    });
+  });
+}
+
+async function runPostStep(psId) {
+  const step = S.postSteps.find(s => s.id === psId);
+  if (!step) return;
+
+  const tgtId = step.tier === 'db_tier'
+    ? document.getElementById('target-ssh-target').value
+    : document.getElementById('target-ssh-target').value; // both use target
+
+  if (!tgtId) { alert('Select a target SSH target in Step 2 first.'); return; }
+
+  const row = document.getElementById(`pstep-${psId}`);
+  if (row) row.classList.add('running');
+  document.getElementById('post-step-output').style.display = '';
+  document.getElementById('post-step-title').textContent = step.label;
+  clearTerm('post-step-output-body');
+  appendTerm('post-step-output-body', `$ ${step.cmd || step.customCmd}`, 'cmd');
+
+  const cmdKey = step.cmd || (step.customCmd ? 'clone.custom' : null);
+  if (!cmdKey) { appendTerm('post-step-output-body', 'No command configured for this step', 'err'); return; }
+
+  try {
+    const { result } = await api('POST', '/execute-step', {
+      target_id: parseInt(tgtId),
+      command_key: cmdKey,
+      run_id: S.runId,
+      step_index: S.postSteps.indexOf(step) + CLONE_STEPS.length,
+    });
+    appendTerm('post-step-output-body', result.stdout || '(no output)', result.success ? 'ok' : 'err');
+    if (result.stderr) appendTerm('post-step-output-body', result.stderr, 'err');
+    if (row) { row.classList.remove('running'); row.classList.add(result.success ? 'success' : 'failed'); }
+  } catch(e) {
+    appendTerm('post-step-output-body', 'Error: ' + e.message, 'err');
+    if (row) { row.classList.remove('running'); row.classList.add('failed'); }
+  }
+}
+
+// ── Add post-step modal ───────────────────────────────────────────────────────
+
+function openAddStepModal() {
+  document.getElementById('add-step-modal').classList.add('open');
+  document.getElementById('new-step-label').value = '';
+  document.getElementById('new-step-cmd').value = '';
+  document.getElementById('custom-cmd-field').style.display = 'none';
+}
+
+function closeModal() {
+  document.getElementById('add-step-modal').classList.remove('open');
+}
+
+function onStepTypeChange() {
+  const t = document.getElementById('new-step-type').value;
+  document.getElementById('custom-cmd-field').style.display = t === 'custom' ? '' : 'none';
+  const labels = {
+    autoconfig:'AutoConfig (adautocfg.sh)', 'services.check':'Verify services stopped',
+    diskcheck:'Disk space check', ctxbackup:'Context file backup',
+    nodecheck:'Node health validation', 'sql.fndnodes':'FND_NODES cleanup (SQL guidance)',
+  };
+  if (labels[t]) document.getElementById('new-step-label').value = labels[t];
+}
+
+function confirmAddStep() {
+  const type = document.getElementById('new-step-type').value;
+  const label = document.getElementById('new-step-label').value.trim();
+  const mode = document.getElementById('new-step-mode').value;
+  const tier = document.getElementById('new-step-target').value;
+  const customCmd = document.getElementById('new-step-cmd').value.trim();
+  if (!label) { alert('Step label is required.'); return; }
+
+  const cmdMap = {
+    autoconfig:'ebs.clone.autoconfig.apps', 'services.check':'ebs.clone.services.check',
+    diskcheck:'ebs.clone.diskcheck', ctxbackup:'ebs.clone.ctxbackup',
+    nodecheck:'ebs.clone.nodecheck', 'sql.fndnodes':'ebs.clone.sql.fndnodes',
+  };
+  const iconMap = {
+    autoconfig:'⚙️', 'services.check':'🛑', diskcheck:'💾', ctxbackup:'📄',
+    nodecheck:'🏥', 'sql.fndnodes':'🗂️', custom:'📝',
+  };
+
+  S.postSteps.push({
+    id: ps(), type, label, tier, mode, icon: iconMap[type] || '📌',
+    cmd: type !== 'custom' ? cmdMap[type] : null,
+    customCmd: type === 'custom' ? customCmd : null,
+  });
+  renderPostSteps();
+  closeModal();
+}
+
+// ── Step 5: Recipe summary & save ────────────────────────────────────────────
+
+function renderRecipeSummary() {
+  const src = S.connections.find(c => c.id === S.sourceConnId);
+  const tgt = S.connections.find(c => c.id === S.targetConnId);
+  const el = document.getElementById('recipe-summary');
+  el.innerHTML = `
+    <div>📡 <strong>Source:</strong> ${esc(src ? src.display_name || src.host : '(not selected)')}</div>
+    <div>🎯 <strong>Target:</strong> ${esc(tgt ? tgt.display_name || tgt.host : '(not selected)')}</div>
+    <div>🔧 <strong>Clone steps:</strong> ${CLONE_STEPS.length} (standard adpreclone/adcfgclone)</div>
+    <div>📋 <strong>Post-clone steps:</strong> ${S.postSteps.length} configured</div>
+  `;
+}
+
+async function saveRecipe() {
+  const name = document.getElementById('recipe-name').value.trim();
+  if (!name) { alert('Enter a recipe name.'); return; }
+
+  const btn = document.getElementById('save-recipe-btn');
+  btn.disabled = true;
+  btn.textContent = '💾 Saving…';
+
+  try {
+    if (S.existingRecipe) {
+      await api('PUT', `/recipes/${S.existingRecipe.id}`, {
+        recipe_name: name,
+        source_connection_id: S.sourceConnId,
+        target_connection_id: S.targetConnId,
+        clone_steps: CLONE_STEPS,
+        post_steps: S.postSteps,
+      });
+    } else {
+      await api('POST', '/recipes', {
+        recipe_name: name,
+        source_connection_id: S.sourceConnId,
+        target_connection_id: S.targetConnId,
+        clone_steps: CLONE_STEPS,
+        post_steps: S.postSteps,
+        pre_checks_config: {},
+      });
+    }
+    showView('recipes');
+    renderRecipesList();
+    loadHistory();
+  } catch(e) {
+    alert('Save failed: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = '💾 Save Recipe';
+  }
+}
+
+// ── Delete recipe ─────────────────────────────────────────────────────────────
+
+async function deleteRecipe(id) {
+  if (!confirm('Delete this recipe? This cannot be undone.')) return;
+  try {
+    await api('DELETE', `/recipes/${id}`);
+    renderRecipesList();
+  } catch(e) {
+    alert('Delete failed: ' + e.message);
+  }
+}
+
+// ── Term helpers ──────────────────────────────────────────────────────────────
+
+function appendTerm(termId, text, cls) {
+  const el = document.getElementById(termId);
+  if (!el) return;
+  const line = document.createElement('div');
+  line.className = cls === 'cmd' ? 'term-line-cmd' : cls === 'ok' ? 'term-line-ok' : cls === 'err' ? 'term-line-err' : 'term-line-info';
+  line.textContent = text;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function clearTerm(termId) {
+  const el = document.getElementById(termId);
+  if (el) el.innerHTML = '';
+}
+
+// ── Esc helper ────────────────────────────────────────────────────────────────
+
+function esc(s) {
+  return String(s || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ── Event delegation ──────────────────────────────────────────────────────────
+
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+
+  switch(action) {
+    case 'new-wizard':      startNewWizard(); break;
+    case 'back-to-list':    showView('recipes'); renderRecipesList(); break;
+    case 'view-history':    switchTab('history'); loadHistory(); break;
+
+    case 'select-conn':     selectConn(btn.dataset.side, parseInt(btn.dataset.id)); break;
+
+    case 'step1-next': {
+      if (!S.sourceConnId) { alert('Select a source connection.'); return; }
+      if (!S.targetConnId) { alert('Select a target connection.'); return; }
+      if (S.sourceConnId === S.targetConnId) { alert('Source and target must be different connections.'); return; }
+      activateWizardStep(2);
+      break;
+    }
+
+    case 'step2-next':     activateWizardStep(3); break;
+    case 'step3-next':     activateWizardStep(4); break;
+    case 'step4-next':     activateWizardStep(5); break;
+    case 'step-back':      if (S.currentStep > 1) activateWizardStep(S.currentStep - 1); break;
+    case 'go-step': {
+      const n = parseInt(btn.dataset.step);
+      if (n < S.currentStep) activateWizardStep(n);
+      break;
+    }
+
+    case 'run-prechecks':  runAllPreChecks(); break;
+    case 'run-check':      runPreCheck(btn.dataset.check); break;
+    case 'run-clone-step': runCloneStep(parseInt(btn.dataset.step)); break;
+    case 'confirm-manual': confirmManualStep(parseInt(btn.dataset.step)); break;
+    case 'run-post-step':  runPostStep(btn.dataset.psid); break;
+    case 'add-post-step':  openAddStepModal(); break;
+    case 'remove-post-step': {
+      S.postSteps = S.postSteps.filter(s => s.id !== btn.dataset.psid);
+      renderPostSteps();
+      break;
+    }
+    case 'step-type-change': onStepTypeChange(); break;
+    case 'confirm-add-step': confirmAddStep(); break;
+    case 'close-modal':    closeModal(); break;
+    case 'save-recipe':    saveRecipe(); break;
+    case 'run-recipe':     startRunRecipe(parseInt(btn.dataset.id)); break;
+    case 'edit-recipe':    startRunRecipe(parseInt(btn.dataset.id)); break;
+    case 'delete-recipe':  deleteRecipe(parseInt(btn.dataset.id)); break;
+  }
+});
+
+document.querySelectorAll('.view-tab').forEach(t => {
+  t.addEventListener('click', () => switchTab(t.dataset.tab));
+});
+
+document.getElementById('new-step-type').addEventListener('change', onStepTypeChange);
+
+// Close modal on overlay click
+document.getElementById('add-step-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+init();
+</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

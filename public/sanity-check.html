@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Service Sanity Check — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c;
+      --surface: #111114;
+      --surface-2: #1a1a1f;
+      --border: #2a2a30;
+      --text: #e8e8ed;
+      --text-dim: #b8b8c8;
+      --accent: #f0a830;
+      --accent-dim: rgba(240,168,48,0.12);
+      --green: #34d399;
+      --green-dim: rgba(52,211,153,0.12);
+      --red: #f87171;
+      --red-dim: rgba(248,113,113,0.12);
+      --yellow: #fbbf24;
+      --yellow-dim: rgba(251,191,36,0.12);
+      --blue: #60a5fa;
+      --blue-dim: rgba(96,165,250,0.12);
+      --purple: #a78bfa;
+      --purple-dim: rgba(167,139,250,0.12);
+    }
+    body {
+      font-family: 'Space Grotesk', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    .grain {
+      position: fixed; top:0; left:0; right:0; bottom:0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 999;
+    }
+    .page-wrap { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    /* ── Toolbar ── */
+    .toolbar { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 32px; flex-wrap: wrap; }
+    .toolbar-title { flex: 1; }
+    .toolbar-title h1 { font-size: 22px; font-weight: 700; }
+    .toolbar-title p { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+    .conn-select {
+      background: var(--surface); border: 1px solid var(--border); color: var(--text);
+      font-family: inherit; font-size: 13px; padding: 8px 12px; border-radius: 8px;
+      min-width: 240px; cursor: pointer;
+    }
+    .conn-select:focus { outline: none; border-color: var(--accent); }
+    .ssh-select {
+      background: var(--surface); border: 1px solid var(--border); color: var(--text);
+      font-family: inherit; font-size: 13px; padding: 8px 12px; border-radius: 8px;
+      min-width: 200px; cursor: pointer;
+    }
+    .ssh-select:focus { outline: none; border-color: var(--accent); }
+
+    /* ── Tier tabs ── */
+    .tier-tabs { display: flex; gap: 4px; margin-bottom: 28px; border-bottom: 1px solid var(--border); }
+    .tier-tab {
+      padding: 10px 20px; font-size: 14px; font-weight: 500; border: none;
+      background: none; color: var(--text-dim); cursor: pointer; border-bottom: 2px solid transparent;
+      margin-bottom: -1px; transition: all 0.15s;
+    }
+    .tier-tab:hover { color: var(--text); }
+    .tier-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ── Tier panel ── */
+    .tier-panel { display: none; }
+    .tier-panel.active { display: block; }
+
+    /* ── Run bar ── */
+    .run-bar {
+      display: flex; align-items: center; gap: 14px; margin-bottom: 24px; flex-wrap: wrap;
+    }
+    .run-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 22px; background: var(--accent); color: #0a0a0c;
+      border: none; border-radius: 8px; font-size: 14px; font-weight: 600;
+      font-family: inherit; cursor: pointer; transition: background 0.15s;
+    }
+    .run-btn:hover:not(:disabled) { background: #e09820; }
+    .run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .run-meta { font-size: 12px; color: var(--text-dim); }
+
+    /* ── Summary ribbon ── */
+    .summary-ribbon {
+      display: none; align-items: center; gap: 16px; padding: 14px 20px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      margin-bottom: 20px; flex-wrap: wrap;
+    }
+    .summary-ribbon.visible { display: flex; }
+    .summary-overall {
+      display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px;
+    }
+    .sum-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    .sum-ok    { background: var(--green); }
+    .sum-warn  { background: var(--yellow); }
+    .sum-crit  { background: var(--red); }
+    .sum-error { background: var(--purple); }
+    .summary-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+    .chip {
+      padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+    }
+    .chip-ok    { background: var(--green-dim); color: var(--green); }
+    .chip-warn  { background: var(--yellow-dim); color: var(--yellow); }
+    .chip-crit  { background: var(--red-dim); color: var(--red); }
+    .chip-error { background: var(--purple-dim); color: var(--purple); }
+    .chip-skip  { background: rgba(136,136,160,0.12); color: var(--text-dim); }
+    .elapsed-badge { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+
+    /* ── Check grid ── */
+    .check-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(300px,1fr)); gap: 12px;
+    }
+
+    /* ── Check card ── */
+    .check-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      padding: 16px; transition: border-color 0.15s;
+    }
+    .check-card:hover { border-color: rgba(240,168,48,0.2); }
+    .check-card.status-ok    { border-left: 3px solid var(--green); }
+    .check-card.status-warn  { border-left: 3px solid var(--yellow); }
+    .check-card.status-crit  { border-left: 3px solid var(--red); }
+    .check-card.status-error { border-left: 3px solid var(--purple); }
+    .check-card.status-skip  { border-left: 3px solid var(--border); opacity: 0.6; }
+
+    .check-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+    .status-icon { font-size: 18px; flex-shrink: 0; width: 22px; text-align: center; }
+    .check-label { font-size: 13px; font-weight: 600; }
+    .check-value { font-size: 13px; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+    .check-value.ok    { color: var(--green); }
+    .check-value.warn  { color: var(--yellow); }
+    .check-value.crit  { color: var(--red); }
+    .check-value.error { color: var(--purple); }
+    .check-value.skip  { color: var(--text-dim); }
+    .check-evidence {
+      font-size: 11px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace;
+      line-height: 1.4; word-break: break-word;
+    }
+
+    /* ── Skeleton ── */
+    .skeleton-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px,1fr)); gap: 12px; }
+    .skeleton-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      padding: 16px; height: 80px; animation: pulse 1.4s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+    /* ── Empty / error state ── */
+    .empty-state {
+      text-align: center; padding: 60px 24px; color: var(--text-dim);
+    }
+    .empty-icon { font-size: 40px; margin-bottom: 12px; }
+    .empty-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+    .empty-sub { font-size: 13px; }
+
+    /* ── Target hint ── */
+    .target-hint {
+      padding: 12px 16px; background: var(--accent-dim); border: 1px solid rgba(240,168,48,0.25);
+      border-radius: 8px; font-size: 12px; color: var(--accent); margin-bottom: 20px;
+    }
+
+    /* ── Spinner ── */
+    .spinner {
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid rgba(0,0,0,0.2); border-top-color: #0a0a0c;
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Section header ── */
+    .section-header {
+      font-size: 11px; font-weight: 700; color: var(--text-dim);
+      text-transform: uppercase; letter-spacing: .08em;
+      margin-bottom: 12px; margin-top: 24px; padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-header:first-child { margin-top: 0; }
+
+    /* ── Auto-suggest banner ── */
+    .suggest-banner {
+      display: none; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 12px 18px; background: var(--green-dim); border: 1px solid rgba(52,211,153,0.25);
+      border-radius: 8px; margin-bottom: 20px; flex-wrap: wrap;
+    }
+    .suggest-banner.visible { display: flex; }
+    .suggest-text { font-size: 13px; }
+    .suggest-text strong { color: var(--green); }
+    .suggest-btn {
+      padding: 6px 16px; background: var(--green); color: #0a0a0c;
+      border: none; border-radius: 6px; font-size: 12px; font-weight: 600;
+      font-family: inherit; cursor: pointer; white-space: nowrap;
+    }
+    .suggest-dismiss {
+      background: none; border: none; color: var(--text-dim); cursor: pointer;
+      font-size: 16px; padding: 0 4px;
+    }
+  </style>
+</head>
+<body>
+<div class="grain"></div>
+
+<nav id="nav-root"></nav>
+
+<div class="page-wrap">
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="toolbar-title">
+      <h1>⚡ Service Sanity Check</h1>
+      <p>Post-bounce validation — confirm all services came back up correctly</p>
+    </div>
+    <select class="conn-select" id="conn-select" onchange="onConnChange()">
+      <option value="">— Select connection —</option>
+    </select>
+  </div>
+
+  <!-- Tier tabs -->
+  <div class="tier-tabs">
+    <button class="tier-tab active" onclick="switchTier('ebs')">EBS Application Tier</button>
+    <button class="tier-tab" onclick="switchTier('db')">Database Tier</button>
+  </div>
+
+  <!-- ── EBS Panel ── -->
+  <div class="tier-panel active" id="panel-ebs">
+
+    <!-- Auto-suggest banner (shown after EBS start/stop) -->
+    <div class="suggest-banner" id="ebs-suggest">
+      <div class="suggest-text"><strong>Services were started</strong> — run a sanity check to confirm everything came back up?</div>
+      <button class="suggest-btn" onclick="runCheck('ebs')">Run Sanity Check</button>
+      <button class="suggest-dismiss" onclick="document.getElementById('ebs-suggest').classList.remove('visible')" title="Dismiss">✕</button>
+    </div>
+
+    <!-- SSH target selector -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+      <label style="font-size:13px;color:var(--text-dim);">SSH Target (apps_tier):</label>
+      <select class="ssh-select" id="ebs-target-select">
+        <option value="">— No SSH targets —</option>
+      </select>
+      <span id="ebs-target-hint" style="font-size:12px;color:var(--text-dim);"></span>
+    </div>
+
+    <!-- Target missing hint -->
+    <div class="target-hint" id="ebs-no-target" style="display:none;">
+      No <strong>apps_tier</strong> SSH target linked to this connection.
+      Add one via <a href="/admin/ssh-targets" style="color:var(--accent);">Admin → SSH Targets</a> to enable EBS sanity checks.
+    </div>
+
+    <!-- Run bar -->
+    <div class="run-bar">
+      <button class="run-btn" id="ebs-run-btn" onclick="runCheck('ebs')" disabled>
+        <span id="ebs-btn-inner">Run Sanity Check</span>
+      </button>
+      <span class="run-meta" id="ebs-run-meta"></span>
+    </div>
+
+    <!-- Summary ribbon -->
+    <div class="summary-ribbon" id="ebs-summary"></div>
+
+    <!-- Results -->
+    <div id="ebs-results"></div>
+  </div>
+
+  <!-- ── DB Panel ── -->
+  <div class="tier-panel" id="panel-db">
+
+    <!-- Auto-suggest banner -->
+    <div class="suggest-banner" id="db-suggest">
+      <div class="suggest-text"><strong>Database was restarted</strong> — run a sanity check to confirm the instance is healthy?</div>
+      <button class="suggest-btn" onclick="runCheck('db')">Run Sanity Check</button>
+      <button class="suggest-dismiss" onclick="document.getElementById('db-suggest').classList.remove('visible')" title="Dismiss">✕</button>
+    </div>
+
+    <!-- SSH target selector (optional for listener check) -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+      <label style="font-size:13px;color:var(--text-dim);">SSH Target (db_tier, optional):</label>
+      <select class="ssh-select" id="db-target-select">
+        <option value="">— None (skip listener check) —</option>
+      </select>
+      <span style="font-size:12px;color:var(--text-dim);">Required only for Listener check</span>
+    </div>
+
+    <!-- Run bar -->
+    <div class="run-bar">
+      <button class="run-btn" id="db-run-btn" onclick="runCheck('db')" disabled>
+        <span id="db-btn-inner">Run Sanity Check</span>
+      </button>
+      <span class="run-meta" id="db-run-meta"></span>
+    </div>
+
+    <!-- Summary ribbon -->
+    <div class="summary-ribbon" id="db-summary"></div>
+
+    <!-- Results -->
+    <div id="db-results"></div>
+  </div>
+
+</div>
+
+<script src="/connection-state.js"></script>
+<script src="/nav-component.js"></script>
+<script>
+window.tvNav.init('sanity-check');
+
+// ─── State ───────────────────────────────────────────────────────────────────
+
+var state = {
+  connections: [],
+  connId: null,
+  ebsTargets: [],
+  dbTargets: [],
+  activeTier: 'ebs',
+  running: { ebs: false, db: false },
+  lastRan: { ebs: null, db: null },
+};
+
+// ─── Connection loading ───────────────────────────────────────────────────────
+
+function loadConnections() {
+  fetch('/api/connections', { credentials: 'include' })
+    .then(function(r) { return r.ok ? r.json() : []; })
+    .then(function(data) {
+      var connections = tvConn.parseList(data);
+      state.connections = connections;
+      var sel = document.getElementById('conn-select');
+      sel.innerHTML = '<option value="">— Select connection —</option>';
+      connections.forEach(function(c) {
+        var opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = (c.label || c.host) + (c.is_ebs ? ' [EBS]' : '');
+        sel.appendChild(opt);
+      });
+      // Restore saved connection and wire persistence
+      tvConn.bind(sel, connections);
+      if (sel.value) {
+        onConnChange();
+      } else if (connections.length === 1) {
+        // Auto-select if only one connection and nothing was restored
+        sel.value = connections[0].id;
+        onConnChange();
+      }
+      // Check URL params for auto-suggest after start/stop
+      var params = new URLSearchParams(window.location.search);
+      if (params.get('after') === 'ebs-start') {
+        document.getElementById('ebs-suggest').classList.add('visible');
+      } else if (params.get('after') === 'db-start') {
+        switchTier('db');
+        document.getElementById('db-suggest').classList.add('visible');
+      }
+    })
+    .catch(function() {});
+}
+
+function onConnChange() {
+  var sel = document.getElementById('conn-select');
+  if (sel.value) tvConn.save(sel.value);
+  state.connId = sel.value ? parseInt(sel.value, 10) : null;
+  loadSshTargets();
+}
+
+// ─── SSH target loading ───────────────────────────────────────────────────────
+
+function loadSshTargets() {
+  if (!state.connId) {
+    setTargetDropdown('ebs', []);
+    setTargetDropdown('db', []);
+    updateRunBtns();
+    return;
+  }
+  fetch('/api/ebs-ssh-checks/target/' + state.connId, { credentials: 'include' })
+    .then(function(r) { return r.ok ? r.json() : { targets: [] }; })
+    .then(function(data) {
+      var targets = data.targets || [];
+      state.ebsTargets = targets.filter(function(t) { return t.role === 'apps_tier'; });
+      state.dbTargets  = targets.filter(function(t) { return t.role === 'db_tier'; });
+      setTargetDropdown('ebs', state.ebsTargets);
+      setTargetDropdown('db', state.dbTargets);
+      updateRunBtns();
+    })
+    .catch(function() {
+      setTargetDropdown('ebs', []);
+      setTargetDropdown('db', []);
+      updateRunBtns();
+    });
+}
+
+function setTargetDropdown(tier, targets) {
+  var selId = tier === 'ebs' ? 'ebs-target-select' : 'db-target-select';
+  var sel = document.getElementById(selId);
+  var defaultLabel = tier === 'db' ? '— None (skip listener check) —' : '— No SSH targets —';
+  sel.innerHTML = '<option value="">' + defaultLabel + '</option>';
+  targets.forEach(function(t) {
+    var opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = (t.os_user || 'target') + '@' + t.host + ' (port ' + t.port + ')';
+    sel.appendChild(opt);
+  });
+
+  // EBS: show/hide no-target hint
+  if (tier === 'ebs') {
+    var hint = document.getElementById('ebs-no-target');
+    hint.style.display = targets.length === 0 ? 'block' : 'none';
+    if (targets.length > 0) sel.value = targets[0].id; // auto-select first
+  } else {
+    if (targets.length > 0) sel.value = targets[0].id;
+  }
+}
+
+function updateRunBtns() {
+  var ebsBtn = document.getElementById('ebs-run-btn');
+  var dbBtn  = document.getElementById('db-run-btn');
+  var hasConn = !!state.connId;
+  var ebsTarget = document.getElementById('ebs-target-select').value;
+  ebsBtn.disabled = !hasConn || !ebsTarget || state.running.ebs;
+  dbBtn.disabled  = !hasConn || state.running.db;
+}
+
+// ─── Tier switching ───────────────────────────────────────────────────────────
+
+function switchTier(tier) {
+  state.activeTier = tier;
+  document.querySelectorAll('.tier-tab').forEach(function(t, i) {
+    t.classList.toggle('active', (i === 0 && tier === 'ebs') || (i === 1 && tier === 'db'));
+  });
+  document.querySelectorAll('.tier-panel').forEach(function(p) { p.classList.remove('active'); });
+  document.getElementById('panel-' + tier).classList.add('active');
+}
+
+// ─── Run check ───────────────────────────────────────────────────────────────
+
+function runCheck(tier) {
+  if (!state.connId || state.running[tier]) return;
+
+  var targetId = null;
+  if (tier === 'ebs') {
+    targetId = document.getElementById('ebs-target-select').value;
+    if (!targetId) return;
+  } else {
+    targetId = document.getElementById('db-target-select').value || null;
+  }
+
+  state.running[tier] = true;
+  updateRunBtns();
+
+  var btnInner = document.getElementById(tier + '-btn-inner');
+  btnInner.innerHTML = '<span class="spinner"></span> Running…';
+
+  var resultsEl  = document.getElementById(tier + '-results');
+  var summaryEl  = document.getElementById(tier + '-summary');
+  var metaEl     = document.getElementById(tier + '-run-meta');
+
+  summaryEl.classList.remove('visible');
+  resultsEl.innerHTML = buildSkeletons(tier === 'ebs' ? 8 : 5);
+
+  var body = { connection_id: state.connId };
+  if (targetId) body.target_id = parseInt(targetId, 10);
+
+  fetch('/api/sanity-check/' + tier, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+    .then(function(r) {
+      if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || 'Request failed'); });
+      return r.json();
+    })
+    .then(function(data) {
+      state.lastRan[tier] = data.ran_at;
+      renderSummary(tier, data);
+      renderChecks(tier, data);
+      metaEl.textContent = 'Ran ' + formatTime(data.ran_at) + ' · ' + data.elapsed_ms + ' ms';
+    })
+    .catch(function(err) {
+      resultsEl.innerHTML = '<div class="empty-state">' +
+        '<div class="empty-icon">⚠️</div>' +
+        '<div class="empty-title">Check failed</div>' +
+        '<div class="empty-sub">' + escHtml(err.message) + '</div>' +
+        '</div>';
+      metaEl.textContent = '';
+    })
+    .finally(function() {
+      state.running[tier] = false;
+      btnInner.textContent = 'Run Sanity Check';
+      updateRunBtns();
+    });
+}
+
+// ─── Render helpers ───────────────────────────────────────────────────────────
+
+function buildSkeletons(n) {
+  var html = '<div class="skeleton-grid">';
+  for (var i = 0; i < n; i++) html += '<div class="skeleton-card"></div>';
+  html += '</div>';
+  return html;
+}
+
+function renderSummary(tier, data) {
+  var el = document.getElementById(tier + '-summary');
+  var s = data.summary || {};
+  var overall = data.overall || 'ok';
+  var dotClass = 'sum-' + (overall === 'error' ? 'error' : overall);
+  var icons = { ok: '✅', warn: '⚠️', crit: '❌', error: '🔴' };
+  var labels = { ok: 'All Clear', warn: 'Warnings', crit: 'Services Down', error: 'Error' };
+
+  var html = '<div class="summary-overall">' +
+    '<span class="sum-dot ' + dotClass + '"></span>' +
+    '<span>' + (icons[overall] || '⚠️') + ' ' + (labels[overall] || overall) + '</span>' +
+    '</div>';
+
+  var chips = '';
+  if (s.ok)    chips += '<span class="chip chip-ok">' + s.ok + ' OK</span>';
+  if (s.warn)  chips += '<span class="chip chip-warn">' + s.warn + ' Warn</span>';
+  if (s.crit)  chips += '<span class="chip chip-crit">' + s.crit + ' Down</span>';
+  if (s.error) chips += '<span class="chip chip-error">' + s.error + ' Error</span>';
+  if (s.skip)  chips += '<span class="chip chip-skip">' + s.skip + ' Skipped</span>';
+
+  html += '<div class="summary-chips">' + chips + '</div>';
+  html += '<span class="elapsed-badge">' + data.elapsed_ms + ' ms</span>';
+
+  el.innerHTML = html;
+  el.classList.add('visible');
+}
+
+function renderChecks(tier, data) {
+  var el = document.getElementById(tier + '-results');
+  var checks = data.checks || [];
+  if (!checks.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No checks</div></div>';
+    return;
+  }
+
+  // Group by category prefix (ebs.san.fndcrm → fndcrm; db.san.instance → instance)
+  var groups = {};
+  var groupOrder = [];
+  checks.forEach(function(c) {
+    var parts = c.id.split('.');
+    var cat = parts[2] || 'other';
+    // Map to human-readable group names
+    var groupName = GROUP_LABELS[cat] || cap(cat);
+    if (!groups[groupName]) { groups[groupName] = []; groupOrder.push(groupName); }
+    groups[groupName].push(c);
+  });
+
+  var html = '';
+  groupOrder.forEach(function(g) {
+    html += '<div class="section-header">' + escHtml(g) + '</div>';
+    html += '<div class="check-grid">';
+    groups[g].forEach(function(c) { html += buildCheckCard(c); });
+    html += '</div>';
+  });
+
+  el.innerHTML = html;
+}
+
+var GROUP_LABELS = {
+  san: 'Overview',
+  fndcrm: 'Concurrent Managers',
+  fndlibr: 'Concurrent Managers',
+  opp: 'Concurrent Managers',
+  wls: 'WebLogic',
+  apache: 'Apache / OHS',
+  appslistener: 'Apps Listener',
+  instance: 'Database Instance',
+  archivelog: 'Archive Log',
+  pdbs: 'Pluggable Databases',
+  alertlog_ora: 'Alert Log',
+  listener: 'TNS Listener',
+};
+
+function buildCheckCard(c) {
+  var statusIcons = { ok: '✅', warn: '⚠️', crit: '❌', error: '🔴', skip: '⬜' };
+  var icon = statusIcons[c.status] || '⬜';
+  var valueClass = 'check-value ' + (c.status || 'skip');
+  return '<div class="check-card status-' + (c.status || 'skip') + '">' +
+    '<div class="check-header">' +
+      '<span class="status-icon">' + icon + '</span>' +
+      '<span class="check-label">' + escHtml(c.label || c.id) + '</span>' +
+    '</div>' +
+    '<div class="' + valueClass + '">' + escHtml(c.value || '—') + '</div>' +
+    (c.evidence ? '<div class="check-evidence">' + escHtml(c.evidence) + '</div>' : '') +
+  '</div>';
+}
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
+
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+function formatTime(iso) {
+  if (!iso) return '';
+  try {
+    var d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  } catch(e) { return iso; }
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+
+document.addEventListener('DOMContentLoaded', function() {
+  loadConnections();
+  // Keep run buttons consistent when targets are changed
+  document.getElementById('ebs-target-select').addEventListener('change', updateRunBtns);
+  document.getElementById('db-target-select').addEventListener('change', updateRunBtns);
+});
+</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

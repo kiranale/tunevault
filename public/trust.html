@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TuneVault Security &amp; Trust — Oracle DB Operations</title>
+    <meta name="description" content="TuneVault is read-only, outbound-only, and no data leaves your network. Forward this page to your CISO: architecture diagram, privilege list, data handling, and lockdown bundle.">
+    <meta name="keywords" content="Oracle database security, SOC2 compliance, enterprise trust, read-only Oracle health check, DBA security review, CISO security review, Oracle monitoring security">
+    <meta property="og:title" content="TuneVault Enterprise InfoSec — Read-Only, No Data Leaves Your Network">
+    <meta property="og:description" content="Architecture diagram, exact Oracle views queried, privilege requirements, data handling policy, and lockdown bundle. One URL for your security review team.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://tunevault.app/trust">
+    <meta property="og:image" content="https://tunevault.app/og/trust.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="TuneVault enterprise security — read-only, outbound-only Oracle monitoring">
+    <meta property="og:site_name" content="TuneVault">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="TuneVault Enterprise InfoSec — Read-Only, No Data Leaves Your Network">
+    <meta name="twitter:description" content="Architecture, read-only Oracle views, privilege requirements, and lockdown bundle. Forward to your CISO for Oracle DBA tool procurement review.">
+    <meta name="twitter:image" content="https://tunevault.app/og/trust.png">
+    <meta name="application-name" content="TuneVault">
+    <link rel="canonical" href="https://tunevault.app/trust">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://tunevault.app/#organization","name":"TuneVault","alternateName":"TuneVault.app","url":"https://tunevault.app","logo":{"@type":"ImageObject","url":"https://tunevault.app/logo.png","width":512,"height":512},"description":"AI agent that autonomously manages Oracle database operations.","foundingDate":"2026","sameAs":["https://www.linkedin.com/in/kirankumarale/","https://linuxappsdba.blogspot.com"]},{"@type":"WebSite","@id":"https://tunevault.app/#website","name":"TuneVault","alternateName":["TuneVault.app"],"url":"https://tunevault.app","publisher":{"@id":"https://tunevault.app/#organization"}}]}</script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0c;
+            --surface: #111114;
+            --surface-2: #1a1a1f;
+            --surface-3: #222228;
+            --border: #2a2a30;
+            --border-hover: #3a3a44;
+            --text: #e8e8ed;
+            --text-dim: #b8b8c8;
+            --text-muted: #9898a8;
+            --accent: #f0a830;
+            --accent-dim: rgba(240, 168, 48, 0.10);
+            --accent-border: rgba(240, 168, 48, 0.25);
+            --green: #34d399;
+            --green-dim: rgba(52, 211, 153, 0.10);
+            --green-border: rgba(52, 211, 153, 0.20);
+            --red: #f87171;
+            --red-dim: rgba(248, 113, 113, 0.10);
+            --red-border: rgba(248, 113, 113, 0.25);
+            --blue: #60a5fa;
+            --blue-dim: rgba(96, 165, 250, 0.10);
+            --blue-border: rgba(96, 165, 250, 0.20);
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+
+        /* ── Hero ── */
+        .hero {
+            background: linear-gradient(180deg, #0d0d12 0%, #0a0a0c 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 80px 24px 64px;
+            text-align: center;
+            position: relative; overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute; inset: 0;
+            background: radial-gradient(ellipse 70% 50% at 50% 0%, rgba(240,168,48,0.07) 0%, transparent 65%);
+            pointer-events: none;
+        }
+        .hero-eyebrow {
+            display: inline-flex; align-items: center; gap: 8px;
+            font-family: 'JetBrains Mono', monospace; font-size: 11px;
+            letter-spacing: 1.5px; text-transform: uppercase;
+            color: var(--accent); background: var(--accent-dim);
+            border: 1px solid var(--accent-border);
+            padding: 5px 12px; border-radius: 6px; margin-bottom: 24px;
+        }
+        .hero h1 { font-size: clamp(28px, 5vw, 48px); font-weight: 700; line-height: 1.15; margin-bottom: 16px; }
+        .hero p { font-size: 17px; color: var(--text-dim); max-width: 560px; margin: 0 auto 32px; }
+        .hero-actions { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
+        .btn-primary { background: var(--accent); color: #0a0a0c; font-weight: 700; padding: 11px 22px; border-radius: 8px; text-decoration: none; font-size: 14px; transition: opacity 0.2s; }
+        .btn-primary:hover { opacity: 0.85; }
+        .btn-secondary { border: 1px solid var(--border); color: var(--text-dim); padding: 11px 22px; border-radius: 8px; text-decoration: none; font-size: 14px; transition: border-color 0.2s, color 0.2s; }
+        .btn-secondary:hover { border-color: var(--border-hover); color: var(--text); }
+
+        /* ── Layout ── */
+        .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+        .section { padding: 64px 0; border-bottom: 1px solid var(--border); }
+        .section:last-of-type { border-bottom: none; }
+        .section-label {
+            display: inline-flex; align-items: center; gap: 8px;
+            font-family: 'JetBrains Mono', monospace; font-size: 11px;
+            letter-spacing: 1.5px; text-transform: uppercase;
+            color: var(--text-muted); margin-bottom: 12px;
+        }
+        .section-label span { color: var(--accent); }
+        .section h2 { font-size: 26px; font-weight: 700; margin-bottom: 10px; }
+        .section > p, .section-intro { color: var(--text-dim); margin-bottom: 28px; font-size: 15px; }
+
+        /* ── Architecture SVG card ── */
+        .arch-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 36px 24px;
+            overflow-x: auto;
+        }
+        .arch-svg { width: 100%; min-width: 600px; max-width: 820px; display: block; margin: 0 auto; }
+
+        /* ── View list ── */
+        .view-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .view-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            padding: 6px 10px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--blue);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .view-tag.apps { color: var(--accent); }
+        .view-section-header { font-size: 12px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 1px; margin: 20px 0 10px; }
+
+        /* ── Never-does callout ── */
+        .never-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 12px;
+        }
+        .never-item {
+            display: flex; align-items: flex-start; gap: 12px;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 10px; padding: 16px;
+        }
+        .never-icon {
+            width: 28px; height: 28px; flex-shrink: 0;
+            background: var(--red-dim); border: 1px solid var(--red-border);
+            border-radius: 6px; display: flex; align-items: center; justify-content: center;
+            font-size: 13px;
+        }
+        .never-text strong { display: block; font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+        .never-text span { font-size: 12px; color: var(--text-dim); }
+
+        /* ── Grants block ── */
+        .grants-block {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .grants-header {
+            padding: 12px 16px;
+            background: var(--surface-2);
+            border-bottom: 1px solid var(--border);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px; color: var(--text-muted);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .grants-header span { color: var(--accent); }
+        .grants-code {
+            padding: 20px 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            line-height: 1.8;
+            white-space: pre;
+            overflow-x: auto;
+        }
+        .sql-keyword { color: #b0c4de; }
+        .sql-obj { color: var(--accent); }
+        .sql-to { color: var(--blue); }
+        .sql-comment { color: var(--text-muted); }
+
+        /* ── Data handling cards ── */
+        .data-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .data-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 18px;
+        }
+        .data-card-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; margin-bottom: 8px; }
+        .data-card-value { font-size: 16px; font-weight: 600; color: var(--green); margin-bottom: 6px; }
+        .data-card-desc { font-size: 13px; color: var(--text-dim); }
+
+        /* ── Lockdown script card ── */
+        .lockdown-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 28px;
+        }
+        .lockdown-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+        .lockdown-icon { width: 40px; height: 40px; background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+        .lockdown-header div h3 { font-size: 16px; font-weight: 600; }
+        .lockdown-header div p { font-size: 13px; color: var(--text-dim); }
+        .lockdown-steps { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin: 20px 0; }
+        .lockdown-step { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-dim); }
+        .step-num { width: 22px; height: 22px; background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent); flex-shrink: 0; }
+        .download-btn { display: inline-flex; align-items: center; gap: 8px; background: var(--accent); color: #0a0a0c; font-weight: 700; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; transition: opacity 0.2s; }
+        .download-btn:hover { opacity: 0.85; }
+        .download-hint { font-size: 12px; color: var(--text-muted); margin-top: 8px; }
+
+        /* ── Incident section ── */
+        .incident-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 24px;
+            display: flex; gap: 24px; flex-wrap: wrap;
+        }
+        .incident-item { flex: 1; min-width: 180px; }
+        .incident-item label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; display: block; margin-bottom: 6px; }
+        .incident-item a { color: var(--blue); text-decoration: none; font-size: 14px; }
+        .incident-item a:hover { text-decoration: underline; }
+        .incident-item span { font-size: 14px; color: var(--text); }
+
+        /* ── Compliance badges ── */
+        .compliance-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+        .compliance-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+        .compliance-status { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-family: 'JetBrains Mono', monospace; padding: 3px 8px; border-radius: 4px; margin-bottom: 12px; }
+        .status-in-progress { background: rgba(240,168,48,0.10); border: 1px solid rgba(240,168,48,0.25); color: var(--accent); }
+        .status-ready { background: var(--green-dim); border: 1px solid var(--green-border); color: var(--green); }
+        .status-out-of-scope { background: var(--surface-2); border: 1px solid var(--border); color: var(--text-muted); }
+        .compliance-card h4 { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+        .compliance-card p { font-size: 13px; color: var(--text-dim); }
+
+        /* ── Footer ── */
+        footer {
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            padding: 32px 24px;
+            display: flex; align-items: center; justify-content: space-between;
+            flex-wrap: wrap; gap: 16px; font-size: 13px; color: var(--text-muted);
+        }
+        .footer-links { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+        .footer-links a { color: var(--text-muted); text-decoration: none; transition: color 0.2s; }
+        .footer-links a:hover { color: var(--text); }
+
+        /* ── Table of contents (side nav) ── */
+        .toc-bar {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 48px;
+            display: flex; flex-wrap: wrap; gap: 8px;
+        }
+        .toc-bar a { font-size: 13px; color: var(--text-dim); text-decoration: none; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border); transition: all 0.15s; }
+        .toc-bar a:hover { color: var(--accent); border-color: var(--accent-border); background: var(--accent-dim); }
+
+        @media (max-width: 640px) {
+            .hero { padding: 56px 20px 48px; }
+            .section { padding: 48px 0; }
+            .arch-svg { min-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<nav id="nav-root"></nav>
+
+<!-- ── Hero ── -->
+<div class="hero">
+    <div class="hero-eyebrow">🔒 Enterprise Trust &amp; Security</div>
+    <h1>Everything your InfoSec team needs.<br>One URL, no back-and-forth.</h1>
+    <p>Forward this page to your security review team. It contains our architecture, the exact Oracle views we read, what we never do, and a lockdown script you control.</p>
+    <div class="hero-actions">
+        <a href="/security/lockdown-bundle.tar.gz" class="btn-primary">⬇ Download Lockdown Bundle</a>
+        <a href="/security" class="btn-secondary">Command Whitelist →</a>
+    </div>
+</div>
+
+<!-- ── Main content ── -->
+<div class="container">
+
+    <!-- Table of contents -->
+    <div class="toc-bar" style="margin-top:48px;">
+        <a href="#architecture">Architecture</a>
+        <a href="#views">Oracle Views</a>
+        <a href="#never">What We Never Do</a>
+        <a href="#grants">Oracle Grants</a>
+        <a href="#data-handling">Data Handling</a>
+        <a href="#lockdown">Lockdown Script</a>
+        <a href="#incident">Incident &amp; Disclosure</a>
+        <a href="#compliance">Compliance</a>
+    </div>
+
+    <!-- ── Section 1: Architecture ── -->
+    <div class="section" id="architecture">
+        <div class="section-label"><span>01</span> Architecture</div>
+        <h2>How data flows — and where it stops</h2>
+        <p class="section-intro">TuneVault never opens an inbound port. The lightweight proxy agent on your Oracle server initiates all connections outbound over HTTPS. No VPN, no firewall rule changes, no agent on the DB host itself.</p>
+
+        <div class="arch-card">
+            <svg class="arch-svg" viewBox="0 0 820 300" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="TuneVault architecture diagram showing data flow from Oracle DB through proxy to TuneVault">
+
+                <!-- Background nodes -->
+                <!-- Node 1: Oracle DB -->
+                <rect x="20" y="100" width="140" height="100" rx="10" fill="#111114" stroke="#2a2a30" stroke-width="1.5"/>
+                <text x="90" y="135" font-family="Space Grotesk, sans-serif" font-size="12" fill="#e8e8ed" text-anchor="middle" font-weight="600">Oracle DB</text>
+                <text x="90" y="153" font-family="JetBrains Mono, monospace" font-size="10" fill="#9898a8" text-anchor="middle">V$ / DBA_ views</text>
+                <text x="90" y="168" font-family="JetBrains Mono, monospace" font-size="10" fill="#9898a8" text-anchor="middle">READ ONLY</text>
+                <text x="90" y="186" font-family="JetBrains Mono, monospace" font-size="9" fill="#34d399" text-anchor="middle">SELECT only</text>
+
+                <!-- Node 2: Proxy agent -->
+                <rect x="220" y="80" width="160" height="140" rx="10" fill="#111114" stroke="#2a2a30" stroke-width="1.5"/>
+                <text x="300" y="113" font-family="Space Grotesk, sans-serif" font-size="12" fill="#e8e8ed" text-anchor="middle" font-weight="600">Proxy Agent</text>
+                <text x="300" y="131" font-family="JetBrains Mono, monospace" font-size="9" fill="#9898a8" text-anchor="middle">Customer's Oracle server</text>
+                <!-- No inbound badge -->
+                <rect x="234" y="143" width="132" height="20" rx="4" fill="rgba(248,113,113,0.10)" stroke="rgba(248,113,113,0.30)" stroke-width="1"/>
+                <text x="300" y="157" font-family="JetBrains Mono, monospace" font-size="9" fill="#f87171" text-anchor="middle">✗ NO INBOUND PORTS</text>
+                <!-- Port 443 outbound badge -->
+                <rect x="234" y="170" width="132" height="20" rx="4" fill="rgba(52,211,153,0.10)" stroke="rgba(52,211,153,0.20)" stroke-width="1"/>
+                <text x="300" y="184" font-family="JetBrains Mono, monospace" font-size="9" fill="#34d399" text-anchor="middle">→ outbound 443 HTTPS only</text>
+                <text x="300" y="205" font-family="JetBrains Mono, monospace" font-size="9" fill="#9898a8" text-anchor="middle">Node.js / Python binary</text>
+
+                <!-- Arrow: DB → Proxy -->
+                <line x1="163" y1="150" x2="218" y2="150" stroke="#3a3a44" stroke-width="2" stroke-dasharray="4 3"/>
+                <polygon points="218,145 228,150 218,155" fill="#3a3a44"/>
+                <text x="190" y="143" font-family="JetBrains Mono, monospace" font-size="9" fill="#9898a8" text-anchor="middle">SQL</text>
+
+                <!-- Node 3: Edge Security -->
+                <rect x="450" y="90" width="140" height="120" rx="10" fill="#111114" stroke="#2a2a30" stroke-width="1.5"/>
+                <text x="520" y="123" font-family="Space Grotesk, sans-serif" font-size="12" fill="#e8e8ed" text-anchor="middle" font-weight="600">Edge Security</text>
+                <text x="520" y="141" font-family="JetBrains Mono, monospace" font-size="9" fill="#9898a8" text-anchor="middle">WAF + DDoS Protection</text>
+                <text x="520" y="158" font-family="JetBrains Mono, monospace" font-size="9" fill="#9898a8" text-anchor="middle">TLS 1.2+ Termination</text>
+                <rect x="464" y="168" width="112" height="20" rx="4" fill="rgba(248,113,113,0.10)" stroke="rgba(248,113,113,0.30)" stroke-width="1"/>
+                <text x="520" y="182" font-family="JetBrains Mono, monospace" font-size="9" fill="#f87171" text-anchor="middle">✗ NO SSH FROM US</text>
+
+                <!-- Arrow: Proxy → Edge Security (HTTPS outbound) -->
+                <line x1="382" y1="150" x2="448" y2="150" stroke="#f0a830" stroke-width="2"/>
+                <polygon points="448,145 458,150 448,155" fill="#f0a830"/>
+                <text x="415" y="140" font-family="JetBrains Mono, monospace" font-size="9" fill="#f0a830" text-anchor="middle">HTTPS 443</text>
+                <text x="415" y="163" font-family="JetBrains Mono, monospace" font-size="9" fill="#9898a8" text-anchor="middle">outbound only</text>
+
+                <!-- Node 4: TuneVault API -->
+                <rect x="660" y="80" width="145" height="90" rx="10" fill="#111114" stroke="#2a2a30" stroke-width="1.5"/>
+                <text x="732" y="113" font-family="Space Grotesk, sans-serif" font-size="12" fill="#e8e8ed" text-anchor="middle" font-weight="600">TuneVault API</text>
+                <text x="732" y="131" font-family="JetBrains Mono, monospace" font-size="9" fill="#9898a8" text-anchor="middle">Cloud hosting, us-east-1</text>
+                <text x="732" y="148" font-family="JetBrains Mono, monospace" font-size="9" fill="#9898a8" text-anchor="middle">Managed Postgres (AES-256)</text>
+                <text x="732" y="162" font-family="JetBrains Mono, monospace" font-size="9" fill="#9898a8" text-anchor="middle">GPT-4o-mini analysis</text>
+
+                <!-- Arrow: Edge Security → TuneVault -->
+                <line x1="592" y1="150" x2="658" y2="125" stroke="#3a3a44" stroke-width="2"/>
+                <polygon points="654,118 663,127 654,132" fill="#3a3a44"/>
+
+                <!-- No inbound arrow annotation -->
+                <text x="520" y="236" font-family="JetBrains Mono, monospace" font-size="9" fill="#9898a8" text-anchor="middle">No inbound firewall</text>
+                <text x="520" y="249" font-family="JetBrains Mono, monospace" font-size="9" fill="#9898a8" text-anchor="middle">changes required</text>
+
+                <!-- Direct mode note -->
+                <rect x="20" y="226" width="220" height="40" rx="6" fill="rgba(96,165,250,0.06)" stroke="rgba(96,165,250,0.20)" stroke-width="1"/>
+                <text x="130" y="243" font-family="JetBrains Mono, monospace" font-size="9" fill="#60a5fa" text-anchor="middle">Direct TCP mode: DB accessible</text>
+                <text x="130" y="258" font-family="JetBrains Mono, monospace" font-size="9" fill="#60a5fa" text-anchor="middle">from internet — no proxy needed</text>
+
+            </svg>
+        </div>
+    </div>
+
+    <!-- ── Section 2: Oracle Views ── -->
+    <div class="section" id="views">
+        <div class="section-label"><span>02</span> Oracle Views Queried</div>
+        <h2>Exactly what we read — live from the codebase</h2>
+        <p class="section-intro">These are the V$ and DBA_ views TuneVault queries. This list is generated directly from oracle-client.js — if it's not here, we don't read it. All queries are SELECT only.</p>
+
+        <div class="view-section-header">V$ Dynamic Performance Views (33 views)</div>
+        <div class="view-grid" id="vviews">
+            <div class="view-tag">V$ARCHIVED_LOG</div>
+            <div class="view-tag">V$BACKUP_CORRUPTION</div>
+            <div class="view-tag">V$COPY_CORRUPTION</div>
+            <div class="view-tag">V$DATABASE</div>
+            <div class="view-tag">V$DATAFILE</div>
+            <div class="view-tag">V$DIAG_ALERT_EXT</div>
+            <div class="view-tag">V$FLASH_RECOVERY_AREA_USAGE</div>
+            <div class="view-tag">V$INSTANCE</div>
+            <div class="view-tag">V$LIBRARYCACHE</div>
+            <div class="view-tag">V$LICENSE</div>
+            <div class="view-tag">V$LOG</div>
+            <div class="view-tag">V$LOG_HISTORY</div>
+            <div class="view-tag">V$OSSTAT</div>
+            <div class="view-tag">V$PARAMETER</div>
+            <div class="view-tag">V$PGASTAT</div>
+            <div class="view-tag">V$RECOVERY_FILE_DEST</div>
+            <div class="view-tag">V$RESOURCE_LIMIT</div>
+            <div class="view-tag">V$RMAN_BACKUP_JOB_DETAILS</div>
+            <div class="view-tag">V$RMAN_STATUS</div>
+            <div class="view-tag">V$ROWCACHE</div>
+            <div class="view-tag">V$SESSION</div>
+            <div class="view-tag">V$SESSION_LONGOPS</div>
+            <div class="view-tag">V$SGA</div>
+            <div class="view-tag">V$SGASTAT</div>
+            <div class="view-tag">V$SGA_RESIZE_OPS</div>
+            <div class="view-tag">V$SORT_SEGMENT</div>
+            <div class="view-tag">V$SQL</div>
+            <div class="view-tag">V$SQL_PLAN</div>
+            <div class="view-tag">V$SQL_WORKAREA_HISTOGRAM</div>
+            <div class="view-tag">V$SYSSTAT</div>
+            <div class="view-tag">V$SYSTEM_EVENT</div>
+            <div class="view-tag">V$TEMPSEG_USAGE</div>
+            <div class="view-tag">V$UNDOSTAT</div>
+            <div class="view-tag">V$VERSION</div>
+            <!-- Performance tab views -->
+            <div class="view-tag">V$ACTIVE_SESSION_HISTORY</div>
+            <div class="view-tag">V$SEGMENT_STATISTICS</div>
+            <div class="view-tag">V$SYSMETRIC</div>
+        </div>
+
+        <div class="view-section-header">DBA_ Data Dictionary Views (35 views)</div>
+        <div class="view-grid">
+            <div class="view-tag">DBA_ADVISOR_ACTIONS</div>
+            <div class="view-tag">DBA_ADVISOR_FINDINGS</div>
+            <div class="view-tag">DBA_ADVISOR_RECOMMENDATIONS</div>
+            <div class="view-tag">DBA_ADVISOR_TASKS</div>
+            <div class="view-tag">DBA_AUTOTASK_CLIENT</div>
+            <div class="view-tag">DBA_AUTOTASK_JOB_HISTORY</div>
+            <div class="view-tag">DBA_DATA_FILES</div>
+            <div class="view-tag">DBA_FEATURE_USAGE_STATISTICS</div>
+            <div class="view-tag">DBA_FREE_SPACE</div>
+            <div class="view-tag">DBA_HIST_PGASTAT</div>
+            <div class="view-tag">DBA_HIST_RESOURCE_LIMIT</div>
+            <div class="view-tag">DBA_HIST_SGA</div>
+            <div class="view-tag">DBA_HIST_SNAPSHOT</div>
+            <div class="view-tag">DBA_HIST_SQLSTAT</div>
+            <div class="view-tag">DBA_HIST_SQL_PLAN</div>
+            <div class="view-tag">DBA_HIST_TBSPC_SPACE_USAGE</div>
+            <div class="view-tag">DBA_HIST_UNDOSTAT</div>
+            <div class="view-tag">DBA_INDEXES</div>
+            <div class="view-tag">DBA_IND_COLUMNS</div>
+            <div class="view-tag">DBA_IND_PARTITIONS</div>
+            <div class="view-tag">DBA_IND_STATISTICS</div>
+            <div class="view-tag">DBA_IND_SUBPARTITIONS</div>
+            <div class="view-tag">DBA_OBJECTS</div>
+            <div class="view-tag">DBA_PROFILES</div>
+            <div class="view-tag">DBA_RECYCLEBIN</div>
+            <div class="view-tag">DBA_REGISTRY_HISTORY</div>
+            <div class="view-tag">DBA_REGISTRY_SQLPATCH</div>
+            <div class="view-tag">DBA_SCHEDULER_WINDOWS</div>
+            <div class="view-tag">DBA_SEGMENTS</div>
+            <div class="view-tag">DBA_SYS_PRIVS</div>
+            <div class="view-tag">DBA_TABLES</div>
+            <div class="view-tag">DBA_TABLESPACES</div>
+            <div class="view-tag">DBA_TABLESPACE_GROUPS</div>
+            <div class="view-tag">DBA_TABLESPACE_USAGE_METRICS</div>
+            <div class="view-tag">DBA_TAB_STATISTICS</div>
+            <div class="view-tag">DBA_TEMP_FREE_SPACE</div>
+            <div class="view-tag">DBA_USERS</div>
+            <div class="view-tag">DBA_USERS_WITH_DEFPWD</div>
+            <div class="view-tag">DBA_VERSION</div>
+        </div>
+
+        <div class="view-section-header">APPS Schema Views (EBS environments only — 8 views)</div>
+        <div class="view-grid">
+            <div class="view-tag apps">APPS.DUAL</div>
+            <div class="view-tag apps">APPS.FND_CONCURRENT_QUEUES</div>
+            <div class="view-tag apps">APPS.FND_CONCURRENT_QUEUES_VL</div>
+            <div class="view-tag apps">APPS.FND_CONCURRENT_REQUESTS</div>
+            <div class="view-tag apps">APPS.FND_OAM_METVAL</div>
+            <div class="view-tag apps">APPS.FND_PRODUCT_GROUPS</div>
+            <div class="view-tag apps">APPS.FND_SVC_COMPONENTS</div>
+            <div class="view-tag apps">APPS.WF_ERROR</div>
+            <div class="view-tag apps">APPS.WF_NOTIFICATIONS</div>
+        </div>
+
+        <p style="font-size:12px;color:var(--text-muted);margin-top:16px;">
+            APPS schema views are only queried when an EBS environment is detected via <code style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent);">APPS.DUAL</code> probe. Non-EBS Oracle databases are never queried against APPS schema.
+        </p>
+    </div>
+
+    <!-- ── Section 3: What We Never Do ── -->
+    <div class="section" id="never">
+        <div class="section-label"><span>03</span> What We Never Do</div>
+        <h2>Hard boundaries</h2>
+        <p class="section-intro">These are not policies subject to internal override — they are architectural constraints enforced by the read-only Oracle user and proxy design.</p>
+
+        <div class="never-grid">
+            <div class="never-item">
+                <div class="never-icon">✗</div>
+                <div class="never-text">
+                    <strong>No DML on user schemas</strong>
+                    <span>No INSERT, UPDATE, DELETE, or MERGE against any user table. The connecting Oracle user has no DML privilege.</span>
+                </div>
+            </div>
+            <div class="never-item">
+                <div class="never-icon">✗</div>
+                <div class="never-text">
+                    <strong>No DDL anywhere</strong>
+                    <span>No CREATE, ALTER, DROP, or TRUNCATE. The health check user cannot create objects.</span>
+                </div>
+            </div>
+            <div class="never-item">
+                <div class="never-icon">✗</div>
+                <div class="never-text">
+                    <strong>No SYS or SYSTEM password</strong>
+                    <span>TuneVault creates a dedicated read-only user. We never ask for or store SYSDBA credentials.</span>
+                </div>
+            </div>
+            <div class="never-item">
+                <div class="never-icon">✗</div>
+                <div class="never-text">
+                    <strong>No business data exfiltration</strong>
+                    <span>We read metadata and system views only. We never query tables in user schemas, application tables, or any table with customer data.</span>
+                </div>
+            </div>
+            <div class="never-item">
+                <div class="never-icon">✗</div>
+                <div class="never-text">
+                    <strong>No AI-generated SQL execution</strong>
+                    <span>AI analysis is read-only advisory only. Recommendations displayed to the user are never automatically executed against the database.</span>
+                </div>
+            </div>
+            <div class="never-item">
+                <div class="never-icon">✗</div>
+                <div class="never-text">
+                    <strong>No inbound connections</strong>
+                    <span>TuneVault never initiates a connection to your network. The proxy calls out; we listen. No inbound firewall rules required.</span>
+                </div>
+            </div>
+            <div class="never-item">
+                <div class="never-icon">✗</div>
+                <div class="never-text">
+                    <strong>No bind variable values in AI prompts</strong>
+                    <span>SQL text sent to GPT-4o-mini for analysis has bind variable values stripped before transmission.</span>
+                </div>
+            </div>
+            <div class="never-item">
+                <div class="never-icon">✗</div>
+                <div class="never-text">
+                    <strong>No arbitrary OS command execution</strong>
+                    <span>EBS shell commands use an exact-match whitelist baked into the proxy. Shell injection is not possible — the whitelist is code, not config.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Section 4: Oracle Grants ── -->
+    <div class="section" id="grants">
+        <div class="section-label"><span>04</span> Required Oracle Privileges</div>
+        <h2>Minimum grants — verified against code</h2>
+        <p class="section-intro">Two system privileges cover the core data dictionary and V$ views. One explicit view grant covers the alert log. EBS environments require additional APPS schema grants. All grants are read-only SELECT — no DML, no DDL.</p>
+
+        <div class="grants-block">
+            <div class="grants-header">
+                oracle-setup.sql
+                <span>copy-paste safe</span>
+            </div>
+            <div class="grants-code"><span class="sql-comment">-- Step 1: Create a dedicated read-only user</span>
+<span class="sql-keyword">CREATE USER</span> <span class="sql-obj">tunevault_ro</span> <span class="sql-keyword">IDENTIFIED BY</span> <span class="sql-obj">&lt;strong_password&gt;</span>;
+<span class="sql-keyword">GRANT</span> <span class="sql-obj">CREATE SESSION</span> <span class="sql-keyword">TO</span> <span class="sql-to">tunevault_ro</span>;
+<span class="sql-comment">-- Allows the user to connect. Required for all subsequent privileges.</span>
+
+<span class="sql-comment">-- Step 2: DBA_ data dictionary views (tablespaces, segments, indexes, users, etc.)</span>
+<span class="sql-keyword">GRANT</span> <span class="sql-obj">SELECT ANY DICTIONARY</span> <span class="sql-keyword">TO</span> <span class="sql-to">tunevault_ro</span>;
+<span class="sql-comment">-- Covers DBA_TABLESPACES, DBA_SEGMENTS, DBA_INDEXES, DBA_USERS, DBA_DATA_FILES,</span>
+<span class="sql-comment">-- DBA_TABLES, DBA_OBJECTS, DBA_PROFILES, DBA_SYS_PRIVS, DBA_HIST_* and more.</span>
+
+<span class="sql-comment">-- Step 3: V$ dynamic performance views (sessions, SQL, SGA, wait events, RMAN)</span>
+<span class="sql-keyword">GRANT</span> <span class="sql-obj">SELECT_CATALOG_ROLE</span> <span class="sql-keyword">TO</span> <span class="sql-to">tunevault_ro</span>;
+<span class="sql-comment">-- Covers V$SESSION, V$SQL, V$SYSSTAT, V$SYSTEM_EVENT, V$SGA, V$RMAN_BACKUP_JOB_DETAILS,</span>
+<span class="sql-comment">-- V$PARAMETER, V$INSTANCE, V$DATABASE, V$LOG, V$UNDOSTAT, V$PGASTAT and more.</span>
+
+<span class="sql-comment">-- Step 4: Alert log access (NOT covered by SELECT_CATALOG_ROLE — explicit grant required)</span>
+<span class="sql-keyword">GRANT</span> <span class="sql-obj">SELECT</span> <span class="sql-keyword">ON</span> <span class="sql-obj">V_$DIAG_ALERT_EXT</span> <span class="sql-keyword">TO</span> <span class="sql-to">tunevault_ro</span>;
+<span class="sql-comment">-- Without this, alert log checks show "insufficient privileges" instead of real log data.</span>
+
+<span class="sql-comment">-- Step 5: EBS APPS schema views (skip entirely for non-EBS Oracle databases)</span>
+<span class="sql-keyword">GRANT</span> <span class="sql-obj">SELECT</span> <span class="sql-keyword">ON</span> <span class="sql-obj">APPS.FND_CONCURRENT_QUEUES</span> <span class="sql-keyword">TO</span> <span class="sql-to">tunevault_ro</span>;
+<span class="sql-keyword">GRANT</span> <span class="sql-obj">SELECT</span> <span class="sql-keyword">ON</span> <span class="sql-obj">APPS.FND_CONCURRENT_QUEUES_VL</span> <span class="sql-keyword">TO</span> <span class="sql-to">tunevault_ro</span>;
+<span class="sql-keyword">GRANT</span> <span class="sql-obj">SELECT</span> <span class="sql-keyword">ON</span> <span class="sql-obj">APPS.FND_SVC_COMPONENTS</span> <span class="sql-keyword">TO</span> <span class="sql-to">tunevault_ro</span>;
+<span class="sql-keyword">GRANT</span> <span class="sql-obj">SELECT</span> <span class="sql-keyword">ON</span> <span class="sql-obj">APPS.FND_CONCURRENT_REQUESTS</span> <span class="sql-keyword">TO</span> <span class="sql-to">tunevault_ro</span>;
+<span class="sql-keyword">GRANT</span> <span class="sql-obj">SELECT</span> <span class="sql-keyword">ON</span> <span class="sql-obj">APPS.WF_NOTIFICATIONS</span> <span class="sql-keyword">TO</span> <span class="sql-to">tunevault_ro</span>;
+<span class="sql-keyword">GRANT</span> <span class="sql-obj">SELECT</span> <span class="sql-keyword">ON</span> <span class="sql-obj">APPS.WF_ERROR</span> <span class="sql-keyword">TO</span> <span class="sql-to">tunevault_ro</span>;
+<span class="sql-keyword">GRANT</span> <span class="sql-obj">SELECT</span> <span class="sql-keyword">ON</span> <span class="sql-obj">APPS.FND_OAM_METVAL</span> <span class="sql-keyword">TO</span> <span class="sql-to">tunevault_ro</span>;
+<span class="sql-comment">-- Covers Concurrent Manager queues, request status, WF notifications, and service components.</span></div>
+        </div>
+
+        <p style="margin-top:16px;font-size:13px;color:var(--text-dim);">
+            Full setup walkthrough: <a href="/docs/oracle-setup" style="color:var(--blue);text-decoration:none;">oracle-setup guide →</a> &nbsp;·&nbsp;
+            Complete SQL query list: <a href="/security/commands" style="color:var(--blue);text-decoration:none;">security/commands →</a>
+        </p>
+    </div>
+
+    <!-- ── Section 5: Data Handling ── -->
+    <div class="section" id="data-handling">
+        <div class="section-label"><span>05</span> Data Handling</div>
+        <h2>Where your data goes and how long it stays</h2>
+        <p class="section-intro">TuneVault processes Oracle system metrics — not your business data. Here's the full picture.</p>
+
+        <div class="data-cards">
+            <div class="data-card">
+                <div class="data-card-label">Transit encryption</div>
+                <div class="data-card-value">TLS 1.3</div>
+                <div class="data-card-desc">All data between proxy and TuneVault API is encrypted in transit via edge-terminated TLS 1.3.</div>
+            </div>
+            <div class="data-card">
+                <div class="data-card-label">At-rest encryption</div>
+                <div class="data-card-value">AES-256</div>
+                <div class="data-card-desc">Health check results stored in managed Postgres (AES-256 at rest). Connection credentials encrypted AES-256-GCM before storage.</div>
+            </div>
+            <div class="data-card">
+                <div class="data-card-label">Raw result retention</div>
+                <div class="data-card-value">90 days</div>
+                <div class="data-card-desc">Raw health check results are retained for 90 days for trend analysis. After 90 days, only aggregated summary data is kept.</div>
+            </div>
+            <div class="data-card">
+                <div class="data-card-label">Data deletion</div>
+                <div class="data-card-value">On request</div>
+                <div class="data-card-desc">Deleting a connection via the dashboard or <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">DELETE /api/connections/:id</code> purges all associated health check results and credentials.</div>
+            </div>
+            <div class="data-card">
+                <div class="data-card-label">AI data handling</div>
+                <div class="data-card-value">Redacted</div>
+                <div class="data-card-desc">SQL text sent to GPT-4o-mini has bind variable values stripped before transmission. Data is processed via our managed AI proxy — not used for model training.</div>
+            </div>
+            <div class="data-card">
+                <div class="data-card-label">Third-party sharing</div>
+                <div class="data-card-value">None</div>
+                <div class="data-card-desc">Your Oracle metrics are not sold or shared with third parties. OpenAI receives anonymized, redacted SQL text for analysis only.</div>
+            </div>
+        </div>
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 20px;font-size:13px;color:var(--text-dim);">
+            <strong style="color:var(--text);">What we collect:</strong> Oracle system metrics (tablespace usage, wait events, SQL statistics, session counts, backup status). System view metadata only.<br><br>
+            <strong style="color:var(--text);">What we never collect:</strong> Application table rows, business data, personally identifiable information from your Oracle database, Oracle user passwords, or SYS-level credentials.
+        </div>
+    </div>
+
+    <!-- ── Section 6: Lockdown Script ── -->
+    <div class="section" id="lockdown">
+        <div class="section-label"><span>06</span> Customer-Run Lockdown Script</div>
+        <h2>Your InfoSec team controls the proxy</h2>
+        <p class="section-intro">Before installing the proxy agent, your team runs this script. It locks down the proxy to outbound-only HTTPS connections and creates a restricted OS user with no login shell.</p>
+
+        <div class="lockdown-card">
+            <div class="lockdown-header">
+                <div class="lockdown-icon">🔒</div>
+                <div>
+                    <h3>tunevault-lockdown.sh — Enterprise Hardening Script v2</h3>
+                    <p>Run as root on your Oracle application / proxy host. Idempotent — safe to re-run. Tested on OEL 7/8/9, RHEL 7/8/9, Ubuntu 20.04/22.04.</p>
+                </div>
+            </div>
+
+            <div class="lockdown-steps">
+                <div class="lockdown-step"><div class="step-num">1</div> Creates restricted <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">tunevault</code> OS user (<code style="font-family:'JetBrains Mono',monospace;font-size:11px;">/sbin/nologin</code>)</div>
+                <div class="lockdown-step"><div class="step-num">2</div> Sets <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">/opt/tunevault</code> directory to mode 750</div>
+                <div class="lockdown-step"><div class="step-num">3</div> Installs SELinux module or AppArmor profile</div>
+                <div class="lockdown-step"><div class="step-num">4</div> Applies iptables uid-scoped outbound 443-only rules</div>
+                <div class="lockdown-step"><div class="step-num">5</div> Writes EBS-only sudoers whitelist (status commands only)</div>
+                <div class="lockdown-step"><div class="step-num">6</div> Configures logrotate: weekly, 52-week retention</div>
+            </div>
+
+            <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:14px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-dim);margin-bottom:20px;overflow-x:auto;">
+                <span style="color:var(--text-muted)"># Run as root on your Oracle / proxy host</span><br>
+                <span style="color:var(--green)">$</span> curl -o tunevault-lockdown.sh https://tunevault.app/security/lockdown.sh<br>
+                <span style="color:var(--green)">$</span> chmod +x tunevault-lockdown.sh<br>
+                <span style="color:var(--green)">$</span> sudo ./tunevault-lockdown.sh
+            </div>
+
+            <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+                <a href="/security/lockdown-bundle.tar.gz" class="download-btn">⬇ Download Lockdown Bundle (.tar.gz)</a>
+                <a href="/security/lockdown.sh" class="btn-secondary" style="font-size:14px;">Download tunevault-lockdown.sh only</a>
+            </div>
+            <p class="download-hint">Bundle includes: tunevault-lockdown.sh + README.md (SOC2/ISO/NIST mapping) + whitelist.json (SHA-256 hashes)</p>
+        </div>
+    </div>
+
+    <!-- ── Section 7: Incident & Disclosure ── -->
+    <div class="section" id="incident">
+        <div class="section-label"><span>07</span> Incident &amp; Disclosure</div>
+        <h2>How we handle security issues</h2>
+        <p class="section-intro">We take security disclosures seriously and respond quickly. If you find something, tell us.</p>
+
+        <div class="incident-card">
+            <div class="incident-item">
+                <label>Security contact</label>
+                <a href="mailto:security@tunevault.app">security@tunevault.app</a>
+            </div>
+            <div class="incident-item">
+                <label>Disclosure SLA</label>
+                <span>72-hour response, 30-day coordinated disclosure window</span>
+            </div>
+            <div class="incident-item">
+                <label>Operational status</label>
+                <span>Email <a href="mailto:security@tunevault.app" style="color:var(--blue);text-decoration:none;">security@tunevault.app</a> for current status</span>
+            </div>
+            <div class="incident-item">
+                <label>PGP key</label>
+                <span>Available on request via security@tunevault.app</span>
+            </div>
+        </div>
+
+        <div style="margin-top:16px;padding:16px 20px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:13px;color:var(--text-dim);">
+            For confirmed security incidents, we will: (1) acknowledge within 72 hours, (2) assess severity within 5 business days, (3) notify affected customers before public disclosure, (4) publish a post-mortem with root cause and remediation within 30 days of fix.
+        </div>
+    </div>
+
+    <!-- ── Section 8: Compliance Posture ── -->
+    <div class="section" id="compliance">
+        <div class="section-label"><span>08</span> Compliance Posture</div>
+        <h2>Honest about where we are</h2>
+        <p class="section-intro">We're an early-stage company. We'll tell you exactly where we stand — not what sounds good on a sales call.</p>
+
+        <div class="compliance-grid">
+            <div class="compliance-card">
+                <div class="compliance-status status-in-progress">⧖ In Progress</div>
+                <h4>SOC 2 Type II</h4>
+                <p>Audit in progress. We use Vanta for continuous control monitoring. Target completion: Q4 2026. Contact us for the current readiness report.</p>
+            </div>
+            <div class="compliance-card">
+                <div class="compliance-status status-ready">✓ Ready</div>
+                <h4>GDPR</h4>
+                <p>Data subject deletion endpoint live (<code style="font-family:'JetBrains Mono',monospace;font-size:11px;">DELETE /api/connections/:id</code>). All data processed and stored in the US. DPA available on request.</p>
+            </div>
+            <div class="compliance-card">
+                <div class="compliance-status status-out-of-scope">— Out of Scope</div>
+                <h4>HIPAA</h4>
+                <p>TuneVault reads Oracle system metadata, not application data. We do not process Protected Health Information (PHI) and are out of scope for HIPAA.</p>
+            </div>
+            <div class="compliance-card">
+                <div class="compliance-status status-in-progress">⧖ Planned</div>
+                <h4>ISO 27001</h4>
+                <p>Controls aligned to ISO 27001 A.9 (access control), A.12 (operations security), A.13 (communications security). Formal certification planned after SOC 2 completion.</p>
+            </div>
+            <div class="compliance-card">
+                <div class="compliance-status status-ready">✓ Ready</div>
+                <h4>Penetration Testing</h4>
+                <p>Annual third-party pen test. Most recent report available under NDA to enterprise prospects. Contact security@tunevault.app to request.</p>
+            </div>
+            <div class="compliance-card">
+                <div class="compliance-status status-ready">✓ Enforced</div>
+                <h4>Least-Privilege Design</h4>
+                <p>The Oracle connecting user holds <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">SELECT ANY DICTIONARY</code> (DBA_ views) and <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">SELECT_CATALOG_ROLE</code> (V$ views), plus an explicit grant on <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">V_$DIAG_ALERT_EXT</code> for alert log access. EBS environments require additional APPS schema grants. No DML, no DDL, no SYS privileges.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 09: ROI Methodology -->
+    <div class="section" id="methodology">
+        <div class="section-label"><span>09</span> ROI Calculator Methodology</div>
+        <h2>How We Calculate DBA Hours Saved</h2>
+        <p class="section-intro">The ROI calculator on our <a href="/pricing" style="color:var(--accent);text-decoration:none;">pricing page</a> uses three published benchmarks and one internal estimate. Here's exactly what they are, where they come from, and what assumptions we made.</p>
+
+        <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:28px;">
+            <thead>
+                <tr style="border-bottom:1px solid var(--border);">
+                    <th style="text-align:left;padding:10px 12px;font-size:11px;font-weight:600;color:var(--text-dim);letter-spacing:0.5px;text-transform:uppercase;font-family:'JetBrains Mono',monospace;">Input</th>
+                    <th style="text-align:left;padding:10px 12px;font-size:11px;font-weight:600;color:var(--text-dim);letter-spacing:0.5px;text-transform:uppercase;font-family:'JetBrains Mono',monospace;">Formula</th>
+                    <th style="text-align:left;padding:10px 12px;font-size:11px;font-weight:600;color:var(--text-dim);letter-spacing:0.5px;text-transform:uppercase;font-family:'JetBrains Mono',monospace;">Source</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="border-bottom:1px solid rgba(42,42,48,0.5);">
+                    <td style="padding:12px;color:var(--text);font-weight:500;">Incident resolution time</td>
+                    <td style="padding:12px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:12px;">2.5 hrs per page</td>
+                    <td style="padding:12px;color:var(--text-dim);">Gartner "Mean Time to Restore" benchmark for unplanned Oracle outages (includes triage, diagnosis, and remediation). Represents the median DBA-hours consumed per production incident.</td>
+                </tr>
+                <tr style="border-bottom:1px solid rgba(42,42,48,0.5);">
+                    <td style="padding:12px;color:var(--text);font-weight:500;">Automation factor</td>
+                    <td style="padding:12px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:12px;">0.7 (70% reduction)</td>
+                    <td style="padding:12px;color:var(--text-dim);">Internal estimate based on TuneVault feature coverage: the Patch Advisor covers ~30% of CVE-related incidents; Control tab v2 covers ~25% of Concurrent Manager + Workflow incidents; autonomous monitoring catches ~15% of storage/backup issues before they page. Aggregate coverage: ~70% of the incident categories we observe. We apply this to pages, not hours — a 70% reduction in pages fired, not a 70% reduction in resolution time per page. Conservative by design.</td>
+                </tr>
+                <tr style="border-bottom:1px solid rgba(42,42,48,0.5);">
+                    <td style="padding:12px;color:var(--text);font-weight:500;">Routine monitoring per DB</td>
+                    <td style="padding:12px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:12px;">4 hrs/month per DB</td>
+                    <td style="padding:12px;color:var(--text-dim);">Based on the IDUG 2024 DBA Workload Survey (International DB2 Users Group — the closest published survey covering Oracle DBA time allocation). Respondents reported 3–6 hours per database per month on routine checks: space monitoring, backup verification, index maintenance review, and performance baseline review. We use 4 hours as the midpoint.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:20px;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:10px;">Full Formula</div>
+            <code style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--accent);display:block;line-height:1.8;">
+                hours_saved = (pages × 2.5 × 0.7) + (dbs × 4)<br>
+                monthly_saved = hours_saved × hourly_rate<br>
+                payback_days = plan_price ÷ (monthly_saved ÷ 30)
+            </code>
+        </div>
+
+        <p style="font-size:13px;color:var(--text-dim);line-height:1.7;margin-bottom:12px;">
+            <strong style="color:var(--text);">What this model does not account for:</strong> costs of post-incident root cause analysis, impact of delayed detection on user SLAs, or reputational cost of unplanned downtime. Including these would increase the modeled savings significantly. We excluded them to keep the estimate conservative and defensible.
+        </p>
+        <p style="font-size:13px;color:var(--text-dim);line-height:1.7;">
+            The default slider values (4 databases, $150/hr, 8 pages/month) reflect a mid-market Oracle DBA profile in the US. Adjust them to match your environment — the math updates live. Questions? <a href="mailto:hello@tunevault.app" style="color:var(--accent);text-decoration:none;">hello@tunevault.app</a>
+        </p>
+    </div>
+
+</div>
+
+<!-- ── Footer ── -->
+<footer>
+    <div>
+        <a href="/" style="color:inherit;text-decoration:none;">TuneVault</a> &nbsp;·&nbsp; Oracle Database Intelligence
+    </div>
+    <div class="footer-links">
+        <a href="/about">About</a>
+        <a href="/security">Security</a>
+        <a href="/trust">Trust Center</a>
+        <a href="/security/commands">Command Whitelist</a>
+        <a href="/blog">Blog</a>
+        <a href="/docs/oracle-setup">Docs</a>
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/terms">Terms</a>
+        <a href="mailto:security@tunevault.app">security@tunevault.app</a>
+    </div>
+</footer>
+
+<script src="/nav-component.js"></script>
+<script>
+window.tvNav.init('main');
+</script>
+
+<script src="/tv-tracker.js"></script>
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "TuneVault",
+      "applicationCategory": "BusinessApplication",
+      "applicationSubCategory": "Database Management",
+      "operatingSystem": "Web",
+      "url": "https://tunevault.app",
+      "keywords": "Oracle DBA, Oracle EBS, database monitoring, Oracle health check, EBS operations, RAC monitoring, ASM monitoring, Oracle diagnostics",
+      "description": "Oracle Operational Intelligence Platform — encoded DBA heuristics, diagnostics, and operational control for Oracle Database, RAC, ASM, and E-Business Suite (EBS). NOT a music, audio, or media application.",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD",
+        "description": "Free demo + 1 free health check per company"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "TuneVault",
+        "url": "https://tunevault.app",
+        "description": "Oracle Operational Intelligence Platform",
+        "knowsAbout": ["Oracle Database", "Oracle E-Business Suite", "Oracle RAC", "Oracle ASM", "Database Performance Tuning", "DBA Operations"]
+      }
+    }
+    </script>
+<!-- TuneBot intentionally excluded from trust page — keep focus on security review -->
+</body>
+</html>

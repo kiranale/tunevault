@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Page Not Found — TuneVault</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0a0a0c;
+  --surface: #111114;
+  --border: rgba(255,255,255,0.06);
+  --text: #e8e8ed;
+  --text-dim: #b8b8c8;
+  --accent: #f0a830;
+}
+body {
+  overflow-x: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.container {
+  text-align: center;
+  max-width: 480px;
+}
+.error-code {
+  font-size: 96px;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1;
+  opacity: 0.8;
+  margin-bottom: 16px;
+  letter-spacing: -4px;
+}
+.error-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--text);
+}
+.error-desc {
+  font-size: 15px;
+  color: var(--text-dim);
+  line-height: 1.6;
+  margin-bottom: 32px;
+}
+.btn-group {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.btn {
+  display: inline-block;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.btn:hover { opacity: 0.85; }
+.btn-primary {
+  background: var(--accent);
+  color: #0a0a0c;
+}
+.btn-secondary {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.logo {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: -0.5px;
+  text-decoration: none;
+  display: block;
+  margin-bottom: 40px;
+}
+.helpful-links {
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.helpful-links a {
+  font-size: 13px;
+  color: var(--text-dim);
+  text-decoration: none;
+}
+.helpful-links a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+<nav id="nav-root"></nav>
+<div class="container">
+  <a href="/" class="logo">TuneVault</a>
+  <div class="error-code">404</div>
+  <div class="error-title">Page not found</div>
+  <div class="error-desc">
+    The page you're looking for doesn't exist or has been moved.
+    Check the URL or navigate back to a page you know.
+  </div>
+  <div class="btn-group">
+    <a href="/dashboard" class="btn btn-primary">Go to Dashboard</a>
+    <button onclick="history.back()" class="btn btn-secondary" style="cursor:pointer;font-family:inherit;">← Go Back</button>
+  </div>
+  <div class="helpful-links">
+    <a href="/">Home</a>
+    <a href="/docs/oracle-setup">Setup Guide</a>
+    <a href="/fleet">Fleet Overview</a>
+    <a href="/sql-tuning">SQL Tuning</a>
+    <a href="mailto:support@tunevault.app">support@tunevault.app</a>
+  </div>
+</div>
+<script src="/nav-component.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  window.tvNav.init('dashboard');
+});
+</script>
+</body>
+</html>

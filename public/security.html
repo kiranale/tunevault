@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TuneVault Security — Enterprise Trust & Architecture Review</title>
+    <meta name="description" content="TuneVault security review: architecture diagram, live command whitelist, audit log schema, and lockdown bundle. Everything your CISO needs for Oracle DBA tool procurement. Download now.">
+    <meta property="og:title" content="TuneVault Security — Architecture, Commands, Audit Log &amp; Lockdown Bundle">
+    <meta property="og:description" content="Architecture diagram, live command whitelist, audit log schema, data handling policy, and lockdown bundle. One URL for your CISO procurement review.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://tunevault.app/security">
+    <meta property="og:image" content="https://tunevault.app/og/security.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="TuneVault security and trust — command whitelist and audit trail">
+    <meta property="og:site_name" content="TuneVault">
+    <meta name="keywords" content="Oracle DBA security, Oracle monitoring tool security, enterprise Oracle tool CISO review, Oracle database agent trust, AES-256 Oracle credentials, read-only Oracle health check">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="TuneVault Security — Architecture, Commands, Audit Log &amp; Lockdown Bundle">
+    <meta name="twitter:description" content="Architecture diagram, live command whitelist, audit log schema, and lockdown bundle. Everything your CISO needs for Oracle DBA tool procurement.">
+    <meta name="twitter:image" content="https://tunevault.app/og/security.png">
+    <meta name="application-name" content="TuneVault">
+    <link rel="canonical" href="https://tunevault.app/security">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://tunevault.app/#organization","name":"TuneVault","alternateName":"TuneVault.app","url":"https://tunevault.app","logo":{"@type":"ImageObject","url":"https://tunevault.app/logo.png","width":512,"height":512},"description":"AI agent that autonomously manages Oracle database operations.","foundingDate":"2026","sameAs":["https://www.linkedin.com/in/kirankumarale/","https://linuxappsdba.blogspot.com"]},{"@type":"WebSite","@id":"https://tunevault.app/#website","name":"TuneVault","alternateName":["TuneVault.app"],"url":"https://tunevault.app","publisher":{"@id":"https://tunevault.app/#organization"}}]}</script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0c;
+            --surface: #111114;
+            --surface-2: #1a1a1f;
+            --surface-3: #222228;
+            --border: #2a2a30;
+            --border-hover: #3a3a44;
+            --text: #e8e8ed;
+            --text-dim: #b8b8c8;
+            --text-muted: #9898a8;
+            --accent: #f0a830;
+            --accent-dim: rgba(240, 168, 48, 0.1);
+            --accent-border: rgba(240, 168, 48, 0.25);
+            --green: #34d399;
+            --green-dim: rgba(52, 211, 153, 0.1);
+            --green-border: rgba(52, 211, 153, 0.2);
+            --red: #f87171;
+            --red-dim: rgba(248, 113, 113, 0.1);
+            --blue: #60a5fa;
+            --blue-dim: rgba(96, 165, 250, 0.1);
+            --purple: #a78bfa;
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* ── Nav ── */
+        nav { position: sticky; top: 0; z-index: 9999; background: rgba(10,10,12,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+
+        /* ── Hero ── */
+        .hero {
+            background: linear-gradient(180deg, #0d0d12 0%, #0a0a0c 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 80px 24px 64px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse 70% 50% at 50% 0%, rgba(240,168,48,0.07) 0%, transparent 65%);
+            pointer-events: none;
+        }
+        .hero-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--accent);
+            background: var(--accent-dim);
+            border: 1px solid var(--accent-border);
+            padding: 5px 12px;
+            border-radius: 20px;
+            margin-bottom: 28px;
+        }
+        .hero-eyebrow::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+        .hero h1 {
+            font-size: clamp(34px, 5vw, 58px);
+            font-weight: 700;
+            letter-spacing: -2px;
+            line-height: 1.08;
+            margin-bottom: 22px;
+            max-width: 760px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .hero h1 em { font-style: normal; color: var(--accent); }
+        .hero-sub {
+            font-size: 17px;
+            color: var(--text-dim);
+            max-width: 600px;
+            margin: 0 auto 40px;
+            line-height: 1.7;
+        }
+
+        .share-bar {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 16px;
+            margin-bottom: 36px;
+            font-size: 13px;
+        }
+        .share-bar .share-label { color: var(--text-muted); font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+        .share-bar .share-url { color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+        .share-bar .copy-btn {
+            background: var(--accent);
+            color: #0a0a0c;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: 'Space Grotesk', sans-serif;
+            transition: all 0.2s;
+        }
+        .share-bar .copy-btn:hover { background: #f8b840; }
+
+        .hero-guarantees {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 28px;
+            flex-wrap: wrap;
+        }
+        .guarantee-item {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        .guarantee-item .g-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+
+        /* ── Section layout ── */
+        .section-wrap {
+            border-bottom: 1px solid var(--border);
+            padding: 64px 24px;
+        }
+        .section-inner {
+            max-width: 960px;
+            margin: 0 auto;
+        }
+        .section-eyebrow {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 12px;
+        }
+        .section-title { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 10px; }
+        .section-desc { font-size: 15px; color: var(--text-dim); max-width: 600px; margin-bottom: 40px; line-height: 1.65; }
+
+        /* ── Architecture diagram ── */
+        .arch-diagram {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 40px 32px;
+            margin-bottom: 32px;
+            overflow-x: auto;
+        }
+        .arch-svg-wrap {
+            min-width: 600px;
+            display: flex;
+            justify-content: center;
+        }
+        .arch-key-points {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 14px;
+            margin-top: 28px;
+        }
+        .key-point {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--green);
+            border-radius: 8px;
+            padding: 16px 18px;
+        }
+        .key-point.accent-left { border-left-color: var(--accent); }
+        .key-point.red-left { border-left-color: var(--red); }
+        .key-point .kp-icon { font-size: 18px; margin-bottom: 8px; }
+        .key-point .kp-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+        .key-point .kp-body { font-size: 12px; color: var(--text-dim); line-height: 1.55; }
+
+        /* ── Whitelist table ── */
+        .whitelist-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .cmd-count-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--accent-dim);
+            border: 1px solid var(--accent-border);
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--accent);
+        }
+        .cmd-count-badge .cmd-count-num { font-size: 16px; font-weight: 700; }
+        .cmd-table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+        .cmd-table { width: 100%; border-collapse: collapse; }
+        .cmd-table th {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            padding: 11px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface-2);
+            white-space: nowrap;
+        }
+        .cmd-table tr:hover td { background: rgba(255,255,255,0.015); }
+        .cmd-table td {
+            padding: 13px 16px;
+            border-bottom: 1px solid rgba(42,42,48,0.6);
+            vertical-align: top;
+            font-size: 13px;
+        }
+        .cmd-table tr:last-child td { border-bottom: none; }
+        .cmd-table td code { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent); background: var(--accent-dim); padding: 2px 6px; border-radius: 3px; }
+        .cmd-table .col-slug { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); }
+        .cmd-table .col-category { white-space: nowrap; }
+        .cmd-table .col-dry { text-align: center; }
+        .badge-cat {
+            display: inline-block;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-weight: 600;
+        }
+        .badge-cat.cm { color: var(--blue); background: var(--blue-dim); border: 1px solid rgba(96,165,250,0.2); }
+        .badge-cat.wf { color: var(--purple); background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.2); }
+        .badge-cat.wls { color: var(--green); background: var(--green-dim); border: 1px solid var(--green-border); }
+        .badge-cat.opp { color: var(--accent); background: var(--accent-dim); border: 1px solid var(--accent-border); }
+        .badge-cat.db { color: var(--text-dim); background: var(--surface-3); border: 1px solid var(--border); }
+        .badge-risk { font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 2px 8px; border-radius: 3px; white-space: nowrap; }
+        .badge-risk.low { color: var(--green); background: var(--green-dim); border: 1px solid var(--green-border); }
+        .badge-risk.medium { color: var(--accent); background: var(--accent-dim); border: 1px solid var(--accent-border); }
+        .badge-yn { font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+        .badge-yn.yes { color: var(--green); }
+        .badge-yn.no { color: var(--text-muted); }
+
+        .loading-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+            font-size: 13px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .loading-state .l-dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent);
+            margin: 0 3px;
+            animation: pulse 1.2s ease-in-out infinite;
+        }
+        .loading-state .l-dot:nth-child(2) { animation-delay: 0.2s; }
+        .loading-state .l-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes pulse { 0%,100% { opacity: 0.3; } 50% { opacity: 1; } }
+
+        .hardwall-note {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-top: 3px solid var(--green);
+            border-radius: 8px;
+            padding: 18px 20px;
+            margin-top: 20px;
+            font-size: 13px;
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+        .hardwall-note strong { color: var(--text); }
+        .hardwall-note code { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--green); background: var(--green-dim); padding: 1px 5px; border-radius: 3px; }
+
+        /* ── Audit log schema ── */
+        .schema-wrap { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 24px; }
+        .schema-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; background: var(--surface-3); }
+        .schema-header .sh-title { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--accent); font-weight: 600; }
+        .schema-header .sh-sub { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); }
+        .schema-body { padding: 20px; }
+        .schema-ddl { font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.8; color: var(--text); overflow-x: auto; }
+        .schema-ddl .kw { color: var(--blue); font-weight: 600; }
+        .schema-ddl .type { color: var(--accent); }
+        .schema-ddl .comment { color: var(--text-muted); }
+        .schema-ddl .tname { color: var(--green); font-weight: 600; }
+
+        .sample-row-wrap { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 24px; }
+        .sample-row-header { padding: 14px 20px; border-bottom: 1px solid var(--border); background: var(--surface-3); font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+        .sample-row-body { padding: 20px; }
+        .field-list { display: flex; flex-direction: column; gap: 8px; }
+        .field-row { display: grid; grid-template-columns: 180px 1fr; gap: 16px; align-items: baseline; }
+        .field-key { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--accent); }
+        .field-val { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); }
+        .field-val .str { color: var(--green); }
+        .field-val .num { color: var(--blue); }
+        .field-val .bool { color: var(--purple); }
+        .field-val .nil { color: var(--text-muted); }
+
+        .audit-guarantees { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 20px; }
+        .audit-g { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+        .audit-g .ag-icon { font-size: 18px; margin-bottom: 8px; }
+        .audit-g .ag-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+        .audit-g .ag-body { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+
+        /* ── Data handling ── */
+        .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .data-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+        .data-card-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+        .data-card-header .dc-icon { font-size: 18px; }
+        .data-card-header .dc-title { font-size: 14px; font-weight: 700; }
+        .data-card-header .dc-badge { margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 3px 8px; border-radius: 3px; font-weight: 700; }
+        .dc-badge.yes-badge { color: var(--green); background: var(--green-dim); border: 1px solid var(--green-border); }
+        .dc-badge.never-badge { color: var(--red); background: var(--red-dim); border: 1px solid rgba(248,113,113,0.2); }
+        .data-card-body { padding: 18px; }
+        .data-item { display: flex; align-items: flex-start; gap: 10px; padding: 7px 0; border-bottom: 1px solid rgba(42,42,48,0.5); font-size: 13px; color: var(--text-dim); }
+        .data-item:last-child { border-bottom: none; }
+        .data-item .di-icon { flex-shrink: 0; font-size: 13px; margin-top: 1px; }
+
+        .retention-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 24px; }
+        .retention-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+        .retention-card .rc-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+        .retention-card .rc-value { font-size: 20px; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+        .retention-card .rc-desc { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+
+        /* ── Download bundle ── */
+        .bundle-hero {
+            background: linear-gradient(135deg, rgba(240,168,48,0.1) 0%, rgba(240,168,48,0.03) 100%);
+            border: 1px solid rgba(240,168,48,0.3);
+            border-radius: 12px;
+            padding: 36px 32px;
+            display: flex;
+            align-items: flex-start;
+            gap: 24px;
+            margin-bottom: 28px;
+        }
+        .bundle-hero .bh-icon { font-size: 40px; flex-shrink: 0; }
+        .bundle-hero .bh-content { flex: 1; }
+        .bundle-hero .bh-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+        .bundle-hero .bh-desc { font-size: 14px; color: var(--text-dim); line-height: 1.65; margin-bottom: 20px; }
+        .bundle-hero .bh-files { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
+        .bundle-file {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+        .bundle-file code { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--accent); background: var(--accent-dim); padding: 2px 8px; border-radius: 3px; }
+        .btn-download {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 28px;
+            background: var(--accent);
+            color: #0a0a0c;
+            font-weight: 700;
+            font-size: 15px;
+            border-radius: 7px;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .btn-download:hover { background: #f8b840; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(240,168,48,0.35); }
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            background: transparent;
+            color: var(--text);
+            font-size: 14px;
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+        .bundle-actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+
+        .script-feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 24px; }
+        .script-feature {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .script-feature .sf-num { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--accent); margin-bottom: 8px; }
+        .script-feature .sf-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+        .script-feature .sf-body { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+
+        /* ── CTA bottom ── */
+        .cta-section {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 56px 24px;
+            text-align: center;
+        }
+        .cta-inner { max-width: 640px; margin: 0 auto; }
+        .cta-section h2 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 12px; }
+        .cta-section p { font-size: 15px; color: var(--text-dim); margin-bottom: 28px; line-height: 1.65; }
+        .cta-url-box {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--surface-2);
+            border: 1px solid var(--accent-border);
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            color: var(--accent);
+            margin-bottom: 24px;
+        }
+        .cta-links { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+        /* ── Footer ── */
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 960px;
+            margin: 0 auto;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        footer a { color: var(--text-muted); text-decoration: none; transition: color 0.2s; }
+        footer a:hover { color: var(--accent); }
+        .footer-links { display: flex; gap: 20px; align-items: center; }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            .data-grid { grid-template-columns: 1fr; }
+            .bundle-hero { flex-direction: column; }
+            .hero h1 { letter-spacing: -1px; }
+            .share-bar { flex-direction: column; gap: 6px; text-align: center; }
+        }
+        @media (max-width: 480px) {
+            .field-row { grid-template-columns: 1fr; gap: 2px; }
+            .arch-svg-wrap { min-width: 440px; }
+        }
+    </style>
+</head>
+<body>
+
+<nav id="nav-root"></nav>
+
+<!-- Hero -->
+<section class="hero">
+    <div class="hero-eyebrow">Enterprise Security Review</div>
+    <h1>Built for the<br><em>4am call</em> with your CISO.</h1>
+    <p class="hero-sub">
+        Share this page with your security team. Architecture, command whitelist, audit schema,
+        and a customer-run lockdown script — everything needed for enterprise procurement.
+    </p>
+    <div class="share-bar">
+        <span class="share-label">Security review URL</span>
+        <span class="share-url">tunevault.app/security</span>
+        <button class="copy-btn" onclick="navigator.clipboard.writeText('https://tunevault.app/security').then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)})">Copy</button>
+    </div>
+    <div class="hero-guarantees">
+        <div class="guarantee-item"><span class="g-dot"></span> No inbound ports opened on your server</div>
+        <div class="guarantee-item"><span class="g-dot"></span> No SSH from TuneVault to your hosts</div>
+        <div class="guarantee-item"><span class="g-dot"></span> No plaintext credentials stored — AES-256 encrypted at rest</div>
+        <div class="guarantee-item"><span class="g-dot"></span> Every control action is audit-logged</div>
+    </div>
+</section>
+
+<!-- Section 1: Architecture Diagram -->
+<section class="section-wrap">
+    <div class="section-inner">
+        <div class="section-eyebrow">01 — Architecture</div>
+        <h2 class="section-title">How the Connection Works</h2>
+        <p class="section-desc">The proxy runs on your server. It calls out to TuneVault. TuneVault never calls in. No inbound firewall rules, no VPN, no SSH from our side.</p>
+
+        <div class="arch-diagram">
+            <div class="arch-svg-wrap">
+                <svg width="740" height="210" viewBox="0 0 740 210" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Architecture diagram: Customer DC to TuneVault via outbound HTTPS only">
+
+                    <!-- Customer DC box -->
+                    <rect x="10" y="30" width="170" height="150" rx="10" fill="#1a1a1f" stroke="#2a2a30" stroke-width="1.5"/>
+                    <text x="95" y="52" text-anchor="middle" fill="#9898a8" font-family="JetBrains Mono, monospace" font-size="9" letter-spacing="1.5">CUSTOMER DC</text>
+
+                    <!-- Oracle DB node -->
+                    <rect x="30" y="62" width="130" height="48" rx="7" fill="#222228" stroke="#2a2a30"/>
+                    <text x="50" y="83" fill="#e8e8ed" font-family="JetBrains Mono, monospace" font-size="11" font-weight="600">🗄 Oracle DB</text>
+                    <text x="50" y="99" fill="#9898a8" font-family="JetBrains Mono, monospace" font-size="9">localhost:1521</text>
+
+                    <!-- Proxy node (highlighted) -->
+                    <rect x="30" y="124" width="130" height="48" rx="7" fill="#1d1a10" stroke="rgba(240,168,48,0.4)"/>
+                    <text x="50" y="145" fill="#e8e8ed" font-family="JetBrains Mono, monospace" font-size="11" font-weight="600">⚙ Proxy Agent</text>
+                    <text x="50" y="161" fill="#9898a8" font-family="JetBrains Mono, monospace" font-size="9">127.0.0.1:3100</text>
+
+                    <!-- Internal arrow: Oracle → Proxy -->
+                    <line x1="95" y1="110" x2="95" y2="124" stroke="#2a2a30" stroke-width="1.5" stroke-dasharray="3,3"/>
+                    <text x="99" y="120" fill="#9898a8" font-family="JetBrains Mono, monospace" font-size="8">local SQL</text>
+
+                    <!-- Blocked inbound arrow label -->
+                    <text x="95" y="192" text-anchor="middle" fill="#9898a8" font-family="JetBrains Mono, monospace" font-size="8">no inbound ports</text>
+
+                    <!-- Outbound HTTPS arrow -->
+                    <line x1="180" y1="148" x2="268" y2="148" stroke="#34d399" stroke-width="2"/>
+                    <polygon points="264,143 274,148 264,153" fill="#34d399"/>
+                    <text x="222" y="138" text-anchor="middle" fill="#34d399" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600">OUTBOUND ONLY</text>
+                    <text x="222" y="162" text-anchor="middle" fill="#9898a8" font-family="JetBrains Mono, monospace" font-size="8">HTTPS / TLS 1.2+</text>
+                    <text x="222" y="174" text-anchor="middle" fill="#9898a8" font-family="JetBrains Mono, monospace" font-size="8">port 443</text>
+
+                    <!-- No inbound arrow (blocked) -->
+                    <line x1="268" y1="88" x2="183" y2="88" stroke="#f87171" stroke-width="1.5" stroke-dasharray="4,3"/>
+                    <line x1="236" y1="81" x2="236" y2="95" stroke="#f87171" stroke-width="2"/>
+                    <text x="222" y="78" text-anchor="middle" fill="#f87171" font-family="JetBrains Mono, monospace" font-size="8">NO INBOUND</text>
+
+                    <!-- HTTPS edge / TLS gateway box -->
+                    <rect x="274" y="120" width="152" height="56" rx="10" fill="#1a1a1f" stroke="#2a2a30" stroke-width="1.5"/>
+                    <text x="350" y="142" text-anchor="middle" fill="#9898a8" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600">🔐 HTTPS Edge</text>
+                    <text x="350" y="158" text-anchor="middle" fill="#9898a8" font-family="JetBrains Mono, monospace" font-size="9">TLS 1.2+ · outbound only</text>
+                    <text x="350" y="170" text-anchor="middle" fill="#9898a8" font-family="JetBrains Mono, monospace" font-size="8">*.tunevault.app</text>
+
+                    <!-- HTTPS edge → TuneVault arrow -->
+                    <line x1="426" y1="148" x2="482" y2="148" stroke="#34d399" stroke-width="2"/>
+                    <polygon points="478,143 488,148 478,153" fill="#34d399"/>
+
+                    <!-- TuneVault API box -->
+                    <rect x="488" y="30" width="165" height="150" rx="10" fill="#1a1a1f" stroke="#2a2a30" stroke-width="1.5"/>
+                    <text x="571" y="52" text-anchor="middle" fill="#9898a8" font-family="JetBrains Mono, monospace" font-size="9" letter-spacing="1.5">TUNEVAULT CLOUD</text>
+
+                    <rect x="508" y="62" width="125" height="48" rx="7" fill="#222228" stroke="#2a2a30"/>
+                    <text x="521" y="83" fill="#e8e8ed" font-family="JetBrains Mono, monospace" font-size="11" font-weight="600">🔒 API Server</text>
+                    <text x="521" y="99" fill="#9898a8" font-family="JetBrains Mono, monospace" font-size="9">/api/proxy/*</text>
+
+                    <rect x="508" y="124" width="125" height="48" rx="7" fill="#222228" stroke="#2a2a30"/>
+                    <text x="521" y="145" fill="#e8e8ed" font-family="JetBrains Mono, monospace" font-size="11" font-weight="600">🗄 Postgres</text>
+                    <text x="521" y="161" fill="#9898a8" font-family="JetBrains Mono, monospace" font-size="9">metrics + audit</text>
+
+                    <!-- Legend -->
+                    <line x1="560" y1="198" x2="580" y2="198" stroke="#34d399" stroke-width="2"/>
+                    <text x="584" y="202" fill="#34d399" font-family="JetBrains Mono, monospace" font-size="8">Allowed</text>
+                    <line x1="624" y1="198" x2="644" y2="198" stroke="#f87171" stroke-width="1.5" stroke-dasharray="4,3"/>
+                    <line x1="634" y1="193" x2="634" y2="203" stroke="#f87171" stroke-width="2"/>
+                    <text x="648" y="202" fill="#f87171" font-family="JetBrains Mono, monospace" font-size="8">Blocked</text>
+                </svg>
+            </div>
+        </div>
+
+        <div class="arch-key-points">
+            <div class="key-point">
+                <div class="kp-icon">🚫</div>
+                <div class="kp-title">No inbound ports opened</div>
+                <div class="kp-body">TuneVault never initiates connections to your servers. Your firewall has zero new inbound rules to manage.</div>
+            </div>
+            <div class="key-point">
+                <div class="kp-icon">🚫</div>
+                <div class="kp-title">No SSH from TuneVault</div>
+                <div class="kp-body">We don't hold SSH keys, don't open SSH sessions, and have no remote shell access to your infrastructure.</div>
+            </div>
+            <div class="key-point accent-left">
+                <div class="kp-icon">🔑</div>
+                <div class="kp-title">Hashed API key only</div>
+                <div class="kp-body">The proxy authenticates with a 64-hex API key generated locally at install time. We store only the SHA-256 hash — the plaintext never leaves your server.</div>
+            </div>
+            <div class="key-point accent-left">
+                <div class="kp-icon">🛡</div>
+                <div class="kp-title">TLS encrypted in transit</div>
+                <div class="kp-body">All proxy traffic uses TLS 1.2+ over HTTPS. The proxy makes outbound connections only — no inbound firewall changes are required on your side.</div>
+            </div>
+            <div class="key-point red-left">
+                <div class="kp-icon">🏃</div>
+                <div class="kp-title">Proxy runs as isolated user</div>
+                <div class="kp-body">The lockdown script (§4 below) creates a <code>tunevault</code> system user with <code>/sbin/nologin</code>, restricted to <code>/opt/tunevault</code> only.</div>
+            </div>
+            <div class="key-point red-left">
+                <div class="kp-icon">📋</div>
+                <div class="kp-title">No plaintext Oracle credentials stored</div>
+                <div class="kp-body">Oracle credentials are encrypted at rest with AES-256-GCM — only ciphertext is stored in our database. Direct-mode connections can also be used session-only with no persistence at all. Plaintext never touches disk or our servers.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Connection Mode Credential Matrix -->
+<section class="section-wrap">
+    <div class="section-inner">
+        <div class="section-eyebrow">01b — Credential Storage Model</div>
+        <h2 class="section-title">How Credentials Are Handled by Connection Mode</h2>
+        <p class="section-desc">Storage behavior depends on how you connect. No mode ever stores plaintext passwords.</p>
+        <div style="overflow-x:auto;margin-top:24px;">
+            <table style="width:100%;border-collapse:collapse;font-size:14px;line-height:1.5;">
+                <thead>
+                    <tr style="border-bottom:2px solid var(--border,#2a2a3a);">
+                        <th style="text-align:left;padding:10px 16px;color:var(--text-muted);font-weight:600;white-space:nowrap;">Connection Mode</th>
+                        <th style="text-align:left;padding:10px 16px;color:var(--text-muted);font-weight:600;">Oracle Credentials Stored?</th>
+                        <th style="text-align:left;padding:10px 16px;color:var(--text-muted);font-weight:600;">Storage Method</th>
+                        <th style="text-align:left;padding:10px 16px;color:var(--text-muted);font-weight:600;">Plaintext on Disk?</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="border-bottom:1px solid var(--border,#2a2a3a);">
+                        <td style="padding:12px 16px;font-weight:600;">Direct TCP — session-only</td>
+                        <td style="padding:12px 16px;">No — not persisted</td>
+                        <td style="padding:12px 16px;color:var(--text-muted);">In-process only, discarded after use</td>
+                        <td style="padding:12px 16px;color:#4ade80;font-weight:600;">Never</td>
+                    </tr>
+                    <tr style="border-bottom:1px solid var(--border,#2a2a3a);">
+                        <td style="padding:12px 16px;font-weight:600;">Direct TCP — saved connection</td>
+                        <td style="padding:12px 16px;">Yes — encrypted at rest</td>
+                        <td style="padding:12px 16px;color:var(--text-muted);">AES-256-GCM ciphertext in <code>oracle_connections</code></td>
+                        <td style="padding:12px 16px;color:#4ade80;font-weight:600;">Never</td>
+                    </tr>
+                    <tr style="border-bottom:1px solid var(--border,#2a2a3a);">
+                        <td style="padding:12px 16px;font-weight:600;">Proxy / HTTP agent</td>
+                        <td style="padding:12px 16px;">API key only</td>
+                        <td style="padding:12px 16px;color:var(--text-muted);">API key stored as AES-256 ciphertext; Oracle OS auth via proxy — no password transmitted</td>
+                        <td style="padding:12px 16px;color:#4ade80;font-weight:600;">Never</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 16px;font-weight:600;">Agent tunnel (install.sh)</td>
+                        <td style="padding:12px 16px;">No Oracle password stored</td>
+                        <td style="padding:12px 16px;color:var(--text-muted);">OS authentication via tunnel; tunnel token encrypted at rest</td>
+                        <td style="padding:12px 16px;color:#4ade80;font-weight:600;">Never</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- Section 2: Command Whitelist -->
+<section class="section-wrap">
+    <div class="section-inner">
+        <div class="section-eyebrow">02 — Command Whitelist</div>
+        <h2 class="section-title">Every Permitted EBS Control Command</h2>
+        <p class="section-desc">These are the only EBS operational commands TuneVault can issue. The list is seeded in the database at deployment time and validated server-side on every request — user input never flows into command construction.</p>
+
+        <div class="whitelist-header">
+            <div id="cmd-count-badge" class="cmd-count-badge">
+                <span class="l-dot"></span><span class="l-dot"></span><span class="l-dot"></span>
+            </div>
+            <a href="/security/commands" style="font-size:13px;color:var(--text-muted);text-decoration:none;transition:color 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-muted)'">
+                + Full SQL query whitelist (200+ checks) →
+            </a>
+        </div>
+
+        <div class="cmd-table-wrap">
+            <table class="cmd-table">
+                <thead>
+                    <tr>
+                        <th>Slug</th>
+                        <th>Label</th>
+                        <th>Category</th>
+                        <th>Command Preview</th>
+                        <th>Risk</th>
+                        <th style="text-align:center">Dry-run</th>
+                    </tr>
+                </thead>
+                <tbody id="cmd-table-body">
+                    <tr>
+                        <td colspan="6">
+                            <div class="loading-state">
+                                <span class="l-dot"></span><span class="l-dot"></span><span class="l-dot"></span>
+                                &nbsp; Loading live whitelist from database...
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="hardwall-note">
+            <strong>Hard enforcement:</strong> Anything not in this table returns HTTP 403 and an <code>audit_log</code> rejection row — before any Oracle command is even considered. The slug validation happens against the database, not a client-supplied list. If a slug isn't in <code>ebs_control_commands</code>, it cannot be executed, ever.
+        </div>
+    </div>
+</section>
+
+<!-- Section 3: Audit Log Schema -->
+<section class="section-wrap">
+    <div class="section-inner">
+        <div class="section-eyebrow">03 — Audit Trail</div>
+        <h2 class="section-title">Every Action Logged. Immutably.</h2>
+        <p class="section-desc">The <code>audit_log</code> table captures every EBS control preview attempt — allowed and rejected — as append-only rows. No row is ever updated or deleted.</p>
+
+        <div class="schema-wrap">
+            <div class="schema-header">
+                <span class="sh-title">audit_log</span>
+                <span class="sh-sub">— append-only, no UPDATE/DELETE</span>
+            </div>
+            <div class="schema-body">
+                <pre class="schema-ddl"><span class="kw">CREATE TABLE</span> <span class="tname">audit_log</span> (
+  id               <span class="type">BIGSERIAL</span>    <span class="kw">PRIMARY KEY</span>,
+  user_id          <span class="type">INTEGER</span>      <span class="kw">NOT NULL REFERENCES</span> users(id),
+  action           <span class="type">TEXT</span>         <span class="kw">NOT NULL</span>,   <span class="comment">-- e.g. 'ebs_control.preview'</span>
+  slug             <span class="type">TEXT</span>         <span class="kw">NOT NULL</span>,   <span class="comment">-- command slug attempted</span>
+  allowed          <span class="type">BOOLEAN</span>      <span class="kw">NOT NULL</span>,   <span class="comment">-- true = whitelisted, false = rejected</span>
+  rejection_reason <span class="type">TEXT</span>,                     <span class="comment">-- null when allowed=true</span>
+  metadata         <span class="type">JSONB</span>        <span class="kw">DEFAULT</span> '{}', <span class="comment">-- ip, user_agent, risk_level</span>
+  created_at       <span class="type">TIMESTAMPTZ</span>  <span class="kw">NOT NULL DEFAULT NOW</span>()
+);
+
+<span class="comment">-- No UPDATE/DELETE permissions granted on this table.</span>
+<span class="comment">-- Application role has INSERT + SELECT only.</span></pre>
+            </div>
+        </div>
+
+        <div class="sample-row-wrap">
+            <div class="sample-row-header">Sample row — allowed attempt</div>
+            <div class="sample-row-body">
+                <div class="field-list">
+                    <div class="field-row">
+                        <span class="field-key">id</span>
+                        <span class="field-val"><span class="num">4291</span></span>
+                    </div>
+                    <div class="field-row">
+                        <span class="field-key">user_id</span>
+                        <span class="field-val"><span class="num">837</span></span>
+                    </div>
+                    <div class="field-row">
+                        <span class="field-key">action</span>
+                        <span class="field-val"><span class="str">'ebs_control.preview'</span></span>
+                    </div>
+                    <div class="field-row">
+                        <span class="field-key">slug</span>
+                        <span class="field-val"><span class="str">'cm_bounce'</span></span>
+                    </div>
+                    <div class="field-row">
+                        <span class="field-key">allowed</span>
+                        <span class="field-val"><span class="bool">true</span></span>
+                    </div>
+                    <div class="field-row">
+                        <span class="field-key">rejection_reason</span>
+                        <span class="field-val"><span class="nil">null</span></span>
+                    </div>
+                    <div class="field-row">
+                        <span class="field-key">metadata</span>
+                        <span class="field-val">{"ip": <span class="str">"203.0.113.45"</span>, "user_agent": <span class="str">"Mozilla/5.0…"</span>, "risk_level": <span class="str">"medium"</span>}</span>
+                    </div>
+                    <div class="field-row">
+                        <span class="field-key">created_at</span>
+                        <span class="field-val"><span class="str">"2026-05-11T10:14:22Z"</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="audit-guarantees">
+            <div class="audit-g">
+                <div class="ag-icon">📌</div>
+                <div class="ag-title">Every rejection logged</div>
+                <div class="ag-body">Non-whitelisted slug attempts write a row with <code>allowed=false</code> and a rejection_reason — before returning HTTP 403.</div>
+            </div>
+            <div class="audit-g">
+                <div class="ag-icon">🔒</div>
+                <div class="ag-title">Append-only by design</div>
+                <div class="ag-body">The application DB role has INSERT + SELECT only on audit_log. No UPDATE or DELETE is possible from the API tier.</div>
+            </div>
+            <div class="audit-g">
+                <div class="ag-icon">🌐</div>
+                <div class="ag-title">IP captured on every row</div>
+                <div class="ag-body">The originating IP and user-agent are stored in metadata. Cross-reference with your WAF logs for full attribution.</div>
+            </div>
+            <div class="audit-g">
+                <div class="ag-icon">♾</div>
+                <div class="ag-title">No retention limit</div>
+                <div class="ag-body">Audit rows are retained indefinitely. No automated purge job. Contact support@tunevault.app to request a log export.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Section 4: Data Handling -->
+<section class="section-wrap">
+    <div class="section-inner">
+        <div class="section-eyebrow">04 — Data Handling</div>
+        <h2 class="section-title">What We Read, What We Never Touch</h2>
+        <p class="section-desc">TuneVault reads performance and configuration metadata from Oracle system views. We never read table data, application schemas, or anything that could contain customer PII.</p>
+
+        <div class="data-grid">
+            <div class="data-card">
+                <div class="data-card-header">
+                    <div class="dc-icon">✅</div>
+                    <div class="dc-title">What we read</div>
+                    <div class="dc-badge yes-badge">READ</div>
+                </div>
+                <div class="data-card-body">
+                    <div class="data-item">
+                        <span class="di-icon">📊</span>
+                        V$SQL, V$SESSION, V$SYSSTAT — performance metrics
+                    </div>
+                    <div class="data-item">
+                        <span class="di-icon">💾</span>
+                        DBA_TABLESPACE_USAGE_METRICS — storage utilisation
+                    </div>
+                    <div class="data-item">
+                        <span class="di-icon">⚡</span>
+                        V$SYSTEM_EVENT — wait event statistics
+                    </div>
+                    <div class="data-item">
+                        <span class="di-icon">🔒</span>
+                        DBA_USERS, DBA_SYS_PRIVS — security posture
+                    </div>
+                    <div class="data-item">
+                        <span class="di-icon">📋</span>
+                        APPS.FND_CONCURRENT_QUEUES — EBS CM status
+                    </div>
+                    <div class="data-item">
+                        <span class="di-icon">⚙</span>
+                        APPS.FND_SVC_COMPONENTS — EBS service health
+                    </div>
+                    <div class="data-item">
+                        <span class="di-icon">📂</span>
+                        V$RMAN_BACKUP_JOB_DETAILS — backup freshness
+                    </div>
+                    <div class="data-item">
+                        <span class="di-icon">🧩</span>
+                        DBA_OBJECTS WHERE STATUS='INVALID' — invalid objects
+                    </div>
+                </div>
+            </div>
+            <div class="data-card">
+                <div class="data-card-header">
+                    <div class="dc-icon">🚫</div>
+                    <div class="dc-title">What we never read</div>
+                    <div class="dc-badge never-badge">NEVER</div>
+                </div>
+                <div class="data-card-body">
+                    <div class="data-item">
+                        <span class="di-icon">🚫</span>
+                        Application table data (no SELECT on business tables)
+                    </div>
+                    <div class="data-item">
+                        <span class="di-icon">🚫</span>
+                        Customer PII — names, emails, addresses, phone numbers
+                    </div>
+                    <div class="data-item">
+                        <span class="di-icon">🚫</span>
+                        Financial records — invoices, payments, orders
+                    </div>
+                    <div class="data-item">
+                        <span class="di-icon">🚫</span>
+                        HR data — employee records, salaries, org structures
+                    </div>
+                    <div class="data-item">
+                        <span class="di-icon">🚫</span>
+                        Oracle credentials — username/password are transient only
+                    </div>
+                    <div class="data-item">
+                        <span class="di-icon">🚫</span>
+                        Schema DDL of application tables
+                    </div>
+                    <div class="data-item">
+                        <span class="di-icon">🚫</span>
+                        BLOB/CLOB contents — documents, attachments, images
+                    </div>
+                    <div class="data-item">
+                        <span class="di-icon">🚫</span>
+                        Any table outside V$, GV$, DBA_*, APPS.FND_* views
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h3 style="font-size:16px;font-weight:700;margin-top:36px;margin-bottom:16px;letter-spacing:-0.3px;">Retention Windows</h3>
+        <div class="retention-grid">
+            <div class="retention-card">
+                <div class="rc-label">Health check results</div>
+                <div class="rc-value">90 days</div>
+                <div class="rc-desc">Raw metrics from each Oracle health check run. Auto-deleted after 90 days unless you request archival.</div>
+            </div>
+            <div class="retention-card">
+                <div class="rc-label">AI analysis text</div>
+                <div class="rc-value">90 days</div>
+                <div class="rc-desc">Generated recommendations retained alongside the health check that produced them.</div>
+            </div>
+            <div class="retention-card">
+                <div class="rc-label">Audit log rows</div>
+                <div class="rc-value">Indefinite</div>
+                <div class="rc-desc">EBS control audit rows are never purged. Available for export on request: support@tunevault.app</div>
+            </div>
+            <div class="retention-card">
+                <div class="rc-label">Connection credentials</div>
+                <div class="rc-value">AES-256 encrypted</div>
+                <div class="rc-desc">Oracle passwords are encrypted at rest with AES-256-GCM — plaintext is never written to disk. Direct-mode connections can also be session-only with no persistence. Proxy API keys are stored as SHA-256 hash only.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Section 5: Download Bundle -->
+<section class="section-wrap">
+    <div class="section-inner">
+        <div class="section-eyebrow">05 — Lockdown Bundle</div>
+        <h2 class="section-title">Customer-Run Hardening Scripts</h2>
+        <p class="section-desc">Your security team runs these scripts on your servers — not us. The bundle contains a hardening script, README with compliance framework mappings, and a command hash whitelist for integrity verification.</p>
+
+        <div class="bundle-hero">
+            <div class="bh-icon">📦</div>
+            <div class="bh-content">
+                <div class="bh-title">tunevault-lockdown-bundle.tar.gz</div>
+                <div class="bh-desc">
+                    A self-contained archive your team can audit before running anything.
+                    The hardening script is idempotent — safe to re-run at any time.
+                    Nothing in the bundle requires an internet connection to execute.
+                </div>
+                <div class="bh-files">
+                    <div class="bundle-file">📄 <code>tunevault-lockdown.sh</code> — hardening script (root-only, idempotent)</div>
+                    <div class="bundle-file">📄 <code>README.md</code> — plain-English explanation + SOC2/ISO 27001/NIST framework mapping</div>
+                    <div class="bundle-file">📄 <code>whitelist.json</code> — machine-readable command catalog with SHA-256 hashes</div>
+                </div>
+                <div class="bundle-actions">
+                    <a href="/security/lockdown-bundle.tar.gz" class="btn-download" download>
+                        ⬇ Download lockdown bundle (.tar.gz)
+                    </a>
+                    <a href="/security/lockdown.sh" class="btn-secondary" download="tunevault-lockdown.sh">
+                        ⬇ tunevault-lockdown.sh only
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;letter-spacing:-0.2px;">What the lockdown script does</h3>
+        <div class="script-feature-grid">
+            <div class="script-feature">
+                <div class="sf-num">STEP 1</div>
+                <div class="sf-title">Dedicated OS user</div>
+                <div class="sf-body">Creates <code>tunevault</code> system user with <code>/sbin/nologin</code> — no interactive shell, no home directory, system account only.</div>
+            </div>
+            <div class="script-feature">
+                <div class="sf-num">STEP 2</div>
+                <div class="sf-title">Directory lockdown</div>
+                <div class="sf-body">Installs proxy under <code>/opt/tunevault</code> with mode 750. Log directory is 700. No other users can read proxy files.</div>
+            </div>
+            <div class="script-feature">
+                <div class="sf-num">STEP 3</div>
+                <div class="sf-title">SELinux / AppArmor profile</div>
+                <div class="sf-body">Restricts filesystem access to <code>/opt/tunevault</code> and <code>/tmp</code> only. Oracle binary and scripts remain protected.</div>
+            </div>
+            <div class="script-feature">
+                <div class="sf-num">STEP 4</div>
+                <div class="sf-title">Outbound firewall rules</div>
+                <div class="sf-body">iptables/firewalld rules allowing ONLY outbound 443 to <code>*.tunevault.app</code> for the proxy user. All other outbound traffic is blocked.</div>
+            </div>
+            <div class="script-feature">
+                <div class="sf-num">STEP 5</div>
+                <div class="sf-title">Sudoers whitelist</div>
+                <div class="sf-body">Grants tunevault user permission to run ONLY the listed <code>admanagedsrvctl.sh status</code> commands as oracle. No start/stop/restart.</div>
+            </div>
+            <div class="script-feature">
+                <div class="sf-num">STEP 6</div>
+                <div class="sf-title">Audit logging</div>
+                <div class="sf-body">Installs logrotate config to manage <code>/var/log/tunevault-audit.log</code> — every action logged with timestamp and syslog tag.</div>
+            </div>
+        </div>
+
+        <div class="hardwall-note" style="margin-top:24px;">
+            <strong>This script is your source of truth.</strong> TuneVault cannot modify what's locked down here. Run it before installing the proxy. The lockdown persists independently of any TuneVault software update.
+        </div>
+    </div>
+</section>
+
+<!-- Section 6: Threat Model -->
+<section class="section-wrap">
+    <div class="section-inner">
+        <div class="section-eyebrow">06 — Threat Model</div>
+        <h2 class="section-title">What an Attacker Would Have to Compromise</h2>
+        <p class="section-desc">The table below maps each realistic attack scenario to the controls that block it. Every row is a question your security team will ask. Every cell is a concrete, verifiable answer.</p>
+
+        <div style="overflow-x:auto;margin-top:24px;border-radius:10px;border:1px solid var(--border);">
+            <table style="width:100%;border-collapse:collapse;font-size:13px;line-height:1.5;">
+                <thead>
+                    <tr style="background:var(--surface-2);">
+                        <th style="text-align:left;padding:11px 16px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap;">Attack Scenario</th>
+                        <th style="text-align:left;padding:11px 16px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--border);">What the Attacker Needs</th>
+                        <th style="text-align:left;padding:11px 16px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--border);">Controls That Block It</th>
+                        <th style="text-align:center;padding:11px 16px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap;">Risk</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="border-bottom:1px solid rgba(42,42,48,0.7);">
+                        <td style="padding:13px 16px;font-weight:600;">Access another tenant's Oracle connection</td>
+                        <td style="padding:13px 16px;color:var(--text-dim);">Valid session + target connection ID</td>
+                        <td style="padding:13px 16px;color:var(--text-dim);">Server-side ownership check on every connection operation. Guessing an integer ID returns 404, not the connection. All credential columns are AES-256 encrypted — even a DB dump is ciphertext only.</td>
+                        <td style="padding:13px 16px;text-align:center;"><span style="color:#34d399;font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(52,211,153,0.1);padding:3px 8px;border-radius:3px;border:1px solid rgba(52,211,153,0.2);">BLOCKED</span></td>
+                    </tr>
+                    <tr style="border-bottom:1px solid rgba(42,42,48,0.7);">
+                        <td style="padding:13px 16px;font-weight:600;">Steal Oracle credentials from TuneVault's database</td>
+                        <td style="padding:13px 16px;color:var(--text-dim);">Full Neon DB dump + the <code style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent);">ENCRYPTION_KEY</code> env var (separate secret)</td>
+                        <td style="padding:13px 16px;color:var(--text-dim);">AES-256-GCM encryption at rest. The key is a Render environment variable — never in DB, never in git, never in logs. Compromising only the DB yields ciphertext with no decryption path.</td>
+                        <td style="padding:13px 16px;text-align:center;"><span style="color:#34d399;font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(52,211,153,0.1);padding:3px 8px;border-radius:3px;border:1px solid rgba(52,211,153,0.2);">BLOCKED</span></td>
+                    </tr>
+                    <tr style="border-bottom:1px solid rgba(42,42,48,0.7);">
+                        <td style="padding:13px 16px;font-weight:600;">Inject arbitrary commands via the agent channel</td>
+                        <td style="padding:13px 16px;color:var(--text-dim);">A valid per-tunnel API key + ability to intercept TLS</td>
+                        <td style="padding:13px 16px;color:var(--text-dim);">Agent enforces a hard command allowlist — only named commands with typed argument validation execute. No shell=True, no string interpolation. TLS validates server certificate via system CA bundle.</td>
+                        <td style="padding:13px 16px;text-align:center;"><span style="color:#34d399;font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(52,211,153,0.1);padding:3px 8px;border-radius:3px;border:1px solid rgba(52,211,153,0.2);">BLOCKED</span></td>
+                    </tr>
+                    <tr style="border-bottom:1px solid rgba(42,42,48,0.7);">
+                        <td style="padding:13px 16px;font-weight:600;">Escalate from viewer → admin via API manipulation</td>
+                        <td style="padding:13px 16px;color:var(--text-dim);">Valid session with any role</td>
+                        <td style="padding:13px 16px;color:var(--text-dim);">RBAC enforced server-side via <code style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent);">requireRole()</code> middleware. Client-side visibility is cosmetic only — never trusted for access decisions. Role hierarchy: viewer → junior_dba → senior_dba → admin.</td>
+                        <td style="padding:13px 16px;text-align:center;"><span style="color:#34d399;font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(52,211,153,0.1);padding:3px 8px;border-radius:3px;border:1px solid rgba(52,211,153,0.2);">BLOCKED</span></td>
+                    </tr>
+                    <tr style="border-bottom:1px solid rgba(42,42,48,0.7);">
+                        <td style="padding:13px 16px;font-weight:600;">Reuse a magic link / steal a session</td>
+                        <td style="padding:13px 16px;color:var(--text-dim);">Intercept email or session cookie</td>
+                        <td style="padding:13px 16px;color:var(--text-dim);">Magic links are single-use (database-enforced), 15-minute TTL, 256-bit entropy. Session cookies are HttpOnly + Secure + SameSite=Lax. Auth endpoint rate-limited: 10 requests/minute per IP.</td>
+                        <td style="padding:13px 16px;text-align:center;"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:11px;background:var(--accent-dim);padding:3px 8px;border-radius:3px;border:1px solid var(--accent-border);">HARDENED</span></td>
+                    </tr>
+                    <tr style="border-bottom:1px solid rgba(42,42,48,0.7);">
+                        <td style="padding:13px 16px;font-weight:600;">Compromise the TuneVault cloud service</td>
+                        <td style="padding:13px 16px;color:var(--text-dim);">Full Render platform access</td>
+                        <td style="padding:13px 16px;color:var(--text-dim);">Even with cloud access, attacker can only issue commands from the agent channel allowlist. No shell access to the customer host is possible — agent is outbound-only, no inbound port, no SSH. Credentials still encrypted.</td>
+                        <td style="padding:13px 16px;text-align:center;"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:11px;background:var(--accent-dim);padding:3px 8px;border-radius:3px;border:1px solid var(--accent-border);">HARDENED</span></td>
+                    </tr>
+                    <tr>
+                        <td style="padding:13px 16px;font-weight:600;">Run arbitrary SQL via SQL Console</td>
+                        <td style="padding:13px 16px;color:var(--text-dim);">senior_dba session + target connection ownership</td>
+                        <td style="padding:13px 16px;color:var(--text-dim);">SQL Console requires <code style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent);">senior_dba</code> role. Execution enforces connection ownership server-side. Every query logged to <code style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent);">sql_audit_log</code> with user, SQL text, connection, duration, and outcome — permanent append-only.</td>
+                        <td style="padding:13px 16px;text-align:center;"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:11px;background:var(--accent-dim);padding:3px 8px;border-radius:3px;border:1px solid var(--accent-border);">AUDITED</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="arch-key-points" style="margin-top:24px;">
+            <div class="key-point">
+                <div class="kp-icon">🧅</div>
+                <div class="kp-title">Defense in depth</div>
+                <div class="kp-body">Network layer (TLS, outbound-only) → authentication (session + API key) → authorization (RBAC + ownership) → data layer (encryption at rest). No single bypass yields credentials.</div>
+            </div>
+            <div class="key-point accent-left">
+                <div class="kp-icon">📋</div>
+                <div class="kp-title">Audit trail everywhere</div>
+                <div class="kp-body">SQL Console, SSH commands, EBS control actions, agent exec — all write to separate, append-only audit tables. No action can erase its own log row.</div>
+            </div>
+            <div class="key-point">
+                <div class="kp-icon">🔐</div>
+                <div class="kp-title">Encrypted-at-rest guarantee</div>
+                <div class="kp-body">AES-256-GCM with a random IV per encryption. Authentication tag prevents ciphertext tampering. Key stored separately from data — never in the same compromise boundary.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Section 7: Compliance & Data Residency -->
+<section class="section-wrap">
+    <div class="section-inner">
+        <div class="section-eyebrow">07 — Compliance & Data Residency</div>
+        <h2 class="section-title">Residency, Retention & Your Rights</h2>
+        <p class="section-desc">Answers to the procurement checklist questions that follow every Oracle tool evaluation in an enterprise environment.</p>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:28px;">
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:22px;">
+                <div style="font-size:18px;margin-bottom:10px;">🌐</div>
+                <div style="font-size:14px;font-weight:700;margin-bottom:6px;">Data Residency</div>
+                <div style="font-size:13px;color:var(--text-dim);line-height:1.6;">TuneVault infrastructure runs in the <strong style="color:var(--text)">United States</strong> (Render / Neon — US region). Oracle performance metrics collected during a health check are processed and stored in the US. No data is replicated to EU, APAC, or other regions unless you explicitly export it.</div>
+            </div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:22px;">
+                <div style="font-size:18px;margin-bottom:10px;">🗑️</div>
+                <div style="font-size:14px;font-weight:700;margin-bottom:6px;">Deletion on Request</div>
+                <div style="font-size:13px;color:var(--text-dim);line-height:1.6;">Email <a href="mailto:support@tunevault.app" style="color:var(--accent)">support@tunevault.app</a> to request deletion of your account, connections, and health check history. We complete deletion within <strong style="color:var(--text)">5 business days</strong> and confirm in writing. Append-only audit rows (SQL Console log, EBS control log) are retained per our data retention policy unless you have a specific regulatory reason for purge.</div>
+            </div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:22px;">
+                <div style="font-size:18px;margin-bottom:10px;">🤝</div>
+                <div style="font-size:14px;font-weight:700;margin-bottom:6px;">No Third-Party Data Sharing</div>
+                <div style="font-size:13px;color:var(--text-dim);line-height:1.6;">Your Oracle performance metrics, connection details, and health check results are <strong style="color:var(--text)">never shared with or sold to third parties</strong>. AI analysis uses OpenAI models via our managed API proxy — your data is subject to OpenAI's enterprise API data handling policy (not used for training). No analytics platform, ad network, or data broker receives your data.</div>
+            </div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:22px;">
+                <div style="font-size:18px;margin-bottom:10px;">📅</div>
+                <div style="font-size:14px;font-weight:700;margin-bottom:6px;">Retention Policy</div>
+                <div style="font-size:13px;color:var(--text-dim);line-height:1.6;">Health check metrics and AI analysis: <strong style="color:var(--text)">90 days</strong>, then auto-purged. Audit log rows (SQL Console, EBS control): <strong style="color:var(--text)">indefinite</strong> — these are your compliance records. Oracle credentials: deleted immediately on connection removal. API keys: deleted on rotation or account deletion.</div>
+            </div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:22px;">
+                <div style="font-size:18px;margin-bottom:10px;">📤</div>
+                <div style="font-size:14px;font-weight:700;margin-bottom:6px;">Data Export</div>
+                <div style="font-size:13px;color:var(--text-dim);line-height:1.6;">Health check results and audit logs are exportable in PDF and XLSX formats via the built-in report generator. Contact <a href="mailto:support@tunevault.app" style="color:var(--accent)">support@tunevault.app</a> for a full account data export in JSON format.</div>
+            </div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:22px;">
+                <div style="font-size:18px;margin-bottom:10px;">📬</div>
+                <div style="font-size:14px;font-weight:700;margin-bottom:6px;">Security Disclosure</div>
+                <div style="font-size:13px;color:var(--text-dim);line-height:1.6;">Report vulnerabilities to <a href="mailto:support@tunevault.app" style="color:var(--accent)">support@tunevault.app</a>. We aim to respond within 24 hours for critical issues and 72 hours for medium severity. Please don't publish vulnerability details until a fix has been deployed. We don't have a bug bounty programme at this time but acknowledge every valid report.</div>
+            </div>
+        </div>
+
+        <div class="hardwall-note" style="margin-top:24px;">
+            <strong>Minimum DB privilege:</strong> TuneVault reads from <code>V$</code>, <code>GV$</code>, <code>DBA_*</code> catalog views and — if EBS is detected — <code>APPS.FND_*</code> views. It requires <code>SELECT_CATALOG_ROLE</code> plus <code>CREATE SESSION</code>. No <code>DBA</code>, no <code>SYSDBA</code>, no <code>ALTER</code>, no <code>INSERT</code>/<code>UPDATE</code>/<code>DELETE</code> on any schema. EBS Ops (bounce, restart) uses your explicitly supplied APPS credentials — never elevated or stored beyond the session.
+        </div>
+
+        <div class="hardwall-note" style="margin-top:16px;">
+            <strong>Compliance posture:</strong> See the <a href="/trust" style="color:var(--accent)">Trust Center</a> for our current SOC 2 Type II status and compliance roadmap. This security page covers technical controls; the Trust Center covers certifications and third-party assessments.
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+    <div class="cta-inner">
+        <h2>Send this to your security team.</h2>
+        <p>Everything above is the live state of the system — not a marketing document. The command whitelist is fetched from the database in real time.</p>
+        <div class="cta-url-box">
+            tunevault.app/security
+        </div>
+        <div class="cta-links">
+            <a href="/security/commands" class="btn-secondary">📄 Full SQL Whitelist</a>
+            <a href="/security/credentials" class="btn-secondary">🔑 Credential Storage</a>
+            <a href="/security/lockdown-bundle.tar.gz" class="btn-download" download>⬇ Download Bundle</a>
+        </div>
+    </div>
+</section>
+
+<footer>
+    <div>
+        <a href="/">TuneVault</a> &nbsp;·&nbsp; Oracle Database Intelligence
+    </div>
+    <div class="footer-links">
+        <a href="/about">About</a>
+        <a href="/security">Security</a>
+        <a href="/trust">Trust Center</a>
+        <a href="/security/commands">Command Whitelist</a>
+        <a href="/security/credentials">Credential Storage</a>
+        <a href="/blog">Blog</a>
+        <a href="/docs/oracle-setup">Docs</a>
+        <a href="mailto:support@tunevault.app">support@tunevault.app</a>
+    </div>
+</footer>
+
+<script src="/nav-component.js"></script>
+<script>
+window.tvNav.init('security');
+
+// ── Live-fetch command whitelist ──
+(function loadWhitelist() {
+    var tbody = document.getElementById('cmd-table-body');
+    var badge = document.getElementById('cmd-count-badge');
+
+    // Public catalog endpoint (auth-protected, so fall back gracefully)
+    fetch('/api/ebs-control/catalog', { credentials: 'include' })
+        .then(function(res) {
+            if (!res.ok) throw new Error('Not authenticated');
+            return res.json();
+        })
+        .then(function(data) {
+            var commands = data.commands || [];
+
+            // Update badge
+            badge.innerHTML = '<span class="cmd-count-num">' + commands.length + '</span>&nbsp; whitelisted commands — anything not on this list cannot be executed, ever';
+
+            // Build table rows
+            if (!commands.length) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted);">No commands in whitelist.</td></tr>';
+                return;
+            }
+
+            var catClass = { cm: 'cm', wf: 'wf', wls: 'wls', opp: 'opp' };
+            var html = commands.map(function(c) {
+                var cat = (c.category || '').toLowerCase();
+                var catBadge = '<span class="badge-cat ' + (catClass[cat] || 'db') + '">' + (c.category || '—') + '</span>';
+                var riskBadge = '<span class="badge-risk ' + (c.risk_level || 'low') + '">' + (c.risk_level || '—') + '</span>';
+                var preview = (c.shell_template || '')
+                    .replace(/\{\{[^}]+\}\}/g, '<em style="color:var(--text-muted)">&lt;var&gt;</em>')
+                    .slice(0, 80) + ((c.shell_template||'').length > 80 ? '…' : '');
+                var dryRun = c.dry_run_only
+                    ? '<span class="badge-yn yes">✓ yes</span>'
+                    : '<span class="badge-yn no">—</span>';
+                return '<tr>' +
+                    '<td class="col-slug">' + escapeHtml(c.slug) + '</td>' +
+                    '<td style="font-weight:500;">' + escapeHtml(c.label) + '</td>' +
+                    '<td class="col-category">' + catBadge + '</td>' +
+                    '<td><code>' + preview + '</code></td>' +
+                    '<td>' + riskBadge + '</td>' +
+                    '<td class="col-dry">' + dryRun + '</td>' +
+                    '</tr>';
+            }).join('');
+            tbody.innerHTML = html;
+        })
+        .catch(function() {
+            // Not logged in — show a static note
+            badge.innerHTML = 'Command whitelist — <a href="/signin" style="color:var(--accent)">sign in</a> to see live count from database';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;">' +
+                '<div style="color:var(--text-muted);font-size:13px;margin-bottom:12px;">Sign in to load the live command catalog from the database.</div>' +
+                '<a href="/signin" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:var(--accent);color:#0a0a0c;border-radius:6px;font-size:13px;font-weight:700;text-decoration:none;">Sign in →</a>' +
+                '</td></tr>';
+        });
+
+    function escapeHtml(s) {
+        return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+})();
+</script>
+<script src="/tv-tracker.js"></script>
+<!-- TuneBot intentionally omitted on security review pages (formal CISO-facing page) -->
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "TuneVault",
+      "applicationCategory": "BusinessApplication",
+      "applicationSubCategory": "Database Management",
+      "operatingSystem": "Web",
+      "url": "https://tunevault.app",
+      "keywords": "Oracle DBA, Oracle EBS, database monitoring, Oracle health check, EBS operations, RAC monitoring, ASM monitoring, Oracle diagnostics",
+      "description": "Oracle Operational Intelligence Platform — encoded DBA heuristics, diagnostics, and operational control for Oracle Database, RAC, ASM, and E-Business Suite (EBS). NOT a music, audio, or media application.",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD",
+        "description": "Free demo + 1 free health check per company"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "TuneVault",
+        "url": "https://tunevault.app",
+        "description": "Oracle Operational Intelligence Platform",
+        "knowsAbout": ["Oracle Database", "Oracle E-Business Suite", "Oracle RAC", "Oracle ASM", "Database Performance Tuning", "DBA Operations"]
+      }
+    }
+    </script>
+</body>
+</html>

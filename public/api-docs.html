@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Reference — TuneVault</title>
+  <meta name="description" content="TuneVault REST API reference — read-only endpoints for health data, TuneOps tickets, audit logs, and team management.">
+  <link rel="canonical" href="https://tunevault.app/api-docs">
+  <!-- Open Graph -->
+  <meta property="og:title" content="API Reference — TuneVault">
+  <meta property="og:description" content="TuneVault REST API reference — read-only endpoints for health data, TuneOps tickets, audit logs, and team management.">
+  <meta property="og:url" content="https://tunevault.app/api-docs">
+  <meta property="og:image" content="https://tunevault.app/og/home.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="TuneVault — AI Oracle DBA Agent with 100+ health checks">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="TuneVault">
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="API Reference — TuneVault">
+  <meta name="twitter:description" content="TuneVault REST API — read-only endpoints for health data, tickets, audit logs, and team management.">
+  <meta name="twitter:image" content="https://tunevault.app/og/home.png">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c; --surface: #111114; --surface-2: #1a1a1f; --surface-3: #222228;
+      --border: #2a2a30; --text: #e8e8ed; --text-dim: #b8b8c8; --text-muted: #9898a8;
+      --accent: #f0a830; --accent-dim: rgba(240,168,48,.12);
+      --green: #34d399; --green-dim: rgba(52,211,153,.10);
+      --red: #f87171; --red-dim: rgba(248,113,113,.10);
+      --blue: #60a5fa; --blue-dim: rgba(96,165,250,.10);
+      --purple: #a78bfa; --purple-dim: rgba(167,139,250,.10);
+      --orange: #fb923c;
+      --mono: 'JetBrains Mono', monospace;
+      --nav-width: 240px;
+    }
+    body { font-family: 'Space Grotesk', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; }
+
+    /* Sidebar */
+    .sidebar {
+      width: var(--nav-width); flex-shrink: 0;
+      background: var(--surface); border-right: 1px solid var(--border);
+      height: 100vh; position: sticky; top: 0; overflow-y: auto;
+      padding: 24px 0;
+    }
+    .sidebar-logo { padding: 0 20px 20px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+    .sidebar-logo a { text-decoration: none; display: flex; align-items: center; gap: 8px; }
+    .sidebar-logo-text { font-size: 15px; font-weight: 700; color: var(--text); }
+    .sidebar-logo-badge { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); background: var(--accent-dim); border: 1px solid rgba(240,168,48,.2); padding: 2px 7px; border-radius: 20px; }
+    .nav-group { margin-bottom: 6px; }
+    .nav-group-label { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); padding: 8px 20px 4px; }
+    .nav-link { display: block; padding: 7px 20px; font-size: 13px; color: var(--text-dim); text-decoration: none; transition: all .12s; border-left: 2px solid transparent; }
+    .nav-link:hover { color: var(--text); background: rgba(255,255,255,.04); }
+    .nav-link.active { color: var(--accent); border-left-color: var(--accent); background: var(--accent-dim); }
+    .nav-link .method { font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 3px; margin-right: 6px; }
+    .get { background: rgba(52,211,153,.15); color: var(--green); }
+    .post { background: rgba(96,165,250,.15); color: var(--blue); }
+
+    /* Main content */
+    .content { flex: 1; overflow-y: auto; }
+    .content-inner { max-width: 900px; padding: 48px 48px 100px; }
+
+    /* Hero */
+    .hero { margin-bottom: 56px; }
+    .hero h1 { font-size: 32px; font-weight: 700; letter-spacing: -.5px; margin-bottom: 12px; }
+    .hero p { color: var(--text-dim); font-size: 15px; line-height: 1.6; max-width: 600px; margin-bottom: 28px; }
+    .hero-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .hero-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+    .hero-card-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--text-dim); margin-bottom: 8px; }
+    .hero-card-val { font-family: var(--mono); font-size: 13px; color: var(--text); }
+
+    /* Section */
+    .section { margin-bottom: 60px; scroll-margin-top: 20px; }
+    .section-title { font-size: 22px; font-weight: 700; letter-spacing: -.3px; padding-bottom: 16px; border-bottom: 1px solid var(--border); margin-bottom: 28px; }
+    .section-title span { color: var(--text-dim); font-weight: 400; font-size: 16px; }
+
+    /* Endpoint */
+    .endpoint { margin-bottom: 40px; scroll-margin-top: 20px; }
+    .endpoint-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .method-badge { font-family: var(--mono); font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 5px; }
+    .mb-get { background: rgba(52,211,153,.12); color: var(--green); border: 1px solid rgba(52,211,153,.2); }
+    .mb-post { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(96,165,250,.2); }
+    .endpoint-path { font-family: var(--mono); font-size: 15px; color: var(--text); }
+    .endpoint-desc { color: var(--text-dim); font-size: 14px; line-height: 1.6; margin-bottom: 16px; }
+
+    /* Code block */
+    pre {
+      background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px;
+      padding: 18px 20px; font-family: var(--mono); font-size: 13px; line-height: 1.65;
+      overflow-x: auto; color: #d4d4e8; margin-bottom: 16px;
+    }
+    pre .comment { color: #5c6078; }
+    pre .key { color: #a78bfa; }
+    pre .str { color: #34d399; }
+    pre .num { color: #fb923c; }
+    pre .kw { color: #60a5fa; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+    .tab { padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text-dim); border-bottom: 2px solid transparent; transition: all .12s; background: none; border-top: none; border-left: none; border-right: none; font-family: 'Space Grotesk', sans-serif; }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Parameters table */
+    .params-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px; }
+    .params-table th { text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--text-dim); background: var(--surface-2); border-bottom: 1px solid var(--border); }
+    .params-table td { padding: 10px 12px; border-bottom: 1px solid rgba(42,42,48,.5); vertical-align: top; }
+    .params-table tr:last-child td { border-bottom: none; }
+    .param-name { font-family: var(--mono); color: var(--blue); }
+    .param-type { font-family: var(--mono); font-size: 11px; color: var(--text-dim); }
+    .param-required { color: var(--red); font-size: 11px; font-weight: 700; }
+    .param-desc { color: var(--text-dim); line-height: 1.5; }
+
+    /* Auth section */
+    .auth-block {
+      background: var(--accent-dim); border: 1px solid rgba(240,168,48,.2);
+      border-radius: 10px; padding: 20px 24px; margin-bottom: 16px;
+    }
+    .auth-block h3 { font-size: 14px; font-weight: 700; color: var(--accent); margin-bottom: 8px; }
+    .auth-block p { color: var(--text-dim); font-size: 13px; line-height: 1.6; }
+
+    /* Tier table */
+    .tier-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px; }
+    .tier-table th { text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--text-dim); background: var(--surface-2); border-bottom: 1px solid var(--border); }
+    .tier-table td { padding: 12px 14px; border-bottom: 1px solid rgba(42,42,48,.5); }
+    .tier-table tr:last-child td { border-bottom: none; }
+    .check { color: var(--green); } .cross { color: var(--red); }
+
+    /* Badge inline */
+    .ibadge { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 700; vertical-align: middle; }
+    .ib-green { background: var(--green-dim); color: var(--green); }
+    .ib-blue { background: var(--blue-dim); color: var(--blue); }
+    .ib-purple { background: var(--purple-dim); color: var(--purple); }
+    .ib-gold { background: var(--accent-dim); color: var(--accent); }
+    .ib-coming { background: var(--surface-3); color: var(--text-muted); border: 1px solid var(--border); }
+
+    /* Error response */
+    .error-block { background: var(--red-dim); border: 1px solid rgba(248,113,113,.15); border-radius: 8px; padding: 14px 18px; }
+    .error-block code { font-family: var(--mono); font-size: 12px; }
+
+    /* Try it */
+    .try-it { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-top: 16px; }
+    .try-it h4 { font-size: 13px; font-weight: 700; color: var(--text-dim); margin-bottom: 14px; text-transform: uppercase; letter-spacing: .06em; }
+    .try-row { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+    .try-input {
+      flex: 1; min-width: 200px;
+      background: var(--surface); border: 1px solid var(--border); color: var(--text);
+      padding: 9px 14px; border-radius: 8px; font-family: var(--mono); font-size: 13px;
+      outline: none; transition: border-color .15s;
+    }
+    .try-input:focus { border-color: var(--accent); }
+    .try-input::placeholder { color: var(--text-muted); }
+    .try-btn { padding: 9px 18px; background: var(--accent); color: #0a0a0c; border: none; border-radius: 8px; font-family: 'Space Grotesk', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: all .15s; white-space: nowrap; }
+    .try-btn:hover { background: #f7b84a; }
+    .try-response { margin-top: 14px; display: none; }
+    .try-response.visible { display: block; }
+    .try-response pre { margin: 0; max-height: 300px; overflow-y: auto; font-size: 12px; }
+    .try-status { font-size: 12px; font-weight: 700; margin-bottom: 8px; font-family: var(--mono); }
+    .try-status.ok { color: var(--green); }
+    .try-status.err { color: var(--red); }
+
+    /* Webhook coming soon */
+    .coming-soon-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 32px; text-align: center;
+    }
+    .coming-soon-card h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .coming-soon-card p { color: var(--text-dim); font-size: 14px; line-height: 1.6; }
+
+    /* Mobile */
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .content-inner { padding: 24px 20px 60px; }
+      .hero-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <a href="/">
+      <span class="sidebar-logo-text">TuneVault</span>
+      <span class="sidebar-logo-badge">API v1</span>
+    </a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label">Overview</div>
+    <a class="nav-link active" href="#overview">Introduction</a>
+    <a class="nav-link" href="#authentication">Authentication</a>
+    <a class="nav-link" href="#rate-limits">Rate Limits</a>
+    <a class="nav-link" href="#errors">Errors</a>
+    <a class="nav-link" href="#pagination">Pagination</a>
+    <a class="nav-link" href="#access-tiers">Access Tiers</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label">Health Data</div>
+    <a class="nav-link" href="#ep-connections"><span class="method get">GET</span>/connections</a>
+    <a class="nav-link" href="#ep-connection"><span class="method get">GET</span>/connections/:id</a>
+    <a class="nav-link" href="#ep-checks"><span class="method get">GET</span>/connections/:id/checks</a>
+    <a class="nav-link" href="#ep-checks-latest"><span class="method get">GET</span>/checks/latest</a>
+    <a class="nav-link" href="#ep-fleet"><span class="method get">GET</span>/fleet</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label">TuneOps Tickets</div>
+    <a class="nav-link" href="#ep-tickets"><span class="method get">GET</span>/tickets</a>
+    <a class="nav-link" href="#ep-ticket"><span class="method get">GET</span>/tickets/:id</a>
+    <a class="nav-link" href="#ep-tuneops-stats"><span class="method get">GET</span>/stats</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label">Activity</div>
+    <a class="nav-link" href="#ep-activity"><span class="method get">GET</span>/activity</a>
+    <a class="nav-link" href="#ep-activity-summary"><span class="method get">GET</span>/activity/summary</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label">Team</div>
+    <a class="nav-link" href="#ep-team-members"><span class="method get">GET</span>/team/members</a>
+    <a class="nav-link" href="#ep-team-roles"><span class="method get">GET</span>/team/roles</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label">Webhooks</div>
+    <a class="nav-link" href="#webhooks">Payload Format <span class="ibadge ib-coming">Coming Soon</span></a>
+  </div>
+</nav>
+
+<!-- Main content -->
+<div class="content">
+<div class="content-inner">
+
+  <!-- Overview -->
+  <section class="section hero" id="overview">
+    <h1>TuneVault REST API</h1>
+    <p>Read-only access to your Oracle health data, TuneOps tickets, activity logs, and team information. Built for ServiceNow, Grafana, Splunk, and custom dashboards.</p>
+    <div class="hero-grid">
+      <div class="hero-card">
+        <div class="hero-card-label">Base URL</div>
+        <div class="hero-card-val">https://tunevault.app/api/v1</div>
+      </div>
+      <div class="hero-card">
+        <div class="hero-card-label">Auth</div>
+        <div class="hero-card-val">Bearer token</div>
+      </div>
+      <div class="hero-card">
+        <div class="hero-card-label">Format</div>
+        <div class="hero-card-val">JSON, ISO 8601 dates</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Authentication -->
+  <section class="section" id="authentication">
+    <h2 class="section-title">Authentication</h2>
+
+    <p style="color:var(--text-dim);font-size:14px;line-height:1.7;margin-bottom:20px;">
+      All API requests require an API key generated from <a href="/settings/api" style="color:var(--accent);">Settings → API Keys</a>.
+      Include it in the <code style="font-family:var(--mono);font-size:13px;color:var(--text);">Authorization</code> header:
+    </p>
+
+    <pre>Authorization: Bearer tv_api_<span class="comment">your_key_here</span></pre>
+
+    <p style="color:var(--text-dim);font-size:14px;line-height:1.7;margin-bottom:16px;">
+      API keys are company-scoped — they can only access data belonging to the account that generated them.
+      All requests are logged in your activity log.
+    </p>
+
+    <div class="auth-block">
+      <h3>Key Security</h3>
+      <p>Treat API keys like passwords. Don't commit them to source control. Use environment variables. Rotate keys immediately if compromised — use <a href="/settings/api" style="color:var(--accent);">Settings → API Keys</a> to revoke and regenerate.</p>
+    </div>
+
+    <!-- Try it -->
+    <div class="try-it">
+      <h4>Try It — Test Your Key</h4>
+      <div class="try-row">
+        <input class="try-input" type="text" id="apiKeyInput" placeholder="tv_api_your_key_here">
+        <button class="try-btn" onclick="tryFleet()">Test Fleet Endpoint</button>
+      </div>
+      <div class="try-response" id="fleetResponse">
+        <div class="try-status" id="fleetStatus"></div>
+        <pre id="fleetResponseBody"></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- Rate Limits -->
+  <section class="section" id="rate-limits">
+    <h2 class="section-title">Rate Limits</h2>
+    <p style="color:var(--text-dim);font-size:14px;line-height:1.7;margin-bottom:20px;">
+      Rate limits apply per API key, per minute. When exceeded, the API returns <code style="font-family:var(--mono);">429 Too Many Requests</code> with a <code style="font-family:var(--mono);">Retry-After</code> header.
+    </p>
+
+    <table class="tier-table" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+      <thead><tr>
+        <th>Plan</th><th>Requests / Minute</th><th>API Access</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><span class="ibadge ib-purple">Enterprise</span></td><td>100 (configurable)</td><td>Full — all endpoints</td></tr>
+        <tr><td><span class="ibadge ib-blue">Business</span></td><td>60</td><td>Health + TuneOps</td></tr>
+        <tr><td><span class="ibadge ib-green">Team</span></td><td>30</td><td>Health data only</td></tr>
+        <tr><td><span class="ibadge ib-gold">Individual</span></td><td>—</td><td>No API access</td></tr>
+      </tbody>
+    </table>
+
+    <p style="color:var(--text-dim);font-size:13px;margin-top:8px;">Response headers on every API call: <code style="font-family:var(--mono);">X-RateLimit-Limit</code>, <code style="font-family:var(--mono);">X-RateLimit-Remaining</code>, <code style="font-family:var(--mono);">X-RateLimit-Reset</code></p>
+  </section>
+
+  <!-- Errors -->
+  <section class="section" id="errors">
+    <h2 class="section-title">Error Format</h2>
+    <p style="color:var(--text-dim);font-size:14px;line-height:1.7;margin-bottom:20px;">All errors use a consistent envelope:</p>
+    <pre>{
+  <span class="key">"error"</span>: {
+    <span class="key">"code"</span>: <span class="str">"rate_limited"</span>,       <span class="comment">// machine-readable</span>
+    <span class="key">"message"</span>: <span class="str">"Rate limit exceeded..."</span>,
+    <span class="key">"retry_after"</span>: <span class="num">60</span>          <span class="comment">// seconds (rate_limited only)</span>
+  }
+}</pre>
+
+    <table class="params-table" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+      <thead><tr><th>HTTP Status</th><th>Code</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>401</td><td class="param-name">unauthorized</td><td class="param-desc">Missing or invalid Authorization header</td></tr>
+        <tr><td>401</td><td class="param-name">invalid_api_key</td><td class="param-desc">Key not found or revoked</td></tr>
+        <tr><td>403</td><td class="param-name">tier_insufficient</td><td class="param-desc">Your plan doesn't include this endpoint</td></tr>
+        <tr><td>404</td><td class="param-name">not_found</td><td class="param-desc">Resource doesn't exist or not accessible</td></tr>
+        <tr><td>429</td><td class="param-name">rate_limited</td><td class="param-desc">Too many requests — check Retry-After</td></tr>
+        <tr><td>500</td><td class="param-name">internal_error</td><td class="param-desc">Server error — retry with backoff</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Pagination -->
+  <section class="section" id="pagination">
+    <h2 class="section-title">Pagination</h2>
+    <p style="color:var(--text-dim);font-size:14px;line-height:1.7;margin-bottom:20px;">Paginated endpoints use cursor-free offset pagination:</p>
+    <pre><span class="comment"># Request</span>
+GET /api/v1/health/connections?page=2&per_page=25
+
+<span class="comment"># Response envelope</span>
+{
+  <span class="key">"data"</span>: [...],
+  <span class="key">"meta"</span>: {
+    <span class="key">"total"</span>: <span class="num">142</span>,
+    <span class="key">"page"</span>: <span class="num">2</span>,
+    <span class="key">"per_page"</span>: <span class="num">25</span>,
+    <span class="key">"has_more"</span>: <span class="kw">true</span>
+  }
+}</pre>
+    <p style="color:var(--text-dim);font-size:13px;">Max <code style="font-family:var(--mono);">per_page</code>: 100. Default: 50.</p>
+  </section>
+
+  <!-- Access Tiers -->
+  <section class="section" id="access-tiers">
+    <h2 class="section-title">Access Tiers</h2>
+    <table class="tier-table" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+      <thead><tr>
+        <th>Endpoint Group</th>
+        <th><span class="ibadge ib-green">Team</span></th>
+        <th><span class="ibadge ib-blue">Business</span></th>
+        <th><span class="ibadge ib-purple">Enterprise</span></th>
+      </tr></thead>
+      <tbody>
+        <tr><td>Health Data (<code style="font-family:var(--mono)">/api/v1/health/*</code>)</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+        <tr><td>TuneOps Tickets (<code style="font-family:var(--mono)">/api/v1/tuneops/*</code>)</td><td class="cross">✗</td><td class="check">✓</td><td class="check">✓</td></tr>
+        <tr><td>Activity Log (<code style="font-family:var(--mono)">/api/v1/activity/*</code>)</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓</td></tr>
+        <tr><td>Team (<code style="font-family:var(--mono)">/api/v1/team/*</code>)</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓</td></tr>
+      </tbody>
+    </table>
+    <p style="color:var(--text-dim);font-size:13px;margin-top:8px;"><a href="/pricing" style="color:var(--accent);">View plans →</a></p>
+  </section>
+
+  <!-- Health Endpoints -->
+  <section class="section" id="health-data">
+    <h2 class="section-title">Health Data <span>— Team, Business, Enterprise</span></h2>
+
+    <!-- GET /connections -->
+    <div class="endpoint" id="ep-connections">
+      <div class="endpoint-head">
+        <span class="method-badge mb-get">GET</span>
+        <span class="endpoint-path">/api/v1/health/connections</span>
+      </div>
+      <p class="endpoint-desc">List all Oracle connections with their latest health score. Paginated.</p>
+
+      <div class="tabs" data-group="g1">
+        <button class="tab active" data-tab="example">Example</button>
+        <button class="tab" data-tab="response">Response</button>
+        <button class="tab" data-tab="python">Python</button>
+        <button class="tab" data-tab="curl">cURL</button>
+      </div>
+      <div class="tab-content active" data-tab="example" data-group="g1">
+        <pre>GET /api/v1/health/connections?page=1&per_page=20
+Authorization: Bearer tv_api_...</pre>
+      </div>
+      <div class="tab-content" data-tab="response" data-group="g1">
+        <pre>{
+  <span class="key">"data"</span>: [
+    {
+      <span class="key">"id"</span>: <span class="num">42</span>,
+      <span class="key">"name"</span>: <span class="str">"PROD-DB01"</span>,
+      <span class="key">"host"</span>: <span class="str">"10.0.1.10"</span>,
+      <span class="key">"port"</span>: <span class="num">1521</span>,
+      <span class="key">"connection_type"</span>: <span class="str">"direct"</span>,
+      <span class="key">"latest_check_id"</span>: <span class="num">1873</span>,
+      <span class="key">"score"</span>: <span class="num">82</span>,
+      <span class="key">"last_checked_at"</span>: <span class="str">"2026-05-14T03:00:00Z"</span>,
+      <span class="key">"summary_text"</span>: <span class="str">"2 critical findings..."</span>
+    }
+  ],
+  <span class="key">"meta"</span>: { <span class="key">"total"</span>: <span class="num">5</span>, <span class="key">"page"</span>: <span class="num">1</span>, <span class="key">"per_page"</span>: <span class="num">20</span>, <span class="key">"has_more"</span>: <span class="kw">false</span> }
+}</pre>
+      </div>
+      <div class="tab-content" data-tab="python" data-group="g1">
+        <pre><span class="kw">import</span> requests
+
+headers = {<span class="str">"Authorization"</span>: <span class="str">"Bearer tv_api_YOUR_KEY"</span>}
+r = requests.get(<span class="str">"https://tunevault.app/api/v1/health/connections"</span>, headers=headers)
+connections = r.json()[<span class="str">"data"</span>]</pre>
+      </div>
+      <div class="tab-content" data-tab="curl" data-group="g1">
+        <pre>curl -H "Authorization: Bearer tv_api_YOUR_KEY" \
+  "https://tunevault.app/api/v1/health/connections"</pre>
+      </div>
+    </div>
+
+    <!-- GET /connections/:id/checks/latest -->
+    <div class="endpoint" id="ep-checks-latest">
+      <div class="endpoint-head">
+        <span class="method-badge mb-get">GET</span>
+        <span class="endpoint-path">/api/v1/health/connections/:id/checks/latest</span>
+      </div>
+      <p class="endpoint-desc">Most recent health check results including all individual check findings.</p>
+      <div class="tabs" data-group="g2">
+        <button class="tab active" data-tab="curl">cURL</button>
+        <button class="tab" data-tab="response">Response</button>
+      </div>
+      <div class="tab-content active" data-tab="curl" data-group="g2">
+        <pre>curl -H "Authorization: Bearer tv_api_YOUR_KEY" \
+  "https://tunevault.app/api/v1/health/connections/42/checks/latest"</pre>
+      </div>
+      <div class="tab-content" data-tab="response" data-group="g2">
+        <pre>{
+  <span class="key">"data"</span>: {
+    <span class="key">"id"</span>: <span class="num">1873</span>, <span class="key">"score"</span>: <span class="num">82</span>,
+    <span class="key">"summary_text"</span>: <span class="str">"2 critical findings require attention"</span>,
+    <span class="key">"created_at"</span>: <span class="str">"2026-05-14T03:00:00Z"</span>,
+    <span class="key">"checks"</span>: [
+      {
+        <span class="key">"check_id"</span>: <span class="str">"REDOLOG_SIZE"</span>,
+        <span class="key">"category"</span>: <span class="str">"redo_logs"</span>,
+        <span class="key">"status"</span>: <span class="str">"critical"</span>,
+        <span class="key">"title"</span>: <span class="str">"Redo log size too small"</span>,
+        <span class="key">"metric_line"</span>: <span class="str">"50MB (recommended: ≥ 500MB)"</span>,
+        <span class="key">"remediation"</span>: <span class="str">"ALTER DATABASE ADD LOGFILE..."</span>,
+        <span class="key">"severity"</span>: <span class="str">"critical"</span>
+      }
+    ]
+  }
+}</pre>
+      </div>
+    </div>
+
+    <!-- GET /fleet -->
+    <div class="endpoint" id="ep-fleet">
+      <div class="endpoint-head">
+        <span class="method-badge mb-get">GET</span>
+        <span class="endpoint-path">/api/v1/health/fleet</span>
+      </div>
+      <p class="endpoint-desc">Aggregated fleet status across all connections — ideal for Grafana dashboards and alerting.</p>
+      <div class="tabs" data-group="g3">
+        <button class="tab active" data-tab="response">Response</button>
+        <button class="tab" data-tab="python">Python</button>
+      </div>
+      <div class="tab-content active" data-tab="response" data-group="g3">
+        <pre>{
+  <span class="key">"data"</span>: [
+    { <span class="key">"id"</span>: <span class="num">42</span>, <span class="key">"name"</span>: <span class="str">"PROD"</span>, <span class="key">"score"</span>: <span class="num">82</span>, <span class="key">"status"</span>: <span class="str">"healthy"</span> },
+    { <span class="key">"id"</span>: <span class="num">43</span>, <span class="key">"name"</span>: <span class="str">"DR"</span>,   <span class="key">"score"</span>: <span class="num">55</span>, <span class="key">"status"</span>: <span class="str">"critical"</span> }
+  ],
+  <span class="key">"summary"</span>: {
+    <span class="key">"total"</span>: <span class="num">2</span>, <span class="key">"healthy"</span>: <span class="num">1</span>,
+    <span class="key">"warning"</span>: <span class="num">0</span>, <span class="key">"critical"</span>: <span class="num">1</span>, <span class="key">"never_run"</span>: <span class="num">0</span>
+  }
+}</pre>
+      </div>
+      <div class="tab-content" data-tab="python" data-group="g3">
+        <pre><span class="comment"># Export fleet status to CSV for Splunk</span>
+<span class="kw">import</span> requests, csv, io
+
+r = requests.get(
+  <span class="str">"https://tunevault.app/api/v1/health/fleet"</span>,
+  headers={<span class="str">"Authorization"</span>: <span class="str">"Bearer tv_api_YOUR_KEY"</span>}
+)
+fleet = r.json()
+
+output = io.StringIO()
+writer = csv.DictWriter(output, fieldnames=[<span class="str">"name"</span>, <span class="str">"score"</span>, <span class="str">"status"</span>])
+writer.writeheader()
+<span class="kw">for</span> conn <span class="kw">in</span> fleet[<span class="str">"data"</span>]:
+    writer.writerow({<span class="str">"name"</span>: conn[<span class="str">"name"</span>], <span class="str">"score"</span>: conn[<span class="str">"score"</span>], <span class="str">"status"</span>: conn[<span class="str">"status"</span>]})</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- TuneOps -->
+  <section class="section" id="tuneops">
+    <h2 class="section-title">TuneOps Tickets <span>— Business, Enterprise</span></h2>
+
+    <div class="endpoint" id="ep-tickets">
+      <div class="endpoint-head">
+        <span class="method-badge mb-get">GET</span>
+        <span class="endpoint-path">/api/v1/tuneops/tickets</span>
+      </div>
+      <p class="endpoint-desc">List finding history records (TuneOps tickets). Filterable by status, severity, connection, and date range.</p>
+      <table class="params-table" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px;">
+        <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td class="param-name">status</td><td class="param-type">string</td><td class="param-desc">Filter: <code style="font-family:var(--mono)">open</code> or <code style="font-family:var(--mono)">resolved</code></td></tr>
+          <tr><td class="param-name">severity</td><td class="param-type">string</td><td class="param-desc"><code style="font-family:var(--mono)">critical</code>, <code style="font-family:var(--mono)">warning</code>, <code style="font-family:var(--mono)">info</code></td></tr>
+          <tr><td class="param-name">connection_id</td><td class="param-type">integer</td><td class="param-desc">Filter to a specific connection</td></tr>
+          <tr><td class="param-name">from</td><td class="param-type">ISO 8601</td><td class="param-desc">Start of date range (first_seen_at)</td></tr>
+          <tr><td class="param-name">to</td><td class="param-type">ISO 8601</td><td class="param-desc">End of date range</td></tr>
+          <tr><td class="param-name">page, per_page</td><td class="param-type">integer</td><td class="param-desc">Pagination (max 100 per page)</td></tr>
+        </tbody>
+      </table>
+      <div class="tabs" data-group="g4">
+        <button class="tab active" data-tab="curl">cURL</button>
+        <button class="tab" data-tab="js">JavaScript</button>
+      </div>
+      <div class="tab-content active" data-tab="curl" data-group="g4">
+        <pre>curl -H "Authorization: Bearer tv_api_YOUR_KEY" \
+  "https://tunevault.app/api/v1/tuneops/tickets?status=open&severity=critical"</pre>
+      </div>
+      <div class="tab-content" data-tab="js" data-group="g4">
+        <pre><span class="kw">const</span> resp = <span class="kw">await</span> fetch(
+  <span class="str">'/api/v1/tuneops/tickets?status=open'</span>,
+  { headers: { Authorization: <span class="str">`Bearer ${apiKey}`</span> } }
+);
+<span class="kw">const</span> { data, meta } = <span class="kw">await</span> resp.json();</pre>
+      </div>
+    </div>
+
+    <div class="endpoint" id="ep-tuneops-stats">
+      <div class="endpoint-head">
+        <span class="method-badge mb-get">GET</span>
+        <span class="endpoint-path">/api/v1/tuneops/stats</span>
+      </div>
+      <p class="endpoint-desc">Aggregate ticket statistics — open counts, resolved this week, avg resolution time.</p>
+      <pre>{
+  <span class="key">"data"</span>: {
+    <span class="key">"open_count"</span>: <span class="num">7</span>,
+    <span class="key">"resolved_this_week"</span>: <span class="num">3</span>,
+    <span class="key">"critical_open"</span>: <span class="num">2</span>,
+    <span class="key">"warning_open"</span>: <span class="num">5</span>,
+    <span class="key">"avg_resolution_hours"</span>: <span class="num">18.4</span>
+  }
+}</pre>
+    </div>
+  </section>
+
+  <!-- Activity -->
+  <section class="section" id="activity">
+    <h2 class="section-title">Activity Log <span>— Enterprise only</span></h2>
+
+    <div class="endpoint" id="ep-activity">
+      <div class="endpoint-head">
+        <span class="method-badge mb-get">GET</span>
+        <span class="endpoint-path">/api/v1/activity</span>
+      </div>
+      <p class="endpoint-desc">Full activity log for the account. Filterable by action type and date range. Useful for SIEM integrations.</p>
+      <div class="tabs" data-group="g5">
+        <button class="tab active" data-tab="curl">cURL</button>
+        <button class="tab" data-tab="response">Response</button>
+      </div>
+      <div class="tab-content active" data-tab="curl" data-group="g5">
+        <pre>curl -H "Authorization: Bearer tv_api_YOUR_KEY" \
+  "https://tunevault.app/api/v1/activity?from=2026-05-01&to=2026-05-14"</pre>
+      </div>
+      <div class="tab-content" data-tab="response" data-group="g5">
+        <pre>{
+  <span class="key">"data"</span>: [
+    {
+      <span class="key">"id"</span>: <span class="num">9001</span>,
+      <span class="key">"action_type"</span>: <span class="str">"health_check_completed"</span>,
+      <span class="key">"page_path"</span>: <span class="str">"/dashboard"</span>,
+      <span class="key">"properties"</span>: { <span class="key">"connection_id"</span>: <span class="num">42</span>, <span class="key">"score"</span>: <span class="num">82</span> },
+      <span class="key">"occurred_at"</span>: <span class="str">"2026-05-14T03:01:22Z"</span>
+    }
+  ],
+  <span class="key">"meta"</span>: { <span class="key">"total"</span>: <span class="num">1482</span>, <span class="key">"page"</span>: <span class="num">1</span>, <span class="key">"per_page"</span>: <span class="num">50</span>, <span class="key">"has_more"</span>: <span class="kw">true</span> }
+}</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- Team -->
+  <section class="section" id="team">
+    <h2 class="section-title">Team <span>— Enterprise only</span></h2>
+
+    <div class="endpoint" id="ep-team-members">
+      <div class="endpoint-head">
+        <span class="method-badge mb-get">GET</span>
+        <span class="endpoint-path">/api/v1/team/members</span>
+      </div>
+      <p class="endpoint-desc">List team members with their roles. Returns empty array for individual accounts.</p>
+      <pre>curl -H "Authorization: Bearer tv_api_YOUR_KEY" \
+  "https://tunevault.app/api/v1/team/members"</pre>
+    </div>
+
+    <div class="endpoint" id="ep-team-roles">
+      <div class="endpoint-head">
+        <span class="method-badge mb-get">GET</span>
+        <span class="endpoint-path">/api/v1/team/roles</span>
+      </div>
+      <p class="endpoint-desc">Returns all available roles and their permission sets. Static — no authentication change needed to read.</p>
+    </div>
+  </section>
+
+  <!-- Webhooks Coming Soon -->
+  <section class="section" id="webhooks">
+    <h2 class="section-title">Webhooks <span class="ibadge ib-coming" style="vertical-align:middle;margin-left:10px;">Coming Soon</span></h2>
+
+    <div class="coming-soon-card" style="margin-bottom:24px;">
+      <h3>Webhooks are in design</h3>
+      <p>Webhooks aren't implemented yet, but the payload format is documented below so you can design your receiver now. When webhooks ship, no payload changes will be required.</p>
+    </div>
+
+    <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;font-weight:600;">Planned payload format for all webhook events:</p>
+    <pre>{
+  <span class="key">"event"</span>: <span class="str">"health_check.completed"</span>,
+  <span class="key">"timestamp"</span>: <span class="str">"2026-05-14T03:00:00Z"</span>,
+  <span class="key">"api_version"</span>: <span class="str">"v1"</span>,
+  <span class="key">"data"</span>: {
+    <span class="comment">// event-specific payload (see below)</span>
+  }
+}</pre>
+
+    <p style="color:var(--text-dim);font-size:14px;margin-bottom:12px;margin-top:20px;font-weight:600;">Event types (planned):</p>
+    <table class="params-table" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+      <thead><tr><th>Event</th><th>Trigger</th></tr></thead>
+      <tbody>
+        <tr><td class="param-name">health_check.completed</td><td class="param-desc">A health check run finishes — includes score, top finding, connection ID</td></tr>
+        <tr><td class="param-name">tuneops.ticket_created</td><td class="param-desc">A new finding appears in TuneOps — includes title, severity, remediation</td></tr>
+        <tr><td class="param-name">tuneops.ticket_resolved</td><td class="param-desc">A finding is marked resolved — includes resolution time</td></tr>
+        <tr><td class="param-name">alert.triggered</td><td class="param-desc">Autonomous monitoring alert fires — includes threshold exceeded, connection details</td></tr>
+        <tr><td class="param-name">alert.resolved</td><td class="param-desc">A previously triggered alert clears</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+</div>
+</div>
+
+<script>
+  // Tab switching
+  document.querySelectorAll('.tabs').forEach(tabGroup => {
+    const group = tabGroup.dataset.group;
+    tabGroup.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const targetTab = tab.dataset.tab;
+        tabGroup.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        // Find sibling tab contents (parent's children)
+        const container = tabGroup.parentElement;
+        container.querySelectorAll('.tab-content[data-group="' + group + '"]').forEach(tc => {
+          tc.classList.toggle('active', tc.dataset.tab === targetTab);
+        });
+      });
+    });
+  });
+
+  // Sidebar active link on scroll
+  const sections = document.querySelectorAll('[id]');
+  const navLinks = document.querySelectorAll('.nav-link');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navLinks.forEach(l => l.classList.remove('active'));
+        const match = document.querySelector(`.nav-link[href="#${entry.target.id}"]`);
+        if (match) match.classList.add('active');
+      }
+    });
+  }, { threshold: 0.3 });
+  sections.forEach(s => observer.observe(s));
+
+  // Try it — fleet endpoint
+  async function tryFleet() {
+    const key = document.getElementById('apiKeyInput').value.trim();
+    if (!key) { alert('Enter your API key first'); return; }
+
+    const statusEl = document.getElementById('fleetStatus');
+    const bodyEl = document.getElementById('fleetResponseBody');
+    const respEl = document.getElementById('fleetResponse');
+
+    statusEl.textContent = 'Sending request…';
+    respEl.classList.add('visible');
+    bodyEl.textContent = '';
+
+    try {
+      const r = await fetch('/api/v1/health/fleet', {
+        headers: { Authorization: `Bearer ${key}` }
+      });
+      const data = await r.json();
+      statusEl.textContent = `HTTP ${r.status} ${r.ok ? '✓' : '✗'}`;
+      statusEl.className = 'try-status ' + (r.ok ? 'ok' : 'err');
+      bodyEl.innerHTML = syntaxHighlight(JSON.stringify(data, null, 2));
+    } catch (e) {
+      statusEl.textContent = 'Request failed: ' + e.message;
+      statusEl.className = 'try-status err';
+    }
+  }
+
+  function syntaxHighlight(json) {
+    return json
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, (match) => {
+        let cls = 'num';
+        if (/^"/.test(match)) { cls = /:$/.test(match) ? 'key' : 'str'; }
+        else if (/true|false/.test(match)) { cls = 'kw'; }
+        return `<span class="${cls}">${match}</span>`;
+      });
+  }
+</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

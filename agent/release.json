@@ -1,0 +1,12 @@
+{
+  "version": "6.2.0",
+  "build_time": "2026-05-25T15:16:05.580Z",
+  "sha256": "75248668d06a3eeb62eeaa4536b798b3db8cb1fbb776e1c220d78af0407d37f0",
+  "python_min": "3.6",
+  "oel_supported": [
+    "7.x",
+    "8.x",
+    "9.x"
+  ],
+  "changelog_url": "https://tunevault.app/agent/changelog"
+}

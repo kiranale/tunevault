@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Activity Log — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c; --surface: #111114; --surface-2: #1a1a1f;
+      --border: #2a2a30; --text: #e8e8ed; --text-dim: #b8b8c8;
+      --accent: #f0a830; --accent-dim: rgba(240,168,48,.12);
+      --green: #34d399; --green-dim: rgba(52,211,153,.10);
+      --red: #f87171; --red-dim: rgba(248,113,113,.10);
+      --blue: #60a5fa; --blue-dim: rgba(96,165,250,.10);
+      --purple: #a78bfa; --purple-dim: rgba(167,139,250,.10);
+      --mono: 'JetBrains Mono', monospace;
+    }
+    body { font-family: 'Space Grotesk', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* Nav */
+    nav { position: sticky; top: 0; z-index: 9999; background: rgba(10,10,12,.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(8px); }
+    /* nav-root styled by nav-component.js */
+
+    /* Layout */
+    main { max-width: 1400px; margin: 0 auto; padding: 36px 24px 100px; }
+
+    /* Header */
+    .page-header { margin-bottom: 28px; }
+    .page-header h1 { font-size: 24px; font-weight: 700; letter-spacing: -.5px; display: flex; align-items: center; gap: 10px; }
+    .page-header h1 svg { color: var(--accent); }
+    .page-subtitle { color: var(--text-dim); font-size: 13px; margin-top: 5px; }
+
+    /* Summary cards */
+    .stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 24px; }
+    @media(max-width: 900px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media(max-width: 500px) { .stats-grid { grid-template-columns: 1fr; } }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+    .stat-label { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px; }
+    .stat-value { font-size: 26px; font-weight: 700; line-height: 1; }
+    .stat-value.red { color: var(--red); }
+    .stat-value.green { color: var(--green); }
+    .stat-value.gold { color: var(--accent); }
+
+    /* Filters */
+    .filters-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+    .filter-group { display: flex; flex-direction: column; gap: 4px; }
+    .filter-label { font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .06em; }
+    .form-control { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 7px 10px; border-radius: 7px; font-family: 'Space Grotesk', sans-serif; font-size: 13px; outline: none; transition: border-color .15s; min-width: 120px; }
+    .form-control:focus { border-color: var(--accent); }
+    select.form-control { cursor: pointer; }
+
+    /* Preset buttons */
+    .preset-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .preset-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 13px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text-dim); transition: all .15s; }
+    .preset-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+    .preset-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+    /* Action buttons */
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 7px; font-family: 'Space Grotesk', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; text-decoration: none; }
+    .btn-primary { background: var(--accent); color: #0a0a0c; }
+    .btn-primary:hover { background: #f7b84a; }
+    .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-outline:hover { border-color: var(--text-dim); background: rgba(255,255,255,.04); }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* Table */
+    .table-container { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .table-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--border); }
+    .table-title { font-size: 13px; font-weight: 600; }
+    .table-actions { display: flex; gap: 8px; align-items: center; }
+    .table-count { font-size: 12px; color: var(--text-dim); }
+
+    .log-table { width: 100%; border-collapse: collapse; }
+    .log-table th { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-dim); padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .log-table td { font-size: 12.5px; padding: 10px 14px; border-bottom: 1px solid rgba(42,42,48,.5); vertical-align: top; }
+    .log-table tr:last-child td { border-bottom: none; }
+    .log-table tr:hover td { background: rgba(255,255,255,.02); }
+
+    /* Cell styles */
+    .ts-cell { color: var(--text-dim); font-family: var(--mono); font-size: 11.5px; white-space: nowrap; }
+    .user-cell .user-name { font-weight: 600; }
+    .user-cell .user-role { font-size: 11px; color: var(--text-dim); }
+    .action-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 5px; font-size: 11.5px; font-weight: 600; }
+    .action-login     { background: var(--blue-dim);   color: var(--blue);   }
+    .action-hc        { background: var(--accent-dim); color: var(--accent); }
+    .action-sql       { background: var(--purple-dim); color: var(--purple); }
+    .action-ssh       { background: var(--green-dim);  color: var(--green);  }
+    .action-db        { background: var(--blue-dim);   color: var(--blue);   }
+    .action-ebs       { background: rgba(251,146,60,.12); color: #fb923c; }
+    .action-tuneops   { background: var(--purple-dim); color: var(--purple); }
+    .action-approval  { background: var(--green-dim);  color: var(--green);  }
+    .action-settings  { background: rgba(148,163,184,.12); color: #94a3b8; }
+    .action-export    { background: var(--accent-dim); color: var(--accent); }
+    .action-other     { background: rgba(136,136,160,.1); color: var(--text-dim); }
+
+    .detail-cell { max-width: 280px; font-size: 12px; color: var(--text-dim); }
+    .detail-snippet { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .detail-snippet code { font-family: var(--mono); font-size: 11px; color: var(--text); background: var(--surface-2); padding: 1px 4px; border-radius: 3px; }
+    .conn-cell { font-size: 12px; color: var(--text-dim); }
+    .result-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; font-size: 11.5px; font-weight: 600; }
+    .result-success { background: var(--green-dim); color: var(--green); }
+    .result-failed  { background: var(--red-dim);   color: var(--red);   }
+    .result-pending { background: rgba(136,136,160,.1); color: var(--text-dim); }
+    .dur-cell { font-family: var(--mono); font-size: 11px; color: var(--text-dim); }
+
+    /* Pagination */
+    .pagination { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-top: 1px solid var(--border); }
+    .page-info { font-size: 12px; color: var(--text-dim); }
+    .page-btns { display: flex; gap: 6px; }
+    .page-btn { padding: 5px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text-dim); transition: all .15s; }
+    .page-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .page-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+    /* Loading + empty */
+    .loading-row td { text-align: center; padding: 40px; color: var(--text-dim); }
+    .empty-state { text-align: center; padding: 48px 24px; }
+    .empty-icon { font-size: 36px; margin-bottom: 12px; }
+    .empty-msg { color: var(--text-dim); font-size: 13px; }
+
+    /* Row detail expand */
+    .expand-btn { background: none; border: none; cursor: pointer; color: var(--text-dim); padding: 0 4px; font-size: 14px; transition: color .12s; }
+    .expand-btn:hover { color: var(--accent); }
+    .detail-row td { background: var(--surface-2); padding: 10px 16px 10px 40px; font-size: 12px; }
+    .detail-row pre { font-family: var(--mono); font-size: 11px; color: var(--text-dim); white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto; }
+
+    /* Mobile overrides */
+    @media(max-width: 700px) {
+      .filters-bar { flex-direction: column; }
+      .log-table .ts-cell, .log-table .dur-cell, .log-table .conn-cell { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div id="nav-root"></div>
+</nav>
+
+<main>
+  <div class="page-header">
+    <h1>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      Activity Log
+    </h1>
+    <p class="page-subtitle">Every action, every login, every execution — timestamped and attributed.</p>
+  </div>
+
+  <!-- Summary cards -->
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat-card"><div class="stat-label">Total Actions</div><div class="stat-value" id="statTotal">—</div></div>
+    <div class="stat-card"><div class="stat-label">Executions</div><div class="stat-value gold" id="statExec">—</div></div>
+    <div class="stat-card"><div class="stat-label">Active Users</div><div class="stat-value" id="statUsers">—</div></div>
+    <div class="stat-card"><div class="stat-label">Approvals</div><div class="stat-value green" id="statApprovals">—</div></div>
+    <div class="stat-card"><div class="stat-label">Failed Ops</div><div class="stat-value red" id="statFailed">—</div></div>
+  </div>
+
+  <!-- Compliance presets -->
+  <div class="preset-row">
+    <button class="preset-btn" onclick="applyPreset('sox')" id="preset-sox">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      SOX Change Report
+    </button>
+    <button class="preset-btn" onclick="applyPreset('access')" id="preset-access">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      Access Audit
+    </button>
+    <button class="preset-btn" onclick="applyPreset('summary')" id="preset-summary">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      Activity Summary
+    </button>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters-bar">
+    <div class="filter-group">
+      <label class="filter-label">From</label>
+      <input type="date" id="filterFrom" class="form-control" style="min-width:130px;">
+    </div>
+    <div class="filter-group">
+      <label class="filter-label">To</label>
+      <input type="date" id="filterTo" class="form-control" style="min-width:130px;">
+    </div>
+    <div class="filter-group">
+      <label class="filter-label">User</label>
+      <select id="filterUser" class="form-control">
+        <option value="">All users</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label class="filter-label">Action Type</label>
+      <select id="filterAction" class="form-control" multiple size="1" style="min-width:140px;">
+        <option value="">All types</option>
+        <option value="login">Login</option>
+        <option value="health_check">Health Check</option>
+        <option value="sql_execution">SQL Execution</option>
+        <option value="ssh_execution">SSH Execution</option>
+        <option value="db_op">DB Op</option>
+        <option value="ebs_op">EBS Op</option>
+        <option value="tuneops">TuneOps</option>
+        <option value="approval">Approval</option>
+        <option value="settings_change">Settings Change</option>
+        <option value="export">Export</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label class="filter-label">Connection</label>
+      <select id="filterConn" class="form-control">
+        <option value="">All connections</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label class="filter-label">Result</label>
+      <select id="filterResult" class="form-control">
+        <option value="">All results</option>
+        <option value="success">✅ Success</option>
+        <option value="failed">❌ Failed</option>
+        <option value="pending">⏳ Pending</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label class="filter-label">Search</label>
+      <input type="text" id="filterSearch" class="form-control" placeholder="Search detail, user…" style="min-width:180px;">
+    </div>
+    <div class="filter-group" style="justify-content: flex-end; flex-direction: row; gap: 6px; align-self: flex-end;">
+      <button class="btn btn-primary btn-sm" onclick="applyFilters()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Filter
+      </button>
+      <button class="btn btn-outline btn-sm" onclick="clearFilters()">Clear</button>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-container">
+    <div class="table-header">
+      <span class="table-title">Activity Log</span>
+      <div class="table-actions">
+        <span class="table-count" id="tableCount"></span>
+        <button class="btn btn-outline btn-sm" onclick="exportCsv()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          CSV
+        </button>
+        <button class="btn btn-outline btn-sm" onclick="exportPdf()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          PDF
+        </button>
+      </div>
+    </div>
+
+    <div style="overflow-x: auto;">
+      <table class="log-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Timestamp</th>
+            <th>User</th>
+            <th>Action</th>
+            <th>Detail</th>
+            <th>Connection</th>
+            <th>Result</th>
+            <th>Duration</th>
+          </tr>
+        </thead>
+        <tbody id="logBody">
+          <tr class="loading-row"><td colspan="8">Loading activity…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pagination" id="pagination" style="display:none;">
+      <span class="page-info" id="pageInfo"></span>
+      <div class="page-btns">
+        <button class="page-btn" id="btnPrev" onclick="prevPage()">← Prev</button>
+        <button class="page-btn" id="btnNext" onclick="nextPage()">Next →</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="/nav-component.js"></script>
+<script>
+(function() {
+  'use strict';
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  var currentPage = 0;
+  var pageSize = 50;
+  var totalRows = 0;
+  var currentFilters = {};
+  var expandedRows = {};
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  window.tvNav.init('activity');
+
+  // Default: last 7 days
+  var now = new Date();
+  var weekAgo = new Date(now); weekAgo.setDate(weekAgo.getDate() - 7);
+  document.getElementById('filterFrom').value = weekAgo.toISOString().slice(0, 10);
+  document.getElementById('filterTo').value = now.toISOString().slice(0, 10);
+
+  // Load filter dropdowns + initial data
+  loadFilterDropdowns();
+  applyFilters();
+
+  // Search debounce
+  var searchTimer;
+  document.getElementById('filterSearch').addEventListener('input', function() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(applyFilters, 400);
+  });
+
+  // ── Filter dropdown population ─────────────────────────────────────────────
+  function loadFilterDropdowns() {
+    // Users
+    fetch('/api/activity/users', { credentials: 'include' })
+      .then(function(r) { return r.ok ? r.json() : { data: [] }; })
+      .then(function(json) {
+        var sel = document.getElementById('filterUser');
+        (json.data || []).forEach(function(u) {
+          var opt = document.createElement('option');
+          opt.value = u.id;
+          opt.textContent = u.name ? (u.name + ' (' + u.email + ')') : u.email;
+          sel.appendChild(opt);
+        });
+      });
+
+    // Connections
+    fetch('/api/activity/connections', { credentials: 'include' })
+      .then(function(r) { return r.ok ? r.json() : { data: [] }; })
+      .then(function(json) {
+        var sel = document.getElementById('filterConn');
+        (json.data || []).forEach(function(c) {
+          var opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = c.name || c.id;
+          sel.appendChild(opt);
+        });
+      });
+  }
+
+  // ── Filters ────────────────────────────────────────────────────────────────
+  window.applyFilters = function() {
+    currentPage = 0;
+    currentFilters = buildFilters();
+    loadStats();
+    loadLog();
+    // Clear preset highlights
+    document.querySelectorAll('.preset-btn').forEach(function(b) { b.classList.remove('active'); });
+  };
+
+  window.clearFilters = function() {
+    document.getElementById('filterFrom').value = '';
+    document.getElementById('filterTo').value = '';
+    document.getElementById('filterUser').value = '';
+    document.getElementById('filterAction').value = '';
+    document.getElementById('filterConn').value = '';
+    document.getElementById('filterResult').value = '';
+    document.getElementById('filterSearch').value = '';
+    currentPage = 0;
+    currentFilters = {};
+    document.querySelectorAll('.preset-btn').forEach(function(b) { b.classList.remove('active'); });
+    loadStats();
+    loadLog();
+  };
+
+  // Compliance presets
+  window.applyPreset = function(type) {
+    document.querySelectorAll('.preset-btn').forEach(function(b) { b.classList.remove('active'); });
+    document.getElementById('preset-' + type).classList.add('active');
+
+    var actionSel = document.getElementById('filterAction');
+    // Reset first
+    for (var i = 0; i < actionSel.options.length; i++) actionSel.options[i].selected = false;
+
+    if (type === 'sox') {
+      // SOX: executions + approvals
+      ['sql_execution', 'ssh_execution', 'db_op', 'ebs_op', 'approval'].forEach(function(v) {
+        for (var i = 1; i < actionSel.options.length; i++) {
+          if (actionSel.options[i].value === v) actionSel.options[i].selected = true;
+        }
+      });
+    } else if (type === 'access') {
+      // Access Audit: logins + settings changes
+      ['login', 'settings_change'].forEach(function(v) {
+        for (var i = 1; i < actionSel.options.length; i++) {
+          if (actionSel.options[i].value === v) actionSel.options[i].selected = true;
+        }
+      });
+    } else if (type === 'summary') {
+      // Activity Summary: all types (no filter)
+      actionSel.value = '';
+    }
+
+    currentPage = 0;
+    currentFilters = buildFilters();
+    loadStats();
+    loadLog();
+  };
+
+  function buildFilters() {
+    var f = {};
+    var from = document.getElementById('filterFrom').value;
+    var to   = document.getElementById('filterTo').value;
+    var user = document.getElementById('filterUser').value;
+    var conn = document.getElementById('filterConn').value;
+    var res  = document.getElementById('filterResult').value;
+    var srch = document.getElementById('filterSearch').value;
+
+    if (from) f.date_from = from;
+    if (to)   f.date_to   = to;
+    if (user) f.user_id   = user;
+    if (conn) f.connection_id = conn;
+    if (res)  f.result    = res;
+    if (srch) f.search    = srch;
+
+    // Multi-select action types
+    var actionSel = document.getElementById('filterAction');
+    var selected = [];
+    for (var i = 0; i < actionSel.options.length; i++) {
+      if (actionSel.options[i].selected && actionSel.options[i].value) {
+        selected.push(actionSel.options[i].value);
+      }
+    }
+    if (selected.length > 0) f.action_types = selected.join(',');
+
+    return f;
+  }
+
+  function buildQueryString(extra) {
+    var params = Object.assign({}, currentFilters, extra || {});
+    return Object.keys(params).map(function(k) {
+      return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+    }).join('&');
+  }
+
+  // ── Stats ──────────────────────────────────────────────────────────────────
+  function loadStats() {
+    var qs = '';
+    var f = currentFilters;
+    var parts = [];
+    if (f.date_from) parts.push('date_from=' + encodeURIComponent(f.date_from));
+    if (f.date_to)   parts.push('date_to='   + encodeURIComponent(f.date_to));
+    if (parts.length) qs = '?' + parts.join('&');
+
+    fetch('/api/activity/stats' + qs, { credentials: 'include' })
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(json) {
+        if (!json || !json.data) return;
+        var t = json.data.totals || {};
+        document.getElementById('statTotal').textContent     = fmtNum(t.total_actions || 0);
+        document.getElementById('statExec').textContent      = fmtNum(t.execution_count || 0);
+        document.getElementById('statUsers').textContent     = fmtNum(json.data.activeUsers || 0);
+        document.getElementById('statApprovals').textContent = fmtNum(t.approval_count || 0);
+        document.getElementById('statFailed').textContent    = fmtNum(t.failed_count || 0);
+      })
+      .catch(function() {});
+  }
+
+  // ── Log table ──────────────────────────────────────────────────────────────
+  function loadLog() {
+    var tbody = document.getElementById('logBody');
+    tbody.innerHTML = '<tr class="loading-row"><td colspan="8">Loading…</td></tr>';
+    document.getElementById('pagination').style.display = 'none';
+
+    var qs = buildQueryString({ limit: pageSize, offset: currentPage * pageSize });
+    fetch('/api/activity?' + qs, { credentials: 'include' })
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(json) {
+        if (!json) {
+          tbody.innerHTML = '<tr class="loading-row"><td colspan="8" style="color:var(--red)">Failed to load activity.</td></tr>';
+          return;
+        }
+        totalRows = json.total || 0;
+        renderTable(json.data || []);
+        renderPagination();
+      })
+      .catch(function(e) {
+        tbody.innerHTML = '<tr class="loading-row"><td colspan="8" style="color:var(--red)">Error: ' + e.message + '</td></tr>';
+      });
+  }
+
+  function renderTable(rows) {
+    var tbody = document.getElementById('logBody');
+    var count = document.getElementById('tableCount');
+    count.textContent = totalRows.toLocaleString() + ' row' + (totalRows === 1 ? '' : 's');
+
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-msg">No activity found for these filters.</div></div></td></tr>';
+      return;
+    }
+
+    var html = '';
+    rows.forEach(function(row) {
+      var rid = 'row-' + row.id;
+      html += '<tr id="' + rid + '">';
+      html += '<td><button class="expand-btn" onclick="toggleDetail(' + row.id + ')" title="Expand detail">▶</button></td>';
+      html += '<td class="ts-cell">' + fmtTs(row.created_at) + '</td>';
+      html += '<td class="user-cell">';
+      if (row.user_name) html += '<div class="user-name">' + esc(row.user_name) + '</div>';
+      html += '<div class="user-role">' + esc(row.user_email || '—') + (row.user_role ? ' · ' + esc(row.user_role) : '') + '</div></td>';
+      html += '<td>' + actionBadge(row.action_type) + '</td>';
+      html += '<td class="detail-cell"><div class="detail-snippet">' + renderDetailSnippet(row.detail, row.action_type) + '</div></td>';
+      html += '<td class="conn-cell">' + esc(row.connection_name || '—') + '</td>';
+      html += '<td>' + resultBadge(row.result) + '</td>';
+      html += '<td class="dur-cell">' + (row.duration_ms != null ? row.duration_ms + 'ms' : '—') + '</td>';
+      html += '</tr>';
+
+      // Hidden detail row
+      html += '<tr id="detail-' + row.id + '" class="detail-row" style="display:none;">';
+      html += '<td colspan="8"><pre>' + esc(JSON.stringify(row.detail || {}, null, 2)) + '</pre></td>';
+      html += '</tr>';
+    });
+
+    tbody.innerHTML = html;
+    expandedRows = {};
+  }
+
+  window.toggleDetail = function(id) {
+    var detailRow = document.getElementById('detail-' + id);
+    var btn = document.querySelector('#row-' + id + ' .expand-btn');
+    if (!detailRow) return;
+    var isOpen = detailRow.style.display !== 'none';
+    detailRow.style.display = isOpen ? 'none' : 'table-row';
+    if (btn) btn.textContent = isOpen ? '▶' : '▼';
+  };
+
+  function renderDetailSnippet(detail, actionType) {
+    if (!detail) return '—';
+    var d = detail;
+    if (typeof d === 'string') { try { d = JSON.parse(d); } catch(e) { return esc(d); } }
+    if (actionType === 'sql_execution' && d.sql) {
+      return '<code>' + esc(String(d.sql).slice(0, 80)) + (d.sql.length > 80 ? '…' : '') + '</code>';
+    }
+    if (actionType === 'ssh_execution' && d.command) {
+      return '<code>' + esc(String(d.command).slice(0, 80)) + (d.command.length > 80 ? '…' : '') + '</code>';
+    }
+    if (d.message) return esc(String(d.message).slice(0, 100));
+    if (d.description) return esc(String(d.description).slice(0, 100));
+    if (d.action) return esc(String(d.action).slice(0, 100));
+    var keys = Object.keys(d);
+    if (keys.length === 0) return '—';
+    return esc(keys[0] + ': ' + String(d[keys[0]]).slice(0, 80));
+  }
+
+  // ── Pagination ─────────────────────────────────────────────────────────────
+  function renderPagination() {
+    var pag = document.getElementById('pagination');
+    var info = document.getElementById('pageInfo');
+    var prev = document.getElementById('btnPrev');
+    var next = document.getElementById('btnNext');
+
+    var from = currentPage * pageSize + 1;
+    var to = Math.min((currentPage + 1) * pageSize, totalRows);
+    info.textContent = 'Showing ' + from + '–' + to + ' of ' + totalRows.toLocaleString();
+    prev.disabled = currentPage === 0;
+    next.disabled = (currentPage + 1) * pageSize >= totalRows;
+    pag.style.display = totalRows > pageSize ? 'flex' : 'none';
+  }
+
+  window.prevPage = function() { if (currentPage > 0) { currentPage--; loadLog(); } };
+  window.nextPage = function() { if ((currentPage + 1) * pageSize < totalRows) { currentPage++; loadLog(); } };
+
+  // ── Exports ────────────────────────────────────────────────────────────────
+  window.exportCsv = function() {
+    window.location.href = '/api/activity/export/csv?' + buildQueryString();
+  };
+  window.exportPdf = function() {
+    window.location.href = '/api/activity/export/pdf?' + buildQueryString();
+  };
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function fmtTs(ts) {
+    if (!ts) return '—';
+    var d = new Date(ts);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
+           d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+  }
+
+  function fmtNum(n) { return Number(n).toLocaleString(); }
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  var ACTION_COLORS = {
+    login: 'action-login', health_check: 'action-hc', sql_execution: 'action-sql',
+    ssh_execution: 'action-ssh', db_op: 'action-db', ebs_op: 'action-ebs',
+    tuneops: 'action-tuneops', approval: 'action-approval', settings_change: 'action-settings',
+    export: 'action-export',
+  };
+
+  var ACTION_ICONS = {
+    login: '🔑', health_check: '🩺', sql_execution: '⚡', ssh_execution: '💻',
+    db_op: '🗄️', ebs_op: '📦', tuneops: '🎫', approval: '✅',
+    settings_change: '⚙️', export: '📤',
+  };
+
+  var ACTION_LABELS = {
+    login: 'Login', health_check: 'Health Check', sql_execution: 'SQL',
+    ssh_execution: 'SSH', db_op: 'DB Op', ebs_op: 'EBS Op',
+    tuneops: 'TuneOps', approval: 'Approval', settings_change: 'Settings',
+    export: 'Export',
+  };
+
+  function actionBadge(type) {
+    var cls = ACTION_COLORS[type] || 'action-other';
+    var icon = ACTION_ICONS[type] || '📋';
+    var label = ACTION_LABELS[type] || type.replace(/_/g, ' ');
+    return '<span class="action-badge ' + cls + '">' + icon + ' ' + label + '</span>';
+  }
+
+  function resultBadge(result) {
+    var map = { success: ['result-success', '✅'], failed: ['result-failed', '❌'], pending: ['result-pending', '⏳'] };
+    var cfg = map[result] || ['result-pending', '—'];
+    return '<span class="result-badge ' + cfg[0] + '">' + cfg[1] + ' ' + (result || '—') + '</span>';
+  }
+
+})();
+</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

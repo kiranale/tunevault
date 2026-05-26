@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TuneVault Setup Guide — Connect Your Oracle Database in 5 Minutes</title>
+    <meta name="description" content="Step-by-step guide to connect your Oracle database to TuneVault. Direct TCP or TuneVault Agent — get your first 200+ point health check running in under 5 minutes.">
+    <link rel="canonical" href="https://tunevault.app/oracle-setup">
+    <!-- Open Graph -->
+    <meta property="og:title" content="TuneVault Setup Guide — Connect Your Oracle Database in 5 Minutes">
+    <meta property="og:description" content="Step-by-step guide to connect your Oracle database to TuneVault. Direct TCP or TuneVault Agent — get your first 200+ point health check running in under 5 minutes.">
+    <meta property="og:url" content="https://tunevault.app/oracle-setup">
+    <meta property="og:image" content="https://tunevault.app/og/features.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="TuneVault features — 100+ Oracle health checks across 15 categories">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="TuneVault">
+    <meta name="keywords" content="Oracle database setup, Oracle DBA, Oracle health check setup, Oracle TCP connection, Oracle performance monitoring">
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="TuneVault Setup Guide — Connect Your Oracle Database in 5 Minutes">
+    <meta name="twitter:description" content="Connect your Oracle database to TuneVault in minutes. Direct TCP or TuneVault Agent. Start your first 200+ point health check immediately.">
+    <meta name="twitter:image" content="https://tunevault.app/og/features.png">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="apple-touch-icon" href="/favicon.svg">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0c;
+            --surface: #111114;
+            --surface-2: #1a1a1f;
+            --border: #2a2a30;
+            --text: #e8e8ed;
+            --text-dim: #b8b8c8;
+            --accent: #f0a830;
+            --accent-dim: rgba(240, 168, 48, 0.12);
+            --green: #34d399;
+            --red: #f87171;
+            --blue: #79c0ff;
+            --code-bg: #0d0d12;
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+
+        /* ── Page Layout ── */
+        .page {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 56px 48px 100px;
+        }
+
+        /* ── Doc Header ── */
+        .doc-header {
+            margin-bottom: 48px;
+            padding-bottom: 32px;
+            border-bottom: 1px solid var(--border);
+        }
+        .doc-breadcrumb {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .doc-breadcrumb a {
+            color: var(--text-dim);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .doc-breadcrumb a:hover { color: var(--accent); }
+        .doc-breadcrumb-sep { color: var(--border); }
+        .doc-title {
+            font-size: 38px;
+            font-weight: 700;
+            letter-spacing: -1px;
+            line-height: 1.15;
+            margin-bottom: 14px;
+        }
+        .doc-subtitle {
+            font-size: 16px;
+            color: var(--text-dim);
+            max-width: 640px;
+            line-height: 1.7;
+        }
+        .doc-meta {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .doc-meta-item {
+            font-size: 12px;
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .doc-meta-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--green);
+            display: inline-block;
+        }
+
+        /* ── Table of Contents ── */
+        .toc {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px 24px;
+            margin-bottom: 48px;
+        }
+        .toc-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-dim);
+            margin-bottom: 14px;
+        }
+        .toc-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .toc-list li a {
+            font-size: 14px;
+            color: var(--text-dim);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: color 0.2s;
+        }
+        .toc-list li a:hover { color: var(--accent); }
+        .toc-step-num {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-dim);
+            min-width: 22px;
+        }
+
+        /* ── Steps ── */
+        .step {
+            margin-bottom: 56px;
+        }
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+        .step-badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--accent);
+            background: var(--accent-dim);
+            border: 1px solid rgba(240, 168, 48, 0.25);
+            border-radius: 5px;
+            padding: 4px 10px;
+            white-space: nowrap;
+        }
+        .step-title {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.4px;
+        }
+        .step-description {
+            font-size: 15px;
+            color: var(--text-dim);
+            line-height: 1.75;
+            margin-bottom: 24px;
+            max-width: 700px;
+        }
+
+        /* ── Section separator ── */
+        .section-sep {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 48px 0;
+        }
+
+        /* ── Code blocks ── */
+        .code-block {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 16px 0;
+        }
+        .code-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface);
+        }
+        .code-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: var(--text-dim);
+        }
+        .copy-btn {
+            font-size: 11px;
+            color: var(--text-dim);
+            background: none;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 3px 10px;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: inherit;
+        }
+        .copy-btn:hover { color: var(--text); border-color: var(--text-dim); }
+        .copy-btn.copied { color: var(--green); border-color: var(--green); }
+        .code-body {
+            padding: 18px 20px;
+            overflow-x: auto;
+        }
+        .code-body pre {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            line-height: 1.8;
+            color: var(--text);
+            white-space: pre;
+        }
+        .c-comment { color: var(--text-dim); }
+        .c-keyword { color: var(--blue); }
+        .c-string { color: #a5d6ff; }
+        .c-value { color: var(--green); }
+        .c-cmd { color: var(--accent); }
+
+        /* ── Inline code ── */
+        code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1px 6px;
+            color: var(--accent);
+        }
+
+        /* ── Option cards ── */
+        .option-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin: 20px 0;
+        }
+        @media (max-width: 680px) {
+            .option-grid { grid-template-columns: 1fr; }
+        }
+        .option-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px 22px;
+        }
+        .option-card.recommended {
+            border-color: rgba(240, 168, 48, 0.3);
+        }
+        .option-tag {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: 4px;
+            padding: 3px 10px;
+            margin-bottom: 12px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .option-tag.direct {
+            color: var(--green);
+            background: rgba(52, 211, 153, 0.1);
+            border: 1px solid rgba(52, 211, 153, 0.25);
+        }
+        .option-tag.agent {
+            color: var(--accent);
+            background: var(--accent-dim);
+            border: 1px solid rgba(240, 168, 48, 0.25);
+        }
+        .option-card h4 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        .option-card p {
+            font-size: 14px;
+            color: var(--text-dim);
+            line-height: 1.65;
+        }
+
+        /* ── Note / warning boxes ── */
+        .note {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--accent);
+            border-radius: 0 8px 8px 0;
+            padding: 14px 18px;
+            margin: 20px 0;
+            font-size: 14px;
+            color: var(--text-dim);
+            line-height: 1.65;
+        }
+        .note strong { color: var(--text); }
+        .note.warn { border-left-color: var(--red); }
+
+        /* ── Field table ── */
+        .field-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+            font-size: 14px;
+        }
+        .field-table th {
+            text-align: left;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: var(--text-dim);
+            padding: 8px 14px;
+            border-bottom: 1px solid var(--border);
+        }
+        .field-table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid rgba(42, 42, 48, 0.6);
+            vertical-align: top;
+        }
+        .field-table tr:last-child td { border-bottom: none; }
+        .field-name {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--accent);
+            white-space: nowrap;
+        }
+        .field-desc { color: var(--text-dim); line-height: 1.5; }
+        .field-example {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--green);
+        }
+
+        /* ── Download cards ── */
+        .download-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin: 20px 0;
+        }
+        @media (max-width: 640px) {
+            .download-grid { grid-template-columns: 1fr; }
+        }
+        .download-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 16px;
+            text-decoration: none;
+            color: var(--text);
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .download-card:hover {
+            border-color: var(--accent);
+            background: var(--surface-2);
+        }
+        .download-icon { font-size: 20px; line-height: 1; }
+        .download-info { flex: 1; min-width: 0; }
+        .download-filename {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .download-type {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
+        .download-arrow { color: var(--text-dim); font-size: 14px; }
+
+        /* ── Sub-heading inside step ── */
+        .sub-heading {
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: -0.2px;
+            margin: 28px 0 12px;
+        }
+
+        /* ── Footer ── */
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 28px 48px;
+            max-width: 960px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+        footer a {
+            color: var(--text-dim);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        footer a:hover { color: var(--accent); }
+
+        /* ── Ordered list ── */
+        .step-ol {
+            font-size: 15px;
+            color: var(--text-dim);
+            line-height: 2;
+            padding-left: 20px;
+            margin-bottom: 24px;
+        }
+        .step-ol li { padding-left: 6px; }
+        .step-ol strong { color: var(--text); }
+        .step-ol a { color: var(--accent); text-decoration: none; }
+        .step-ol a:hover { text-decoration: underline; }
+
+        /* ── Done CTA ── */
+        .done-cta {
+            text-align: center;
+            padding: 40px 0 8px;
+        }
+        .done-cta p {
+            font-size: 15px;
+            color: var(--text-dim);
+            margin-bottom: 20px;
+        }
+        .done-cta a {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            background: var(--accent);
+            color: #fff;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        .done-cta a:hover { background: #e09820; }
+
+        @media (max-width: 640px) {
+            .page { padding: 32px 24px 64px; }
+            .doc-title { font-size: 28px; }
+            footer { padding: 24px; flex-direction: column; gap: 8px; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav id="nav-root"></nav>
+
+    <div class="page">
+
+        <!-- Doc header -->
+        <div class="doc-header">
+            <div class="doc-breadcrumb">
+                <a href="/">TuneVault</a>
+                <span class="doc-breadcrumb-sep">/</span>
+                <span>Docs</span>
+                <span class="doc-breadcrumb-sep">/</span>
+                <span>Oracle Setup Guide</span>
+            </div>
+            <h1 class="doc-title">TuneVault Setup Guide</h1>
+            <p class="doc-subtitle">Connect your Oracle database to TuneVault in 5 steps. Covers direct TNS connections and the TuneVault Agent for environments without inbound network access.</p>
+            <div class="doc-meta">
+                <span class="doc-meta-item"><span class="doc-meta-dot"></span> Oracle 12.1+</span>
+                <span class="doc-meta-item">~15 min setup</span>
+                <span class="doc-meta-item">For DBAs and sysadmins</span>
+            </div>
+        </div>
+
+        <!-- Table of contents -->
+        <div class="toc">
+            <div class="toc-title">On this page</div>
+            <ul class="toc-list">
+                <li><a href="#step1"><span class="toc-step-num">01</span> Create Oracle Reader Account</a></li>
+                <li><a href="#step2"><span class="toc-step-num">02</span> Choose Your Connection Method</a></li>
+                <li><a href="#step3"><span class="toc-step-num">03</span> Direct Connection Setup (TNS)</a></li>
+                <li><a href="#step4"><span class="toc-step-num">04</span> TuneVault Agent Installation</a></li>
+                <li><a href="#step5"><span class="toc-step-num">05</span> Connect in TuneVault Dashboard</a></li>
+            </ul>
+        </div>
+
+        <!-- ── Step 1 ── -->
+        <div class="step" id="step1">
+            <div class="step-header">
+                <span class="step-badge">Step 01</span>
+                <h2 class="step-title">Create Oracle Reader Account</h2>
+            </div>
+            <p class="step-description">
+                TuneVault uses a dedicated, read-only Oracle user to run diagnostic queries. This keeps your application credentials separate and limits the scope of database access to monitoring only.
+            </p>
+
+            <p style="font-size:14px;color:var(--text-dim);margin-bottom:14px;">Connect as <code>SYS</code> or <code>SYSTEM</code> and run each SQL statement below. Execute them one at a time.</p>
+
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">SQL — Run as SYS or SYSTEM</span>
+                    <button class="copy-btn" onclick="copyCode(this, 'sql-step1')">Copy</button>
+                </div>
+                <div class="code-body">
+<pre id="sql-step1"><span class="c-comment">-- Create the dedicated read-only user</span>
+<span class="c-keyword">CREATE USER</span> tunevault_reader <span class="c-keyword">IDENTIFIED BY</span> <span class="c-string">'YourSecurePassword123!'</span>;
+
+<span class="c-comment">-- Allow the user to log in to the database</span>
+<span class="c-keyword">GRANT</span> CREATE SESSION <span class="c-keyword">TO</span> tunevault_reader;
+
+<span class="c-comment">-- Grant read access to DBA_ data dictionary views</span>
+<span class="c-keyword">GRANT</span> SELECT ANY DICTIONARY <span class="c-keyword">TO</span> tunevault_reader;
+
+<span class="c-comment">-- Grant access to V$ dynamic performance views</span>
+<span class="c-keyword">GRANT</span> SELECT_CATALOG_ROLE <span class="c-keyword">TO</span> tunevault_reader;
+
+<span class="c-comment">-- Required for alert log checks (V$DIAG_ALERT_EXT)</span>
+<span class="c-keyword">GRANT</span> SELECT <span class="c-keyword">ON</span> V_$DIAG_ALERT_EXT <span class="c-keyword">TO</span> tunevault_reader;</pre>
+                </div>
+            </div>
+
+            <div class="note">
+                <strong>What each permission does:</strong><br><br>
+                <strong>CREATE SESSION</strong> — allows the user to connect to the database. Without this, nothing else works.<br><br>
+                <strong>SELECT ANY DICTIONARY</strong> — read access to DBA_ views including <code>DBA_TABLESPACES</code>, <code>DBA_SEGMENTS</code>, <code>DBA_INDEXES</code>, <code>DBA_JOBS</code>, and hundreds of others needed for health checks.<br><br>
+                <strong>SELECT_CATALOG_ROLE</strong> — read access to V$ dynamic performance views including <code>V$SQL</code>, <code>V$SESSION</code>, <code>V$SYSSTAT</code>, <code>V$RMAN_BACKUP_JOB_DETAILS</code>, and AWR-related views.<br><br>
+                <strong>GRANT SELECT ON V_$DIAG_ALERT_EXT</strong> — required for alert log analysis. This view requires an explicit grant even with <code>SELECT_CATALOG_ROLE</code>. Without it, alert log checks will show "insufficient privileges" instead of real log data.
+            </div>
+
+            <p style="font-size:14px;color:var(--text-dim);margin-top:16px;">Replace <code>YourSecurePassword123!</code> with a strong password of your choosing. Keep it — you'll enter it in TuneVault in Step 5.</p>
+        </div>
+
+        <hr class="section-sep">
+
+        <!-- ── Step 2 ── -->
+        <div class="step" id="step2">
+            <div class="step-header">
+                <span class="step-badge">Step 02</span>
+                <h2 class="step-title">Choose Your Connection Method</h2>
+            </div>
+            <p class="step-description">
+                TuneVault supports two ways to reach your Oracle database. Choose based on your network setup.
+            </p>
+
+            <div class="option-grid">
+                <div class="option-card">
+                    <span class="option-tag direct">Option A</span>
+                    <h4>Direct Connection (TNS)</h4>
+                    <p>TuneVault connects directly to your Oracle listener on port 1521. Use this when your database host is reachable from TuneVault's servers — for example, a cloud-hosted database or a server with port 1521 accessible from the internet.</p>
+                </div>
+                <div class="option-card recommended">
+                    <span class="option-tag agent">Option B</span>
+                    <h4>TuneVault Agent</h4>
+                    <p>A lightweight agent runs on your database server (or inside your network) and opens an outbound HTTPS connection to TuneVault. No inbound firewall rules needed. Use this for on-premises databases or when port 1521 is not publicly reachable.</p>
+                </div>
+            </div>
+
+            <div class="note">
+                <strong>Not sure which to use?</strong> If you can run <code>telnet your-oracle-host 1521</code> from outside your network and get a response, use Option A (Direct). If not — or if your Oracle host is on-premises — use Option B (Proxy).
+            </div>
+        </div>
+
+        <hr class="section-sep">
+
+        <!-- ── Step 3 ── -->
+        <div class="step" id="step3">
+            <div class="step-header">
+                <span class="step-badge">Step 03</span>
+                <h2 class="step-title">Direct Connection Setup (TNS)</h2>
+            </div>
+            <p class="step-description">
+                If you chose Option A, no software installation is needed. Gather your TNS details and enter them directly in the TuneVault dashboard in Step 5.
+            </p>
+
+            <table class="field-table">
+                <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Description</th>
+                        <th>Example</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="field-name">Host</span></td>
+                        <td class="field-desc">Hostname or IP address of the Oracle server</td>
+                        <td><span class="field-example">db.example.com</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="field-name">Port</span></td>
+                        <td class="field-desc">Oracle listener port — default is 1521</td>
+                        <td><span class="field-example">1521</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="field-name">Service Name / SID</span></td>
+                        <td class="field-desc">Oracle service name (e.g. <code>ORCL</code>, <code>ORCLPDB1</code>) or SID. Prefer service name for Oracle 12+.</td>
+                        <td><span class="field-example">ORCL</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="field-name">Username</span></td>
+                        <td class="field-desc">The read-only account created in Step 1</td>
+                        <td><span class="field-example">tunevault_reader</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="field-name">Password</span></td>
+                        <td class="field-desc">Password set in Step 1</td>
+                        <td><span class="field-example">YourSecurePassword123!</span></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="note">
+                <strong>Using direct connection?</strong> Skip Step 4 entirely — Agent installation is only needed for Option B. Go straight to <a href="#step5" style="color:var(--accent);text-decoration:none;">Step 5</a>.
+            </div>
+        </div>
+
+        <hr class="section-sep">
+
+        <!-- ── Step 4 ── -->
+        <div class="step" id="step4">
+            <div class="step-header">
+                <span class="step-badge">Step 04</span>
+                <h2 class="step-title">TuneVault Agent Installation</h2>
+            </div>
+            <p class="step-description">
+                If you chose Option B, install the TuneVault Agent on your Oracle server or on any server inside your network that can reach Oracle on port 1521. Requires root / sudo access.
+            </p>
+
+            <h3 class="sub-heading">System Requirements</h3>
+            <p style="font-size:14px;color:var(--text-dim);margin-bottom:14px;">The installer auto-installs all dependencies. If your server has restricted yum repos or internet access, pre-install these packages manually.</p>
+
+            <table class="field-table">
+                <thead>
+                    <tr>
+                        <th>Requirement</th>
+                        <th>RHEL / OL 7</th>
+                        <th>RHEL / OL 8 / 9</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="field-desc">Python 3.6+</td>
+                        <td><span class="field-name">python3</span></td>
+                        <td><span class="field-name">python3</span></td>
+                        <td class="field-desc">Auto-installed by script</td>
+                    </tr>
+                    <tr>
+                        <td class="field-desc">Oracle Client libs</td>
+                        <td colspan="2" style="color:var(--text-dim);font-size:14px;">Included in ORACLE_HOME</td>
+                        <td class="field-desc">Auto-detected from running Oracle process</td>
+                    </tr>
+                    <tr>
+                        <td class="field-desc">GCC compiler</td>
+                        <td><span class="field-name">gcc</span></td>
+                        <td><span class="field-name">gcc</span></td>
+                        <td class="field-desc">Usually pre-installed on DB servers</td>
+                    </tr>
+                    <tr>
+                        <td class="field-desc">libffi headers</td>
+                        <td><span class="field-name">libffi-devel</span></td>
+                        <td><span class="field-name">libffi-devel</span></td>
+                        <td class="field-desc">Required for pynacl / SSH Ed25519 support</td>
+                    </tr>
+                    <tr>
+                        <td class="field-desc">Python dev headers</td>
+                        <td><span class="field-name">python3-devel</span></td>
+                        <td><span class="field-name">python3-devel</span></td>
+                        <td class="field-desc">Required for pynacl / SSH Ed25519 support</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 class="sub-heading" style="margin-top:32px;">4a. Download the proxy script</h3>
+            <p style="font-size:14px;color:var(--text-dim);margin-bottom:16px;">Choose the language that fits your environment. All three are functionally identical.</p>
+
+            <div class="download-grid">
+                <a href="/downloads/oracle-proxy.py" class="download-card" download>
+                    <span class="download-icon">🐍</span>
+                    <div class="download-info">
+                        <div class="download-filename">oracle-proxy.py</div>
+                        <div class="download-type">Python 3.6+</div>
+                    </div>
+                    <span class="download-arrow">↓</span>
+                </a>
+                <a href="/downloads/oracle-proxy.js" class="download-card" download>
+                    <span class="download-icon">⬡</span>
+                    <div class="download-info">
+                        <div class="download-filename">oracle-proxy.js</div>
+                        <div class="download-type">Node.js 14+</div>
+                    </div>
+                    <span class="download-arrow">↓</span>
+                </a>
+                <a href="/downloads/oracle-proxy-install.sh" class="download-card" download>
+                    <span class="download-icon">🖥</span>
+                    <div class="download-info">
+                        <div class="download-filename">oracle-proxy.sh</div>
+                        <div class="download-type">Shell install script</div>
+                    </div>
+                    <span class="download-arrow">↓</span>
+                </a>
+            </div>
+
+            <!-- ── SHA-256 Integrity Verification ── -->
+            <div style="margin-top:20px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:18px 20px;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+                    <span style="font-size:18px;">🔒</span>
+                    <span style="font-size:14px;font-weight:600;color:var(--text);">Verify download integrity (SHA-256)</span>
+                    <span id="checksumStatus" style="font-size:11px;color:var(--text-dim);margin-left:auto;"></span>
+                </div>
+                <div id="checksumTable" style="font-size:12px;font-family:'JetBrains Mono',monospace;">
+                    <div style="color:var(--text-dim);font-size:12px;padding:4px 0;">Loading checksums…</div>
+                </div>
+                <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px;">
+                    <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;font-weight:500;">Verify on Linux / macOS:</div>
+                    <div style="background:var(--code-bg);border-radius:6px;padding:10px 14px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text);">sha256sum oracle-proxy.py</div>
+                    <div style="font-size:12px;color:var(--text-dim);margin-top:10px;margin-bottom:8px;font-weight:500;">Verify on Windows (PowerShell):</div>
+                    <div style="background:var(--code-bg);border-radius:6px;padding:10px 14px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text);">Get-FileHash oracle-proxy.py -Algorithm SHA256</div>
+                </div>
+            </div>
+
+            <h3 class="sub-heading" style="margin-top:32px;">4b. Edit proxy.env with your credentials</h3>
+            <p style="font-size:14px;color:var(--text-dim);margin-bottom:14px;">Create a file called <code>proxy.env</code> in the same directory as the proxy script. Fill in each value:</p>
+
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">proxy.env</span>
+                    <button class="copy-btn" onclick="copyCode(this, 'proxy-env')">Copy</button>
+                </div>
+                <div class="code-body">
+<pre id="proxy-env"><span class="c-comment"># Required: API key (enter this in TuneVault when adding the connection)</span>
+<span class="c-cmd">export</span> TUNEVAULT_API_KEY=<span class="c-string">"your-secret-key-here"</span>
+
+<span class="c-comment"># Oracle connection details</span>
+<span class="c-cmd">export</span> ORACLE_HOST=<span class="c-string">"localhost"</span>
+<span class="c-cmd">export</span> ORACLE_PORT=<span class="c-string">"1521"</span>
+<span class="c-cmd">export</span> ORACLE_SERVICE=<span class="c-string">"ORCL"</span>
+<span class="c-cmd">export</span> ORACLE_USER=<span class="c-string">"tunevault_reader"</span>
+<span class="c-cmd">export</span> ORACLE_PASSWORD=<span class="c-string">"your-oracle-password"</span>
+
+<span class="c-comment"># Optional: listen port (default 3100)</span>
+<span class="c-cmd">export</span> PROXY_PORT=<span class="c-string">"3100"</span></pre>
+                </div>
+            </div>
+
+            <div class="note">
+                <strong>Where to get TUNEVAULT_API_KEY:</strong> In the TuneVault dashboard, click <strong>Add Connection</strong> and switch to the <strong>Proxy / HTTPS Proxy</strong> tab. Your unique API key will be displayed automatically — copy it into your <code>proxy.env</code> file before running the install script.
+            </div>
+
+            <!-- ── proxy.env file security ── -->
+            <div style="margin-top:16px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:18px 20px;">
+                <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:10px;">🔐 Securing proxy.env at rest</div>
+                <p style="font-size:13px;color:var(--text-dim);line-height:1.7;margin-bottom:12px;">
+                    <code>proxy.env</code> contains your Oracle credentials and API key. Set restrictive file permissions immediately after creating it so only the service user can read it:
+                </p>
+                <div class="code-block" style="margin-bottom:12px;">
+                    <div class="code-header">
+                        <span class="code-label">Terminal</span>
+                        <button class="copy-btn" onclick="copyCode(this, 'env-perms')">Copy</button>
+                    </div>
+                    <div class="code-body">
+<pre id="env-perms"><span class="c-comment"># Restrict proxy.env to owner-read only (no group, no world)</span>
+<span class="c-cmd">chmod</span> 600 proxy.env
+<span class="c-cmd">chown</span> tunevault:tunevault proxy.env  <span class="c-comment"># adjust to the service account that runs the proxy</span></pre>
+                    </div>
+                </div>
+                <p style="font-size:13px;color:var(--text-dim);line-height:1.7;margin-bottom:12px;">
+                    For environments that require encryption at rest, you can use <code>openssl</code> to encrypt <code>proxy.env</code> with AES-256-CBC and decrypt it inline at startup:
+                </p>
+                <div class="code-block" style="margin-bottom:12px;">
+                    <div class="code-header">
+                        <span class="code-label">Encrypt proxy.env</span>
+                        <button class="copy-btn" onclick="copyCode(this, 'env-encrypt')">Copy</button>
+                    </div>
+                    <div class="code-body">
+<pre id="env-encrypt"><span class="c-comment"># Encrypt (run once, then delete the plaintext file)</span>
+<span class="c-cmd">openssl</span> enc -aes-256-cbc -pbkdf2 -in proxy.env -out proxy.env.enc
+<span class="c-cmd">shred</span> -u proxy.env  <span class="c-comment"># securely delete plaintext</span>
+
+<span class="c-comment"># Decrypt at startup (use in your systemd ExecStart or wrapper script)</span>
+<span class="c-cmd">set</span> -a
+<span class="c-cmd">eval</span> "$(<span class="c-cmd">openssl</span> enc -d -aes-256-cbc -pbkdf2 -in proxy.env.enc -pass pass:$TUNEVAULT_CONFIG_PASSPHRASE)"
+<span class="c-cmd">set</span> +a</pre>
+                    </div>
+                </div>
+                <p style="font-size:12px;color:var(--text-dim);line-height:1.6;">
+                    Set <code>TUNEVAULT_CONFIG_PASSPHRASE</code> as a systemd environment variable or in a secrets manager (HashiCorp Vault, AWS Secrets Manager, etc.). The passphrase itself should never be stored in a file on disk.
+                </p>
+            </div>
+
+            <h3 class="sub-heading" style="margin-top:32px;">4c. Run the install script</h3>
+            <p style="font-size:14px;color:var(--text-dim);margin-bottom:14px;">The install script registers the proxy as a system service and starts it. Run it as root or with sudo:</p>
+
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Terminal — run as root or with sudo</span>
+                    <button class="copy-btn" onclick="copyCode(this, 'install-cmd')">Copy</button>
+                </div>
+                <div class="code-body">
+<pre id="install-cmd"><span class="c-comment"># Make the install script executable</span>
+<span class="c-cmd">chmod</span> +x oracle-proxy-install.sh
+
+<span class="c-comment"># Run the installer — registers and starts the systemd service</span>
+<span class="c-cmd">sudo</span> ./oracle-proxy-install.sh</pre>
+                </div>
+            </div>
+
+            <div class="note warn">
+                <strong>Root access required.</strong> The install script writes to <code>/etc/systemd/system/</code> to register the proxy as a service. It must be run by a sysadmin with root or sudo privileges.
+            </div>
+
+            <h3 class="sub-heading">4d. Verify installation</h3>
+            <p style="font-size:14px;color:var(--text-dim);margin-bottom:14px;">After the installer finishes, verify each component is working:</p>
+
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Terminal — verify each component</span>
+                    <button class="copy-btn" onclick="copyCode(this, 'verify-install')">Copy</button>
+                </div>
+                <div class="code-body">
+<pre id="verify-install"><span class="c-comment"># Check the proxy is responding</span>
+<span class="c-cmd">curl</span> http://localhost:3100/health
+
+<span class="c-comment"># Verify cx_Oracle can load (Oracle DB driver)</span>
+<span class="c-cmd">python3</span> -c "import cx_Oracle; print('cx_Oracle OK')"
+
+<span class="c-comment"># Verify pynacl is available (Ed25519 SSH key support)</span>
+<span class="c-cmd">python3</span> -c "import nacl; print('pynacl OK (Ed25519 support)')"</pre>
+                </div>
+            </div>
+
+            <div class="note">
+                <strong>pynacl check failed?</strong> Ed25519 SSH keys won't work, but the proxy itself and RSA/ECDSA keys are unaffected. To fix: <code>pip3 install --upgrade pip setuptools cffi pynacl</code> — if that fails, install the build dependencies first: <code>yum install -y libffi-devel python3-devel gcc</code>
+            </div>
+
+            <h3 class="sub-heading">4e. Restart after configuration changes</h3>
+            <p style="font-size:14px;color:var(--text-dim);margin-bottom:14px;">If you update <code>proxy.env</code> after the initial install, restart the service for changes to take effect:</p>
+
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Terminal</span>
+                    <button class="copy-btn" onclick="copyCode(this, 'restart-cmd')">Copy</button>
+                </div>
+                <div class="code-body">
+<pre id="restart-cmd"><span class="c-cmd">sudo</span> systemctl restart tunevault-proxy</pre>
+                </div>
+            </div>
+
+            <p style="font-size:14px;color:var(--text-dim);margin-top:14px;">Once running, the proxy listens on <code>http://your-server:3100</code> and forwards diagnostic queries from TuneVault to your Oracle instance. All traffic is outbound HTTPS from your server to TuneVault — no inbound firewall rules are required.</p>
+        </div>
+
+        <hr class="section-sep">
+
+        <!-- ── Step 5 ── -->
+        <div class="step" id="step5">
+            <div class="step-header">
+                <span class="step-badge">Step 05</span>
+                <h2 class="step-title">Connect in TuneVault Dashboard</h2>
+            </div>
+            <p class="step-description">
+                With your Oracle reader account ready and your connection method set up, add the connection in TuneVault.
+            </p>
+
+            <ol class="step-ol">
+                <li>Sign in at <a href="/signin">tunevault.app</a> and open your dashboard.</li>
+                <li>Click <strong>Add Connection</strong> (or the <strong>+ New Connection</strong> button).</li>
+                <li>Click the <strong>Direct TCP</strong> or <strong>Proxy / HTTPS Proxy</strong> tab to match your setup from Step 2.</li>
+                <li>Enter the connection details — see the tables below.</li>
+                <li>Click <strong>Test Connection</strong> — you should see a green confirmation.</li>
+                <li>Save the connection and click <strong>Run Health Check</strong>.</li>
+            </ol>
+
+            <h3 class="sub-heading">For Direct TCP connections (Option A)</h3>
+            <table class="field-table">
+                <thead>
+                    <tr><th>Field</th><th>What to enter</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="field-name">Host</span></td>
+                        <td class="field-desc">Oracle server hostname or IP (e.g. <code>db.example.com</code>)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="field-name">Port</span></td>
+                        <td class="field-desc">Listener port — almost always <code>1521</code></td>
+                    </tr>
+                    <tr>
+                        <td><span class="field-name">Service / SID</span></td>
+                        <td class="field-desc">Oracle service name or SID (e.g. <code>ORCL</code>, <code>ORCLPDB1</code>)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="field-name">Username</span></td>
+                        <td class="field-desc"><code>tunevault_reader</code> (the account from Step 1)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="field-name">Password</span></td>
+                        <td class="field-desc">The password you set in Step 1</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 class="sub-heading">For Proxy Agent connections (Option B)</h3>
+            <table class="field-table">
+                <thead>
+                    <tr><th>Field</th><th>What to enter</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="field-name">Proxy URL</span></td>
+                        <td class="field-desc">Address where the proxy is listening — e.g. <code>http://your-server:3100</code></td>
+                    </tr>
+                    <tr>
+                        <td><span class="field-name">API Key</span></td>
+                        <td class="field-desc">The <code>TUNEVAULT_API_KEY</code> value from your <code>proxy.env</code> file in Step 4</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="note">
+                <strong>Connection test failing?</strong><br><br>
+                <strong>Direct TCP:</strong> Verify port 1521 is reachable from outside your network with <code>telnet your-oracle-host 1521</code>. Also confirm the <code>tunevault_reader</code> account was created and has the grants from Step 1.<br><br>
+                <strong>Proxy Agent:</strong> Check that the proxy service is running with <code>sudo systemctl status tunevault-proxy</code>. Verify <code>ORACLE_HOST</code> and <code>ORACLE_PORT</code> in <code>proxy.env</code> point to the correct Oracle server on your network.
+            </div>
+        </div>
+
+        <!-- ── Done CTA ── -->
+        <div class="done-cta">
+            <p>All set — run your first health check and see what TuneVault finds.</p>
+            <a href="/signup?path=health-check&redirect=/dashboard">Run Health Check &rarr;</a>
+        </div>
+
+    </div><!-- /page -->
+
+    <footer>
+        <a href="/">TuneVault</a>
+        <span style="display:flex;align-items:center;gap:16px;">
+            <a href="/about" style="color:inherit;text-decoration:none;font-size:13px;transition:color 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='inherit'">About</a>
+            <a href="/security/commands" style="color:inherit;text-decoration:none;font-size:13px;transition:color 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='inherit'">Security Commands Reference</a>
+            <span>&copy; 2026</span>
+        </span>
+    </footer>
+
+    <!-- Copy button logic -->
+    <script>
+    function copyCode(btn, id) {
+        var pre = document.getElementById(id);
+        if (!pre) return;
+        var text = pre.innerText || pre.textContent;
+        navigator.clipboard.writeText(text).then(function() {
+            btn.textContent = 'Copied!';
+            btn.classList.add('copied');
+            setTimeout(function() {
+                btn.textContent = 'Copy';
+                btn.classList.remove('copied');
+            }, 1800);
+        }).catch(function() {
+            // Fallback for older browsers
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            btn.textContent = 'Copied!';
+            btn.classList.add('copied');
+            setTimeout(function() {
+                btn.textContent = 'Copy';
+                btn.classList.remove('copied');
+            }, 1800);
+        });
+    }
+    </script>
+
+    <script>
+    // Fetch SHA-256 checksums from the API and render them in the checksum table
+    (function loadChecksums() {
+        var table = document.getElementById('checksumTable');
+        var status = document.getElementById('checksumStatus');
+        if (!table) return;
+        fetch('/api/proxy/checksums')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data.checksums) throw new Error('No checksums');
+                var html = '<table style="width:100%;border-collapse:collapse;">';
+                html += '<tr style="font-size:11px;color:var(--text-dim);border-bottom:1px solid var(--border);">';
+                html += '<th style="text-align:left;padding:4px 8px 6px 0;font-weight:500;">File</th>';
+                html += '<th style="text-align:left;padding:4px 8px 6px 0;font-weight:500;">SHA-256</th>';
+                html += '<th style="text-align:right;padding:4px 0 6px;font-weight:500;white-space:nowrap;">Size</th>';
+                html += '</tr>';
+                data.checksums.forEach(function(c) {
+                    var kb = (c.size_bytes / 1024).toFixed(0);
+                    html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);">';
+                    html += '<td style="padding:7px 10px 7px 0;white-space:nowrap;color:var(--accent);">' + c.filename + '</td>';
+                    html += '<td style="padding:7px 10px 7px 0;font-size:11px;letter-spacing:0.3px;color:var(--text);word-break:break-all;">' + c.sha256 + '</td>';
+                    html += '<td style="padding:7px 0;text-align:right;white-space:nowrap;color:var(--text-dim);">' + kb + ' KB</td>';
+                    html += '</tr>';
+                });
+                html += '</table>';
+                table.innerHTML = html;
+                if (status) status.textContent = 'Updated ' + new Date(data.generated_at).toLocaleString();
+            })
+            .catch(function() {
+                table.innerHTML = '<div style="color:var(--text-dim);font-size:12px;">Could not load checksums — verify against <a href="/api/proxy/checksums" style="color:var(--accent);">/api/proxy/checksums</a></div>';
+            });
+    })();
+    </script>
+
+    <script src="/nav-component.js"></script>
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        window.tvNav.init("main");
+    });
+    </script>
+
+<script src="/tv-tracker.js"></script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

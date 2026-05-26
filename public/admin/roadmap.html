@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roadmap Reminders — TuneVault Admin</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="canonical" href="https://tunevault.app/admin/roadmap">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0c;
+            --surface: #111114;
+            --surface-2: #1a1a1f;
+            --border: #2a2a30;
+            --text: #e8e8ed;
+            --text-dim: #9898a8;
+            --accent: #f0a830;
+            --accent-dim: rgba(240, 168, 48, 0.12);
+            --green: #34d399;
+            --red: #f87171;
+            --blue: #60a5fa;
+            --purple: #a78bfa;
+            --gray: #6b7280;
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .grain {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 48px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            font-size: 16px; font-weight: 700; letter-spacing: -0.5px;
+            display: flex; align-items: center; gap: 10px;
+            text-decoration: none; color: var(--text);
+        }
+
+        .logo-icon {
+            width: 26px; height: 26px;
+            background: var(--accent); border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px; font-weight: 700; color: var(--bg);
+        }
+
+        .nav-links { display: flex; gap: 8px; }
+
+        .nav-link {
+            padding: 6px 14px; border-radius: 8px;
+            font-size: 13px; font-weight: 500; text-decoration: none;
+            color: var(--text-dim); transition: all 0.15s;
+        }
+        .nav-link:hover { background: var(--surface-2); color: var(--text); }
+        .nav-link.active { background: var(--accent-dim); color: var(--accent); }
+
+        .main { max-width: 900px; margin: 0 auto; padding: 48px 24px; }
+
+        .page-header { margin-bottom: 36px; }
+        .page-title { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 8px; }
+        .page-desc { color: var(--text-dim); font-size: 14px; }
+
+        /* ── Stats bar ─────────────────────────────────────────────────────── */
+        .stats-bar {
+            display: flex; gap: 16px; margin-bottom: 32px;
+            padding: 16px 20px;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 10px;
+        }
+        .stat { display: flex; flex-direction: column; gap: 2px; }
+        .stat-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+        .stat-value { font-size: 20px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .stat-value.green { color: var(--green); }
+        .stat-value.amber { color: var(--accent); }
+        .stat-sep { width: 1px; background: var(--border); margin: 0 4px; }
+
+        /* ── Reminder cards ────────────────────────────────────────────────── */
+        .reminders-list { display: flex; flex-direction: column; gap: 20px; }
+
+        .reminder-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; overflow: hidden;
+            transition: border-color 0.2s;
+        }
+        .reminder-card.surfaced {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 1px rgba(240, 168, 48, 0.15), 0 4px 24px rgba(240, 168, 48, 0.06);
+        }
+        .reminder-card.dismissed { opacity: 0.45; }
+
+        .card-header {
+            display: flex; align-items: flex-start; gap: 14px;
+            padding: 20px 22px 16px;
+        }
+
+        .pin-icon {
+            font-size: 20px; flex-shrink: 0; margin-top: 2px;
+        }
+
+        .card-meta { flex: 1; }
+
+        .card-title-row {
+            display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+            margin-bottom: 6px;
+        }
+        .card-title {
+            font-size: 16px; font-weight: 600; letter-spacing: -0.3px;
+        }
+
+        .badge {
+            padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600;
+            letter-spacing: 0.03em; text-transform: uppercase;
+        }
+        .badge-active   { background: rgba(52, 211, 153, 0.12); color: var(--green); }
+        .badge-pending  { background: rgba(240, 168, 48, 0.12); color: var(--accent); }
+        .badge-dismissed{ background: rgba(107, 114, 128, 0.12); color: var(--gray); }
+
+        .card-body { color: var(--text-dim); font-size: 14px; line-height: 1.65; }
+
+        .card-trigger {
+            margin-top: 10px; font-size: 12px; color: var(--text-dim);
+            display: flex; align-items: center; gap: 6px;
+        }
+        .trigger-key {
+            font-family: 'JetBrains Mono', monospace; font-size: 11px;
+            background: var(--surface-2); padding: 2px 6px; border-radius: 4px;
+        }
+        .trigger-met { color: var(--green); }
+        .trigger-not-met { color: var(--gray); }
+
+        .card-actions {
+            display: flex; gap: 10px; flex-wrap: wrap;
+            padding: 14px 22px 18px;
+            border-top: 1px solid var(--border);
+            background: var(--surface-2);
+        }
+
+        .btn {
+            padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+            cursor: pointer; border: none; transition: all 0.15s;
+            font-family: inherit; text-decoration: none; display: inline-flex;
+            align-items: center; gap: 6px;
+        }
+        .btn-primary { background: var(--accent); color: var(--bg); }
+        .btn-primary:hover { background: #e09a20; }
+        .btn-secondary {
+            background: transparent; color: var(--text-dim);
+            border: 1px solid var(--border);
+        }
+        .btn-secondary:hover { background: var(--surface); color: var(--text); }
+        .btn-ghost { background: transparent; color: var(--text-dim); }
+        .btn-ghost:hover { color: var(--accent); }
+        .btn-danger { background: rgba(248, 113, 113, 0.1); color: var(--red); border: 1px solid rgba(248, 113, 113, 0.2); }
+        .btn-danger:hover { background: rgba(248, 113, 113, 0.18); }
+
+        /* ── Flag toggle ────────────────────────────────────────────────────── */
+        .toggle-label {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 13px; color: var(--text-dim); cursor: pointer;
+            padding: 7px 0;
+        }
+        .toggle-label input[type="checkbox"] { display: none; }
+        .toggle-track {
+            width: 36px; height: 20px; background: var(--border);
+            border-radius: 10px; position: relative;
+            transition: background 0.2s; flex-shrink: 0;
+        }
+        .toggle-track::after {
+            content: ''; position: absolute;
+            left: 3px; top: 3px;
+            width: 14px; height: 14px;
+            background: var(--text-dim); border-radius: 50%;
+            transition: all 0.2s;
+        }
+        .toggle-label input:checked + .toggle-track {
+            background: var(--accent);
+        }
+        .toggle-label input:checked + .toggle-track::after {
+            left: 19px; background: var(--bg);
+        }
+
+        /* ── Empty / loading states ─────────────────────────────────────────── */
+        .empty-state {
+            text-align: center; padding: 64px 24px;
+            color: var(--text-dim);
+        }
+        .empty-icon { font-size: 40px; margin-bottom: 12px; }
+        .empty-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+
+        .loader {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 48px; color: var(--text-dim); font-size: 14px;
+        }
+        .spinner {
+            width: 18px; height: 18px; border: 2px solid var(--border);
+            border-top-color: var(--accent); border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Toast ──────────────────────────────────────────────────────────── */
+        .toast {
+            position: fixed; bottom: 24px; right: 24px;
+            background: var(--surface-2); border: 1px solid var(--border);
+            border-radius: 10px; padding: 12px 18px; font-size: 13px;
+            color: var(--text); opacity: 0; transform: translateY(8px);
+            transition: all 0.25s; pointer-events: none; z-index: 1000;
+            max-width: 320px;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.success { border-color: var(--green); color: var(--green); }
+        .toast.error   { border-color: var(--red);   color: var(--red);   }
+    </style>
+</head>
+<body>
+<div class="grain"></div>
+
+<nav id="nav-root"></nav>
+
+<main class="main">
+    <div class="page-header">
+        <h1 class="page-title">📌 Roadmap Reminders</h1>
+        <p class="page-desc">
+            Items the operator said "save for later." Each surfaces automatically when
+            its trigger condition fires — or you can manually flip a flag.
+        </p>
+    </div>
+
+    <div class="stats-bar" id="statsBar" style="display:none">
+        <div class="stat">
+            <div class="stat-label">Paying Customers</div>
+            <div class="stat-value amber" id="statPaying">—</div>
+        </div>
+        <div class="stat-sep"></div>
+        <div class="stat">
+            <div class="stat-label">Active Reminders</div>
+            <div class="stat-value green" id="statActive">—</div>
+        </div>
+        <div class="stat-sep"></div>
+        <div class="stat">
+            <div class="stat-label">Dismissed</div>
+            <div class="stat-value" style="color:var(--gray)" id="statDismissed">—</div>
+        </div>
+    </div>
+
+    <div id="remindersList">
+        <div class="loader"><div class="spinner"></div> Loading reminders…</div>
+    </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── Helpers ──────────────────────────────────────────────────────────────── */
+function showToast(msg, type = 'success') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show ' + type;
+    setTimeout(() => { t.className = 'toast'; }, 3200);
+}
+
+function renderTriggerPill(reminder) {
+    const cond = reminder.trigger_condition_json;
+    if (!cond) return '';
+
+    const parts = [];
+
+    if (typeof cond.paying_customers_gte === 'number') {
+        const met = reminder.paying_customers_count >= cond.paying_customers_gte;
+        parts.push(
+            `<span class="trigger-key">paying_customers &ge; ${cond.paying_customers_gte}</span>` +
+            `<span class="${met ? 'trigger-met' : 'trigger-not-met'}">${met ? '✓ met' : `(${reminder.paying_customers_count} now)`}</span>`
+        );
+    }
+
+    if (cond.feature_flag) {
+        const met = reminder.manual_flag;
+        parts.push(
+            `<span class="trigger-key">flag: ${cond.feature_flag}</span>` +
+            `<span class="${met ? 'trigger-met' : 'trigger-not-met'}">${met ? '✓ on' : 'off'}</span>`
+        );
+    }
+
+    if (!parts.length) return '';
+    return `<div class="card-trigger">Triggers when: ${parts.join(' &nbsp;OR&nbsp; ')}</div>`;
+}
+
+function renderCard(r) {
+    const surfaced   = r.should_surface && !r.dismissed_at;
+    const dismissed  = !!r.dismissed_at;
+    const flagged    = !!r.manual_flag;
+
+    let badgeHtml = '';
+    if (dismissed)    badgeHtml = '<span class="badge badge-dismissed">Dismissed</span>';
+    else if (surfaced) badgeHtml = '<span class="badge badge-active">Active</span>';
+    else               badgeHtml = '<span class="badge badge-pending">Pending trigger</span>';
+
+    const docLink = r.doc_link
+        ? `<a href="${r.doc_link}" target="_blank" class="btn btn-secondary">📄 View Design Doc</a>`
+        : '';
+
+    const dismissBtn = dismissed
+        ? `<button class="btn btn-secondary" onclick="resurface(${r.id})">↩ Resurface</button>`
+        : `<button class="btn btn-danger" onclick="dismiss(${r.id})">Dismiss</button>`;
+
+    return `
+    <div class="reminder-card ${surfaced ? 'surfaced' : ''} ${dismissed ? 'dismissed' : ''}" id="card-${r.id}">
+        <div class="card-header">
+            <div class="pin-icon">📌</div>
+            <div class="card-meta">
+                <div class="card-title-row">
+                    <span class="card-title">${escHtml(r.title)}</span>
+                    ${badgeHtml}
+                </div>
+                <div class="card-body">${escHtml(r.body_md || '')}</div>
+                ${renderTriggerPill(r)}
+            </div>
+        </div>
+        <div class="card-actions">
+            ${docLink}
+            <label class="toggle-label" title="Manually force this reminder visible">
+                <input type="checkbox" ${flagged ? 'checked' : ''} onchange="toggleFlag(${r.id}, this.checked)">
+                <span class="toggle-track"></span>
+                Manual flag (show_${slugify(r.title)}_reminder)
+            </label>
+            <div style="flex:1"></div>
+            <button class="btn btn-primary" onclick="startPlanning(${r.id}, '${escAttr(r.title)}')">🚀 Start Planning</button>
+            ${dismissBtn}
+        </div>
+    </div>`;
+}
+
+function escHtml(s) {
+    return String(s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function escAttr(s) { return escHtml(s); }
+function slugify(s) {
+    return String(s).toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
+}
+
+/* ── Load ─────────────────────────────────────────────────────────────────── */
+async function load() {
+    try {
+        const res  = await fetch('/api/admin/roadmap-reminders');
+        if (res.status === 401 || res.status === 403) {
+            document.getElementById('remindersList').innerHTML =
+                `<div class="empty-state"><div class="empty-icon">🔒</div>
+                 <div class="empty-title">Admin access required</div>
+                 <p>Sign in with an admin account to view roadmap reminders.</p></div>`;
+            return;
+        }
+        const data = await res.json();
+        const { reminders, paying_customers_count } = data;
+
+        // Update stats
+        const activeCount    = reminders.filter(r => r.should_surface && !r.dismissed_at).length;
+        const dismissedCount = reminders.filter(r => r.dismissed_at).length;
+        document.getElementById('statPaying').textContent    = paying_customers_count;
+        document.getElementById('statActive').textContent    = activeCount;
+        document.getElementById('statDismissed').textContent = dismissedCount;
+        document.getElementById('statsBar').style.display    = 'flex';
+
+        if (!reminders.length) {
+            document.getElementById('remindersList').innerHTML =
+                `<div class="empty-state">
+                 <div class="empty-icon">🗒️</div>
+                 <div class="empty-title">No reminders yet</div>
+                 <p>Deferred roadmap items will appear here.</p></div>`;
+            return;
+        }
+
+        document.getElementById('remindersList').innerHTML =
+            `<div class="reminders-list">${reminders.map(renderCard).join('')}</div>`;
+    } catch (err) {
+        document.getElementById('remindersList').innerHTML =
+            `<div class="empty-state"><div class="empty-icon">⚠️</div>
+             <div class="empty-title">Failed to load</div><p>${err.message}</p></div>`;
+    }
+}
+
+/* ── Actions ──────────────────────────────────────────────────────────────── */
+async function toggleFlag(id, enabled) {
+    try {
+        const res = await fetch(`/api/admin/roadmap-reminders/${id}/flag`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled })
+        });
+        if (!res.ok) throw new Error('Flag update failed');
+        showToast(enabled ? 'Flag turned on — reminder now active' : 'Flag turned off');
+        // Reload after short delay so toggle animation completes
+        setTimeout(load, 600);
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+async function dismiss(id) {
+    try {
+        const res = await fetch(`/api/admin/roadmap-reminders/${id}/dismiss`, { method: 'POST' });
+        if (!res.ok) throw new Error('Dismiss failed');
+        showToast('Reminder dismissed');
+        load();
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+async function resurface(id) {
+    try {
+        const res = await fetch(`/api/admin/roadmap-reminders/${id}/resurface`, { method: 'POST' });
+        if (!res.ok) throw new Error('Resurface failed');
+        showToast('Reminder resurfaced');
+        load();
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+async function startPlanning(id, title) {
+    // Creates a stub TODO item in todos/ directory via a lightweight endpoint.
+    // If the endpoint doesn't exist yet, we gracefully fall back to a clipboard copy.
+    try {
+        const res = await fetch('/api/admin/roadmap-reminders/' + id + '/start-planning', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title })
+        });
+        if (res.ok) {
+            showToast('Planning stub created — check the task queue!');
+        } else {
+            // Fallback: copy issue template to clipboard
+            const tmpl = `## ${title}\n\n### Design Reference\nSee: /docs/ROADMAP-AGENCY-MODE.md\n\n### Next Steps\n- [ ] Review design options\n- [ ] Choose approach\n- [ ] Scope MVP\n- [ ] Create engineering task`;
+            await navigator.clipboard.writeText(tmpl).catch(() => {});
+            showToast('Copied issue template to clipboard — paste into your task tracker');
+        }
+    } catch {
+        showToast('Copied issue template to clipboard');
+    }
+}
+
+load();
+</script>
+
+<!-- Navigation component initialization -->
+<script src="/nav-component.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  window.tvNav.init('admin');
+});
+</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

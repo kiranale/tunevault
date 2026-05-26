@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oracle DBA Runbooks — Tablespace, RMAN, ADOP, Workflow, OPP | TuneVault</title>
+    <meta name="description" content="Production-tested Oracle DBA runbooks for the most common emergencies: tablespace full, archive log full, RMAN backup failure, ADOP cutover/rollback, OPP tuning, Workflow Mailer recovery, Oracle database upgrade, and EBS upgrade triage.">
+    <meta name="author" content="TuneVault">
+    <link rel="canonical" href="https://tunevault.app/resources/runbooks">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <meta property="og:title" content="Oracle DBA Runbooks — TuneVault">
+    <meta property="og:description" content="8 production-tested runbooks covering Oracle's most common emergencies. Step-by-step commands, verified on real EBS 12.2 and standalone Oracle environments.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://tunevault.app/resources/runbooks">
+    <meta property="og:site_name" content="TuneVault">
+    <meta property="og:image" content="https://tunevault.app/og/runbook.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="Oracle DBA Runbook — TuneVault production-tested recovery guide">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://tunevault.app/og/runbook.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://tunevault.app/#organization",
+          "name": "TuneVault",
+          "url": "https://tunevault.app",
+          "logo": { "@type": "ImageObject", "url": "https://tunevault.app/logo.png", "width": 512, "height": 512 },
+          "description": "AI agent that autonomously manages Oracle database operations.",
+          "foundingDate": "2026",
+          "founder": { "@type": "Person", "name": "Kiran Kumar Ale", "url": "https://tunevault.app/about" },
+          "contactPoint": { "@type": "ContactPoint", "email": "hello@tunevault.app", "contactType": "customer support" }
+        },
+        {
+          "@type": "CollectionPage",
+          "@id": "https://tunevault.app/resources/runbooks#page",
+          "name": "Oracle DBA Runbooks",
+          "description": "Production-tested Oracle DBA runbooks for tablespace full, archive log full, RMAN failures, ADOP rollback, OPP tuning, and Workflow Mailer recovery.",
+          "url": "https://tunevault.app/resources/runbooks",
+          "publisher": { "@id": "https://tunevault.app/#organization" },
+          "hasPart": [
+            { "@type": "TechArticle", "name": "Tablespace Full Recovery", "url": "https://tunevault.app/resources/runbooks/tablespace-full-recovery" },
+            { "@type": "TechArticle", "name": "Archive Log Destination Full", "url": "https://tunevault.app/resources/runbooks/archive-log-destination-full" },
+            { "@type": "TechArticle", "name": "OPP Tuning for Oracle EBS", "url": "https://tunevault.app/resources/runbooks/opp-tuning-ebs" },
+            { "@type": "TechArticle", "name": "Workflow Mailer SMTP Recovery", "url": "https://tunevault.app/resources/runbooks/workflow-mailer-smtp-recovery" },
+            { "@type": "TechArticle", "name": "RMAN Backup Failure Triage", "url": "https://tunevault.app/resources/runbooks/rman-backup-failure-triage" },
+            { "@type": "TechArticle", "name": "ADOP Cutover Rollback", "url": "https://tunevault.app/resources/runbooks/adop-cutover-rollback" },
+            { "@type": "TechArticle", "name": "Oracle Database Upgrade Triage", "url": "https://tunevault.app/resources/runbooks/oracle-db-upgrade-triage" },
+            { "@type": "TechArticle", "name": "EBS Upgrade Triage", "url": "https://tunevault.app/resources/runbooks/ebs-upgrade-triage" }
+          ]
+        }
+      ]
+    }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+    <style>
+        :root {
+            --bg: #0a0a0c;
+            --surface: #111114;
+            --surface2: #18181c;
+            --border: #2a2a30;
+            --text: #e8e8ed;
+            --text-dim: #9898a8;
+            --accent: #f0a830;
+            --accent-dim: rgba(240,168,48,0.12);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg); color: var(--text); font-family: 'Space Grotesk', sans-serif; line-height: 1.6; }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+        .nav-logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; color: var(--text); text-decoration: none; }
+        .nav-logo-icon { width: 28px; height: 28px; background: var(--accent); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #0a0a0c; font-weight: 700; }
+        .nav-links { display: flex; align-items: center; gap: 20px; }
+        .nav-links a { font-size: 13px; color: var(--text-dim); transition: color 0.15s; }
+        .nav-links a:hover { color: var(--text); text-decoration: none; }
+        .nav-cta { background: var(--accent); color: #0a0a0c !important; padding: 6px 16px; border-radius: 6px; font-weight: 600; font-size: 13px !important; }
+        .nav-cta:hover { background: #e09820 !important; color: #0a0a0c !important; }
+
+        .hero { padding: 80px 24px 60px; text-align: center; max-width: 780px; margin: 0 auto; }
+        .hero-eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; color: var(--accent); text-transform: uppercase; margin-bottom: 16px; }
+        .hero h1 { font-size: clamp(32px, 5vw, 52px); font-weight: 700; line-height: 1.15; margin-bottom: 20px; }
+        .hero p { font-size: 17px; color: var(--text-dim); max-width: 580px; margin: 0 auto; }
+
+        .runbooks-grid { max-width: 960px; margin: 0 auto; padding: 0 24px 80px; display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 20px; }
+
+        .runbook-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 28px; transition: border-color 0.2s, transform 0.15s; display: flex; flex-direction: column; gap: 12px; }
+        .runbook-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+        .card-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 10px; border-radius: 20px; }
+        .tag-storage { background: rgba(239,68,68,0.12); color: #f87171; }
+        .tag-backup { background: rgba(59,130,246,0.12); color: #60a5fa; }
+        .tag-ebs { background: rgba(240,168,48,0.12); color: var(--accent); }
+        .tag-workflow { background: rgba(34,197,94,0.12); color: #4ade80; }
+        .tag-patching { background: rgba(168,85,247,0.12); color: #c084fc; }
+        .tag-upgrade { background: rgba(168,85,247,0.12); color: #c084fc; }
+        .tag-ebs-upgrade { background: rgba(240,168,48,0.12); color: var(--accent); }
+        .card-title { font-size: 20px; font-weight: 700; color: var(--text); }
+        .card-desc { font-size: 14px; color: var(--text-dim); line-height: 1.55; }
+        .card-meta { display: flex; gap: 16px; align-items: center; margin-top: 4px; }
+        .card-meta-item { font-size: 12px; color: var(--text-dim); }
+        .card-link { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; color: var(--accent); margin-top: 4px; }
+        .card-link:hover { text-decoration: underline; }
+
+        .note-box { max-width: 960px; margin: 0 auto 60px; padding: 0 24px; }
+        .note { background: var(--accent-dim); border: 1px solid rgba(240,168,48,0.25); border-radius: 10px; padding: 20px 24px; font-size: 14px; color: var(--text-dim); }
+        .note strong { color: var(--text); }
+
+        footer { border-top: 1px solid var(--border); padding: 32px 24px; text-align: center; font-size: 13px; color: var(--text-dim); }
+        footer a { color: var(--text-dim); }
+        footer a:hover { color: var(--text); }
+        .footer-links { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }
+
+        @media (max-width: 600px) {
+            .runbooks-grid { grid-template-columns: 1fr; }
+            .hero { padding: 60px 16px 40px; }
+            .nav-links { gap: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <a href="/" class="nav-logo">
+        <div class="nav-logo-icon">TV</div>
+        TuneVault
+    </a>
+    <div class="nav-links">
+        <a href="/blog">Blog</a>
+        <a href="/compare">Compare</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/signup?path=health-check&redirect=/dashboard" class="nav-cta">Start Free</a>
+    </div>
+</nav>
+
+<div class="hero">
+    <div class="hero-eyebrow">Oracle DBA Runbooks</div>
+    <h1>Fix it fast.<br>Understand it deeply.</h1>
+    <p>Eight production-tested runbooks for Oracle's most common emergencies. Written from 20+ years of real incidents — not documentation rewrites.</p>
+</div>
+
+<div class="note-box">
+    <div class="note">
+        <strong>About these runbooks:</strong> Each one is verified against Oracle 12c, 19c, 23ai, and EBS 12.2 environments. Commands include diagnostic queries first, then fixes, then post-fix verification. Root cause sections explain <em>why</em> each problem happens so you can prevent recurrence.
+    </div>
+</div>
+
+<div class="runbooks-grid">
+
+    <a href="/resources/runbooks/tablespace-full-recovery" style="text-decoration:none;color:inherit;">
+    <div class="runbook-card">
+        <div><span class="card-tag tag-storage">🗄️ Storage</span></div>
+        <div class="card-title">Tablespace Full Recovery</div>
+        <div class="card-desc">ORA-01653 or ORA-01688 bringing down your DB? Step-by-step: identify the culprit, add datafiles, set AUTOEXTEND, and verify the fix. Covers SYSTEM, SYSAUX, UNDO, TEMP, and user tablespaces.</div>
+        <div class="card-meta">
+            <span class="card-meta-item">⏱ 10–30 min recovery</span>
+            <span class="card-meta-item">Oracle 12c / 19c / EBS</span>
+        </div>
+        <div class="card-link">Read runbook →</div>
+    </div>
+    </a>
+
+    <a href="/resources/runbooks/archive-log-destination-full" style="text-decoration:none;color:inherit;">
+    <div class="runbook-card">
+        <div><span class="card-tag tag-storage">📦 Archive Log</span></div>
+        <div class="card-title">Archive Log Destination Full</div>
+        <div class="card-desc">ORA-19809 or ORA-00257: archiver error — the database has stopped accepting transactions. Immediate RMAN cleanup, space reclaim, and archivelog retention policy fixes.</div>
+        <div class="card-meta">
+            <span class="card-meta-item">⏱ 5–20 min recovery</span>
+            <span class="card-meta-item">ARCHIVELOG mode DBs</span>
+        </div>
+        <div class="card-link">Read runbook →</div>
+    </div>
+    </a>
+
+    <a href="/resources/runbooks/opp-tuning-ebs" style="text-decoration:none;color:inherit;">
+    <div class="runbook-card">
+        <div><span class="card-tag tag-ebs">⚙️ EBS / OPP</span></div>
+        <div class="card-title">OPP Tuning for Oracle EBS</div>
+        <div class="card-desc">Output Post Processor queue backlog, deadlocked OPP workers, or post-processing failures causing output file unavailability. Diagnose, clear, and tune OPP thread counts.</div>
+        <div class="card-meta">
+            <span class="card-meta-item">⏱ 15–45 min</span>
+            <span class="card-meta-item">EBS 12.1 / 12.2</span>
+        </div>
+        <div class="card-link">Read runbook →</div>
+    </div>
+    </a>
+
+    <a href="/resources/runbooks/workflow-mailer-smtp-recovery" style="text-decoration:none;color:inherit;">
+    <div class="runbook-card">
+        <div><span class="card-tag tag-workflow">📧 Workflow</span></div>
+        <div class="card-title">Workflow Mailer SMTP Recovery</div>
+        <div class="card-desc">Oracle Workflow Mailer has stopped sending notifications. SMTP authentication errors, connection timeouts, stuck deferred queue. Full diagnosis and restart sequence for EBS 12.2.</div>
+        <div class="card-meta">
+            <span class="card-meta-item">⏱ 20–60 min</span>
+            <span class="card-meta-item">EBS 12.1 / 12.2</span>
+        </div>
+        <div class="card-link">Read runbook →</div>
+    </div>
+    </a>
+
+    <a href="/resources/runbooks/rman-backup-failure-triage" style="text-decoration:none;color:inherit;">
+    <div class="runbook-card">
+        <div><span class="card-tag tag-backup">💾 Backup</span></div>
+        <div class="card-title">RMAN Backup Failure Triage</div>
+        <div class="card-desc">RMAN job failed — but why? Systematic triage covering ORA-19566, ORA-27030, ORA-19809, channel errors, catalog issues, expired backups, and crosscheck/recovery validation.</div>
+        <div class="card-meta">
+            <span class="card-meta-item">⏱ 30–90 min</span>
+            <span class="card-meta-item">Oracle 11g / 12c / 19c</span>
+        </div>
+        <div class="card-link">Read runbook →</div>
+    </div>
+    </a>
+
+    <a href="/resources/runbooks/adop-cutover-rollback" style="text-decoration:none;color:inherit;">
+    <div class="runbook-card">
+        <div><span class="card-tag tag-patching">🔄 ADOP</span></div>
+        <div class="card-title">ADOP Cutover &amp; Rollback</div>
+        <div class="card-desc">ADOP cutover stalled, cleanup phase failed, or you need to roll back a patch cycle. Covers stuck phases, abandoned sessions, filesystem cleanup, and emergency adop cleanup commands.</div>
+        <div class="card-meta">
+            <span class="card-meta-item">⏱ 30–120 min</span>
+            <span class="card-meta-item">EBS 12.2 only</span>
+        </div>
+        <div class="card-link">Read runbook →</div>
+    </div>
+    </a>
+
+    <a href="/resources/runbooks/oracle-db-upgrade-triage" style="text-decoration:none;color:inherit;">
+    <div class="runbook-card">
+        <div><span class="card-tag tag-upgrade">⬆️ Database Upgrade</span></div>
+        <div class="card-title">Oracle Database Upgrade Triage</div>
+        <div class="card-desc">Upgrade failed? Systematic triage for preupgrade.jar errors, catctl.pl restarts, invalid objects post-upgrade, timezone file mismatches, component failures (APEX, JVM, Spatial), and rollback via Guaranteed Restore Point. Covers 12c→19c and 19c→23ai.</div>
+        <div class="card-meta">
+            <span class="card-meta-item">⏱ 1–8 hrs</span>
+            <span class="card-meta-item">12c → 19c / 23ai</span>
+        </div>
+        <div class="card-link">Read runbook →</div>
+    </div>
+    </a>
+
+    <a href="/resources/runbooks/ebs-upgrade-triage" style="text-decoration:none;color:inherit;">
+    <div class="runbook-card">
+        <div><span class="card-tag tag-ebs-upgrade">🏗️ EBS Upgrade</span></div>
+        <div class="card-title">EBS Upgrade Triage</div>
+        <div class="card-desc">EBS upgrade or tech stack upgrade stalled? Covers 12.1→12.2 path, ADOP phase failures (prepare/apply/finalize/cutover/cleanup), AutoConfig errors, WebLogic/OHS failures, Concurrent Manager not starting, AD-A-01022, ADZDCLN, and OUI-67076 errors.</div>
+        <div class="card-meta">
+            <span class="card-meta-item">⏱ 2–24 hrs</span>
+            <span class="card-meta-item">EBS 12.1 / 12.2</span>
+        </div>
+        <div class="card-link">Read runbook →</div>
+    </div>
+    </a>
+
+    <!-- Live SSH runbooks — require agent connection + SSH profile -->
+    <a href="/ebs-runbooks/cm-status-bounce" style="text-decoration:none;color:inherit;">
+    <div class="runbook-card" style="border-color:rgba(240,168,48,0.25)">
+        <div style="display:flex;align-items:center;gap:8px"><span class="card-tag tag-ebs">⚙️ EBS Ops</span><span style="font-size:10px;background:rgba(240,168,48,0.15);color:var(--accent);padding:2px 8px;border-radius:12px;font-weight:700;letter-spacing:0.04em">LIVE</span></div>
+        <div class="card-title">Concurrent Manager Status &amp; Bounce</div>
+        <div class="card-desc">Live: runs adcmctl.sh status over SSH, shows ICM PID, queue managers, target vs actual processes. One-click bounce with confirmation gate — stop → verify → start. Requires apps_tier SSH profile.</div>
+        <div class="card-meta">
+            <span class="card-meta-item">⚡ Real-time</span>
+            <span class="card-meta-item">EBS 12.2 · Agent required</span>
+        </div>
+        <div class="card-link">Open live runbook →</div>
+    </div>
+    </a>
+
+    <a href="/ebs-runbooks/alert-log-tail" style="text-decoration:none;color:inherit;">
+    <div class="runbook-card" style="border-color:rgba(248,113,113,0.25)">
+        <div style="display:flex;align-items:center;gap:8px"><span class="card-tag tag-storage" style="background:rgba(248,113,113,0.12);color:#f87171">🔴 Alert Log</span><span style="font-size:10px;background:rgba(248,113,113,0.12);color:#f87171;padding:2px 8px;border-radius:12px;font-weight:700;letter-spacing:0.04em">LIVE</span></div>
+        <div class="card-title">Oracle Alert Log — Live Tail</div>
+        <div class="card-desc">Live: streams the Oracle alert log via SSH (db_host profile). ORA-NNN lines highlighted in red. Filter by error code. Save last 200 lines as a snippet. Auto-discovers alert log path from v$diag_info.</div>
+        <div class="card-meta">
+            <span class="card-meta-item">⚡ Real-time stream</span>
+            <span class="card-meta-item">Oracle DB · Agent required</span>
+        </div>
+        <div class="card-link">Open live runbook →</div>
+    </div>
+    </a>
+
+    <a href="/ebs-runbooks/adop-phase-status" style="text-decoration:none;color:inherit;">
+    <div class="runbook-card" style="border-color:rgba(192,132,252,0.25)">
+        <div style="display:flex;align-items:center;gap:8px"><span class="card-tag tag-patching" style="background:rgba(192,132,252,0.12);color:#c084fc">🔧 ADOP</span><span style="font-size:10px;background:rgba(192,132,252,0.12);color:#c084fc;padding:2px 8px;border-radius:12px;font-weight:700;letter-spacing:0.04em">LIVE</span></div>
+        <div class="card-title">ADOP Phase Status</div>
+        <div class="card-desc">Live: runs adop -status via SSH, renders current phase, session ID, abandoned flag, and node-by-node status (prepare/apply/finalize/cutover/cleanup). Falls back to AD_ADOP_SESSIONS query if SSH unavailable.</div>
+        <div class="card-meta">
+            <span class="card-meta-item">⚡ On-demand</span>
+            <span class="card-meta-item">EBS 12.2 · Read-only</span>
+        </div>
+        <div class="card-link">Open live runbook →</div>
+    </div>
+    </a>
+
+</div>
+
+<footer>
+    <div class="footer-links">
+        <a href="/">TuneVault</a>
+        <a href="/blog">Blog</a>
+        <a href="/compare">Compare Tools</a>
+        <a href="/vs-oem">vs Oracle OEM</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/about">About</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
+    </div>
+    <p style="margin-top:16px;">© 2026 TuneVault · <a href="mailto:hello@tunevault.app">hello@tunevault.app</a></p>
+</footer>
+
+</body>
+</html>

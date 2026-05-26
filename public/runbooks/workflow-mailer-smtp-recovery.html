@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oracle EBS Workflow Mailer SMTP Recovery Runbook | TuneVault</title>
+    <meta name="description" content="Fix Oracle EBS Workflow Mailer when it stops sending notifications. Step-by-step diagnosis of SMTP authentication errors, stuck deferred queue, and Workflow Mailer restart sequence for EBS 12.2.">
+    <meta name="author" content="TuneVault">
+    <link rel="canonical" href="https://tunevault.app/resources/runbooks/workflow-mailer-smtp-recovery">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <meta property="og:title" content="Oracle EBS Workflow Mailer SMTP Recovery Runbook — TuneVault">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://tunevault.app/resources/runbooks/workflow-mailer-smtp-recovery">
+    <meta property="og:site_name" content="TuneVault">
+    <meta property="og:image" content="https://tunevault.app/og/runbook.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="Oracle DBA Runbook — TuneVault production-tested recovery guide">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://tunevault.app/og/runbook.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        { "@type": "Organization", "@id": "https://tunevault.app/#organization", "name": "TuneVault", "url": "https://tunevault.app", "logo": { "@type": "ImageObject", "url": "https://tunevault.app/logo.png" }, "foundingDate": "2026", "founder": { "@type": "Person", "name": "Kiran Kumar Ale", "url": "https://tunevault.app/about" }, "contactPoint": { "@type": "ContactPoint", "email": "hello@tunevault.app", "contactType": "customer support" } },
+        { "@type": "TechArticle", "@id": "https://tunevault.app/resources/runbooks/workflow-mailer-smtp-recovery#article", "headline": "Oracle EBS Workflow Mailer SMTP Recovery Runbook", "description": "Fix Oracle Workflow Mailer SMTP issues, stuck deferred queue, and notification delivery failures in EBS 12.2.", "url": "https://tunevault.app/resources/runbooks/workflow-mailer-smtp-recovery", "datePublished": "2026-05-15", "dateModified": "2026-05-15", "author": { "@type": "Person", "name": "Kiran Kumar Ale", "url": "https://tunevault.app/about" }, "publisher": { "@id": "https://tunevault.app/#organization" }, "about": [{ "@type": "Thing", "name": "Oracle EBS" }, { "@type": "Thing", "name": "Workflow Mailer" }, { "@type": "Thing", "name": "SMTP" }] }
+      ]
+    }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+    <style>
+        :root{--bg:#0a0a0c;--surface:#111114;--surface2:#18181c;--border:#2a2a30;--text:#e8e8ed;--text-dim:#9898a8;--accent:#f0a830;--accent-dim:rgba(240,168,48,0.12);--red:#f87171;--red-dim:rgba(248,113,113,0.1);--green:#4ade80;--green-dim:rgba(74,222,128,0.1);--blue:#60a5fa;--blue-dim:rgba(96,165,250,0.1);}
+        *{box-sizing:border-box;margin:0;padding:0;}body{background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif;line-height:1.7;}a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
+        nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+        .nav-logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;color:var(--text);text-decoration:none;}
+        .nav-logo-icon{width:28px;height:28px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:13px;color:#0a0a0c;font-weight:700;}
+        .nav-links{display:flex;align-items:center;gap:20px;}.nav-links a{font-size:13px;color:var(--text-dim);transition:color 0.15s;}.nav-links a:hover{color:var(--text);text-decoration:none;}
+        .nav-cta{background:var(--accent);color:#0a0a0c !important;padding:6px 16px;border-radius:6px;font-weight:600;font-size:13px !important;}
+        .page-wrap{max-width:820px;margin:0 auto;padding:48px 24px 80px;}
+        .breadcrumb{font-size:13px;color:var(--text-dim);margin-bottom:32px;}.breadcrumb a{color:var(--text-dim);}.breadcrumb a:hover{color:var(--accent);}.breadcrumb span{margin:0 6px;}
+        .article-tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:3px 10px;border-radius:20px;background:rgba(74,222,128,0.1);color:#4ade80;margin-bottom:16px;}
+        h1{font-size:clamp(26px,4vw,40px);font-weight:700;line-height:1.2;margin-bottom:16px;}
+        .article-meta{display:flex;gap:20px;flex-wrap:wrap;font-size:13px;color:var(--text-dim);margin-bottom:40px;}
+        .toc{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 24px;margin-bottom:40px;}
+        .toc-title{font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-dim);margin-bottom:12px;}
+        .toc ol{padding-left:20px;}.toc li{margin-bottom:6px;}.toc a{font-size:14px;color:var(--text-dim);}.toc a:hover{color:var(--accent);}
+        h2{font-size:22px;font-weight:700;margin:48px 0 16px;padding-top:32px;border-top:1px solid var(--border);}h3{font-size:17px;font-weight:600;margin:28px 0 12px;}
+        p{margin-bottom:16px;font-size:15px;}ul,ol{padding-left:22px;margin-bottom:16px;}li{margin-bottom:8px;font-size:15px;}
+        pre{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:18px 20px;overflow-x:auto;margin:16px 0 24px;}
+        code{font-family:'JetBrains Mono',monospace;font-size:13px;color:#93c5fd;line-height:1.6;}p code,li code{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:12.5px;color:#93c5fd;}
+        .comment{color:#6b7280;}.keyword{color:#f0a830;}.string{color:#4ade80;}
+        .callout{border-radius:10px;padding:18px 20px;margin:20px 0;font-size:14px;}
+        .callout-critical{background:var(--red-dim);border:1px solid rgba(248,113,113,0.3);}.callout-warning{background:var(--accent-dim);border:1px solid rgba(240,168,48,0.3);}.callout-info{background:var(--blue-dim);border:1px solid rgba(96,165,250,0.3);}.callout-success{background:var(--green-dim);border:1px solid rgba(74,222,128,0.3);}
+        .callout-title{font-weight:700;margin-bottom:6px;}.callout-critical .callout-title{color:var(--red);}.callout-warning .callout-title{color:var(--accent);}.callout-info .callout-title{color:var(--blue);}.callout-success .callout-title{color:var(--green);}
+        .cta-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:32px;text-align:center;margin:48px 0;}
+        .cta-box h3{font-size:20px;margin-bottom:8px;}.cta-box p{color:var(--text-dim);margin-bottom:20px;font-size:14px;}
+        .cta-btn{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#0a0a0c;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;}
+        .cta-btn:hover{background:#e09820;text-decoration:none;}
+        .nav-footer{display:flex;justify-content:space-between;gap:16px;margin-top:48px;padding-top:32px;border-top:1px solid var(--border);flex-wrap:wrap;}
+        .nav-footer a{font-size:14px;font-weight:500;color:var(--text-dim);}.nav-footer a:hover{color:var(--accent);text-decoration:none;}
+        footer{border-top:1px solid var(--border);padding:32px 24px;text-align:center;font-size:13px;color:var(--text-dim);}
+        .footer-links{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin-bottom:12px;}.footer-links a{color:var(--text-dim);}
+        @media(max-width:600px){.page-wrap{padding:32px 16px 60px;}}
+    </style>
+</head>
+<body>
+
+<nav>
+    <a href="/" class="nav-logo"><div class="nav-logo-icon">TV</div>TuneVault</a>
+    <div class="nav-links">
+        <a href="/resources/runbooks">Runbooks</a>
+        <a href="/blog">Blog</a>
+        <a href="/signup?path=health-check&redirect=/dashboard" class="nav-cta">Start Free</a>
+    </div>
+</nav>
+
+<div class="page-wrap">
+
+    <div class="breadcrumb">
+        <a href="/">TuneVault</a><span>›</span>
+        <a href="/resources/runbooks">Runbooks</a><span>›</span>
+        Workflow Mailer SMTP Recovery
+    </div>
+
+    <div class="article-tag">📧 Workflow</div>
+    <h1>Oracle EBS Workflow Mailer SMTP Recovery Runbook</h1>
+    <div class="article-meta">
+        <span>⏱ 20–60 min</span>
+        <span>EBS 12.1 / 12.2</span>
+        <span>Updated 2026-05-15</span>
+    </div>
+
+    <div class="toc">
+        <div class="toc-title">In this runbook</div>
+        <ol>
+            <li><a href="#how-mailer-works">How Workflow Mailer works</a></li>
+            <li><a href="#symptoms">Symptoms of Mailer failure</a></li>
+            <li><a href="#diagnose">Diagnose: check Mailer status and queue</a></li>
+            <li><a href="#smtp-issues">Fix SMTP authentication and connectivity</a></li>
+            <li><a href="#clear-queue">Clear stuck deferred notifications</a></li>
+            <li><a href="#restart">Restart Workflow Mailer</a></li>
+            <li><a href="#verify">Verify and test</a></li>
+            <li><a href="#prevention">Prevention</a></li>
+        </ol>
+    </div>
+
+    <h2 id="how-mailer-works">1. How Workflow Mailer Works</h2>
+
+    <p>Oracle Workflow Mailer (also called the Notification Mailer) is a Java-based service within the Concurrent Manager infrastructure. It polls the <code>WF_NOTIFICATIONS</code> table for notifications with status <code>OPEN</code> and sends them via SMTP. It also processes inbound email responses (for email-based approvals) via IMAP/POP3.</p>
+
+    <p>The Mailer runs as a Concurrent Manager service: <strong>Workflow Mailer</strong> (internal name: <code>FNDWFMLRSVC</code>). It connects to:</p>
+    <ul>
+        <li>The Oracle APPS schema (for notification data)</li>
+        <li>An SMTP server (outbound notifications)</li>
+        <li>An IMAP or POP3 server (inbound response handling, if configured)</li>
+    </ul>
+
+    <h2 id="symptoms">2. Symptoms of Mailer Failure</h2>
+
+    <ul>
+        <li>EBS users not receiving workflow notifications by email</li>
+        <li>Notifications accumulating in the &ldquo;Worklist&rdquo; but never delivered</li>
+        <li>Workflow Mailer shows as &ldquo;Inactive&rdquo; in System Administrator → Concurrent → Manager → Administer</li>
+        <li>Alert log or Mailer log shows SMTP connection errors or authentication failures</li>
+        <li>TuneVault EBS health check: Workflow Mailer service down or error rate elevated</li>
+        <li>Deferred queue depth growing in <code>WF_DEFERRED</code></li>
+    </ul>
+
+    <h2 id="diagnose">3. Diagnose: Check Mailer Status and Queue</h2>
+
+    <h3>3a. Check Workflow Mailer service status</h3>
+    <pre><code><span class="comment">-- Check if Workflow Mailer is active</span>
+<span class="keyword">SELECT</span>
+  q.concurrent_queue_name,
+  q.running_processes,
+  q.max_processes,
+  q.description
+<span class="keyword">FROM</span> apps.fnd_concurrent_queues q
+<span class="keyword">WHERE</span> q.concurrent_queue_name = <span class="string">'FNDWFMLRSVC'</span>;
+
+<span class="comment">-- Check service component status</span>
+<span class="keyword">SELECT</span>
+  component_name,
+  component_status,
+          startup_mode,
+  inbound_agent,
+  outbound_agent
+<span class="keyword">FROM</span> apps.fnd_svc_components
+<span class="keyword">WHERE</span> component_type = <span class="string">'WF_MAILER'</span>;</code></pre>
+
+    <h3>3b. Check notification queue depth</h3>
+    <pre><code><span class="comment">-- Count unsent notifications</span>
+<span class="keyword">SELECT</span>
+  mail_status,
+  COUNT(*) AS cnt,
+  MIN(begin_date) AS oldest
+<span class="keyword">FROM</span> apps.wf_notifications
+<span class="keyword">WHERE</span> status = <span class="string">'OPEN'</span>
+  <span class="keyword">AND</span> notification_preference NOT IN (<span class="string">'DISABLED'</span>, <span class="string">'SUMMARY'</span>)
+<span class="keyword">GROUP BY</span> mail_status
+<span class="keyword">ORDER BY</span> cnt <span class="keyword">DESC</span>;
+
+<span class="comment">-- Check WF_DEFERRED queue depth</span>
+<span class="keyword">SELECT</span> COUNT(*) AS deferred_count
+<span class="keyword">FROM</span> apps.wf_deferred
+<span class="keyword">WHERE</span> state = 0;  <span class="comment">-- 0 = ready, 1 = expired, 2 = undeliverable</span></code></pre>
+
+    <h3>3c. Read the Mailer log</h3>
+    <pre><code><span class="comment">-- Find the latest Workflow Mailer log file</span>
+<span class="comment">-- As applmgr OS user:</span>
+<span class="comment">-- ls -lt $APPLLOG/FNDWFMLRSVC*.log | head -5</span>
+<span class="comment">-- tail -300 $APPLLOG/FNDWFMLRSVC_PID.log</span>
+
+<span class="comment">-- Key error patterns to look for:</span>
+<span class="comment">-- &quot;Authentication failed&quot; or &quot;535 Authentication credentials invalid&quot;</span>
+<span class="comment">-- &quot;Connection refused&quot; or &quot;Connection timed out&quot; on SMTP port</span>
+<span class="comment">-- &quot;SSL/TLS required&quot; - SMTP server requires TLS, Mailer not configured for it</span>
+<span class="comment">-- &quot;ORA-01017&quot; - APPS password mismatch</span>
+<span class="comment">-- &quot;Mailer went to ERROR state&quot;</span></code></pre>
+
+    <h2 id="smtp-issues">4. Fix SMTP Authentication and Connectivity</h2>
+
+    <h3>4a. Test SMTP connectivity from the apps tier</h3>
+    <pre><code><span class="comment">-- As applmgr OS user, test SMTP connectivity:</span>
+<span class="comment">-- telnet your-smtp-server.com 25</span>
+<span class="comment">-- (or port 587 for STARTTLS, port 465 for SSL)</span>
+
+<span class="comment">-- Expected response if SMTP is reachable:</span>
+<span class="comment">-- 220 your-smtp-server.com ESMTP ready</span>
+
+<span class="comment">-- If connection times out: firewall rule needed from apps tier to SMTP server</span>
+<span class="comment">-- If connection refused: SMTP server is down or wrong port</span></code></pre>
+
+    <h3>4b. Update SMTP configuration in EBS</h3>
+    <p>Navigate to: <strong>System Administrator → Oracle Applications Manager → Workflow → Notification Mailer</strong></p>
+    <p>Key fields to verify:</p>
+    <ul>
+        <li><strong>Outbound Server Name</strong>: SMTP server hostname or IP</li>
+        <li><strong>Outbound Server Port</strong>: 25 (plain), 587 (STARTTLS), or 465 (SSL)</li>
+        <li><strong>Use SSL</strong>: Enable if SMTP server requires TLS/SSL</li>
+        <li><strong>From Address</strong>: Must be a valid sending address accepted by the SMTP relay</li>
+        <li><strong>Username / Password</strong>: If SMTP AUTH is required (most modern email servers require this)</li>
+    </ul>
+
+    <h3>4c. Update SMTP settings via profile option</h3>
+    <pre><code><span class="comment">-- Check current Workflow Mailer SMTP settings</span>
+<span class="keyword">SELECT</span>
+  c.component_name,
+  p.parameter_name,
+  p.parameter_value
+<span class="keyword">FROM</span> apps.fnd_svc_comp_params_b p
+<span class="keyword">JOIN</span> apps.fnd_svc_components c ON c.component_id = p.component_id
+<span class="keyword">WHERE</span> c.component_type = <span class="string">'WF_MAILER'</span>
+  <span class="keyword">AND</span> p.parameter_name <span class="keyword">IN</span> (
+    <span class="string">'SMTP_HOST'</span>, <span class="string">'SMTP_PORT'</span>, <span class="string">'SMTP_USERNAME'</span>,
+    <span class="string">'FROM'</span>, <span class="string">'REPLY_TO'</span>, <span class="string">'USE_SSL'</span>
+  )
+<span class="keyword">ORDER BY</span> p.parameter_name;
+
+<span class="comment">-- Update SMTP host (example)</span>
+<span class="keyword">UPDATE</span> apps.fnd_svc_comp_params_b
+<span class="keyword">SET</span> parameter_value = <span class="string">'smtp.yourdomain.com'</span>
+<span class="keyword">WHERE</span> parameter_name = <span class="string">'SMTP_HOST'</span>
+  <span class="keyword">AND</span> component_id = (
+    <span class="keyword">SELECT</span> component_id <span class="keyword">FROM</span> apps.fnd_svc_components
+    <span class="keyword">WHERE</span> component_type = <span class="string">'WF_MAILER'</span>
+  );
+<span class="keyword">COMMIT</span>;</code></pre>
+
+    <div class="callout callout-warning">
+        <div class="callout-title">⚠️ Modern SMTP relay requirements</div>
+        Google Workspace and Office 365 now require OAuth2 or app-specific passwords for SMTP AUTH. If you're relaying through either, configure an app password or use a dedicated SMTP relay service (SendGrid, AWS SES, Postfix relay) to avoid OAuth complexity.
+    </div>
+
+    <h2 id="clear-queue">5. Clear Stuck Deferred Notifications</h2>
+
+    <pre><code><span class="comment">-- Check notifications stuck in ERROR or DEFERRED state</span>
+<span class="keyword">SELECT</span>
+  n.notification_id,
+  n.message_type,
+  n.message_name,
+  n.recipient_role,
+  n.mail_status,
+  n.begin_date
+<span class="keyword">FROM</span> apps.wf_notifications n
+<span class="keyword">WHERE</span> n.mail_status = <span class="string">'MAIL'</span>
+  <span class="keyword">AND</span> n.status = <span class="string">'OPEN'</span>
+  <span class="keyword">AND</span> n.begin_date &lt; SYSDATE - 1  <span class="comment">-- stuck more than 1 day</span>
+<span class="keyword">ORDER BY</span> n.begin_date
+<span class="keyword">FETCH FIRST</span> 20 <span class="keyword">ROWS ONLY</span>;
+
+<span class="comment">-- Reset stuck notifications so Mailer retries them</span>
+<span class="keyword">UPDATE</span> apps.wf_notifications
+<span class="keyword">SET</span> mail_status = <span class="string">'MAIL'</span>
+<span class="keyword">WHERE</span> status = <span class="string">'OPEN'</span>
+  <span class="keyword">AND</span> mail_status = <span class="string">'SENT'</span>   <span class="comment">-- marked sent but not actually delivered</span>
+  <span class="keyword">AND</span> begin_date &lt; SYSDATE - 7;
+<span class="keyword">COMMIT</span>;
+
+<span class="comment">-- For very old notifications: mark as sent to stop retry loops</span>
+<span class="comment">-- (prevents sending stale notifications to users after fixing Mailer)</span>
+<span class="keyword">UPDATE</span> apps.wf_notifications
+<span class="keyword">SET</span> mail_status = <span class="string">'SENT'</span>
+<span class="keyword">WHERE</span> status = <span class="string">'OPEN'</span>
+  <span class="keyword">AND</span> mail_status = <span class="string">'MAIL'</span>
+  <span class="keyword">AND</span> begin_date &lt; SYSDATE - 30;  <span class="comment">-- older than 30 days</span>
+<span class="keyword">COMMIT</span>;</code></pre>
+
+    <h2 id="restart">6. Restart Workflow Mailer</h2>
+
+    <h3>6a. Via EBS System Administrator UI (preferred)</h3>
+    <ol>
+        <li>Navigate to: <strong>System Administrator → Concurrent → Manager → Administer</strong></li>
+        <li>Find <strong>Workflow Mailer</strong> in the list</li>
+        <li>Click <strong>Deactivate</strong> and wait for the process to stop (running_processes = 0)</li>
+        <li>Click <strong>Activate</strong></li>
+        <li>Monitor the log file for successful SMTP connection messages</li>
+    </ol>
+
+    <h3>6b. Via Oracle Applications Manager (OAM)</h3>
+    <ol>
+        <li>Navigate to: <strong>Oracle Applications Manager → Workflow → Notification Mailer</strong></li>
+        <li>Click <strong>Stop</strong></li>
+        <li>After status changes to Stopped, click <strong>Start</strong></li>
+    </ol>
+
+    <h3>6c. Via SQL</h3>
+    <pre><code><span class="comment">-- Deactivate Workflow Mailer</span>
+<span class="keyword">UPDATE</span> apps.fnd_concurrent_queues
+<span class="keyword">SET</span> max_processes = 0
+<span class="keyword">WHERE</span> concurrent_queue_name = <span class="string">'FNDWFMLRSVC'</span>;
+<span class="keyword">COMMIT</span>;
+
+<span class="comment">-- Wait 30 seconds, then reactivate</span>
+<span class="keyword">UPDATE</span> apps.fnd_concurrent_queues
+<span class="keyword">SET</span> max_processes = 1
+<span class="keyword">WHERE</span> concurrent_queue_name = <span class="string">'FNDWFMLRSVC'</span>;
+<span class="keyword">COMMIT</span>;</code></pre>
+
+    <h2 id="verify">7. Verify and Test</h2>
+
+    <pre><code><span class="comment">-- Confirm Mailer is running</span>
+<span class="keyword">SELECT</span> concurrent_queue_name, running_processes, max_processes
+<span class="keyword">FROM</span> apps.fnd_concurrent_queues
+<span class="keyword">WHERE</span> concurrent_queue_name = <span class="string">'FNDWFMLRSVC'</span>;
+
+<span class="comment">-- Monitor notification queue being processed</span>
+<span class="keyword">SELECT</span> mail_status, COUNT(*) AS cnt
+<span class="keyword">FROM</span> apps.wf_notifications
+<span class="keyword">WHERE</span> status = <span class="string">'OPEN'</span>
+<span class="keyword">GROUP BY</span> mail_status;
+
+<span class="comment">-- Test: send a test notification from EBS</span>
+<span class="comment">-- System Admin → Workflow → Notification Mailer → Test</span>
+<span class="comment">-- Or submit the &quot;Workflow Background Process&quot; concurrent request</span>
+
+<span class="comment">-- Check Mailer log for &quot;Message sent successfully&quot; entries</span></code></pre>
+
+    <h2 id="prevention">8. Prevention</h2>
+
+    <div class="callout callout-success">
+        <div class="callout-title">✅ Workflow Mailer health checklist</div>
+        <ul style="margin:8px 0 0 20px;">
+            <li>Monitor Workflow Mailer status in TuneVault health checks</li>
+            <li>Alert when Workflow Mailer shows as Inactive or Error</li>
+            <li>Use a dedicated SMTP relay instead of direct MX delivery</li>
+            <li>Rotate SMTP credentials with calendar reminders (before they expire)</li>
+            <li>Run &ldquo;Workflow Background Process&rdquo; daily to catch stuck items</li>
+            <li>Purge old notifications: run &ldquo;Purge Obsolete Workflow Runtime Data&rdquo; weekly</li>
+            <li>Monitor <code>WF_DEFERRED</code> queue depth weekly</li>
+        </ul>
+    </div>
+
+    <div class="cta-box">
+        <h3>Stop finding out from users that Workflow Mailer is down</h3>
+        <p>TuneVault monitors Workflow Mailer status and notification queue depth on every health check run, with alerts before it becomes a user-facing problem.</p>
+        <a href="/signup?path=health-check&redirect=/dashboard" class="cta-btn">Run a Free Health Check →</a>
+    </div>
+
+    <div class="nav-footer">
+        <a href="/resources/runbooks/opp-tuning-ebs">← OPP Tuning for EBS</a>
+        <a href="/resources/runbooks/rman-backup-failure-triage">RMAN Backup Failure Triage →</a>
+    </div>
+
+</div>
+
+<footer>
+    <div class="footer-links">
+        <a href="/">TuneVault</a>
+        <a href="/resources/runbooks">Runbooks</a>
+        <a href="/blog">Blog</a>
+        <a href="/compare">Compare Tools</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/about">About</a>
+    </div>
+    <p style="margin-top:12px;">© 2026 TuneVault &middot; <a href="mailto:hello@tunevault.app">hello@tunevault.app</a></p>
+</footer>
+
+</body>
+</html>

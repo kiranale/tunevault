@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Validation Suite — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow"/>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg:     #0a0a0c;
+      --bg2:    #111114;
+      --bg3:    #1a1a1f;
+      --border: #2a2a30;
+      --accent: #f0a830;
+      --green:  #34d399;
+      --red:    #f87171;
+      --yellow: #fbbf24;
+      --blue:   #60a5fa;
+      --purple: #a78bfa;
+      --text:   #e8e8ed;
+      --muted:  #9898a8;
+      --dim:    #444455;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Space Grotesk', system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ── Nav ── */
+    .nav {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 16px;
+      padding: 0 24px; height: 56px;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .nav-logo { font-weight: 700; font-size: 18px; color: var(--accent); text-decoration: none; }
+    .nav-links { margin-left: auto; display: flex; gap: 8px; }
+    .nav-btn {
+      color: var(--muted); font-size: 13px; text-decoration: none;
+      padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px;
+      transition: color .15s, border-color .15s; cursor: pointer; background: none;
+    }
+    .nav-btn:hover { color: var(--text); border-color: var(--muted); }
+    .nav-btn.primary {
+      background: var(--accent); color: #0a0a0c; border-color: var(--accent); font-weight: 600;
+    }
+    .nav-btn.primary:hover { background: #e09820; }
+    .nav-btn:disabled { opacity: .5; cursor: default; }
+
+    /* ── Layout ── */
+    .page { max-width: 960px; margin: 0 auto; padding: 28px 24px 80px; }
+
+    /* ── Header ── */
+    .page-header {
+      display: flex; align-items: flex-start; gap: 16px; margin-bottom: 24px;
+    }
+    .page-icon {
+      width: 48px; height: 48px; border-radius: 12px; background: #1a1a1f;
+      border: 1px solid var(--border); display: flex; align-items: center;
+      justify-content: center; font-size: 24px; flex-shrink: 0;
+    }
+    .page-title { font-size: 22px; font-weight: 700; letter-spacing: -.4px; }
+    .page-subtitle { font-size: 13px; color: var(--muted); margin-top: 3px; }
+    .header-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+
+    /* ── Summary banner ── */
+    .summary-banner {
+      border-radius: var(--radius); padding: 18px 24px;
+      border: 1px solid var(--border); background: var(--bg2);
+      margin-bottom: 24px; display: flex; align-items: center; gap: 20px;
+    }
+    .summary-banner.pass   { border-color: #14532d; background: #0d2116; }
+    .summary-banner.partial{ border-color: #713f12; background: #1c1300; }
+    .summary-banner.fail   { border-color: #7b0000; background: #2d0a0a; }
+    .summary-banner.error  { border-color: #7b0000; background: #2d0a0a; }
+    .summary-banner.running { border-color: var(--accent); }
+
+    .summary-icon { font-size: 28px; flex-shrink: 0; }
+    .summary-body { flex: 1; }
+    .summary-title { font-size: 17px; font-weight: 700; }
+    .summary-meta  { font-size: 13px; color: var(--muted); margin-top: 3px; }
+    .summary-stats { display: flex; gap: 20px; margin-left: auto; text-align: center; flex-shrink: 0; }
+    .stat-block { }
+    .stat-num { font-size: 22px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .stat-lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
+    .stat-num.pass    { color: var(--green); }
+    .stat-num.fail    { color: var(--red); }
+    .stat-num.skipped { color: var(--muted); }
+
+    /* ── Progress ── */
+    .progress-bar-wrap { height: 4px; background: var(--bg3); border-radius: 2px; margin-bottom: 24px; overflow: hidden; }
+    .progress-bar { height: 4px; background: var(--accent); border-radius: 2px; transition: width .4s ease; width: 0%; }
+    .progress-bar.complete { background: var(--green); }
+    .progress-bar.fail     { background: var(--red); }
+
+    /* ── Category sections ── */
+    .category-section { margin-bottom: 12px; }
+    .category-header {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .1em; color: var(--dim);
+      padding: 6px 0 6px; display: flex; align-items: center; gap: 8px;
+    }
+    .category-header::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    /* ── Check rows ── */
+    .check-row {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 16px;
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 4px; cursor: pointer; transition: border-color .15s;
+      user-select: none;
+    }
+    .check-row:hover { border-color: var(--dim); }
+    .check-row.expanded { border-color: var(--accent); }
+    .check-row.pending { opacity: .6; cursor: default; }
+
+    .check-name { flex: 1; font-size: 14px; font-weight: 500; }
+    .check-ms   { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); min-width: 60px; text-align: right; }
+    .check-badge {
+      padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .05em; min-width: 62px; text-align: center;
+      flex-shrink: 0;
+    }
+    .check-badge.pass    { background: #0d2116; color: var(--green); border: 1px solid #14532d; }
+    .check-badge.fail    { background: #2d0a0a; color: var(--red);   border: 1px solid #7b0000; }
+    .check-badge.error   { background: #2d0a0a; color: var(--red);   border: 1px solid #7b0000; }
+    .check-badge.skip    { background: var(--bg3); color: var(--muted); border: 1px solid var(--border); }
+    .check-badge.pending { background: var(--bg3); color: var(--dim); border: 1px solid var(--border); }
+    .check-badge.running { background: #1a1300; color: var(--accent); border: 1px solid var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.5 } }
+
+    .check-expander { font-size: 13px; color: var(--muted); flex-shrink: 0; transition: transform .15s; }
+    .check-row.expanded .check-expander { transform: rotate(180deg); }
+
+    .check-detail {
+      display: none; background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 0 0 8px 8px; border-top: none;
+      padding: 10px 16px; margin-top: -4px; margin-bottom: 4px;
+      font-size: 13px; color: var(--muted);
+      font-family: 'JetBrains Mono', monospace;
+      line-height: 1.5;
+    }
+    .check-detail.show { display: block; }
+
+    /* ── Debug bundle expander ── */
+    .bundle-toggle {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 12px; font-family: 'Space Grotesk', sans-serif;
+      color: var(--muted); background: var(--bg3);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 3px 10px; cursor: pointer; transition: color .12s, border-color .12s;
+      margin-top: 8px; user-select: none;
+    }
+    .bundle-toggle:hover { color: var(--text); border-color: var(--dim); }
+    .bundle-panel {
+      display: none; margin-top: 8px;
+      background: #0c0c10; border: 1px solid var(--border);
+      border-radius: 8px; overflow: hidden;
+    }
+    .bundle-panel.show { display: block; }
+    .bundle-section { border-bottom: 1px solid var(--border); }
+    .bundle-section:last-child { border-bottom: none; }
+    .bundle-section-hd {
+      padding: 8px 14px; display: flex; align-items: center; gap: 8px;
+      font-size: 12px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .07em; color: var(--dim);
+      cursor: pointer; user-select: none;
+      background: var(--bg3);
+    }
+    .bundle-section-hd:hover { background: var(--bg2); color: var(--muted); }
+    .bundle-section-body {
+      display: none; padding: 12px 14px;
+      font-size: 12px; font-family: 'JetBrains Mono', monospace;
+      color: var(--muted); white-space: pre-wrap; word-break: break-word;
+      line-height: 1.55;
+    }
+    .bundle-section-body.show { display: block; }
+    .bundle-actions {
+      padding: 10px 14px; display: flex; gap: 8px;
+      border-top: 1px solid var(--border);
+    }
+    .bundle-copy-btn {
+      font-size: 12px; padding: 5px 12px; border-radius: 6px;
+      border: 1px solid var(--border); background: var(--bg3);
+      color: var(--muted); cursor: pointer; transition: color .12s, border-color .12s;
+    }
+    .bundle-copy-btn:hover { color: var(--text); border-color: var(--muted); }
+    .bundle-loading {
+      padding: 20px; text-align: center; color: var(--dim);
+      font-size: 13px;
+    }
+
+    /* ── Share section ── */
+    .share-section {
+      margin-top: 28px; padding: 18px 20px; border-radius: var(--radius);
+      border: 1px solid var(--border); background: var(--bg2);
+    }
+    .share-title { font-weight: 700; font-size: 15px; margin-bottom: 8px; }
+    .share-desc  { font-size: 13px; color: var(--muted); margin-bottom: 14px; }
+    .share-link-row { display: flex; gap: 8px; }
+    .share-link-input {
+      flex: 1; background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 6px; padding: 8px 12px; color: var(--text);
+      font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    }
+    .share-link-input:focus { outline: none; border-color: var(--accent); }
+
+    /* ── History ── */
+    .history-section { margin-top: 40px; }
+    .history-title { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+    .history-row {
+      background: var(--bg2); border: 1px solid var(--border); border-radius: 8px;
+      padding: 10px 16px; display: flex; align-items: center; gap: 12px;
+      margin-bottom: 4px; text-decoration: none; color: var(--text);
+      transition: border-color .15s;
+    }
+    .history-row:hover { border-color: var(--dim); }
+    .history-when { color: var(--muted); font-size: 13px; min-width: 160px; }
+    .history-counts { color: var(--muted); font-size: 13px; flex: 1; }
+    .history-status-pill {
+      padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .05em;
+    }
+    .history-status-pill.pass    { background: #0d2116; color: var(--green); }
+    .history-status-pill.partial { background: #1c1300; color: var(--yellow); }
+    .history-status-pill.fail    { background: #2d0a0a; color: var(--red); }
+    .history-status-pill.error   { background: #2d0a0a; color: var(--red); }
+    .history-status-pill.running { background: #1a1300; color: var(--accent); }
+
+    /* ── Empty / loading states ── */
+    .loading-placeholder { text-align: center; padding: 48px; color: var(--muted); }
+
+    @media (max-width: 640px) {
+      .summary-stats { display: none; }
+      .page { padding: 16px 16px 60px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <a class="nav-logo" href="/connections">⚡ TuneVault</a>
+  <div class="nav-links">
+    <a class="nav-btn" href="/connections">← Connections</a>
+    <button class="nav-btn primary" id="shareBtn" style="display:none" onclick="copyShareLink()">Copy link</button>
+  </div>
+</nav>
+
+<div class="page">
+
+  <div class="page-header">
+    <div class="page-icon">🧪</div>
+    <div>
+      <div class="page-title" id="pageTitle">Full Validation Suite</div>
+      <div class="page-subtitle" id="pageSubtitle">Loading…</div>
+    </div>
+    <div class="header-actions">
+      <button class="nav-btn" id="runAgainBtn" style="display:none" onclick="runSuite()">▶ Run again</button>
+    </div>
+  </div>
+
+  <!-- Progress bar -->
+  <div class="progress-bar-wrap">
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
+
+  <!-- Summary banner -->
+  <div class="summary-banner" id="summaryBanner" style="display:none">
+    <div class="summary-icon" id="summaryIcon"></div>
+    <div class="summary-body">
+      <div class="summary-title" id="summaryTitle"></div>
+      <div class="summary-meta"  id="summaryMeta"></div>
+    </div>
+    <div class="summary-stats" id="summaryStats"></div>
+  </div>
+
+  <!-- Results area -->
+  <div id="resultsArea"></div>
+
+  <!-- Share section (shown after run completes) -->
+  <div class="share-section" id="shareSection" style="display:none">
+    <div class="share-title">📎 Shareable Link</div>
+    <div class="share-desc">Anyone with this link can view this report for 7 days. Useful for sharing with your team or customers.</div>
+    <div class="share-link-row">
+      <input class="share-link-input" id="shareLinkInput" type="text" readonly placeholder="Generating link…"/>
+      <button class="nav-btn" onclick="copyShareLink()">Copy</button>
+    </div>
+  </div>
+
+  <!-- History (shown on active page, not share view) -->
+  <div class="history-section" id="historySection" style="display:none">
+    <div class="history-title">Run history</div>
+    <div id="historyList"></div>
+  </div>
+
+</div>
+
+<script>
+  // ── URL parsing ──────────────────────────────────────────────────────────────
+  const pathParts = window.location.pathname.split('/').filter(Boolean);
+
+  // Two modes:
+  //   /connections/:id/validation-suite/:run_id  → authenticated run view
+  //   /share/validation/:token                   → public share view
+  const isShare   = pathParts[0] === 'share' && pathParts[1] === 'validation';
+  const shareToken = isShare ? pathParts[2] : null;
+  const connId     = !isShare ? parseInt(pathParts[1], 10) : null;
+  const runId      = !isShare ? parseInt(pathParts[3], 10) : null;
+
+  // ── State ────────────────────────────────────────────────────────────────────
+  let pollTimer   = null;
+  let runData     = null;
+  let shareUrl    = null;
+
+  // ── Boot ─────────────────────────────────────────────────────────────────────
+  if (isShare) {
+    fetchSharedRun();
+  } else if (runId) {
+    pollRun();
+  } else if (connId) {
+    // No run_id in URL — start a new run
+    runSuite();
+  } else {
+    showError('Invalid URL — expected /connections/:id/validation-suite/:run_id');
+  }
+
+  // ── API helpers ───────────────────────────────────────────────────────────────
+  async function runSuite() {
+    if (!connId) return;
+    try {
+      document.getElementById('runAgainBtn').style.display = 'none';
+      showRunning('Starting validation suite…');
+      const resp = await fetch(`/api/connections/${connId}/validation-suite/run`, { method: 'POST' });
+      const data = await resp.json();
+      if (!resp.ok) {
+        // Might already be running
+        if (data.run_id) {
+          window.history.replaceState(null, '', `/connections/${connId}/validation-suite/${data.run_id}`);
+          pollRun(data.run_id);
+          return;
+        }
+        showError(data.error || 'Failed to start run');
+        return;
+      }
+      const newRunId = data.run_id;
+      window.history.replaceState(null, '', `/connections/${connId}/validation-suite/${newRunId}`);
+      pollRun(newRunId);
+    } catch (err) {
+      showError('Network error: ' + err.message);
+    }
+  }
+
+  async function pollRun(overrideRunId) {
+    const rid = overrideRunId || runId;
+    if (!rid || !connId) return;
+    try {
+      const resp = await fetch(`/api/connections/${connId}/validation-suite/runs?run_id=${rid}`);
+      const data = await resp.json();
+      if (!resp.ok) { showError(data.error || 'Failed to load run'); return; }
+      runData = data;
+      render(data);
+      if (data.status === 'running') {
+        pollTimer = setTimeout(() => pollRun(rid), 2000);
+      } else {
+        onRunComplete(data);
+      }
+    } catch (err) {
+      showError('Poll error: ' + err.message);
+    }
+  }
+
+  async function fetchSharedRun() {
+    try {
+      const resp = await fetch(`/api/validation/share/${shareToken}`);
+      const data = await resp.json();
+      if (!resp.ok) { showError(data.error || 'Share link not found or expired'); return; }
+      runData = data;
+      render(data);
+      // No share button on share view
+      document.getElementById('runAgainBtn').style.display = 'none';
+      updateSubtitle(data);
+    } catch (err) {
+      showError('Load error: ' + err.message);
+    }
+  }
+
+  async function issueShareLink() {
+    if (!connId || !runData) return;
+    try {
+      const resp = await fetch(`/api/connections/${connId}/validation-suite/${runData.id}/share`, { method: 'POST' });
+      const data = await resp.json();
+      if (!resp.ok) return;
+      shareUrl = data.share_url;
+      document.getElementById('shareLinkInput').value = shareUrl;
+      document.getElementById('shareSection').style.display = 'block';
+      document.getElementById('shareBtn').style.display = '';
+    } catch (_) { /* non-fatal */ }
+  }
+
+  function onRunComplete(data) {
+    document.getElementById('runAgainBtn').style.display = '';
+    issueShareLink();
+    loadHistory();
+  }
+
+  async function loadHistory() {
+    if (!connId || isShare) return;
+    try {
+      const resp = await fetch(`/api/connections/${connId}/validation-suite/history`);
+      const rows = await resp.json();
+      if (!resp.ok || !rows.length) return;
+      renderHistory(rows);
+    } catch (_) { /* non-fatal */ }
+  }
+
+  // ── Rendering ─────────────────────────────────────────────────────────────────
+  const CATEGORY_ORDER = [
+    'Agent Connectivity', 'Health Pack', 'DB Ops',
+    'EBS', 'Credential Vault', 'SSH Paths', 'Monitoring'
+  ];
+
+  function render(data) {
+    updateSubtitle(data);
+    updateSummaryBanner(data);
+    updateResults(data);
+    updateProgress(data);
+  }
+
+  function updateSubtitle(data) {
+    document.getElementById('pageTitle').textContent = data.is_shared
+      ? `Validation Report — ${esc(data.connection_name || 'Connection')}`
+      : `Full Validation Suite — ${esc(data.connection_name || 'Connection')}`;
+    document.getElementById('pageSubtitle').textContent = data.is_shared
+      ? `Shared report · ${fmtDate(data.started_at)}`
+      : (data.status === 'running' ? 'Running…' : `Last run: ${fmtDate(data.started_at)}`);
+  }
+
+  function updateSummaryBanner(data) {
+    const banner = document.getElementById('summaryBanner');
+    const icon   = document.getElementById('summaryIcon');
+    const title  = document.getElementById('summaryTitle');
+    const meta   = document.getElementById('summaryMeta');
+    const stats  = document.getElementById('summaryStats');
+
+    banner.style.display = '';
+    banner.className = `summary-banner ${data.status}`;
+
+    if (data.status === 'running') {
+      const done = (data.results || []).length;
+      icon.textContent  = '⏳';
+      title.textContent = `Running validation suite… (${done} checks completed)`;
+      meta.textContent  = 'Results appear as each check finishes. Refresh every 2s.';
+      stats.innerHTML   = '';
+      return;
+    }
+
+    const s = data.summary || {};
+    const secLabel = data.status === 'pass' ? 'All checks passed'
+                   : data.status === 'partial' ? 'Completed with failures'
+                   : data.status === 'fail'    ? 'Validation failed'
+                   : 'Completed with errors';
+
+    const durationStr = data.duration_ms
+      ? `${(data.duration_ms / 1000).toFixed(1)}s`
+      : '?';
+
+    icon.textContent  = data.status === 'pass' ? '✅' : data.status === 'partial' ? '⚠️' : '❌';
+    title.textContent = secLabel;
+    meta.textContent  = `${s.passed ?? 0} passed · ${s.failed ?? 0} failed · ${s.skipped ?? 0} skipped · ran in ${durationStr}`;
+
+    stats.innerHTML = `
+      <div class="stat-block"><div class="stat-num pass">${s.passed ?? 0}</div><div class="stat-lbl">Passed</div></div>
+      <div class="stat-block"><div class="stat-num fail">${s.failed ?? 0}</div><div class="stat-lbl">Failed</div></div>
+      <div class="stat-block"><div class="stat-num skipped">${s.skipped ?? 0}</div><div class="stat-lbl">Skipped</div></div>
+    `;
+  }
+
+  function updateProgress(data) {
+    const bar = document.getElementById('progressBar');
+    const results = data.results || [];
+    if (data.status !== 'running') {
+      const pct = data.status === 'pass' ? 100 : (results.length > 0 ? 100 : 0);
+      bar.style.width = pct + '%';
+      bar.className = 'progress-bar ' + (data.status === 'pass' ? 'complete' : data.status === 'fail' ? 'fail' : 'complete');
+      return;
+    }
+    // Estimate total: 22 checks
+    const total = 22;
+    const pct = Math.min(98, Math.round((results.length / total) * 100));
+    bar.style.width = pct + '%';
+  }
+
+  function updateResults(data) {
+    const area = document.getElementById('resultsArea');
+    const results = data.results || [];
+    if (!results.length && data.status === 'running') {
+      area.innerHTML = '<div class="loading-placeholder">⏳ Waiting for first result…</div>';
+      return;
+    }
+
+    // Group by category
+    const groups = {};
+    for (const r of results) {
+      if (!groups[r.category]) groups[r.category] = [];
+      groups[r.category].push(r);
+    }
+
+    // Sort categories by CATEGORY_ORDER
+    const orderedCats = [...new Set([...CATEGORY_ORDER, ...Object.keys(groups)])];
+
+    let html = '';
+    for (const cat of orderedCats) {
+      const rows = groups[cat];
+      if (!rows) continue;
+      html += `<div class="category-section"><div class="category-header">${esc(cat)}</div>`;
+      for (const r of rows) {
+        const ms = r.duration_ms >= 1000
+          ? `${(r.duration_ms / 1000).toFixed(1)}s`
+          : `${r.duration_ms}ms`;
+        const id = `chk-${Math.random().toString(36).slice(2)}`;
+        const isFailed = r.status === 'fail' || r.status === 'error';
+        const bundleId = r.bundle_id || null;
+        html += `
+          <div class="check-row" id="${id}" onclick="toggleDetail('${id}')">
+            <div class="check-name">${esc(r.name)}</div>
+            <span class="check-badge ${r.status}">${r.status === 'skip' ? 'N/A' : r.status.toUpperCase()}</span>
+            <div class="check-ms">${ms}</div>
+            ${r.detail ? `<span class="check-expander">▼</span>` : ''}
+          </div>
+          ${r.detail ? `
+            <div class="check-detail" id="${id}-detail">
+              ${esc(r.detail)}
+              ${isFailed ? `
+                <div style="margin-top:8px">
+                  <span class="bundle-toggle" onclick="event.stopPropagation(); toggleBundle('${id}', ${bundleId ? bundleId : 'null'})">
+                    🐛 Debug bundle
+                  </span>
+                </div>
+                <div class="bundle-panel" id="${id}-bundle">
+                  <div class="bundle-loading" id="${id}-bundle-loading">Loading debug bundle…</div>
+                  <div id="${id}-bundle-content" style="display:none"></div>
+                </div>
+              ` : ''}
+            </div>` : ''}
+        `;
+      }
+      html += '</div>';
+    }
+
+    area.innerHTML = html;
+  }
+
+  function renderHistory(runs) {
+    const section = document.getElementById('historySection');
+    const list    = document.getElementById('historyList');
+    section.style.display = '';
+
+    list.innerHTML = runs.map(r => {
+      const s = r.summary_json || {};
+      const counts = r.status !== 'running'
+        ? `${s.passed ?? '?'} passed · ${s.failed ?? '?'} failed · ${s.skipped ?? '?'} skipped`
+        : 'In progress…';
+      return `
+        <a class="history-row" href="/connections/${connId}/validation-suite/${r.id}">
+          <span class="history-when">${fmtDate(r.started_at)}</span>
+          <span class="history-counts">${counts}</span>
+          <span class="history-status-pill ${r.status}">${r.status.toUpperCase()}</span>
+        </a>
+      `;
+    }).join('');
+  }
+
+  function showRunning(msg) {
+    document.getElementById('summaryBanner').style.display = '';
+    document.getElementById('summaryBanner').className = 'summary-banner running';
+    document.getElementById('summaryIcon').textContent = '⏳';
+    document.getElementById('summaryTitle').textContent = msg;
+    document.getElementById('summaryMeta').textContent = '';
+    document.getElementById('summaryStats').innerHTML = '';
+  }
+
+  function showError(msg) {
+    const area = document.getElementById('resultsArea');
+    area.innerHTML = `<div style="background:#2d0a0a;border:1px solid #7b0000;border-radius:8px;padding:16px 20px;color:var(--red)">${esc(msg)}</div>`;
+  }
+
+  // ── Expand/collapse detail ────────────────────────────────────────────────────
+  function toggleDetail(id) {
+    const row    = document.getElementById(id);
+    const detail = document.getElementById(id + '-detail');
+    if (!detail) return;
+    row.classList.toggle('expanded');
+    detail.classList.toggle('show');
+  }
+
+  // ── Debug bundle panel ────────────────────────────────────────────────────────
+  // bundleId may be null if the async captureFailure hasn't resolved yet.
+  // In that case we poll the badge endpoint for a recent bundle for this check.
+  const bundleCache = {};
+
+  async function toggleBundle(checkId, bundleId) {
+    const panel = document.getElementById(checkId + '-bundle');
+    if (!panel) return;
+
+    const wasOpen = panel.classList.contains('show');
+    if (wasOpen) {
+      panel.classList.remove('show');
+      return;
+    }
+    panel.classList.add('show');
+
+    // Already loaded
+    if (bundleCache[checkId]) {
+      renderBundle(checkId, bundleCache[checkId]);
+      return;
+    }
+
+    // Fetch by explicit bundle_id if available, otherwise fall back to recent list
+    let bundle = null;
+    try {
+      if (bundleId) {
+        const resp = await fetch(`/api/failure-bundles/${bundleId}`);
+        if (resp.ok) {
+          const d = await resp.json();
+          bundle = d.bundle;
+        }
+      } else if (connId) {
+        // Get recent bundles for this connection and pick the most recent one
+        const resp = await fetch(`/api/connections/${connId}/failure-bundles`);
+        if (resp.ok) {
+          const d = await resp.json();
+          // Match by check_id prefix
+          bundle = (d.bundles || [])[0] || null;
+        }
+      }
+    } catch (err) {
+      bundle = null;
+    }
+
+    if (!bundle) {
+      document.getElementById(checkId + '-bundle-loading').innerHTML =
+        '<span style="color:var(--dim)">Debug bundle not yet available — it captures on the next failure.</span>';
+      return;
+    }
+
+    bundleCache[checkId] = bundle;
+    renderBundle(checkId, bundle);
+  }
+
+  function renderBundle(checkId, b) {
+    const loading = document.getElementById(checkId + '-bundle-loading');
+    const content = document.getElementById(checkId + '-bundle-content');
+    if (!loading || !content) return;
+    loading.style.display = 'none';
+    content.style.display = '';
+
+    const sections = [
+      { key: 'error', label: 'Oracle Error', value: b.ora_error_code ? `${b.ora_error_code}: ${b.ora_error_message}` : b.ora_error_message },
+      { key: 'stack', label: 'Node.js Stack', value: b.node_stack },
+      { key: 'python', label: 'Python Traceback', value: b.python_traceback },
+      { key: 'sql',    label: 'SQL', value: b.sql_text },
+      { key: 'proxy',  label: 'Proxy Log Tail', value: b.proxy_log_tail },
+      { key: 'meta',   label: 'Metadata', value: buildMetaText(b) },
+    ].filter(s => s.value);
+
+    let html = sections.map(s => `
+      <div class="bundle-section">
+        <div class="bundle-section-hd" onclick="toggleBundleSection(this)">▶ ${esc(s.label)}</div>
+        <div class="bundle-section-body">${esc(s.value)}</div>
+      </div>
+    `).join('');
+
+    html += `<div class="bundle-actions">
+      <button class="bundle-copy-btn" onclick="copyBundle('${checkId}', 'markdown')">Copy as Markdown</button>
+      <button class="bundle-copy-btn" onclick="copyBundle('${checkId}', 'json')">Copy as JSON</button>
+      ${b.id ? `<a class="bundle-copy-btn" href="/api/failure-bundles/${b.id}" target="_blank" style="text-decoration:none;display:inline-flex;align-items:center">Bundle #${b.id} ↗</a>` : ''}
+    </div>`;
+
+    content.innerHTML = html;
+  }
+
+  function buildMetaText(b) {
+    const lines = [];
+    if (b.id)              lines.push(`Bundle ID: ${b.id}`);
+    if (b.check_id)        lines.push(`Check: ${b.check_id}`);
+    if (b.created_at)      lines.push(`Captured: ${fmtDate(b.created_at)}`);
+    if (b.agent_version)   lines.push(`Agent: v${b.agent_version}`);
+    if (b.oracle_version)  lines.push(`Oracle: ${b.oracle_version}`);
+    if (b.cx_oracle_version) lines.push(`cx_Oracle: ${b.cx_oracle_version}`);
+    if (b.os_release)      lines.push(`OS: ${b.os_release}`);
+    const p = b.connection_profile_redacted_json;
+    if (p) {
+      if (p.host)         lines.push(`Host: ${p.host}:${p.port || 1521}`);
+      if (p.service_name) lines.push(`Service: ${p.service_name}`);
+      if (p.connectivity_mode) lines.push(`Mode: ${p.connectivity_mode}`);
+    }
+    return lines.join('\n');
+  }
+
+  function toggleBundleSection(hd) {
+    const body = hd.nextElementSibling;
+    const open = body.classList.toggle('show');
+    hd.textContent = hd.textContent.replace(/^[▶▼] /, (open ? '▼ ' : '▶ '));
+  }
+
+  function buildBundleMarkdown(b) {
+    const lines = [`# TuneVault Debug Bundle #${b.id || '?'}`,''];
+    lines.push('## Metadata','');
+    lines.push('| Field | Value |','|---|---|');
+    if (b.check_id)        lines.push(`| Check | ${b.check_id} |`);
+    if (b.created_at)      lines.push(`| Captured | ${b.created_at} |`);
+    if (b.ora_error_code)  lines.push(`| ORA Code | \`${b.ora_error_code}\` |`);
+    if (b.agent_version)   lines.push(`| Agent | v${b.agent_version} |`);
+    if (b.oracle_version)  lines.push(`| Oracle | ${b.oracle_version} |`);
+    lines.push('');
+    if (b.ora_error_message) {
+      lines.push('## Oracle Error','','```',b.ora_error_message,'```','');
+    }
+    if (b.sql_text) {
+      lines.push('## SQL','','```sql',b.sql_text,'```','');
+    }
+    if (b.node_stack) {
+      lines.push('## Node.js Stack','','```',b.node_stack,'```','');
+    }
+    if (b.python_traceback) {
+      lines.push('## Python Traceback','','```python',b.python_traceback,'```','');
+    }
+    if (b.proxy_log_tail) {
+      lines.push('## Proxy Log Tail','','```',b.proxy_log_tail,'```','');
+    }
+    return lines.join('\n');
+  }
+
+  async function copyBundle(checkId, format) {
+    const b = bundleCache[checkId];
+    if (!b) return;
+
+    let text;
+    if (format === 'markdown') {
+      // Try server-side markdown (richer), fall back to client-side build
+      try {
+        const resp = await fetch(`/api/failure-bundles/${b.id}/markdown`);
+        if (resp.ok) {
+          const d = await resp.json();
+          text = d.markdown;
+        }
+      } catch (_) {}
+      if (!text) text = buildBundleMarkdown(b);
+    } else {
+      text = JSON.stringify(b, null, 2);
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      // Brief feedback on the button
+      const btn = document.querySelector(
+        `#${checkId}-bundle-content .bundle-copy-btn:${format === 'markdown' ? 'first-child' : 'nth-child(2)'}`
+      );
+      if (btn) {
+        const orig = btn.textContent;
+        btn.textContent = '✓ Copied';
+        setTimeout(() => btn.textContent = orig, 2000);
+      }
+    } catch (_) {
+      // Fallback for browsers without clipboard API
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+  }
+
+  // ── Share link ────────────────────────────────────────────────────────────────
+  async function copyShareLink() {
+    let link = shareUrl || document.getElementById('shareLinkInput')?.value;
+    if (!link && connId && runData?.id) {
+      // Trigger generation first
+      await issueShareLink();
+      link = shareUrl;
+    }
+    if (!link) return;
+    const btn = document.getElementById('shareBtn');
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(link).then(() => {
+        const orig = btn.textContent;
+        btn.textContent = '✓ Copied';
+        setTimeout(() => btn.textContent = orig, 2000);
+      });
+    } else {
+      const el = document.createElement('textarea');
+      el.value = link;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      const orig = btn.textContent;
+      btn.textContent = '✓ Copied';
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+  }
+
+  // ── Utils ─────────────────────────────────────────────────────────────────────
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    try {
+      return new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+    } catch { return iso; }
+  }
+</script>
+</body>
+</html>

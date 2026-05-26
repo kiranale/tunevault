@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OS Diagnostics — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c;
+      --surface: #111114;
+      --surface-2: #1a1a1f;
+      --border: #2a2a30;
+      --text: #e8e8ed;
+      --text-dim: #b8b8c8;
+      --accent: #f0a830;
+      --accent-dim: rgba(240,168,48,0.12);
+      --green: #34d399;
+      --green-dim: rgba(52,211,153,0.12);
+      --red: #f87171;
+      --red-dim: rgba(248,113,113,0.12);
+      --yellow: #fbbf24;
+      --yellow-dim: rgba(251,191,36,0.12);
+      --blue: #60a5fa;
+      --blue-dim: rgba(96,165,250,0.12);
+      --orange: #fb923c;
+      --orange-dim: rgba(251,146,60,0.12);
+      --purple: #a78bfa;
+      --purple-dim: rgba(167,139,250,0.12);
+    }
+    body {
+      font-family: 'Space Grotesk', -apple-system, sans-serif;
+      background: var(--bg); color: var(--text);
+      line-height: 1.6; min-height: 100vh; overflow-x: hidden;
+    }
+    .grain {
+      position: fixed; top:0; left:0; right:0; bottom:0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 999;
+    }
+    nav { background: rgba(10,10,12,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 9999; }
+    .page-wrap { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    /* ── Toolbar ── */
+    .toolbar { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; flex-wrap: wrap; }
+    .toolbar h1 { font-size: 22px; font-weight: 700; flex: 1; display: flex; align-items: center; gap: 10px; }
+    .toolbar-sub { font-size: 13px; color: var(--text-dim); margin-bottom: 24px; }
+    .conn-select {
+      background: var(--surface); border: 1px solid var(--border); color: var(--text);
+      font-family: inherit; font-size: 13px; padding: 8px 12px; border-radius: 8px;
+      min-width: 240px; cursor: pointer;
+    }
+    .conn-select:focus { outline: none; border-color: var(--accent); }
+    .conn-type-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px;
+      background: var(--surface); border: 1px solid var(--border); color: var(--text-dim);
+    }
+    .conn-type-badge.proxy { background: var(--green-dim); color: var(--green); border-color: transparent; }
+    .conn-type-badge.direct { background: var(--blue-dim); color: var(--blue); border-color: transparent; }
+
+    /* ── Banner ── */
+    .banner {
+      border-radius: 10px; padding: 14px 18px; margin-bottom: 24px;
+      display: none; align-items: flex-start; gap: 12px;
+    }
+    .banner.visible { display: flex; }
+    .banner .icon { font-size: 18px; flex-shrink: 0; margin-top: 2px; }
+    .banner .msg { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+    .banner a { color: var(--blue); text-decoration: none; }
+    .banner a:hover { text-decoration: underline; }
+    .banner-proxy { background: var(--surface); border: 1px solid rgba(52,211,153,0.3); }
+    .banner-warn  { background: var(--surface); border: 1px solid rgba(251,191,36,0.3); }
+
+    /* ── Command grid ── */
+    .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; margin-bottom: 40px; }
+
+    /* ── Command card ── */
+    .cmd-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px;
+      transition: border-color 0.15s;
+    }
+    .cmd-card:hover { border-color: rgba(240,168,48,0.3); }
+    .cmd-card.running { border-color: var(--accent); }
+    .cmd-card-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+    .cmd-icon {
+      width: 34px; height: 34px; border-radius: 8px; background: var(--surface-2);
+      display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0;
+    }
+    .cmd-title { font-size: 14px; font-weight: 600; line-height: 1.3; }
+    .cmd-desc { font-size: 12px; color: var(--text-dim); margin-top: 2px; line-height: 1.4; }
+    .cmd-shell {
+      font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dim);
+      background: #0d0d10; border: 1px solid var(--border);
+      padding: 6px 10px; border-radius: 5px; margin-bottom: 12px; white-space: pre-wrap; word-break: break-all;
+    }
+
+    /* ── Arg input for tail_log ── */
+    .arg-wrap { margin-bottom: 10px; }
+    .arg-label { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; display: block; }
+    .arg-input {
+      background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+      font-family: 'JetBrains Mono', monospace; font-size: 12px;
+      padding: 6px 10px; border-radius: 6px; width: 100%;
+    }
+    .arg-input:focus { outline: none; border-color: var(--accent); }
+    select.arg-input { cursor: pointer; }
+
+    /* ── Buttons ── */
+    .btn {
+      padding: 7px 14px; border-radius: 7px; font-size: 12px; font-weight: 600;
+      border: none; cursor: pointer; transition: all 0.15s; font-family: inherit;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-run { background: var(--accent); color: #0a0a0c; }
+    .btn-run:hover { background: #e09820; }
+    .btn-run:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-outline { background: none; border: 1px solid var(--border); color: var(--text-dim); }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Spinner ── */
+    .spinner {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.2); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Result panel ── */
+    .result-panel { margin-top: 14px; display: none; border-top: 1px solid var(--border); padding-top: 14px; }
+    .result-panel.visible { display: block; }
+    .result-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+    .result-status { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+    .status-ok { color: var(--green); }
+    .status-err { color: var(--red); }
+    .result-stat {
+      font-size: 11px; color: var(--text-dim);
+      background: var(--surface-2); border: 1px solid var(--border);
+      padding: 2px 8px; border-radius: 4px; font-family: 'JetBrains Mono', monospace;
+    }
+    .result-stdout {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text);
+      background: #0d0d10; border: 1px solid var(--border); border-radius: 6px;
+      padding: 12px; white-space: pre-wrap; word-break: break-all;
+      max-height: 320px; overflow-y: auto; margin-bottom: 8px;
+    }
+    .result-stderr {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--red);
+      background: rgba(248,113,113,0.05); border: 1px solid rgba(248,113,113,0.2); border-radius: 6px;
+      padding: 12px; white-space: pre-wrap; word-break: break-all;
+      max-height: 150px; overflow-y: auto; margin-bottom: 8px;
+    }
+    .result-label { font-size: 10px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+
+    /* ── Section divider ── */
+    .section-label {
+      font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase;
+      letter-spacing: .07em; margin-bottom: 14px; margin-top: 32px; display: flex; align-items: center; gap: 8px;
+    }
+    .section-label:first-child { margin-top: 0; }
+    .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    /* ── History ── */
+    .history-section { margin-top: 48px; }
+    .history-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-bottom: 12px; border-bottom: 1px solid var(--border); margin-bottom: 16px;
+    }
+    .history-title { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .history-table-wrap { overflow-x: auto; }
+    .history-table {
+      width: 100%; border-collapse: collapse; font-size: 12px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .history-table th {
+      text-align: left; padding: 8px 12px; background: var(--surface);
+      border-bottom: 1px solid var(--border); color: var(--text-dim); font-size: 11px;
+      white-space: nowrap; font-family: 'Space Grotesk', sans-serif; font-weight: 600;
+    }
+    .history-table td { padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); white-space: nowrap; }
+    .history-table tr:last-child td { border-bottom: none; }
+    .history-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .exit-ok { color: var(--green); font-weight: 600; }
+    .exit-err { color: var(--red); font-weight: 600; }
+    .history-empty {
+      text-align: center; padding: 40px; color: var(--text-dim); font-size: 13px;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+
+    /* ── No proxy state ── */
+    .no-proxy-state { text-align: center; padding: 80px 24px; color: var(--text-dim); }
+    .no-proxy-state .icon { font-size: 48px; margin-bottom: 16px; display: block; }
+    .no-proxy-state h3 { font-size: 18px; color: var(--text); margin-bottom: 8px; font-weight: 700; }
+    .no-proxy-state p { font-size: 13px; max-width: 460px; margin: 0 auto 20px; line-height: 1.6; }
+    .no-proxy-state a {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--accent); color: #0a0a0c; padding: 10px 20px;
+      border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 13px;
+    }
+
+    @media (max-width: 640px) {
+      .cmd-grid { grid-template-columns: 1fr; }
+      .toolbar { gap: 10px; }
+      .conn-select { min-width: 0; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<div class="grain"></div>
+<nav>
+  <div id="nav-root"></div>
+</nav>
+
+<div class="page-wrap">
+  <div class="toolbar">
+    <h1>🖥️ OS Diagnostics</h1>
+    <select class="conn-select" id="conn-select" onchange="onConnChange()">
+      <option value="">— Select connection —</option>
+    </select>
+    <div id="conn-type-badge"></div>
+  </div>
+  <div class="toolbar-sub">OS-level diagnostics via the TuneVault proxy agent — no SSH required</div>
+
+  <div class="banner banner-proxy" id="banner-proxy">
+    <span class="icon">🔒</span>
+    <span class="msg">Running through the TuneVault Agent tunnel (HTTPS). All executions are logged to Command History below.</span>
+  </div>
+  <div class="banner banner-warn" id="banner-direct">
+    <span class="icon">⚠️</span>
+    <span class="msg">
+      OS commands require the <a href="/install.sh" target="_blank">TuneVault proxy agent</a>.
+      This connection uses Direct TCP — switch to Proxy type and install the agent.
+    </span>
+  </div>
+
+  <div id="main-content"></div>
+
+  <div class="history-section" id="history-section" style="display:none">
+    <div class="history-header">
+      <div class="history-title">🕓 Command History</div>
+      <button class="btn btn-outline" style="font-size:11px;padding:5px 12px" onclick="loadHistory()">↺ Refresh</button>
+    </div>
+    <div id="history-content">
+      <div class="history-empty">Loading…</div>
+    </div>
+  </div>
+</div>
+
+<script src="/connection-state.js"></script>
+<script src="/nav-component.js"></script>
+<script>
+window.tvNav.init('os-diagnostics');
+
+// ── Command catalog ─────────────────────────────────────────────────────────
+const COMMANDS = [
+  // ── Process & Memory
+  {
+    id: 'ps_oracle',
+    title: 'Oracle Processes',
+    desc: 'List all running Oracle processes (ps aux | grep oracle)',
+    icon: '🔍',
+    section: 'proc',
+    shell: 'ps aux | grep [o]racle',
+    args: [],
+  },
+  {
+    id: 'free_m',
+    title: 'Memory Usage',
+    desc: 'System memory overview (free -m)',
+    icon: '🧠',
+    section: 'proc',
+    shell: 'free -m',
+    args: [],
+  },
+
+  // ── Disk & Filesystem
+  {
+    id: 'df_h',
+    title: 'Disk Usage',
+    desc: 'Filesystem disk space usage (df -h)',
+    icon: '💾',
+    section: 'disk',
+    shell: 'df -h',
+    args: [],
+  },
+  {
+    id: 'oratab_read',
+    title: 'Oracle Installations',
+    desc: 'Contents of /etc/oratab — registered Oracle homes and SIDs',
+    icon: '📋',
+    section: 'disk',
+    shell: 'cat /etc/oratab',
+    args: [],
+  },
+
+  // ── Network & Connectivity
+  {
+    id: 'tnsping',
+    title: 'TNS Ping',
+    desc: 'Test TNS connectivity to a service name (tnsping <service>)',
+    icon: '📡',
+    section: 'net',
+    shell: 'tnsping <service_name>',
+    args: [{ key: 'service', label: 'Service name or SID', placeholder: 'e.g. ORCL or PROD' }],
+  },
+  {
+    id: 'listener_status',
+    title: 'Listener Status',
+    desc: 'Check TNS listener status (lsnrctl status)',
+    icon: '🔌',
+    section: 'net',
+    shell: 'lsnrctl status',
+    args: [],
+  },
+
+  // ── Grid Infrastructure
+  {
+    id: 'crsctl_stat',
+    title: 'CRS Status',
+    desc: 'Grid Infrastructure / CRS resource status (crsctl stat res -t)',
+    icon: '🔗',
+    section: 'crs',
+    shell: 'crsctl stat res -t',
+    args: [],
+  },
+
+  // ── Logs
+  {
+    id: 'tail_log',
+    title: 'Tail Alert Log',
+    desc: 'Tail the Oracle alert log or listener log (last 100 lines)',
+    icon: '📄',
+    section: 'logs',
+    shell: 'tail -100 <log_path>',
+    args: [
+      {
+        key: 'log_type',
+        label: 'Log type',
+        type: 'select',
+        options: [
+          { value: 'alert', label: 'Alert log' },
+          { value: 'listener', label: 'Listener log' },
+        ],
+      },
+    ],
+  },
+];
+
+const SECTIONS = [
+  { id: 'proc',  label: 'Processes & Memory' },
+  { id: 'disk',  label: 'Disk & Filesystem' },
+  { id: 'net',   label: 'Network & Connectivity' },
+  { id: 'crs',   label: 'Grid Infrastructure' },
+  { id: 'logs',  label: 'Logs' },
+];
+
+// ── State ──────────────────────────────────────────────────────────────────
+let connections = [];
+let selectedConn = null;
+
+(async function init() {
+  await loadConnections();
+})();
+
+async function loadConnections() {
+  const r = await fetch('/api/connections', { credentials: 'include' });
+  if (!r.ok) return;
+  connections = tvConn.parseList(await r.json());
+  const sel = document.getElementById('conn-select');
+  connections.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.name || (c.host + ':' + c.port);
+    sel.appendChild(opt);
+  });
+  tvConn.bind(sel, connections);
+  if (sel.value) await onConnChange();
+  else if (connections.length === 1) { sel.value = connections[0].id; tvConn.save(connections[0].id); await onConnChange(); }
+}
+
+async function onConnChange() {
+  const connId = document.getElementById('conn-select').value;
+  if (connId) tvConn.save(connId);
+  selectedConn = connections.find(c => String(c.id) === String(connId)) || null;
+  renderBanners();
+  renderContent();
+  if (selectedConn) {
+    document.getElementById('history-section').style.display = 'block';
+    loadHistory();
+  } else {
+    document.getElementById('history-section').style.display = 'none';
+  }
+}
+
+function renderBanners() {
+  const isProxy = selectedConn && selectedConn.connection_type === 'proxy';
+  const badge = document.getElementById('conn-type-badge');
+  document.getElementById('banner-proxy').classList.toggle('visible', !!isProxy);
+  document.getElementById('banner-direct').classList.toggle('visible', !!selectedConn && !isProxy);
+  if (selectedConn) {
+    badge.innerHTML = `<span class="conn-type-badge ${isProxy ? 'proxy' : 'direct'}">${isProxy ? '🔒 Proxy Agent' : '🔌 Direct TCP'}</span>`;
+  } else {
+    badge.innerHTML = '';
+  }
+}
+
+function renderContent() {
+  const el = document.getElementById('main-content');
+
+  if (!selectedConn) {
+    el.innerHTML = `<div class="no-proxy-state">
+      <span class="icon">🖥️</span>
+      <h3>Select a connection</h3>
+      <p>Choose an Oracle connection above to run OS diagnostic commands.</p>
+    </div>`;
+    return;
+  }
+
+  if (selectedConn.connection_type !== 'proxy') {
+    el.innerHTML = `<div class="no-proxy-state">
+      <span class="icon">🔒</span>
+      <h3>Agent required</h3>
+      <p>OS diagnostic commands run through the TuneVault proxy agent via the TuneVault managed HTTPS tunnel.
+         Direct TCP connections cannot run OS commands. Install the agent to enable this feature.</p>
+      <a href="/install.sh" target="_blank">↓ Get Install Script</a>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = '';
+  SECTIONS.forEach(sec => {
+    const cmds = COMMANDS.filter(c => c.section === sec.id);
+    if (!cmds.length) return;
+
+    const label = document.createElement('div');
+    label.className = 'section-label';
+    label.textContent = sec.label;
+    el.appendChild(label);
+
+    const grid = document.createElement('div');
+    grid.className = 'cmd-grid';
+    cmds.forEach(cmd => grid.appendChild(buildCard(cmd)));
+    el.appendChild(grid);
+  });
+}
+
+function buildCard(cmd) {
+  const card = document.createElement('div');
+  card.className = 'cmd-card';
+  card.id = 'card-' + cmd.id;
+
+  // Build arg inputs
+  let argsHtml = '';
+  cmd.args.forEach(arg => {
+    if (arg.type === 'select') {
+      argsHtml += `<div class="arg-wrap">
+        <label class="arg-label" for="arg-${cmd.id}-${arg.key}">${escHtml(arg.label)}</label>
+        <select class="arg-input" id="arg-${cmd.id}-${arg.key}">
+          ${(arg.options || []).map(o => `<option value="${escHtml(o.value)}">${escHtml(o.label)}</option>`).join('')}
+        </select>
+      </div>`;
+    } else {
+      argsHtml += `<div class="arg-wrap">
+        <label class="arg-label" for="arg-${cmd.id}-${arg.key}">${escHtml(arg.label)}</label>
+        <input class="arg-input" id="arg-${cmd.id}-${arg.key}" type="text"
+          placeholder="${escHtml(arg.placeholder || '')}" autocomplete="off">
+      </div>`;
+    }
+  });
+
+  card.innerHTML = `
+    <div class="cmd-card-header">
+      <div class="cmd-icon">${cmd.icon}</div>
+      <div>
+        <div class="cmd-title">${escHtml(cmd.title)}</div>
+        <div class="cmd-desc">${escHtml(cmd.desc)}</div>
+      </div>
+    </div>
+    <div class="cmd-shell">${escHtml(cmd.shell)}</div>
+    ${argsHtml}
+    <div>
+      <button class="btn btn-run" id="btn-${cmd.id}" onclick="runCmd('${cmd.id}')">▶ Run</button>
+    </div>
+    <div class="result-panel" id="result-${cmd.id}"></div>
+  `;
+  return card;
+}
+
+// ── Run command ─────────────────────────────────────────────────────────────
+async function runCmd(cmdId) {
+  if (!selectedConn) return;
+
+  const cmd = COMMANDS.find(c => c.id === cmdId);
+  if (!cmd) return;
+
+  // Collect args
+  const args = {};
+  cmd.args.forEach(arg => {
+    const el = document.getElementById('arg-' + cmdId + '-' + arg.key);
+    if (el) args[arg.key] = el.value.trim();
+  });
+
+  const btn     = document.getElementById('btn-' + cmdId);
+  const resultEl = document.getElementById('result-' + cmdId);
+  const card    = document.getElementById('card-' + cmdId);
+
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Running…';
+  resultEl.innerHTML = '';
+  resultEl.classList.add('visible');
+  card.classList.add('running');
+
+  const startTime = Date.now();
+
+  try {
+    const r = await fetch('/api/connections/' + selectedConn.id + '/exec', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command_id: cmdId, args, timeout_s: 30 }),
+      signal: AbortSignal.timeout(40000),
+    });
+
+    const data = await r.json();
+    const elapsed = Date.now() - startTime;
+
+    if (!r.ok) {
+      const agentOffline = r.status === 502 || r.status === 504 || data.code === 'PROXY_OUTDATED';
+      resultEl.innerHTML = buildErrorPanel(data, r.status, agentOffline);
+    } else {
+      resultEl.innerHTML = buildResultPanel(data, elapsed);
+      loadHistory();
+    }
+  } catch (err) {
+    const elapsed = Date.now() - startTime;
+    resultEl.innerHTML = `
+      <div class="result-meta">
+        <div class="result-status status-err">✗ Network error</div>
+        <span class="result-stat">${elapsed}ms</span>
+      </div>
+      <div class="result-label">Error</div>
+      <div class="result-stderr">${escHtml(err.message)}</div>
+      <div style="margin-top:8px;font-size:12px;color:var(--text-dim)">
+        Agent may be offline. <a href="/agent-status?conn=${selectedConn ? selectedConn.id : ''}" style="color:var(--blue)">Check agent status →</a>
+      </div>
+    `;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '▶ Run';
+    card.classList.remove('running');
+  }
+}
+
+function buildResultPanel(data, elapsedMs) {
+  const exitOk = data.exit_code === 0;
+  const ts = new Date().toLocaleTimeString();
+  let html = `
+    <div class="result-meta">
+      <div class="result-status ${exitOk ? 'status-ok' : 'status-err'}">${exitOk ? '✓ Success' : '✗ Non-zero exit'}</div>
+      <span class="result-stat">exit: ${data.exit_code ?? '—'}</span>
+      <span class="result-stat">${data.duration_ms != null ? data.duration_ms + 'ms' : elapsedMs + 'ms'}</span>
+      <span class="result-stat">${ts}</span>
+    </div>
+  `;
+  if (data.stdout && data.stdout.trim()) {
+    html += `<div class="result-label">stdout</div><div class="result-stdout">${escHtml(data.stdout)}</div>`;
+  }
+  if (data.stderr && data.stderr.trim()) {
+    html += `<div class="result-label">stderr</div><div class="result-stderr">${escHtml(data.stderr)}</div>`;
+  }
+  if (!data.stdout && !data.stderr) {
+    html += `<div style="font-size:12px;color:var(--text-dim);margin-top:4px">No output returned.</div>`;
+  }
+  return html;
+}
+
+function buildErrorPanel(data, status, agentOffline) {
+  let html = `
+    <div class="result-meta">
+      <div class="result-status status-err">✗ ${agentOffline ? 'Agent not reachable' : 'Error'}</div>
+      <span class="result-stat">HTTP ${status}</span>
+    </div>
+    <div class="result-label">Error</div>
+    <div class="result-stderr">${escHtml(data.error || 'Unknown error')}</div>
+  `;
+  if (agentOffline) {
+    html += `<div style="margin-top:10px;font-size:12px;color:var(--text-dim)">
+      The agent is offline or not responding.
+      <a href="/agent-status?conn=${selectedConn ? selectedConn.id : ''}" style="color:var(--blue)">Check agent status →</a>
+    </div>`;
+  }
+  if (data.upgrade) {
+    html += `<div style="margin-top:8px;font-size:12px;color:var(--yellow)">⬆ Upgrade proxy agent to v3.5.6+ to enable /exec support.</div>`;
+  }
+  return html;
+}
+
+// ── History ─────────────────────────────────────────────────────────────────
+async function loadHistory() {
+  if (!selectedConn) return;
+  const el = document.getElementById('history-content');
+  el.innerHTML = '<div class="history-empty"><div style="display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.2);border-top-color:var(--accent);border-radius:50%;animation:spin 0.6s linear infinite"></div> Loading…</div>';
+  try {
+    const r = await fetch('/api/connections/' + selectedConn.id + '/exec/audit?limit=30', { credentials: 'include' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const { rows } = await r.json();
+
+    // Filter to OS diagnostic commands only
+    const osCommandIds = new Set(COMMANDS.map(c => c.id));
+    const filtered = (rows || []).filter(row => osCommandIds.has(row.command_id));
+
+    if (!filtered.length) {
+      el.innerHTML = '<div class="history-empty">No OS diagnostic commands run yet for this connection.</div>';
+      return;
+    }
+    let html = '<div class="history-table-wrap"><table class="history-table"><thead><tr>';
+    ['Timestamp', 'Command', 'Exit', 'Duration', 'Output size'].forEach(h => { html += `<th>${h}</th>`; });
+    html += '</tr></thead><tbody>';
+    filtered.forEach(row => {
+      const exitOk = row.exit_code === 0;
+      const ts = row.executed_at ? new Date(row.executed_at).toLocaleString() : '—';
+      const bytes = (row.stdout_bytes || 0) + (row.stderr_bytes || 0);
+      html += `<tr>
+        <td>${escHtml(ts)}</td>
+        <td><code>${escHtml(row.command_id || '—')}</code></td>
+        <td class="${exitOk ? 'exit-ok' : 'exit-err'}">${row.exit_code != null ? row.exit_code : '—'}</td>
+        <td>${row.duration_ms != null ? row.duration_ms + 'ms' : '—'}</td>
+        <td>${bytes ? bytes + ' bytes' : '—'}</td>
+      </tr>`;
+    });
+    html += '</tbody></table></div>';
+    el.innerHTML = html;
+  } catch (err) {
+    el.innerHTML = `<div class="history-empty" style="color:var(--red)">Failed to load history: ${escHtml(err.message)}</div>`;
+  }
+}
+
+function escHtml(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+</script>
+<div style="text-align:center;padding:24px 16px 16px;border-top:1px solid rgba(255,255,255,0.05);margin-top:32px;">
+  <span style="font-size:12px;color:#9898a8;">Need help? <a href="mailto:support@tunevault.app" style="color:#f0a830;text-decoration:none;">support@tunevault.app</a></span>
+</div>
+<script src="/tunebot.js"></script>
+</body>
+</html>

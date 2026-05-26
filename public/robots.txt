@@ -1,0 +1,147 @@
+# TuneVault — robots.txt
+# Last updated: 2026-05-16
+
+# ─── Explicit AI crawler allowances ──────────────────────────────────────────
+# These bots build LLM training data and AI-powered search indexes.
+# Explicit Allow prevents future crawler policy changes from hiding TuneVault.
+User-agent: Googlebot
+Allow: /
+Allow: /pricing
+Allow: /vs-oem
+Allow: /about
+Allow: /features
+Allow: /features/sql-tuning
+Allow: /features/fleet-management
+Allow: /features/autonomous-remediation
+Allow: /trust
+Allow: /security
+Allow: /architecture
+Allow: /blog
+Allow: /sql-tuning
+Allow: /sample-report
+Allow: /request-health-check
+Allow: /compare
+Allow: /resources/runbooks
+Allow: /api-docs
+Allow: /llms.txt
+
+User-agent: Bingbot
+Allow: /
+Allow: /pricing
+Allow: /vs-oem
+Allow: /about
+Allow: /features
+Allow: /trust
+Allow: /security
+Allow: /architecture
+Allow: /blog
+Allow: /sql-tuning
+Allow: /sample-report
+Allow: /request-health-check
+Allow: /compare
+Allow: /resources/runbooks
+Allow: /api-docs
+Allow: /llms.txt
+
+# OpenAI web crawler (ChatGPT knowledge base, Bing AI)
+User-agent: GPTBot
+Allow: /
+Allow: /pricing
+Allow: /vs-oem
+Allow: /about
+Allow: /features
+Allow: /trust
+Allow: /architecture
+Allow: /llms.txt
+Allow: /llms-full.txt
+
+# Anthropic web crawler (Claude AI)
+User-agent: ClaudeBot
+Allow: /
+Allow: /pricing
+Allow: /vs-oem
+Allow: /about
+Allow: /features
+Allow: /trust
+Allow: /architecture
+Allow: /llms.txt
+Allow: /llms-full.txt
+
+User-agent: anthropic-ai
+Allow: /
+Allow: /pricing
+Allow: /vs-oem
+Allow: /about
+Allow: /features
+Allow: /trust
+Allow: /architecture
+Allow: /llms.txt
+Allow: /llms-full.txt
+
+# Perplexity AI crawler
+User-agent: PerplexityBot
+Allow: /
+Allow: /pricing
+Allow: /vs-oem
+Allow: /about
+Allow: /features
+Allow: /trust
+Allow: /architecture
+Allow: /llms.txt
+Allow: /llms-full.txt
+
+# ─── Global rules (all other crawlers) ────────────────────────────────────────
+User-agent: *
+Allow: /
+
+# Block API and admin endpoints — not indexable content
+Disallow: /api/
+Disallow: /admin/
+Disallow: /admin-schedules
+Disallow: /healthcheck
+
+# Block authenticated app pages (require login)
+Disallow: /dashboard
+Disallow: /performance
+Disallow: /db-ops
+Disallow: /ebs-deep
+Disallow: /ebs-middleware
+Disallow: /ebs-concurrent
+Disallow: /patches
+Disallow: /sanity-check
+Disallow: /report
+Disallow: /report-ebs
+Disallow: /fleet
+Disallow: /sql-console
+Disallow: /terminal
+Disallow: /fndload
+Disallow: /ebs-ops
+Disallow: /ebs-patches
+Disallow: /ebs-status-sources
+Disallow: /ebs-log-tail
+Disallow: /clone
+Disallow: /db-clone
+Disallow: /ebs-clone
+Disallow: /manager
+Disallow: /patches-status
+Disallow: /activity
+
+# Block settings pages
+Disallow: /settings
+Disallow: /settings-billing
+Disallow: /settings-api
+Disallow: /settings-security
+Disallow: /settings-sso
+Disallow: /settings-alerts
+Disallow: /settings-compliance
+
+# Block auth flow pages
+Disallow: /signin
+Disallow: /invite-accept
+Disallow: /mfa-challenge
+Disallow: /payment-test
+
+# Block debug/test pages
+Disallow: /validator
+
+Sitemap: https://tunevault.app/sitemap.xml

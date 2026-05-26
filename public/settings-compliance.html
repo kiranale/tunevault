@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compliance Reports — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c; --surface: #111114; --surface-2: #1a1a1f;
+      --border: #2a2a30; --text: #e8e8ed; --text-dim: #b8b8c8;
+      --accent: #f0a830; --accent-dim: rgba(240,168,48,.12);
+      --green: #34d399; --green-dim: rgba(52,211,153,.10);
+      --red: #f87171; --red-dim: rgba(248,113,113,.10);
+      --blue: #60a5fa; --blue-dim: rgba(96,165,250,.10);
+      --purple: #a78bfa; --purple-dim: rgba(167,139,250,.10);
+      --mono: 'JetBrains Mono', monospace;
+    }
+    body { font-family: 'Space Grotesk', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    main { max-width: 860px; margin: 0 auto; padding: 48px 24px 100px; }
+    h1 { font-size: 26px; font-weight: 700; letter-spacing: -.5px; }
+    .subtitle { color: var(--text-dim); font-size: 14px; margin-top: 6px; line-height: 1.5; }
+
+    .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: 13px; text-decoration: none; margin-bottom: 28px; transition: color .15s; }
+    .back-link:hover { color: var(--text); }
+
+    .section { margin-top: 36px; }
+    .section-label { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 12px; padding-left: 2px; }
+
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .card-row { display: flex; align-items: flex-start; justify-content: space-between; padding: 20px 24px; gap: 16px; border-bottom: 1px solid var(--border); }
+    .card-row:last-child { border-bottom: none; }
+    .row-label { font-size: 14px; font-weight: 600; }
+    .row-desc { font-size: 13px; color: var(--text-dim); margin-top: 3px; line-height: 1.5; }
+    .row-right { flex-shrink: 0; display: flex; gap: 8px; align-items: center; }
+
+    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .badge-green { background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,.2); }
+    .badge-gold { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(240,168,48,.25); }
+    .badge-blue { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(96,165,250,.2); }
+    .badge-purple { background: var(--purple-dim); color: var(--purple); border: 1px solid rgba(167,139,250,.2); }
+
+    .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: 8px; font-family: 'Space Grotesk', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; text-decoration: none; }
+    .btn-primary { background: var(--accent); color: #0a0a0c; }
+    .btn-primary:hover { background: #f7b84a; transform: translateY(-1px); }
+    .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-outline:hover { border-color: var(--text-dim); background: rgba(255,255,255,.04); }
+    .btn-ghost { background: transparent; color: var(--text-dim); border: none; padding: 6px 10px; }
+    .btn-ghost:hover { color: var(--text); }
+    .btn-danger { background: var(--red-dim); color: var(--red); border: 1px solid rgba(248,113,113,.2); }
+    .btn-danger:hover { background: rgba(248,113,113,.22); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    .btn-sm { padding: 6px 13px; font-size: 12px; }
+
+    /* Generate modal */
+    .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 100; align-items: center; justify-content: center; }
+    .modal-backdrop.open { display: flex; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; width: 480px; max-width: calc(100vw - 32px); overflow: hidden; }
+    .modal-header { padding: 24px 28px 0; }
+    .modal-title { font-size: 18px; font-weight: 700; }
+    .modal-subtitle { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+    .modal-body { padding: 20px 28px; }
+    .modal-footer { padding: 0 28px 24px; display: flex; gap: 10px; justify-content: flex-end; }
+
+    .form-group { margin-bottom: 16px; }
+    .form-label { font-size: 12px; font-weight: 600; color: var(--text-dim); letter-spacing: .05em; text-transform: uppercase; margin-bottom: 6px; display: block; }
+    .form-control { width: 100%; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 10px 14px; border-radius: 8px; font-family: 'Space Grotesk', sans-serif; font-size: 14px; outline: none; transition: border-color .15s; }
+    .form-control:focus { border-color: var(--accent); }
+    select.form-control { cursor: pointer; }
+
+    /* Report type cards */
+    .report-types { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+    .report-type-card { border: 2px solid var(--border); border-radius: 10px; padding: 14px 16px; cursor: pointer; transition: all .15s; }
+    .report-type-card:hover { border-color: var(--text-dim); }
+    .report-type-card.selected { border-color: var(--accent); background: var(--accent-dim); }
+    .report-type-card input[type="radio"] { display: none; }
+    .rtc-icon { font-size: 22px; margin-bottom: 6px; }
+    .rtc-title { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+    .rtc-desc { font-size: 11px; color: var(--text-dim); line-height: 1.4; }
+
+    /* Date range picker row */
+    .date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    /* Progress indicator */
+    .generating-bar { display: none; background: var(--accent-dim); border: 1px solid rgba(240,168,48,.25); border-radius: 8px; padding: 12px 16px; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .generating-bar.visible { display: flex; }
+    .spinner { width: 18px; height: 18px; border: 2px solid rgba(240,168,48,.2); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .generating-text { font-size: 13px; color: var(--accent); font-weight: 600; }
+
+    /* Reports table */
+    .reports-table { width: 100%; border-collapse: collapse; }
+    .reports-table th { text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); padding: 10px 16px; border-bottom: 1px solid var(--border); }
+    .reports-table td { padding: 14px 16px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+    .reports-table tr:last-child td { border-bottom: none; }
+    .reports-table tr:hover td { background: rgba(255,255,255,.02); }
+
+    .type-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; letter-spacing: .03em; }
+    .type-sox { background: rgba(248,113,113,.12); color: #f87171; border: 1px solid rgba(248,113,113,.2); }
+    .type-access { background: rgba(96,165,250,.12); color: #60a5fa; border: 1px solid rgba(96,165,250,.2); }
+    .type-activity { background: rgba(52,211,153,.12); color: #34d399; border: 1px solid rgba(52,211,153,.2); }
+
+    /* Download button group */
+    .dl-group { display: flex; gap: 6px; }
+
+    /* Upgrade gate */
+    .upgrade-gate { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 40px 32px; text-align: center; }
+    .upgrade-icon { font-size: 40px; margin-bottom: 14px; }
+    .upgrade-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .upgrade-desc { font-size: 14px; color: var(--text-dim); max-width: 400px; margin: 0 auto 24px; line-height: 1.6; }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 48px 24px; color: var(--text-dim); }
+    .empty-state-icon { font-size: 36px; margin-bottom: 12px; }
+    .empty-state-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+    .empty-state-desc { font-size: 13px; line-height: 1.6; }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 18px; font-size: 13px; z-index: 200; opacity: 0; transform: translateY(8px); transition: all .2s; pointer-events: none; max-width: 340px; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.success { border-color: rgba(52,211,153,.3); color: var(--green); }
+    .toast.error { border-color: rgba(248,113,113,.3); color: var(--red); }
+
+    /* Scheduled reports stub */
+    .stub-card { background: var(--surface-2); border: 1px dashed var(--border); border-radius: 10px; padding: 20px 24px; display: flex; align-items: center; gap: 16px; color: var(--text-dim); }
+    .stub-icon { font-size: 24px; flex-shrink: 0; }
+
+    @media (max-width: 600px) {
+      .report-types { grid-template-columns: 1fr; }
+      .date-row { grid-template-columns: 1fr; }
+      .reports-table th:nth-child(3), .reports-table td:nth-child(3) { display: none; }
+    }
+    nav { position: sticky; top: 0; z-index: 9999; background: rgba(10,10,12,.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); }
+  </style>
+</head>
+<body>
+<nav>
+  <div id="nav-root"></div>
+</nav>
+<main>
+  <a href="/settings" class="back-link">
+    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+    Back to Settings
+  </a>
+
+  <h1>Compliance Reports</h1>
+  <p class="subtitle">Generate SOX change logs, access audits, and activity summaries for compliance officers and auditors. Business &amp; Enterprise tier only.</p>
+
+  <!-- Upgrade gate (shown when tier is too low) -->
+  <div id="upgradeGate" style="display:none" class="upgrade-gate">
+    <div class="upgrade-icon">🔒</div>
+    <div class="upgrade-title">Compliance Reports — Business Plan Required</div>
+    <p class="upgrade-desc">Audit-ready compliance reports with PDF export are available on the Business and Enterprise plans. Upgrade to unlock SOX change logs, access audits, and activity summaries.</p>
+    <a href="/pricing" class="btn btn-primary">Upgrade Plan</a>
+  </div>
+
+  <!-- Main content (shown for business/enterprise) -->
+  <div id="mainContent" style="display:none">
+
+    <!-- Report type picker -->
+    <div class="section">
+      <div class="section-label">Generate New Report</div>
+      <div class="card" style="padding: 24px;">
+
+        <div class="report-types" id="reportTypes">
+          <label class="report-type-card selected" for="rt_sox">
+            <input type="radio" id="rt_sox" name="report_type" value="sox_change" checked>
+            <div class="rtc-icon">📋</div>
+            <div class="rtc-title">SOX Change Report</div>
+            <div class="rtc-desc">All production changes — health checks, DB ops, SSH executions — with timestamp chain</div>
+          </label>
+          <label class="report-type-card" for="rt_access">
+            <input type="radio" id="rt_access" name="report_type" value="access_audit">
+            <div class="rtc-icon">🔐</div>
+            <div class="rtc-title">Access Audit Report</div>
+            <div class="rtc-desc">Logins, role assignments, permission changes, and connection access log</div>
+          </label>
+          <label class="report-type-card" for="rt_activity">
+            <input type="radio" id="rt_activity" name="report_type" value="activity_summary">
+            <div class="rtc-icon">📊</div>
+            <div class="rtc-title">Activity Summary</div>
+            <div class="rtc-desc">Per-user activity breakdown — logins, executions, health checks for the period</div>
+          </label>
+        </div>
+
+        <div class="date-row" style="margin-bottom: 20px;">
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label" for="dateFrom">From</label>
+            <input type="date" id="dateFrom" class="form-control">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label" for="dateTo">To</label>
+            <input type="date" id="dateTo" class="form-control">
+          </div>
+        </div>
+
+        <div class="generating-bar" id="generatingBar">
+          <div class="spinner"></div>
+          <div class="generating-text" id="generatingText">Generating SOX Change Report…</div>
+        </div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn btn-primary" id="generateBtn" onclick="generateReport()">
+            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+            Generate Report
+          </button>
+          <button class="btn btn-outline btn-sm" onclick="setQuickRange('month')">Last 30 days</button>
+          <button class="btn btn-outline btn-sm" onclick="setQuickRange('quarter')">Last 90 days</button>
+          <button class="btn btn-outline btn-sm" onclick="setQuickRange('year')">Last 12 months</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Generated reports list -->
+    <div class="section">
+      <div class="section-label">Generated Reports</div>
+      <div class="card" id="reportsCard">
+        <div class="empty-state" id="reportsEmpty" style="display:none">
+          <div class="empty-state-icon">📄</div>
+          <div class="empty-state-title">No reports yet</div>
+          <div class="empty-state-desc">Generate your first compliance report above.<br>Reports are stored and can be downloaded as PDF or CSV.</div>
+        </div>
+        <div id="reportsLoading" style="padding:24px; text-align:center; color:var(--text-dim); font-size:13px;">Loading reports…</div>
+        <table class="reports-table" id="reportsTable" style="display:none">
+          <thead>
+            <tr>
+              <th>Report</th>
+              <th>Period</th>
+              <th>Generated</th>
+              <th>Records</th>
+              <th style="text-align:right">Download</th>
+            </tr>
+          </thead>
+          <tbody id="reportsTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Scheduled reports stub -->
+    <div class="section">
+      <div class="section-label">Scheduled Reports</div>
+      <div class="stub-card">
+        <div class="stub-icon">🗓️</div>
+        <div>
+          <div style="font-weight:600; color:var(--text); font-size:14px; margin-bottom:3px;">Automatic Scheduling — Coming Soon</div>
+          <div style="font-size:13px; line-height:1.5;">Schedule compliance reports to be generated automatically (monthly SOX, quarterly activity review). This feature is on the roadmap.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────────
+let reports = [];
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  // Default date range: last 30 days
+  setQuickRange('month');
+
+  // Report type card selection
+  document.querySelectorAll('.report-type-card').forEach(card => {
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.report-type-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      const radio = card.querySelector('input[type="radio"]');
+      if (radio) radio.checked = true;
+    });
+  });
+
+  checkAccess();
+});
+
+async function checkAccess() {
+  try {
+    const res = await fetch('/api/billing/usage');
+    if (!res.ok) { window.location = '/login'; return; }
+    const { tier, is_admin } = await res.json();
+    const hasAccess = is_admin || tier === 'business' || tier === 'enterprise';
+    document.getElementById('upgradeGate').style.display = hasAccess ? 'none' : '';
+    document.getElementById('mainContent').style.display = hasAccess ? '' : 'none';
+    if (hasAccess) loadReports();
+  } catch {
+    window.location = '/login';
+  }
+}
+
+// ── Quick date range setters ──────────────────────────────────────────────────
+function setQuickRange(range) {
+  const to = new Date();
+  const from = new Date();
+  if (range === 'month') from.setDate(from.getDate() - 30);
+  else if (range === 'quarter') from.setDate(from.getDate() - 90);
+  else if (range === 'year') from.setFullYear(from.getFullYear() - 1);
+
+  document.getElementById('dateFrom').value = toDateInput(from);
+  document.getElementById('dateTo').value = toDateInput(to);
+}
+
+function toDateInput(d) {
+  return d.toISOString().slice(0, 10);
+}
+
+// ── Generate report ───────────────────────────────────────────────────────────
+async function generateReport() {
+  const reportType = document.querySelector('input[name="report_type"]:checked')?.value;
+  const dateFrom = document.getElementById('dateFrom').value;
+  const dateTo = document.getElementById('dateTo').value;
+
+  if (!reportType || !dateFrom || !dateTo) {
+    showToast('Please select a report type and date range.', 'error');
+    return;
+  }
+  if (dateFrom > dateTo) {
+    showToast('Start date must be before end date.', 'error');
+    return;
+  }
+
+  const TITLES = {
+    sox_change: 'SOX Change Report',
+    access_audit: 'Access Audit Report',
+    activity_summary: 'Activity Summary Report',
+  };
+
+  const btn = document.getElementById('generateBtn');
+  const bar = document.getElementById('generatingBar');
+  const genText = document.getElementById('generatingText');
+
+  btn.disabled = true;
+  bar.classList.add('visible');
+  genText.textContent = `Generating ${TITLES[reportType]}…`;
+
+  try {
+    const res = await fetch('/api/compliance/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ report_type: reportType, date_from: dateFrom, date_to: dateTo }),
+    });
+    const body = await res.json();
+    if (!res.ok) {
+      if (body.upgrade_required) {
+        showToast('This feature requires a Business or Enterprise plan.', 'error');
+      } else {
+        showToast(body.error || 'Failed to generate report.', 'error');
+      }
+      return;
+    }
+    showToast(`${TITLES[reportType]} generated successfully.`, 'success');
+    await loadReports();
+  } catch (err) {
+    showToast('Network error. Please try again.', 'error');
+  } finally {
+    btn.disabled = false;
+    bar.classList.remove('visible');
+  }
+}
+
+// ── Load reports list ─────────────────────────────────────────────────────────
+async function loadReports() {
+  try {
+    const res = await fetch('/api/compliance/reports');
+    if (!res.ok) return;
+    const { data } = await res.json();
+    reports = data || [];
+    renderReports();
+  } catch {
+    // silently fail — user will see loading indicator
+  }
+}
+
+function renderReports() {
+  const loading = document.getElementById('reportsLoading');
+  const empty = document.getElementById('reportsEmpty');
+  const table = document.getElementById('reportsTable');
+  const tbody = document.getElementById('reportsTbody');
+
+  loading.style.display = 'none';
+
+  if (reports.length === 0) {
+    empty.style.display = '';
+    table.style.display = 'none';
+    return;
+  }
+
+  empty.style.display = 'none';
+  table.style.display = '';
+
+  tbody.innerHTML = reports.map(r => {
+    const typeBadgeClass = {
+      sox_change: 'type-sox',
+      access_audit: 'type-access',
+      activity_summary: 'type-activity',
+    }[r.report_type] || 'badge-gold';
+
+    const typeLabel = {
+      sox_change: '📋 SOX Change',
+      access_audit: '🔐 Access Audit',
+      activity_summary: '📊 Activity Summary',
+    }[r.report_type] || r.report_type;
+
+    const period = `${fmtDate(r.date_from)} → ${fmtDate(r.date_to)}`;
+    const genAt = fmtDateTime(r.generated_at);
+    const counts = r.row_counts || {};
+    const totalRecords = counts.total || Object.values(counts).reduce((a, b) => a + (Number(b) || 0), 0);
+
+    return `
+      <tr>
+        <td>
+          <div style="font-weight:600; margin-bottom:3px;">${r.title}</div>
+          <span class="type-badge ${typeBadgeClass}">${typeLabel}</span>
+        </td>
+        <td style="color:var(--text-dim); font-size:12px; font-family:var(--mono)">${period}</td>
+        <td style="color:var(--text-dim); font-size:12px;">
+          <div>${genAt}</div>
+          <div style="margin-top:2px; color:var(--text-dim)">${r.generated_by}</div>
+        </td>
+        <td style="color:var(--text-dim); font-size:12px;">${totalRecords > 0 ? totalRecords + ' rows' : '—'}</td>
+        <td style="text-align:right">
+          <div class="dl-group" style="justify-content:flex-end">
+            <a href="/api/compliance/reports/${r.id}/pdf" target="_blank" class="btn btn-sm btn-outline" title="Download PDF">
+              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              PDF
+            </a>
+            <a href="/api/compliance/reports/${r.id}/csv" class="btn btn-sm btn-outline" title="Download CSV">
+              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              CSV
+            </a>
+            <button class="btn btn-sm btn-ghost" onclick="deleteReport(${r.id})" title="Delete report">
+              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// ── Delete report ─────────────────────────────────────────────────────────────
+async function deleteReport(id) {
+  if (!confirm('Delete this report? This cannot be undone.')) return;
+  try {
+    const res = await fetch(`/api/compliance/reports/${id}`, { method: 'DELETE' });
+    if (!res.ok) { showToast('Failed to delete report.', 'error'); return; }
+    showToast('Report deleted.', 'success');
+    await loadReports();
+  } catch {
+    showToast('Network error.', 'error');
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fmtDate(val) {
+  if (!val) return '—';
+  return String(val).slice(0, 10);
+}
+
+function fmtDateTime(val) {
+  if (!val) return '—';
+  const d = new Date(val);
+  return d.toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
+}
+
+let toastTimer;
+function showToast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = 'toast'; }, 4000);
+}
+</script>
+
+<script src="/nav-component.js"></script>
+<script>window.tvNav.init('settings');</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

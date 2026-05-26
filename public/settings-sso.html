@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSO Configuration — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c; --surface: #111114; --surface-2: #1a1a1f;
+      --border: #2a2a30; --text: #e8e8ed; --text-dim: #b8b8c8;
+      --accent: #f0a830; --accent-dim: rgba(240,168,48,.12);
+      --green: #34d399; --green-dim: rgba(52,211,153,.10);
+      --red: #f87171; --red-dim: rgba(248,113,113,.10);
+      --blue: #60a5fa; --blue-dim: rgba(96,165,250,.10);
+      --mono: 'JetBrains Mono', monospace;
+    }
+    body { font-family: 'Space Grotesk', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 24px 100px; }
+    h1 { font-size: 26px; font-weight: 700; letter-spacing: -.5px; }
+    .subtitle { color: var(--text-dim); font-size: 14px; margin-top: 6px; }
+
+    .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: 13px; text-decoration: none; margin-bottom: 28px; transition: color .15s; }
+    .back-link:hover { color: var(--text); }
+
+    .section { margin-top: 36px; }
+    .section-label { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 12px; padding-left: 2px; }
+
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .card-row { display: flex; align-items: flex-start; justify-content: space-between; padding: 22px 24px; gap: 16px; border-bottom: 1px solid var(--border); }
+    .card-row:last-child { border-bottom: none; }
+    .row-label { font-size: 14px; font-weight: 600; }
+    .row-desc { font-size: 13px; color: var(--text-dim); margin-top: 3px; line-height: 1.5; }
+
+    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; letter-spacing: .02em; white-space: nowrap; }
+    .badge-green { background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,.2); }
+    .badge-gray { background: rgba(136,136,160,.1); color: var(--text-dim); border: 1px solid rgba(136,136,160,.2); }
+    .badge-gold { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(240,168,48,.25); }
+
+    .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: 8px; font-family: 'Space Grotesk', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; text-decoration: none; }
+    .btn-primary { background: var(--accent); color: #0a0a0c; }
+    .btn-primary:hover { background: #f7b84a; transform: translateY(-1px); }
+    .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-outline:hover { border-color: var(--text-dim); background: rgba(255,255,255,.04); }
+    .btn-danger { background: var(--red-dim); color: var(--red); border: 1px solid rgba(248,113,113,.2); }
+    .btn-danger:hover { background: rgba(248,113,113,.2); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    .btn-sm { padding: 7px 14px; font-size: 12px; }
+
+    .form-group { margin-bottom: 20px; }
+    .form-label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+    .form-hint { font-size: 12px; color: var(--text-dim); margin-top: 5px; line-height: 1.5; }
+    input[type="text"], input[type="url"], select, textarea {
+      width: 100%; background: var(--surface-2); border: 1px solid var(--border);
+      color: var(--text); padding: 10px 14px; border-radius: 8px;
+      font-family: inherit; font-size: 14px; outline: none; transition: border-color .15s;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    input::placeholder, textarea::placeholder { color: var(--text-dim); }
+    textarea { font-family: var(--mono); font-size: 12px; resize: vertical; min-height: 100px; }
+    select option { background: var(--surface-2); }
+
+    .copy-row { display: flex; align-items: center; gap: 8px; }
+    .copy-val {
+      flex: 1; background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 14px; font-family: var(--mono);
+      font-size: 12px; color: var(--text); word-break: break-all;
+    }
+    .btn-copy { flex-shrink: 0; }
+
+    .msg { display: none; padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-top: 12px; }
+    .msg.success { background: var(--green-dim); border: 1px solid rgba(52,211,153,.25); color: var(--green); }
+    .msg.error { background: var(--red-dim); border: 1px solid rgba(248,113,113,.25); color: var(--red); }
+    .msg.info { background: var(--accent-dim); border: 1px solid rgba(240,168,48,.25); color: var(--accent); }
+
+    .provider-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+    .provider-tab {
+      padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      cursor: pointer; border: 1px solid var(--border); background: var(--surface-2);
+      color: var(--text-dim); transition: all .15s;
+    }
+    .provider-tab.active { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+
+    .guide-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; }
+    .guide-box h4 { font-size: 13px; font-weight: 700; margin-bottom: 10px; color: var(--text); }
+    .guide-box ol { padding-left: 18px; }
+    .guide-box li { font-size: 13px; color: var(--text-dim); line-height: 1.8; }
+    .guide-box code { font-family: var(--mono); font-size: 11px; background: rgba(255,255,255,.06); padding: 2px 6px; border-radius: 4px; color: var(--accent); }
+
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid var(--border); }
+    .toggle-row:last-child { border-bottom: none; }
+    .toggle { position: relative; display: inline-block; width: 42px; height: 24px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; inset: 0; background: rgba(136,136,160,.3); border-radius: 24px; cursor: pointer; transition: .2s; }
+    .slider::before { content: ''; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+    input:checked + .slider { background: var(--accent); }
+    input:checked + .slider::before { transform: translateX(18px); }
+
+    .upgrade-wall { text-align: center; padding: 48px 24px; }
+    .upgrade-wall h3 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .upgrade-wall p { color: var(--text-dim); font-size: 14px; margin-bottom: 24px; }
+
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.3); border-top-color: currentColor; border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .form-section { padding: 24px; }
+    .form-section + .form-section { border-top: 1px solid var(--border); }
+    .form-section-title { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 18px; }
+
+    .status-row { display: flex; align-items: center; gap: 12px; padding: 22px 24px; }
+  </style>
+</head>
+<body>
+<div id="nav-root"></div>
+
+<main>
+  <a class="back-link" href="/settings">← Settings</a>
+
+  <h1>SSO Configuration</h1>
+  <p class="subtitle">SAML 2.0 single sign-on for Okta, Azure AD, and Google Workspace.</p>
+
+  <!-- Upgrade wall for non-enterprise -->
+  <div id="upgrade-wall" style="display:none;">
+    <div class="section">
+      <div class="card">
+        <div class="upgrade-wall">
+          <div style="font-size:32px; margin-bottom:12px;">🏢</div>
+          <h3>Enterprise Feature</h3>
+          <p>SSO is available on the Enterprise plan. Upgrade to connect your identity provider and enable SAML-based authentication for your team.</p>
+          <a href="/pricing" class="btn btn-primary">View Enterprise Plan</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main SSO content (enterprise only) -->
+  <div id="sso-content" style="display:none;">
+
+    <!-- SP Values (always shown, needed before config) -->
+    <div class="section">
+      <div class="section-label">Service Provider Info (paste these into your IdP)</div>
+      <div class="card">
+        <div class="card-row">
+          <div>
+            <div class="row-label">SP Entity ID / Audience URI</div>
+            <div class="row-desc">Identifies TuneVault to your identity provider.</div>
+          </div>
+          <div style="min-width:0; max-width:380px;">
+            <div class="copy-row">
+              <div class="copy-val" id="sp-entity-id">—</div>
+              <button class="btn btn-outline btn-sm btn-copy" onclick="copyText('sp-entity-id', this)">Copy</button>
+            </div>
+          </div>
+        </div>
+        <div class="card-row">
+          <div>
+            <div class="row-label">ACS URL / Reply URL</div>
+            <div class="row-desc">Where the IdP sends the SAML response after authentication.</div>
+          </div>
+          <div style="min-width:0; max-width:380px;">
+            <div class="copy-row">
+              <div class="copy-val" id="acs-url">—</div>
+              <button class="btn btn-outline btn-sm btn-copy" onclick="copyText('acs-url', this)">Copy</button>
+            </div>
+          </div>
+        </div>
+        <div class="card-row">
+          <div>
+            <div class="row-label">SP Metadata XML</div>
+            <div class="row-desc">Some IdPs accept metadata import. Download this for quick setup.</div>
+          </div>
+          <a class="btn btn-outline btn-sm" href="/saml/metadata" target="_blank">Download XML</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status -->
+    <div class="section">
+      <div class="section-label">SSO Status</div>
+      <div class="card">
+        <div class="status-row">
+          <div id="status-badge" class="badge badge-gray">Not configured</div>
+          <div id="status-domain" style="color:var(--text-dim); font-size:13px;"></div>
+          <div style="flex:1;"></div>
+          <button class="btn btn-danger btn-sm" id="btn-delete" style="display:none;" onclick="deleteSsoConfig()">Remove SSO</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Config form -->
+    <div class="section">
+      <div class="section-label">Identity Provider Configuration</div>
+      <div class="card">
+        <div class="form-section">
+
+          <!-- Provider selector -->
+          <div class="form-group">
+            <label class="form-label">Identity Provider</label>
+            <div class="provider-tabs">
+              <div class="provider-tab active" data-provider="okta" onclick="selectProvider('okta', this)">Okta</div>
+              <div class="provider-tab" data-provider="azure" onclick="selectProvider('azure', this)">Azure AD / Entra ID</div>
+              <div class="provider-tab" data-provider="google" onclick="selectProvider('google', this)">Google Workspace</div>
+              <div class="provider-tab" data-provider="custom" onclick="selectProvider('custom', this)">Custom SAML 2.0</div>
+            </div>
+          </div>
+
+          <!-- Provider-specific setup guides -->
+          <div id="guide-okta" class="guide-box">
+            <h4>📋 Okta Setup Steps</h4>
+            <ol>
+              <li>In Okta Admin Console → <strong>Applications</strong> → <strong>Create App Integration</strong></li>
+              <li>Choose <strong>SAML 2.0</strong> as the sign-in method</li>
+              <li>Set <strong>Single sign on URL</strong> to the ACS URL above</li>
+              <li>Set <strong>Audience URI (SP Entity ID)</strong> to the Entity ID above</li>
+              <li>Set <strong>Name ID format</strong> to <code>EmailAddress</code></li>
+              <li>Under <strong>Attribute Statements</strong>, add: <code>email → user.email</code>, <code>displayName → user.displayName</code></li>
+              <li>Finish setup, go to <strong>Sign On</strong> tab → copy the <strong>Identity Provider metadata URL</strong> or download the certificate</li>
+              <li>Paste the <strong>SSO URL</strong>, <strong>IdP Entity ID</strong>, and <strong>X.509 Certificate</strong> below</li>
+            </ol>
+          </div>
+          <div id="guide-azure" class="guide-box" style="display:none;">
+            <h4>📋 Azure AD / Entra ID Setup Steps</h4>
+            <ol>
+              <li>Azure Portal → <strong>Microsoft Entra ID</strong> → <strong>Enterprise Applications</strong> → <strong>New application</strong></li>
+              <li>Choose <strong>Create your own application</strong> → name it "TuneVault" → <strong>Integrate any other application (Non-gallery)</strong></li>
+              <li>Go to <strong>Single sign-on</strong> → <strong>SAML</strong></li>
+              <li>In <strong>Basic SAML Configuration</strong>: set <strong>Identifier (Entity ID)</strong> and <strong>Reply URL (ACS URL)</strong> from above</li>
+              <li>Under <strong>Attributes & Claims</strong>, ensure <code>user.mail</code> → <code>emailaddress</code> is mapped</li>
+              <li>Download the <strong>Certificate (Base64)</strong> from SAML Signing Certificate section</li>
+              <li>Copy the <strong>Login URL</strong> and <strong>Azure AD Identifier</strong> for the fields below</li>
+            </ol>
+          </div>
+          <div id="guide-google" class="guide-box" style="display:none;">
+            <h4>📋 Google Workspace Setup Steps</h4>
+            <ol>
+              <li>Google Admin Console → <strong>Apps</strong> → <strong>Web and mobile apps</strong> → <strong>Add app</strong> → <strong>Add custom SAML app</strong></li>
+              <li>Name your app "TuneVault", click <strong>Continue</strong></li>
+              <li>Download the <strong>IdP metadata</strong> or copy the <strong>SSO URL</strong>, <strong>Entity ID</strong>, and <strong>Certificate</strong></li>
+              <li>On the next screen: <strong>ACS URL</strong> = ACS URL above, <strong>Entity ID</strong> = SP Entity ID above</li>
+              <li>Set <strong>Name ID format</strong> to <code>EMAIL</code>, <strong>Name ID</strong> = <code>Basic Information > Primary email</code></li>
+              <li>Add attribute mappings: <code>Primary email → email</code>, <code>First name + Last name → displayName</code></li>
+              <li>Assign users/groups, then paste the values below</li>
+            </ol>
+          </div>
+          <div id="guide-custom" class="guide-box" style="display:none;">
+            <h4>📋 Custom SAML 2.0 Setup</h4>
+            <ol>
+              <li>In your IdP, create a new SAML 2.0 application/SP</li>
+              <li>Set the <strong>ACS URL</strong> (also called Reply URL or Recipient URL) to the value above</li>
+              <li>Set the <strong>SP Entity ID</strong> (also called Audience URI or Issuer) to the value above</li>
+              <li>Configure the response to include the user's <strong>email address</strong> (in NameID or a custom attribute)</li>
+              <li>Export the IdP's <strong>X.509 certificate</strong>, <strong>SSO endpoint URL</strong>, and <strong>Entity ID</strong></li>
+              <li>Paste those values into the form below</li>
+            </ol>
+          </div>
+
+          <!-- IdP fields -->
+          <div class="form-group">
+            <label class="form-label">IdP SSO URL <span style="color:var(--red)">*</span></label>
+            <input type="url" id="f-sso-url" placeholder="https://your-idp.com/sso/saml" />
+            <div class="form-hint">The URL where TuneVault redirects users to authenticate.</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">IdP Entity ID <span style="color:var(--red)">*</span></label>
+            <input type="text" id="f-entity-id" placeholder="https://your-idp.com/entity-id" />
+            <div class="form-hint">Identifies your IdP in the SAML exchange. Often a URL but not a redirect.</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">X.509 Certificate <span style="color:var(--red)">*</span></label>
+            <textarea id="f-certificate" placeholder="-----BEGIN CERTIFICATE-----&#10;MIIDdDCCAlygAwIBAgIGAX...&#10;-----END CERTIFICATE-----"></textarea>
+            <div class="form-hint">Paste the full PEM certificate including BEGIN/END headers. Used to verify assertion signatures.</div>
+          </div>
+        </div>
+
+        <!-- Attribute mapping -->
+        <div class="form-section">
+          <div class="form-section-title">Attribute Mapping</div>
+
+          <div class="form-group">
+            <label class="form-label">Email attribute name</label>
+            <input type="text" id="f-attr-email" value="email" placeholder="email" />
+            <div class="form-hint">The SAML attribute name that contains the user's email. Use <code style="font-family:var(--mono); font-size:11px; color:var(--accent)">nameID</code> if email is in the NameID element.</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Display name attribute</label>
+            <input type="text" id="f-attr-name" value="displayName" placeholder="displayName" />
+            <div class="form-hint">SAML attribute containing the user's full name (optional).</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Group attribute name</label>
+            <input type="text" id="f-attr-group" value="memberOf" placeholder="memberOf" />
+            <div class="form-hint">Attribute containing IdP group memberships, used for role mapping below (optional).</div>
+          </div>
+        </div>
+
+        <!-- Group → Role mapping -->
+        <div class="form-section">
+          <div class="form-section-title">Group → Role Mapping (optional)</div>
+          <p style="font-size:13px; color:var(--text-dim); margin-bottom:18px; line-height:1.6;">
+            Map IdP group names to TuneVault roles. Enter one mapping per line as <code style="font-family:var(--mono); font-size:11px; color:var(--accent)">GroupName = role</code>.
+            Valid roles: <code style="font-family:var(--mono); font-size:11px; color:var(--accent)">admin</code>, <code style="font-family:var(--mono); font-size:11px; color:var(--accent)">senior_dba</code>, <code style="font-family:var(--mono); font-size:11px; color:var(--accent)">junior_dba</code>, <code style="font-family:var(--mono); font-size:11px; color:var(--accent)">viewer</code>.
+          </p>
+          <div class="form-group">
+            <label class="form-label">Group mappings</label>
+            <textarea id="f-group-mapping" placeholder="DBA-Managers = admin&#10;DBA-Leads = senior_dba&#10;DBA-Team = junior_dba&#10;DBA-Readonly = viewer" style="min-height:120px;"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Default role (for unmapped users)</label>
+            <select id="f-default-role">
+              <option value="junior_dba">Junior DBA</option>
+              <option value="senior_dba">Senior DBA</option>
+              <option value="viewer">Viewer</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-section" style="border-top:1px solid var(--border);">
+          <div id="form-msg" class="msg"></div>
+          <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
+            <button class="btn btn-primary" id="btn-save" onclick="saveConfig()">
+              Save SSO Configuration
+            </button>
+            <button class="btn btn-outline" id="btn-test" onclick="testSso()" style="display:none;">
+              Test SSO Login
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Require SSO toggle (shown once configured) -->
+    <div class="section" id="require-sso-section" style="display:none;">
+      <div class="section-label">Access Policy</div>
+      <div class="card">
+        <div class="toggle-row">
+          <div>
+            <div class="row-label">Require SSO for all users</div>
+            <div class="row-desc">Disables magic link and Google OAuth for team members. Admins always retain magic link access as a break-glass fallback.</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-require-sso" onchange="toggleRequireSso(this.checked)">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Provisioning info -->
+    <div class="section">
+      <div class="section-label">User Provisioning</div>
+      <div class="card">
+        <div class="card-row">
+          <div>
+            <div class="row-label">Just-in-time provisioning</div>
+            <div class="row-desc">First-time SSO login automatically creates a TuneVault account. No manual invite needed for SSO users.</div>
+          </div>
+          <div class="badge badge-green">✓ Active</div>
+        </div>
+        <div class="card-row">
+          <div>
+            <div class="row-label">Role assignment</div>
+            <div class="row-desc">Roles are assigned from IdP group mapping on every login. Overrides manual role assignments for SSO users.</div>
+          </div>
+          <div class="badge badge-gold">Group-based</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /sso-content -->
+</main>
+
+<script>
+let currentConfig = null;
+let selectedProvider = 'okta';
+
+async function init() {
+  // Auth check
+  const me = await fetch('/api/auth/me', { credentials: 'include' }).then(r => r.ok ? r.json() : null);
+  if (!me) { window.location.href = '/login?redirect=/settings/sso'; return; }
+
+  // Load SP info (no auth required)
+  const sp = await fetch('/api/sso/sp-info').then(r => r.json()).catch(() => ({}));
+  document.getElementById('sp-entity-id').textContent = sp.sp_entity_id || window.location.origin + '/saml/metadata';
+  document.getElementById('acs-url').textContent = sp.acs_url || window.location.origin + '/saml/callback';
+
+  // Load SSO config (enterprise gate happens server-side)
+  const res = await fetch('/api/sso/config', { credentials: 'include' });
+  if (res.status === 402) {
+    document.getElementById('upgrade-wall').style.display = '';
+    return;
+  }
+  document.getElementById('sso-content').style.display = '';
+
+  if (!res.ok) { showMsg('form-msg', 'Failed to load SSO config.', 'error'); return; }
+
+  const data = await res.json();
+  if (data.configured) {
+    populateForm(data);
+    showConfigured(data);
+  }
+}
+
+function populateForm(config) {
+  currentConfig = config;
+  document.getElementById('f-sso-url').value = config.sso_url || '';
+  document.getElementById('f-entity-id').value = config.entity_id || '';
+  // Don't populate certificate — security. Show preview only in status.
+  const am = config.attribute_mapping || {};
+  document.getElementById('f-attr-email').value = am.email || 'email';
+  document.getElementById('f-attr-name').value = am.name || 'displayName';
+  document.getElementById('f-attr-group').value = am.group || 'memberOf';
+
+  // Group mapping → textarea
+  const gm = config.group_role_mapping || {};
+  const lines = Object.entries(gm).map(([g, r]) => `${g} = ${r}`).join('\n');
+  document.getElementById('f-group-mapping').value = lines;
+
+  document.getElementById('f-default-role').value = config.default_role || 'junior_dba';
+
+  // Provider tab
+  const pt = config.provider_type || 'custom';
+  const tab = document.querySelector(`.provider-tab[data-provider="${pt}"]`);
+  if (tab) selectProvider(pt, tab);
+}
+
+function showConfigured(config) {
+  const badge = document.getElementById('status-badge');
+  badge.textContent = '✓ Configured';
+  badge.className = 'badge badge-green';
+  document.getElementById('status-domain').textContent = `Domain: ${config.company_domain}`;
+  document.getElementById('btn-delete').style.display = '';
+  document.getElementById('btn-test').style.display = '';
+  document.getElementById('require-sso-section').style.display = '';
+  document.getElementById('toggle-require-sso').checked = !!config.require_sso;
+}
+
+function selectProvider(provider, el) {
+  selectedProvider = provider;
+  document.querySelectorAll('.provider-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  ['okta','azure','google','custom'].forEach(p => {
+    const g = document.getElementById('guide-' + p);
+    if (g) g.style.display = p === provider ? '' : 'none';
+  });
+}
+
+function parseGroupMapping(text) {
+  const result = {};
+  (text || '').split('\n').forEach(line => {
+    const [group, role] = line.split('=').map(s => s.trim());
+    if (group && role) result[group] = role;
+  });
+  return result;
+}
+
+async function saveConfig() {
+  const btn = document.getElementById('btn-save');
+  const msgEl = document.getElementById('form-msg');
+  msgEl.style.display = 'none';
+
+  const sso_url = document.getElementById('f-sso-url').value.trim();
+  const entity_id = document.getElementById('f-entity-id').value.trim();
+  const certificate = document.getElementById('f-certificate').value.trim();
+
+  if (!sso_url || !entity_id) {
+    showMsg('form-msg', 'SSO URL and Entity ID are required.', 'error');
+    return;
+  }
+  // If editing existing config and no new cert provided, server will reject — inform user
+  if (!certificate && !currentConfig) {
+    showMsg('form-msg', 'Certificate is required.', 'error');
+    return;
+  }
+
+  const body = {
+    provider_type: selectedProvider,
+    sso_url,
+    entity_id,
+    attribute_mapping: {
+      email: document.getElementById('f-attr-email').value.trim() || 'email',
+      name: document.getElementById('f-attr-name').value.trim() || 'displayName',
+      group: document.getElementById('f-attr-group').value.trim() || 'memberOf',
+    },
+    group_role_mapping: parseGroupMapping(document.getElementById('f-group-mapping').value),
+    default_role: document.getElementById('f-default-role').value,
+    is_active: true,
+  };
+  if (certificate) body.certificate = certificate;
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Saving…';
+
+  try {
+    const res = await fetch('/api/sso/config', {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showMsg('form-msg', data.error || 'Failed to save SSO config.', 'error');
+    } else {
+      showMsg('form-msg', 'SSO configuration saved. Test it using the "Test SSO Login" button.', 'success');
+      await init(); // reload state
+    }
+  } catch {
+    showMsg('form-msg', 'Network error. Try again.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save SSO Configuration';
+  }
+}
+
+async function deleteSsoConfig() {
+  if (!confirm('Remove SSO configuration? Users will no longer be able to sign in with SSO.')) return;
+  try {
+    const res = await fetch('/api/sso/config', { method: 'DELETE', credentials: 'include' });
+    if (res.ok) {
+      currentConfig = null;
+      document.getElementById('status-badge').textContent = 'Not configured';
+      document.getElementById('status-badge').className = 'badge badge-gray';
+      document.getElementById('status-domain').textContent = '';
+      document.getElementById('btn-delete').style.display = 'none';
+      document.getElementById('btn-test').style.display = 'none';
+      document.getElementById('require-sso-section').style.display = 'none';
+      ['f-sso-url','f-entity-id','f-certificate','f-group-mapping'].forEach(id => {
+        document.getElementById(id).value = '';
+      });
+    }
+  } catch { alert('Failed to remove SSO config.'); }
+}
+
+function testSso() {
+  // Open SAML login in popup to test round-trip
+  const domain = currentConfig?.company_domain;
+  if (!domain) { alert('Save your config before testing.'); return; }
+  const popup = window.open(`/saml/login?domain=${encodeURIComponent(domain)}&redirect=/settings/sso?test=1`, 'sso-test', 'width=600,height=700');
+  if (!popup) { alert('Allow popups for this site to test SSO.'); }
+}
+
+async function toggleRequireSso(required) {
+  try {
+    const res = await fetch('/api/sso/require', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ required }),
+    });
+    if (!res.ok) {
+      document.getElementById('toggle-require-sso').checked = !required;
+      alert('Failed to update SSO requirement.');
+    }
+  } catch {
+    document.getElementById('toggle-require-sso').checked = !required;
+  }
+}
+
+function showMsg(id, text, type) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'msg ' + type;
+  el.style.display = 'block';
+}
+
+function copyText(id, btn) {
+  const text = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  });
+}
+
+// Check for test=1 param (returned from SSO test popup)
+if (new URLSearchParams(window.location.search).get('test') === '1') {
+  window.opener?.postMessage('sso-test-success', '*');
+  window.close();
+}
+
+init();
+</script>
+
+<script src="/nav-component.js"></script>
+<script>window.tvNav.init('settings');</script>
+<script src="/tv-tracker.js"></script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

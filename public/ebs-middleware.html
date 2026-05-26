@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EBS Middleware — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://tunevault.app/ebs-middleware">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c;
+      --surface: #111114;
+      --surface-2: #1a1a1f;
+      --border: #2a2a30;
+      --text: #e8e8ed;
+      --text-dim: #b8b8c8;
+      --accent: #f0a830;
+      --accent-dim: rgba(240,168,48,0.12);
+      --green: #34d399;
+      --green-dim: rgba(52,211,153,0.12);
+      --red: #f87171;
+      --red-dim: rgba(248,113,113,0.12);
+      --yellow: #fbbf24;
+      --yellow-dim: rgba(251,191,36,0.12);
+      --blue: #60a5fa;
+      --blue-dim: rgba(96,165,250,0.12);
+      --purple: #a78bfa;
+      --purple-dim: rgba(167,139,250,0.12);
+    }
+    body {
+      font-family: 'Space Grotesk', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    .grain {
+      position: fixed; top:0; left:0; right:0; bottom:0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 999;
+    }
+    nav { background: rgba(10,10,12,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 9999; }
+    .page-wrap { max-width: 1200px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    /* ── Toolbar ── */
+    .toolbar {
+      display: flex; align-items: center; gap: 16px; margin-bottom: 28px; flex-wrap: wrap;
+    }
+    .toolbar-title { flex: 1; }
+    .toolbar-title h1 { font-size: 22px; font-weight: 700; }
+    .toolbar-title p { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+    .conn-select {
+      background: var(--surface); border: 1px solid var(--border); color: var(--text);
+      font-family: inherit; font-size: 13px; padding: 8px 12px; border-radius: 8px;
+      min-width: 240px; cursor: pointer;
+    }
+    .conn-select:focus { outline: none; border-color: var(--accent); }
+
+    /* ── Component sections ── */
+    .section-header {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 16px; margin-top: 36px; padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-header:first-of-type { margin-top: 0; }
+    .section-icon { font-size: 22px; }
+    .section-title { font-size: 15px; font-weight: 700; }
+    .section-sub { font-size: 12px; color: var(--text-dim); margin-left: 4px; }
+    .risk-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 10px; border-radius: 4px; font-size: 10px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .04em; margin-left: auto;
+    }
+    .risk-medium { background: var(--yellow-dim); color: var(--yellow); }
+    .risk-high   { background: var(--red-dim); color: var(--red); }
+
+    /* ── Ops grid ── */
+    .ops-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(300px,1fr)); gap: 14px;
+    }
+
+    /* ── Op card ── */
+    .op-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 18px; transition: border-color 0.15s;
+    }
+    .op-card:hover { border-color: rgba(240,168,48,0.3); }
+    .op-card.disabled { opacity: 0.45; pointer-events: none; }
+    .op-card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+    .op-icon {
+      width: 34px; height: 34px; border-radius: 8px; background: var(--surface-2);
+      display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0;
+    }
+    .op-title { font-size: 13px; font-weight: 600; }
+    .op-meta  { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+    .op-badge {
+      display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px;
+      font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+    }
+    .badge-destructive { background: var(--red-dim); color: var(--red); }
+    .badge-read  { background: var(--green-dim); color: var(--green); }
+    .badge-ssh   { background: var(--blue-dim); color: var(--blue); }
+
+    .op-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .btn {
+      padding: 7px 14px; border-radius: 7px; font-size: 12px; font-weight: 600;
+      border: none; cursor: pointer; transition: all 0.15s; font-family: inherit;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-run { background: var(--accent); color: #0a0a0c; }
+    .btn-run:hover { background: #e09820; }
+    .btn-run:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-outline {
+      background: none; border: 1px solid var(--border); color: var(--text-dim);
+    }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-danger { background: var(--red-dim); color: var(--red); border: 1px solid transparent; }
+    .btn-danger:hover { border-color: var(--red); }
+
+    /* ── Result panel ── */
+    .result-panel { margin-top: 12px; display: none; border-top: 1px solid var(--border); padding-top: 12px; }
+    .result-panel.visible { display: block; }
+    .result-status { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+    .status-ok  { color: var(--green); }
+    .status-err { color: var(--red); }
+    .result-text {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text);
+      background: #0d0d10; border: 1px solid var(--border); border-radius: 6px;
+      padding: 12px; white-space: pre-wrap; word-break: break-all; max-height: 280px; overflow-y: auto;
+    }
+
+    /* ── Confirmation modal ── */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 500;
+      display: none; align-items: center; justify-content: center;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      padding: 28px; max-width: 560px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    }
+    .modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .modal p  { font-size: 13px; color: var(--text-dim); margin-bottom: 16px; }
+    .modal-cmd {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      background: #0d0d10; border: 1px solid var(--border); border-radius: 8px;
+      padding: 14px; margin-bottom: 20px; white-space: pre-wrap; word-break: break-all; color: var(--red);
+    }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+    /* ── No-SSH banner ── */
+    .no-ssh-banner {
+      background: var(--surface); border: 1px solid rgba(96,165,250,0.3); border-radius: 10px;
+      padding: 16px 20px; margin-bottom: 28px; display: none; align-items: center; gap: 14px;
+    }
+    .no-ssh-banner.visible { display: flex; }
+    .no-ssh-banner .icon { font-size: 20px; flex-shrink: 0; }
+    .no-ssh-banner .msg  { font-size: 13px; color: var(--text-dim); }
+    .no-ssh-banner a { color: var(--blue); text-decoration: none; }
+    .no-ssh-banner a:hover { text-decoration: underline; }
+
+    /* ── No-EBS banner ── */
+    .no-ebs-banner {
+      background: var(--surface); border: 1px solid rgba(167,139,250,0.3); border-radius: 10px;
+      padding: 16px 20px; margin-bottom: 28px; display: none; align-items: center; gap: 14px;
+    }
+    .no-ebs-banner.visible { display: flex; }
+    .no-ebs-banner .icon { font-size: 20px; flex-shrink: 0; }
+    .no-ebs-banner .msg  { font-size: 13px; color: var(--text-dim); }
+
+    /* ── Spinner ── */
+    .spinner {
+      display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty-state { text-align: center; padding: 60px 0; color: var(--text-dim); }
+    .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+    .empty-state h3 { font-size: 16px; color: var(--text); margin-bottom: 8px; }
+
+    /* ── Rolling Bounce ── */
+    .rolling-cards {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(340px,1fr)); gap: 14px;
+    }
+    .rolling-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 20px;
+    }
+    .rolling-card-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+    .rolling-icon {
+      width: 38px; height: 38px; border-radius: 10px; background: var(--surface-2);
+      display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;
+    }
+    .rolling-title { font-size: 14px; font-weight: 700; }
+    .rolling-sub   { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
+    .server-badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; min-height: 26px; }
+    .srv-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 9px; border-radius: 5px; font-size: 10px; font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--surface-2); border: 1px solid var(--border); color: var(--text-dim);
+      transition: all 0.2s;
+    }
+    .srv-badge.up     { background: var(--green-dim);  border-color: rgba(52,211,153,0.3); color: var(--green); }
+    .srv-badge.down   { background: var(--red-dim);    border-color: rgba(248,113,113,0.3); color: var(--red); }
+    .srv-badge.active { background: var(--accent-dim); border-color: rgba(240,168,48,0.4);  color: var(--accent); }
+    .srv-badge.done   { background: var(--green-dim);  border-color: rgba(52,211,153,0.3); color: var(--green); }
+    .detect-row { font-size: 11px; color: var(--text-dim); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+    .detect-ok   { color: var(--green); }
+    .detect-warn { color: var(--yellow); }
+    .warn-single {
+      font-size: 11px; color: var(--yellow); background: var(--yellow-dim);
+      border: 1px solid rgba(251,191,36,0.3); border-radius: 6px;
+      padding: 8px 12px; margin: 8px 0; display: none;
+    }
+    .warn-single.visible { display: block; }
+
+    /* Rolling bounce progress modal */
+    .rb-modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 600;
+      display: none; align-items: center; justify-content: center;
+    }
+    .rb-modal-backdrop.open { display: flex; }
+    .rb-modal {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      padding: 28px; max-width: 600px; width: 95%; max-height: 80vh; overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    }
+    .rb-modal-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .rb-modal-title  { font-size: 16px; font-weight: 700; flex: 1; }
+    .rb-status-bar {
+      background: var(--surface-2); border-radius: 8px; overflow: hidden;
+      height: 6px; margin-bottom: 20px;
+    }
+    .rb-status-fill {
+      height: 100%; background: var(--accent); border-radius: 8px;
+      transition: width 0.5s ease; width: 0%;
+    }
+    .rb-server-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+    .rb-server-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--surface-2); font-size: 12px; transition: all 0.2s;
+    }
+    .rb-server-row.active  { border-color: var(--accent); background: var(--accent-dim); }
+    .rb-server-row.success { border-color: rgba(52,211,153,0.4); background: var(--green-dim); }
+    .rb-server-row.error   { border-color: rgba(248,113,113,0.4); background: var(--red-dim); }
+    .rb-server-row.pending { opacity: 0.5; }
+    .rb-srv-name  { font-family: 'JetBrains Mono', monospace; font-weight: 600; flex: 1; }
+    .rb-srv-phase { font-size: 11px; color: var(--text-dim); }
+    .rb-srv-icon  { font-size: 14px; flex-shrink: 0; }
+    .rb-log {
+      font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dim);
+      background: #0d0d10; border: 1px solid var(--border); border-radius: 6px;
+      padding: 10px; max-height: 140px; overflow-y: auto; margin-bottom: 16px;
+      white-space: pre-wrap; word-break: break-all;
+    }
+    .rb-modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+    .rb-sanity-hint {
+      background: var(--green-dim); border: 1px solid rgba(52,211,153,0.3); border-radius: 8px;
+      padding: 12px 16px; font-size: 12px; color: var(--green); margin-bottom: 16px;
+      display: none;
+    }
+    .rb-sanity-hint.visible { display: flex; align-items: center; gap: 8px; }
+    .rb-error-msg {
+      background: var(--red-dim); border: 1px solid rgba(248,113,113,0.3); border-radius: 8px;
+      padding: 12px 16px; font-size: 12px; color: var(--red); margin-bottom: 16px;
+      display: none;
+    }
+    .rb-error-msg.visible { display: block; }
+
+    /* Rolling bounce confirm modal */
+    .rb-confirm-modal {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      padding: 28px; max-width: 560px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    }
+    .rb-confirm-modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .rb-confirm-modal p  { font-size: 13px; color: var(--text-dim); margin-bottom: 16px; }
+    .rb-plan-list {
+      background: #0d0d10; border: 1px solid var(--border); border-radius: 8px;
+      padding: 14px; margin-bottom: 20px; list-style: none;
+    }
+    .rb-plan-list li {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text);
+      padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .rb-plan-list li:last-child { border-bottom: none; }
+    .rb-plan-list li .step-num { color: var(--accent); margin-right: 8px; }
+  </style>
+</head>
+<body>
+<div class="grain"></div>
+<nav>
+  <div id="nav-root"></div>
+</nav>
+
+<div class="page-wrap">
+  <!-- ── Toolbar ── -->
+  <div class="toolbar">
+    <div class="toolbar-title">
+      <h1>🔧 EBS Middleware</h1>
+      <p>WLS AdminServer · Apache / OHS · Apps Listener — application tier management via SSH</p>
+    </div>
+    <select class="conn-select" id="conn-select" onchange="onConnChange()">
+      <option value="">— Select connection —</option>
+    </select>
+    <div id="conn-status" style="font-size:12px;color:var(--text-dim);"></div>
+  </div>
+
+  <!-- ── No-EBS banner ── -->
+  <div class="no-ebs-banner" id="no-ebs-banner">
+    <span class="icon">🔎</span>
+    <span class="msg">
+      EBS not detected on this connection. Middleware operations are only available for Oracle EBS instances.
+    </span>
+  </div>
+
+  <!-- ── No-SSH banner ── -->
+  <div class="no-ssh-banner" id="no-ssh-banner">
+    <span class="icon">🔒</span>
+    <span class="msg">
+      An Apps-tier SSH target is required for middleware operations.
+      <a href="/admin/ssh-targets">Configure SSH Access →</a>
+    </span>
+  </div>
+
+  <!-- ── Content ── -->
+  <div id="content"></div>
+
+  <!-- ── Rolling Bounce section (always rendered, gated by JS) ── -->
+  <div id="rolling-bounce-section" style="display:none; margin-top:36px;">
+    <div class="section-header" style="margin-top:0;">
+      <span class="section-icon">🔄</span>
+      <span class="section-title">Rolling Bounce</span>
+      <span class="section-sub">Zero-downtime restart — sequential bounce keeps &ge;1 server serving</span>
+      <span class="risk-badge risk-high">⚠ High — requires running AdminServer</span>
+    </div>
+    <div class="rolling-cards" id="rolling-cards"></div>
+  </div>
+</div>
+
+<!-- ── Rolling Bounce progress modal ── -->
+<div class="rb-modal-backdrop" id="rb-progress-backdrop">
+  <div class="rb-modal" id="rb-progress-modal">
+    <div class="rb-modal-header">
+      <span id="rb-modal-icon" style="font-size:20px;">🔄</span>
+      <div class="rb-modal-title" id="rb-modal-title">Rolling Bounce in Progress</div>
+      <button class="btn btn-outline" id="rb-abort-btn" onclick="abortRollingBounce()" style="font-size:11px;padding:5px 10px;">Abort</button>
+    </div>
+    <div class="rb-status-bar"><div class="rb-status-fill" id="rb-fill"></div></div>
+    <div class="rb-server-list" id="rb-server-list"></div>
+    <div class="rb-log" id="rb-log"></div>
+    <div class="rb-sanity-hint" id="rb-sanity-hint">
+      ✅ All servers bounced successfully. <a href="/sanity-check" style="color:var(--green);text-decoration:underline;margin-left:6px;">Run Service Sanity Check →</a>
+    </div>
+    <div class="rb-error-msg" id="rb-error-msg"></div>
+    <div class="rb-modal-actions">
+      <button class="btn btn-outline" id="rb-close-btn" onclick="closeRbProgress()" style="display:none;">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Rolling Bounce confirmation modal ── -->
+<div class="rb-modal-backdrop" id="rb-confirm-backdrop" onclick="closeRbConfirm(event)">
+  <div class="rb-confirm-modal">
+    <h3>🔄 Confirm Rolling Bounce</h3>
+    <p id="rb-confirm-desc">Review the execution plan before starting.</p>
+    <ul class="rb-plan-list" id="rb-plan-list"></ul>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeRbConfirm()">Cancel</button>
+      <button class="btn btn-danger" id="rb-confirm-execute-btn" onclick="executeRollingBounce()">Start Rolling Bounce</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Confirmation modal ── -->
+<div class="modal-backdrop" id="modal-backdrop" onclick="closeModal(event)">
+  <div class="modal" id="confirm-modal">
+    <h3>⚠️ Confirm Middleware Operation</h3>
+    <p>This will execute the following command on your EBS apps tier. Review carefully before confirming.</p>
+    <div class="modal-cmd" id="modal-cmd"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" id="modal-confirm-btn" onclick="executeConfirmed()">Execute</button>
+    </div>
+  </div>
+</div>
+
+<script src="/connection-state.js"></script>
+<script src="/nav-component.js"></script>
+<script>
+  window.tvNav.init('ebs-middleware');
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  let catalog = [];
+  let connections = [];
+  let sshTargets = [];
+  let selectedConn = null;
+  let pendingConfirm = null;
+
+  const SECTION_META = {
+    wls: {
+      icon: '☁️',
+      title: 'WLS Admin Server',
+      sub: 'WebLogic AdminServer + managed servers (oacore, forms, oafm)',
+      risk: 'high',
+      riskLabel: '⚠ High — AdminServer down orphans all managed servers',
+    },
+    apache: {
+      icon: '🌐',
+      title: 'Apache / OHS',
+      sub: 'R12.2: OHS via WLS · R12.1: Apache via OPMN (adapcctl.sh)',
+      risk: 'medium',
+      riskLabel: '⚠ Medium — Apache down = no web access to EBS',
+    },
+    apps_listener: {
+      icon: '📡',
+      title: 'Apps Listener',
+      sub: 'Apps-tier TNS listener (adalnctl.sh / APPS_{SID})',
+      risk: 'medium',
+      riskLabel: '⚠ Medium — Listener down = forms/web cannot reach DB tier',
+    },
+  };
+
+  const CAT_ORDER = ['wls', 'apache', 'apps_listener'];
+
+  // ── Bootstrap ──────────────────────────────────────────────────────────────
+  (async function init() {
+    await Promise.all([loadConnections(), loadCatalog()]);
+  })();
+
+  async function loadConnections() {
+    const r = await fetch('/api/connections', { credentials: 'include' });
+    if (!r.ok) return;
+    connections = tvConn.parseList(await r.json());
+    const sel = document.getElementById('conn-select');
+    connections.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = (c.name || c.host + ':' + c.port) + (c.is_ebs ? ' · EBS' : '');
+      sel.appendChild(opt);
+    });
+    tvConn.bind(sel, connections);
+    if (sel.value) {
+      await onConnChange();
+    } else if (connections.length === 1) {
+      sel.value = connections[0].id;
+      tvConn.save(connections[0].id);
+      await onConnChange();
+    }
+  }
+
+  async function loadCatalog() {
+    const r = await fetch('/api/ebs-middleware/catalog', { credentials: 'include' });
+    if (!r.ok) return;
+    const data = await r.json();
+    catalog = data.catalog;
+    renderContent();
+  }
+
+  async function onConnChange() {
+    const connId = document.getElementById('conn-select').value;
+    if (connId) tvConn.save(connId);
+    selectedConn = connections.find(c => String(c.id) === String(connId)) || null;
+    document.getElementById('conn-status').textContent = '';
+
+    if (!selectedConn) {
+      updateBanners(false, false);
+      renderContent();
+      document.getElementById('rolling-bounce-section').style.display = 'none';
+      return;
+    }
+
+    document.getElementById('conn-status').innerHTML = '<div class="spinner"></div>';
+
+    // Load SSH targets for this connection
+    const tgt = await fetch('/api/ebs-ssh-checks/target/' + connId, { credentials: 'include' });
+    sshTargets = tgt.ok ? (await tgt.json()).targets || [] : [];
+
+    // Filter to apps_tier targets (middleware runs on apps tier)
+    const appsTierTargets = sshTargets.filter(t => t.role === 'apps_tier');
+
+    const isEbs = !!(selectedConn.is_ebs);
+    updateBanners(isEbs, appsTierTargets.length > 0);
+
+    document.getElementById('conn-status').textContent = isEbs ? '✦ EBS detected' : 'No EBS';
+
+    renderContent();
+    // Load rolling bounce server detection after main content renders
+    loadRollingBounce();
+  }
+
+  function updateBanners(isEbs, hasSsh) {
+    document.getElementById('no-ebs-banner').classList.toggle('visible', !!selectedConn && !isEbs);
+    document.getElementById('no-ssh-banner').classList.toggle('visible', !!selectedConn && isEbs && !hasSsh);
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  function renderContent() {
+    const container = document.getElementById('content');
+    if (!catalog.length) {
+      container.innerHTML = '<div class="empty-state"><div class="icon">⚙️</div><h3>Loading catalog…</h3></div>';
+      return;
+    }
+
+    const appsTierTargets = sshTargets.filter(t => t.role === 'apps_tier');
+    const hasTarget = appsTierTargets.length > 0;
+    const isEbs = selectedConn && !!selectedConn.is_ebs;
+
+    let html = '';
+    for (const cat of CAT_ORDER) {
+      const ops = catalog.filter(o => o.category === cat);
+      if (!ops.length) continue;
+      const meta = SECTION_META[cat] || { icon: '•', title: cat, sub: '', risk: 'medium', riskLabel: '' };
+      html += `
+        <div class="section-header">
+          <span class="section-icon">${meta.icon}</span>
+          <span class="section-title">${meta.title}</span>
+          <span class="section-sub">${meta.sub}</span>
+          <span class="risk-badge risk-${meta.risk}">${meta.riskLabel}</span>
+        </div>
+        <div class="ops-grid">
+      `;
+      ops.forEach(op => {
+        const disabled = !selectedConn || !isEbs || !hasTarget;
+        const cardClass = 'op-card' + (disabled ? ' disabled' : '');
+        const badges = [];
+        if (op.destructive) badges.push('<span class="op-badge badge-destructive">⚠ Destructive</span>');
+        else badges.push('<span class="op-badge badge-read">Read</span>');
+        badges.push('<span class="op-badge badge-ssh">SSH</span>');
+
+        const safeKey = op.key.replace(/\./g, '-');
+        html += `
+          <div class="${cardClass}" id="card-${safeKey}">
+            <div class="op-card-header">
+              <div class="op-icon">${meta.icon}</div>
+              <div>
+                <div class="op-title">${escHtml(op.label)}</div>
+                <div class="op-meta">${escHtml(op.category)} · SSH</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${badges.join('')}</div>
+            <div class="op-actions">
+              <button class="btn btn-run" id="run-${safeKey}"
+                onclick="runOp('${op.key}')" ${disabled ? 'disabled' : ''}>
+                ▶ Run
+              </button>
+            </div>
+            <div class="result-panel" id="result-${safeKey}"></div>
+          </div>
+        `;
+      });
+      html += '</div>';
+    }
+
+    if (!html) {
+      html = '<div class="empty-state"><div class="icon">🔍</div><h3>No operations in catalog</h3></div>';
+    }
+
+    container.innerHTML = html;
+  }
+
+  // ── Run op ─────────────────────────────────────────────────────────────────
+  async function runOp(opKey, confirmed) {
+    if (!selectedConn) return;
+
+    const appsTierTargets = sshTargets.filter(t => t.role === 'apps_tier');
+    const targetId = appsTierTargets.length > 0 ? appsTierTargets[0].id : null;
+
+    if (!targetId) {
+      alert('No apps_tier SSH target configured for this connection.');
+      return;
+    }
+
+    const safeKey = opKey.replace(/\./g, '-');
+    const btn      = document.getElementById('run-' + safeKey);
+    const resultEl = document.getElementById('result-' + safeKey);
+
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner"></div> Running…';
+    if (resultEl) { resultEl.innerHTML = ''; resultEl.classList.add('visible'); }
+
+    try {
+      const r = await fetch('/api/ebs-middleware/run', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          connection_id: selectedConn.id,
+          op_key: opKey,
+          target_id: targetId,
+          confirmed: !!confirmed,
+        }),
+      });
+
+      const data = await r.json();
+
+      if (r.status === 428 && data.requiresConfirmation) {
+        pendingConfirm = { opKey };
+        document.getElementById('modal-cmd').textContent = data.commandPreview || opKey;
+        document.getElementById('modal-backdrop').classList.add('open');
+        if (resultEl) resultEl.classList.remove('visible');
+      } else if (data.ok) {
+        renderResult(resultEl, data);
+      } else {
+        if (resultEl) resultEl.innerHTML = `<div class="result-status status-err">✗ ${escHtml(data.error || 'Operation failed')}</div>`;
+      }
+    } catch (err) {
+      if (resultEl) resultEl.innerHTML = `<div class="result-status status-err">✗ Network error: ${escHtml(err.message)}</div>`;
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '▶ Run';
+    }
+  }
+
+  function renderResult(container, data) {
+    if (!container) return;
+    let html = '<div class="result-status status-ok">✓ Success';
+    if (data.durationMs) html += ` <span style="color:var(--text-dim);font-weight:400">(${data.durationMs}ms)</span>`;
+    html += '</div>';
+
+    const text = data.text || (data.rows && data.rows.length > 0
+      ? data.rows.map(r => Array.isArray(r) ? r.join('\t') : JSON.stringify(r)).join('\n')
+      : null);
+
+    if (text) {
+      html += `<div class="result-text">${escHtml(text)}</div>`;
+    } else {
+      html += '<div style="font-size:12px;color:var(--text-dim);margin-top:4px">Command completed with no output.</div>';
+    }
+    container.innerHTML = html;
+  }
+
+  // ── Modal ──────────────────────────────────────────────────────────────────
+  function closeModal(e) {
+    if (e && e.target !== document.getElementById('modal-backdrop')) return;
+    document.getElementById('modal-backdrop').classList.remove('open');
+    pendingConfirm = null;
+  }
+
+  function executeConfirmed() {
+    if (!pendingConfirm) return;
+    const { opKey } = pendingConfirm;
+    document.getElementById('modal-backdrop').classList.remove('open');
+    pendingConfirm = null;
+    runOp(opKey, true);
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // ── Rolling Bounce ─────────────────────────────────────────────────────────
+  let rbState = {
+    serverType: null,   // 'oacore' | 'forms'
+    servers: [],        // detected server names
+    pendingServers: [], // servers staged for bounce (after confirm)
+    eventSource: null,  // active SSE connection
+  };
+
+  async function loadRollingBounce() {
+    const appsTierTargets = sshTargets.filter(t => t.role === 'apps_tier');
+    const targetId = appsTierTargets.length > 0 ? appsTierTargets[0].id : null;
+    const section = document.getElementById('rolling-bounce-section');
+    const isEbs   = selectedConn && !!selectedConn.is_ebs;
+
+    if (!selectedConn || !isEbs || !targetId) {
+      section.style.display = 'none';
+      return;
+    }
+
+    section.style.display = 'block';
+    renderRollingCards(null, null, true); // loading state
+
+    try {
+      const r = await fetch(
+        `/api/ebs-middleware/context-servers?connection_id=${selectedConn.id}&target_id=${targetId}`,
+        { credentials: 'include' }
+      );
+      if (!r.ok) throw new Error('Detection failed');
+      const data = await r.json();
+      rbState.oacoreServers = data.oacore || ['oacore_server1'];
+      rbState.formsServers  = data.forms  || ['forms_server1'];
+      rbState.parseOk       = data.parseOk;
+      renderRollingCards(rbState.oacoreServers, rbState.formsServers, false);
+    } catch (err) {
+      rbState.oacoreServers = ['oacore_server1'];
+      rbState.formsServers  = ['forms_server1'];
+      rbState.parseOk       = false;
+      renderRollingCards(rbState.oacoreServers, rbState.formsServers, false);
+    }
+  }
+
+  function renderRollingCards(oacore, forms, loading) {
+    const container = document.getElementById('rolling-cards');
+    if (loading) {
+      container.innerHTML = '<div class="detect-row"><div class="spinner"></div> Detecting managed servers from context file…</div>';
+      return;
+    }
+
+    const appsTierTargets = sshTargets.filter(t => t.role === 'apps_tier');
+    const targetId = appsTierTargets.length > 0 ? appsTierTargets[0].id : null;
+    const disabled  = !targetId;
+
+    function cardHtml(type, label, icon, servers) {
+      const single = servers.length === 1;
+      const detectClass = rbState.parseOk ? 'detect-ok' : 'detect-warn';
+      const detectIcon  = rbState.parseOk ? '✓' : '⚠';
+      const badgesHtml = servers.map(s =>
+        `<span class="srv-badge up">${escHtml(s)}</span>`
+      ).join('');
+      return `
+        <div class="rolling-card">
+          <div class="rolling-card-header">
+            <div class="rolling-icon">${icon}</div>
+            <div>
+              <div class="rolling-title">Rolling Bounce ${label}</div>
+              <div class="rolling-sub">Sequential stop → verify → start per server</div>
+            </div>
+          </div>
+          <div class="detect-row">
+            <span class="${detectClass}">${detectIcon}</span>
+            Detected <strong>${servers.length}</strong> ${label} server${servers.length !== 1 ? 's' : ''}
+            ${rbState.parseOk ? '' : '<span style="color:var(--yellow);font-size:10px;"> (context parse failed — using defaults)</span>'}
+          </div>
+          <div class="server-badges" id="rb-badges-${type}">${badgesHtml}</div>
+          <div class="warn-single${single ? ' visible' : ''}" id="rb-warn-${type}">
+            ⚠ Only 1 server detected — rolling bounce provides no zero-downtime benefit.
+            This will be a full restart with brief downtime.
+          </div>
+          <div class="op-actions">
+            <button class="btn btn-run" onclick="showRollingBounceConfirm('${type}')" ${disabled ? 'disabled' : ''}>
+              🔄 Rolling Bounce ${label}
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    container.innerHTML =
+      cardHtml('oacore', 'OACore', '⚙️', oacore) +
+      cardHtml('forms',  'Forms',  '📋', forms);
+  }
+
+  function showRollingBounceConfirm(serverType) {
+    const servers = serverType === 'oacore' ? rbState.oacoreServers : rbState.formsServers;
+    const label   = serverType === 'oacore' ? 'OACore' : 'Forms';
+    rbState.serverType      = serverType;
+    rbState.pendingServers  = [...servers];
+
+    // Build execution plan
+    const planList = document.getElementById('rb-plan-list');
+    let planItems = '';
+    servers.forEach((srv, i) => {
+      planItems += `
+        <li><span class="step-num">${i * 4 + 1}.</span>Stop ${srv} — wait for confirmed shutdown</li>
+        <li><span class="step-num">${i * 4 + 2}.</span>Verify ${srv} is STOPPED (poll every 10s, max 60s)</li>
+        <li><span class="step-num">${i * 4 + 3}.</span>Start ${srv} — wait for RUNNING state</li>
+        <li><span class="step-num">${i * 4 + 4}.</span>Verify ${srv} is RUNNING (poll every 10s, max 90s)</li>
+      `;
+    });
+
+    const totalMs = servers.length * (60 + 90 + 30) * 1000; // rough estimate
+    const estMin  = Math.ceil(totalMs / 60000);
+
+    document.getElementById('rb-confirm-desc').innerHTML =
+      `<strong>Detected ${servers.length} ${label} server${servers.length !== 1 ? 's' : ''}.</strong> ` +
+      `Estimated time: ~${estMin} min. Servers will be bounced sequentially — at least 1 stays RUNNING at all times.`;
+    planList.innerHTML = planItems;
+
+    document.getElementById('rb-confirm-backdrop').classList.add('open');
+  }
+
+  function closeRbConfirm(e) {
+    if (e && e.target !== document.getElementById('rb-confirm-backdrop')) return;
+    document.getElementById('rb-confirm-backdrop').classList.remove('open');
+    rbState.pendingServers = [];
+  }
+
+  function executeRollingBounce() {
+    document.getElementById('rb-confirm-backdrop').classList.remove('open');
+    const servers    = rbState.pendingServers;
+    const serverType = rbState.serverType;
+    if (!servers.length || !serverType) return;
+    startRollingBounce(serverType, servers);
+  }
+
+  function startRollingBounce(serverType, servers) {
+    const appsTierTargets = sshTargets.filter(t => t.role === 'apps_tier');
+    const targetId = appsTierTargets.length > 0 ? appsTierTargets[0].id : null;
+    if (!targetId || !selectedConn) return;
+
+    // Initialize progress modal
+    const label = serverType === 'oacore' ? 'OACore' : 'Forms';
+    document.getElementById('rb-modal-title').textContent = `Rolling Bounce ${label} (0/${servers.length})`;
+    document.getElementById('rb-fill').style.width = '0%';
+    document.getElementById('rb-sanity-hint').classList.remove('visible');
+    document.getElementById('rb-error-msg').classList.remove('visible');
+    document.getElementById('rb-close-btn').style.display = 'none';
+    document.getElementById('rb-abort-btn').style.display = '';
+    document.getElementById('rb-log').textContent = '';
+
+    // Render initial server rows
+    renderRbServerRows(servers, -1, {});
+    document.getElementById('rb-progress-backdrop').classList.add('open');
+
+    // Abort flag
+    rbState.abortRequested = false;
+
+    // POST to SSE endpoint using fetch + streaming
+    const body = JSON.stringify({ connection_id: selectedConn.id, target_id: targetId, server_type: serverType, servers });
+    let buffer = '';
+    let completedCount = 0;
+
+    fetch('/api/ebs-middleware/rolling-bounce', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    }).then(r => {
+      if (!r.ok) return r.json().then(d => { throw new Error(d.error || 'Request failed'); });
+      const reader = r.body.getReader();
+      const decoder = new TextDecoder();
+
+      function pump() {
+        if (rbState.abortRequested) {
+          reader.cancel();
+          rbLog('⚠ Abort requested — waiting for in-flight step to complete…');
+          return;
+        }
+        reader.read().then(({ done, value }) => {
+          if (done) {
+            showRbClose();
+            return;
+          }
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop(); // keep incomplete line
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const evt = JSON.parse(line.slice(6));
+                handleRbEvent(evt, servers, serverType);
+                if (evt.type === 'complete') completedCount = servers.length;
+              } catch (_) {}
+            }
+          }
+          pump();
+        }).catch(err => {
+          rbLog('✗ Stream error: ' + err.message);
+          showRbClose();
+        });
+      }
+      pump();
+    }).catch(err => {
+      rbLog('✗ ' + err.message);
+      showRbClose();
+    });
+  }
+
+  function handleRbEvent(evt, servers, serverType) {
+    const label = serverType === 'oacore' ? 'OACore' : 'Forms';
+    const total  = servers.length;
+
+    switch (evt.type) {
+      case 'start':
+        rbLog(`▶ Starting rolling bounce of ${total} ${label} servers`);
+        break;
+
+      case 'step': {
+        const { phase, serverName, index, serverState } = evt;
+        const phaseLabels = {
+          stopping:       '⏹ Sending stop…',
+          verifying_down: '⏳ Verifying shutdown…',
+          waiting_down:   `⏳ Waiting for shutdown (attempt ${evt.attempt})…`,
+          starting:       '▶ Sending start…',
+          verifying_up:   '⏳ Verifying startup…',
+          waiting_up:     `⏳ Waiting for RUNNING (attempt ${evt.attempt})…`,
+          startup_slow:   `⚠ Startup taking longer than expected (attempt ${evt.attempt})…`,
+          done:           '✅ RUNNING',
+        };
+        const phaseLabel = phaseLabels[phase] || phase;
+        rbLog(`${serverName}: ${phaseLabel}`);
+
+        const doneCount = phase === 'done' ? (index + 1) : index;
+        document.getElementById('rb-fill').style.width = (doneCount / total * 100).toFixed(0) + '%';
+        document.getElementById('rb-modal-title').textContent =
+          `Rolling Bounce ${label} (${doneCount}/${total})`;
+
+        renderRbServerRows(servers, index, serverState || {}, phase);
+        break;
+      }
+
+      case 'complete':
+        rbLog(`✅ ${evt.message}`);
+        document.getElementById('rb-fill').style.width = '100%';
+        document.getElementById('rb-modal-title').textContent = `Rolling Bounce ${label} — Complete`;
+        // Mark all as success
+        renderRbServerRows(servers, -2, {}, 'complete');
+        document.getElementById('rb-sanity-hint').classList.add('visible');
+        document.getElementById('rb-abort-btn').style.display = 'none';
+        showRbClose();
+        break;
+
+      case 'error': {
+        const msg = evt.message || 'An error occurred';
+        rbLog(`✗ ERROR: ${msg}`);
+        const errEl = document.getElementById('rb-error-msg');
+        errEl.textContent = '✗ ' + msg;
+        errEl.classList.add('visible');
+        document.getElementById('rb-abort-btn').style.display = 'none';
+        showRbClose();
+        break;
+      }
+
+      case 'abort':
+        rbLog('⚠ ' + (evt.message || 'Aborted'));
+        document.getElementById('rb-abort-btn').style.display = 'none';
+        showRbClose();
+        break;
+    }
+  }
+
+  function renderRbServerRows(servers, activeIndex, serverState, phase) {
+    const list = document.getElementById('rb-server-list');
+    list.innerHTML = servers.map((srv, i) => {
+      let cls = 'pending', icon = '○', phaseText = 'Waiting';
+      if (phase === 'complete') {
+        cls = 'success'; icon = '✅'; phaseText = 'Complete';
+      } else if (i < activeIndex) {
+        cls = 'success'; icon = '✅'; phaseText = 'Done';
+      } else if (i === activeIndex) {
+        cls = 'active'; icon = '<div class="spinner" style="width:12px;height:12px;border-width:2px;"></div>';
+        phaseText = phase ? phase.replace(/_/g, ' ') : 'In progress';
+      }
+      const srvUp = serverState[srv];
+      if (i !== activeIndex && srvUp === 'DOWN') { cls = 'error'; icon = '⏹'; phaseText = 'Down'; }
+
+      return `
+        <div class="rb-server-row ${cls}">
+          <div class="rb-srv-icon">${icon}</div>
+          <div class="rb-srv-name">${escHtml(srv)}</div>
+          <div class="rb-srv-phase">${phaseText}</div>
+          ${i > activeIndex && activeIndex !== -2 ? '<div style="font-size:10px;color:var(--text-dim)">still serving 🟢</div>' : ''}
+        </div>
+      `;
+    }).join('');
+  }
+
+  function rbLog(msg) {
+    const log = document.getElementById('rb-log');
+    const ts  = new Date().toLocaleTimeString();
+    log.textContent += `[${ts}] ${msg}\n`;
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function showRbClose() {
+    document.getElementById('rb-close-btn').style.display = '';
+  }
+
+  function closeRbProgress() {
+    document.getElementById('rb-progress-backdrop').classList.remove('open');
+    rbState.abortRequested = false;
+  }
+
+  function abortRollingBounce() {
+    rbState.abortRequested = true;
+    document.getElementById('rb-abort-btn').disabled = true;
+    document.getElementById('rb-abort-btn').textContent = 'Aborting…';
+    rbLog('⚠ Abort requested — current step will complete, then sequence stops.');
+  }
+</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

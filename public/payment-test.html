@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>$1 Payment Test — TuneVault</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0c;
+            --surface: #111114;
+            --surface-2: #1a1a1f;
+            --border: #2a2a30;
+            --text: #e8e8ed;
+            --text-dim: #b8b8c8;
+            --accent: #f0a830;
+            --accent-dim: rgba(240, 168, 48, 0.12);
+            --green: #34d399;
+            --red: #f87171;
+            --yellow: #fbbf24;
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .grain {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 48px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: var(--text);
+        }
+
+        .logo-icon {
+            width: 26px; height: 26px;
+            background: var(--accent);
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px; font-weight: 700;
+            color: var(--bg);
+        }
+
+        .container {
+            max-width: 640px;
+            margin: 0 auto;
+            padding: 60px 24px;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: var(--text-dim);
+            font-size: 14px;
+            margin-bottom: 32px;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 28px;
+            margin-bottom: 20px;
+        }
+
+        .key-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 24px;
+            font-size: 13px;
+        }
+
+        .dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+        }
+
+        .dot-green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+        .dot-red   { background: var(--red); box-shadow: 0 0 6px var(--red); }
+        .dot-gray  { background: #6b7280; }
+
+        .mode-badge {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-live { background: rgba(248,113,113,0.15); color: var(--red); }
+
+        .amount-display {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .amount-display .amount {
+            font-size: 48px;
+            font-weight: 700;
+            letter-spacing: -2px;
+            color: var(--accent);
+        }
+
+        .amount-display .label {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-top: 4px;
+        }
+
+        .pay-btn {
+            display: block;
+            width: 100%;
+            padding: 14px 24px;
+            background: var(--accent);
+            border: none;
+            border-radius: 10px;
+            color: var(--bg);
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.15s;
+        }
+
+        .pay-btn:hover { opacity: 0.88; }
+        .pay-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .result-box {
+            display: none;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 18px;
+            margin-top: 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+        }
+
+        .result-box.visible { display: block; }
+
+        .result-row {
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .result-row span { color: var(--text); }
+
+        .warn-box {
+            background: rgba(251,191,36,0.08);
+            border: 1px solid rgba(251,191,36,0.3);
+            border-radius: 10px;
+            padding: 14px 18px;
+            font-size: 13px;
+            color: var(--text-dim);
+            line-height: 1.7;
+        }
+
+        .warn-box strong { color: var(--yellow); }
+
+        .auth-banner {
+            display: none;
+            background: rgba(248,113,113,0.08);
+            border: 1px solid var(--red);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            font-size: 13px;
+        }
+
+        .auth-banner a { color: var(--accent); text-decoration: underline; }
+
+        @media (max-width: 600px) {
+            nav { padding: 12px 20px; }
+            .container { padding: 32px 16px; }
+            .amount-display .amount { font-size: 36px; }
+        }
+    </style>
+</head>
+<body>
+<div class="grain"></div>
+
+<nav>
+    <a href="/" class="logo">
+        <div class="logo-icon">TV</div>
+        TuneVault
+    </a>
+    <a href="/admin/payments/last-test" style="color:var(--text-dim); font-size:13px; text-decoration:none;">← Admin Dashboard</a>
+</nav>
+
+<div class="container">
+    <h1>Live Payment Test</h1>
+    <p class="subtitle">Verify international card acceptance with a real $1 charge using Razorpay Live keys.</p>
+
+    <div class="auth-banner" id="authBanner">
+        <strong style="color:var(--red);" id="authTitle">Sign in required</strong> —
+        <span id="authMsg"><a href="/login?redirect=/payment-test.html">Sign in as admin</a> to run the $1 live test.</span>
+    </div>
+
+    <div class="card">
+        <!-- Key status -->
+        <div class="key-status" id="keyStatus">
+            <div class="dot dot-gray"></div>
+            <span style="color:var(--text-dim);">Checking Razorpay status…</span>
+        </div>
+
+        <!-- Amount -->
+        <div class="amount-display">
+            <div class="amount">$1</div>
+            <div class="label">Live Razorpay charge · international cards</div>
+        </div>
+
+        <!-- Pay button -->
+        <button class="pay-btn" id="payBtn" disabled>Pay $1 — Live Test</button>
+
+        <!-- Result -->
+        <div class="result-box" id="resultBox">
+            <div id="resultContent"></div>
+        </div>
+    </div>
+
+    <div class="warn-box">
+        <strong>⚠ This is a real charge.</strong> Unlike the admin test dashboard (which uses test keys),
+        this page charges your card via Razorpay Live mode. The $1 amount validates that
+        international card payments are working end-to-end.
+    </div>
+</div>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+'use strict';
+
+var rzpKeyId = null;
+var isReady = false;
+
+function safeFetch(url, opts) {
+    return fetch(url, opts).then(function(r) {
+        if (!r.ok) {
+            return r.json().catch(function() { return { error: 'HTTP ' + r.status }; }).then(function(body) {
+                var err = new Error(body.error || 'HTTP ' + r.status);
+                err.status = r.status;
+                throw err;
+            });
+        }
+        return r.json();
+    });
+}
+
+// Check Razorpay key status (public endpoint — no auth)
+function loadKeyStatus() {
+    safeFetch('/api/razorpay-key')
+      .then(function(data) {
+          rzpKeyId = data.key_id;
+          var el = document.getElementById('keyStatus');
+          if (!el) return;
+          var isLive = rzpKeyId && rzpKeyId.startsWith('rzp_live');
+          el.innerHTML =
+              '<div class="dot ' + (isLive ? 'dot-green' : 'dot-red') + '"></div>' +
+              '<span style="color:var(--text);">' + rzpKeyId.slice(0, 16) + '…</span>' +
+              '<span class="mode-badge badge-live">' + (isLive ? 'LIVE' : 'TEST') + '</span>';
+          checkReady();
+      })
+      .catch(function() {
+          var el = document.getElementById('keyStatus');
+          if (el) el.innerHTML = '<div class="dot dot-red"></div><span style="color:var(--red);">Razorpay not configured</span>';
+      });
+}
+
+// Check admin auth
+function checkAuth() {
+    safeFetch('/api/admin/payment-test/auth-check', { credentials: 'include' })
+      .then(function() {
+          isReady = true;
+          document.getElementById('authBanner').style.display = 'none';
+          checkReady();
+      })
+      .catch(function(err) {
+          document.getElementById('authBanner').style.display = 'block';
+          var title = document.getElementById('authTitle');
+          var msg = document.getElementById('authMsg');
+          if (err.status === 403 && title && msg) {
+              title.textContent = 'Access denied';
+              msg.textContent = 'Your account is not in the admin list.';
+          }
+      });
+}
+
+function checkReady() {
+    var btn = document.getElementById('payBtn');
+    if (rzpKeyId && isReady) {
+        btn.disabled = false;
+    }
+}
+
+// Create order and open checkout
+function startPayment() {
+    var btn = document.getElementById('payBtn');
+    var resultBox = document.getElementById('resultBox');
+    var resultContent = document.getElementById('resultContent');
+
+    btn.disabled = true;
+    btn.textContent = 'Creating order…';
+    resultBox.classList.remove('visible');
+
+    safeFetch('/api/admin/payment-test/create-method-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ amount_paise: 100, label: 'live_payment_test', flow_type: 'one_off' })
+    })
+    .then(function(data) {
+        if (!data.order_id || !data.key_id) throw new Error('Invalid server response');
+
+        // Guard: Razorpay checkout.js ad-blocker check
+        if (typeof window.Razorpay !== 'function') {
+            resultContent.innerHTML =
+                '<div style="color:var(--red); font-weight:700; margin-bottom:8px;">Razorpay checkout.js blocked</div>' +
+                '<div class="result-row">An ad-blocker or browser extension is preventing the payment modal from loading. Disable it and refresh.</div>';
+            resultBox.classList.add('visible');
+            btn.textContent = 'Pay $1 — Live Test';
+            btn.disabled = false;
+            return;
+        }
+
+        btn.textContent = 'Opening checkout…';
+
+        var rzp = new window.Razorpay({
+            key        : data.key_id,
+            order_id   : data.order_id,
+            amount     : 100,
+            currency   : 'USD',
+            name       : 'TuneVault',
+            description: 'Live Payment Test ($1)',
+            theme      : { color: '#D4AF37' },
+            handler: function(response) {
+                btn.textContent = 'Pay $1 — Live Test';
+                btn.disabled = false;
+                resultContent.innerHTML =
+                    '<div style="color:var(--green); font-weight:700; margin-bottom:10px;">✓ Payment successful</div>' +
+                    '<div class="result-row">payment_id: <span>' + response.razorpay_payment_id + '</span></div>' +
+                    '<div class="result-row">order_id: <span>' + response.razorpay_order_id + '</span></div>' +
+                    '<div class="result-row" style="margin-top:10px; color:var(--green);">International cards are working. This $1 charge confirms end-to-end Razorpay Live processing.</div>';
+                resultBox.classList.add('visible');
+            },
+            modal: {
+                ondismiss: function() {
+                    btn.textContent = 'Pay $1 — Live Test';
+                    btn.disabled = false;
+                }
+            }
+        });
+
+        rzp.on('payment.failed', function(response) {
+            var err = response.error || {};
+            btn.textContent = 'Pay $1 — Live Test';
+            btn.disabled = false;
+            resultContent.innerHTML =
+                '<div style="color:var(--red); font-weight:700; margin-bottom:10px;">✗ Payment failed</div>' +
+                '<div class="result-row">code: <span>' + (err.code || '—') + '</span></div>' +
+                '<div class="result-row">reason: <span>' + (err.description || '—') + '</span></div>';
+            resultBox.classList.add('visible');
+        });
+
+        rzp.open();
+    })
+    .catch(function(err) {
+        var msg = err.status === 401 ? 'Sign in as admin first'
+                : err.status === 503 ? 'Razorpay not configured'
+                : err.message;
+        resultContent.innerHTML = '<div style="color:var(--red); font-weight:700;">✗ ' + msg + '</div>';
+        resultBox.classList.add('visible');
+        btn.textContent = 'Pay $1 — Live Test';
+        btn.disabled = false;
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadKeyStatus();
+    checkAuth();
+
+    document.getElementById('payBtn').addEventListener('click', startPayment);
+});
+</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

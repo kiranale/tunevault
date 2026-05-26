@@ -1,0 +1,390 @@
+<\!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oracle EBS OPP Tuning Runbook — Output Post Processor Fix | TuneVault</title>
+    <meta name="description" content="Fix Oracle EBS Output Post Processor (OPP) issues: queue backlog, deadlocked workers, post-processing failures. Step-by-step diagnosis, OPP restart, and thread count tuning for EBS 12.1 and 12.2.">
+    <meta name="author" content="TuneVault">
+    <link rel="canonical" href="https://tunevault.app/resources/runbooks/opp-tuning-ebs">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <meta property="og:title" content="Oracle EBS OPP Tuning Runbook — TuneVault">
+    <meta property="og:description" content="OPP queue backlog or deadlocked workers? Production-tested diagnosis and tuning for Oracle EBS Output Post Processor.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://tunevault.app/resources/runbooks/opp-tuning-ebs">
+    <meta property="og:site_name" content="TuneVault">
+    <meta property="og:image" content="https://tunevault.app/og/runbook.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="Oracle DBA Runbook — TuneVault production-tested recovery guide">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://tunevault.app/og/runbook.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://tunevault.app/#organization",
+          "name": "TuneVault",
+          "url": "https://tunevault.app",
+          "logo": { "@type": "ImageObject", "url": "https://tunevault.app/logo.png" },
+          "description": "AI agent for Oracle database operations.",
+          "foundingDate": "2026",
+          "founder": { "@type": "Person", "name": "Kiran Kumar Ale", "url": "https://tunevault.app/about" },
+          "contactPoint": { "@type": "ContactPoint", "email": "hello@tunevault.app", "contactType": "customer support" }
+        },
+        {
+          "@type": "TechArticle",
+          "@id": "https://tunevault.app/resources/runbooks/opp-tuning-ebs#article",
+          "headline": "Oracle EBS OPP (Output Post Processor) Tuning Runbook",
+          "description": "Diagnose and fix OPP queue backlog, deadlocked workers, and post-processing failures in Oracle EBS 12.1 and 12.2.",
+          "url": "https://tunevault.app/resources/runbooks/opp-tuning-ebs",
+          "datePublished": "2026-05-15",
+          "dateModified": "2026-05-15",
+          "author": { "@type": "Person", "name": "Kiran Kumar Ale", "url": "https://tunevault.app/about" },
+          "publisher": { "@id": "https://tunevault.app/#organization" },
+          "about": [
+            { "@type": "Thing", "name": "Oracle EBS" },
+            { "@type": "Thing", "name": "Output Post Processor" },
+            { "@type": "Thing", "name": "Concurrent Manager" }
+          ]
+        }
+      ]
+    }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+    <style>
+        :root{--bg:#0a0a0c;--surface:#111114;--surface2:#18181c;--border:#2a2a30;--text:#e8e8ed;--text-dim:#9898a8;--accent:#f0a830;--accent-dim:rgba(240,168,48,0.12);--red:#f87171;--red-dim:rgba(248,113,113,0.1);--green:#4ade80;--green-dim:rgba(74,222,128,0.1);--blue:#60a5fa;--blue-dim:rgba(96,165,250,0.1);}
+        *{box-sizing:border-box;margin:0;padding:0;}
+        body{background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif;line-height:1.7;}
+        a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
+        nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+        .nav-logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;color:var(--text);text-decoration:none;}
+        .nav-logo-icon{width:28px;height:28px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:13px;color:#0a0a0c;font-weight:700;}
+        .nav-links{display:flex;align-items:center;gap:20px;}.nav-links a{font-size:13px;color:var(--text-dim);transition:color 0.15s;}.nav-links a:hover{color:var(--text);text-decoration:none;}
+        .nav-cta{background:var(--accent);color:#0a0a0c \!important;padding:6px 16px;border-radius:6px;font-weight:600;font-size:13px \!important;}
+        .page-wrap{max-width:820px;margin:0 auto;padding:48px 24px 80px;}
+        .breadcrumb{font-size:13px;color:var(--text-dim);margin-bottom:32px;}.breadcrumb a{color:var(--text-dim);}.breadcrumb a:hover{color:var(--accent);}.breadcrumb span{margin:0 6px;}
+        .article-tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:3px 10px;border-radius:20px;background:var(--accent-dim);color:var(--accent);margin-bottom:16px;}
+        h1{font-size:clamp(26px,4vw,40px);font-weight:700;line-height:1.2;margin-bottom:16px;}
+        .article-meta{display:flex;gap:20px;flex-wrap:wrap;font-size:13px;color:var(--text-dim);margin-bottom:40px;}
+        .toc{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 24px;margin-bottom:40px;}
+        .toc-title{font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-dim);margin-bottom:12px;}
+        .toc ol{padding-left:20px;}.toc li{margin-bottom:6px;}.toc a{font-size:14px;color:var(--text-dim);}.toc a:hover{color:var(--accent);}
+        h2{font-size:22px;font-weight:700;margin:48px 0 16px;padding-top:32px;color:var(--text);border-top:1px solid var(--border);}
+        h3{font-size:17px;font-weight:600;margin:28px 0 12px;color:var(--text);}
+        p{margin-bottom:16px;color:var(--text);font-size:15px;}
+        ul,ol{padding-left:22px;margin-bottom:16px;}li{margin-bottom:8px;font-size:15px;}
+        pre{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:18px 20px;overflow-x:auto;margin:16px 0 24px;}
+        code{font-family:'JetBrains Mono',monospace;font-size:13px;color:#93c5fd;line-height:1.6;}
+        p code,li code{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:12.5px;color:#93c5fd;}
+        .comment{color:#6b7280;}.keyword{color:#f0a830;}.string{color:#4ade80;}
+        .callout{border-radius:10px;padding:18px 20px;margin:20px 0;font-size:14px;}
+        .callout-critical{background:var(--red-dim);border:1px solid rgba(248,113,113,0.3);}
+        .callout-warning{background:var(--accent-dim);border:1px solid rgba(240,168,48,0.3);}
+        .callout-info{background:var(--blue-dim);border:1px solid rgba(96,165,250,0.3);}
+        .callout-success{background:var(--green-dim);border:1px solid rgba(74,222,128,0.3);}
+        .callout-title{font-weight:700;margin-bottom:6px;}
+        .callout-critical .callout-title{color:var(--red);}.callout-warning .callout-title{color:var(--accent);}.callout-info .callout-title{color:var(--blue);}.callout-success .callout-title{color:var(--green);}
+        .cta-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:32px;text-align:center;margin:48px 0;}
+        .cta-box h3{font-size:20px;margin-bottom:8px;}.cta-box p{color:var(--text-dim);margin-bottom:20px;font-size:14px;}
+        .cta-btn{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#0a0a0c;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;transition:background 0.15s;}
+        .cta-btn:hover{background:#e09820;text-decoration:none;}
+        .nav-footer{display:flex;justify-content:space-between;gap:16px;margin-top:48px;padding-top:32px;border-top:1px solid var(--border);flex-wrap:wrap;}
+        .nav-footer a{font-size:14px;font-weight:500;color:var(--text-dim);}
+        .nav-footer a:hover{color:var(--accent);text-decoration:none;}
+        footer{border-top:1px solid var(--border);padding:32px 24px;text-align:center;font-size:13px;color:var(--text-dim);}
+        .footer-links{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin-bottom:12px;}
+        .footer-links a{color:var(--text-dim);}
+        @media(max-width:600px){.page-wrap{padding:32px 16px 60px;}}
+    </style>
+</head>
+<body>
+
+<nav>
+    <a href="/" class="nav-logo">
+        <div class="nav-logo-icon">TV</div>
+        TuneVault
+    </a>
+    <div class="nav-links">
+        <a href="/resources/runbooks">Runbooks</a>
+        <a href="/blog">Blog</a>
+        <a href="/signup?path=health-check&redirect=/dashboard" class="nav-cta">Start Free</a>
+    </div>
+</nav>
+
+<div class="page-wrap">
+
+    <div class="breadcrumb">
+        <a href="/">TuneVault</a>
+        <span>›</span>
+        <a href="/resources/runbooks">Runbooks</a>
+        <span>›</span>
+        OPP Tuning for EBS
+    </div>
+
+    <div class="article-tag">⚙️ EBS / OPP</div>
+    <h1>OPP Tuning for Oracle EBS Runbook</h1>
+    <div class="article-meta">
+        <span>⏱ 15–45 min</span>
+        <span>EBS 12.1 / 12.2</span>
+        <span>Updated 2026-05-15</span>
+    </div>
+
+    <div class="toc">
+        <div class="toc-title">In this runbook</div>
+        <ol>
+            <li><a href="#what-is-opp">What is OPP and why it fails</a></li>
+            <li><a href="#symptoms">Symptoms</a></li>
+            <li><a href="#diagnose">Diagnose: OPP status and queue</a></li>
+            <li><a href="#clear-queue">Clear stuck OPP requests</a></li>
+            <li><a href="#restart-opp">Restart OPP</a></li>
+            <li><a href="#tune-threads">Tune OPP thread count</a></li>
+            <li><a href="#verify">Verify and monitor</a></li>
+        </ol>
+    </div>
+
+    <h2 id="what-is-opp">1. What is OPP and Why It Fails</h2>
+
+    <p>The Output Post Processor (OPP) is a specialised Concurrent Manager service responsible for post-processing output from Concurrent Request runs — primarily PDF and XML Publisher (BI Publisher) output generation. When a request completes, OPP converts XML output to the final delivery format (PDF, HTML, Excel) using BI Publisher templates.</p>
+
+    <p>OPP failures affect <strong>any report using BI Publisher / XML Publisher</strong> in EBS. Users see requests completing with "Warning" or "Error" status even though the underlying concurrent request ran successfully.</p>
+
+    <p>Common causes of OPP failures:</p>
+    <ul>
+        <li><strong>Thread starvation:</strong> OPP is configured with too few worker threads (default: 1). During report bursts, the queue backs up.</li>
+        <li><strong>Memory exhaustion:</strong> Large reports cause the OPP JVM to run out of heap memory (OOM), killing worker threads.</li>
+        <li><strong>Template corruption:</strong> A bad BI Publisher template causes OPP to hang on that request indefinitely.</li>
+        <li><strong>APPS schema issues:</strong> OPP cannot connect to APPS schema (password change, locked account).</li>
+        <li><strong>Temp directory full:</strong> OPP writes intermediate files to <code>$APPLPTMP</code> — if the filesystem is full, all processing stops.</li>
+    </ul>
+
+    <h2 id="symptoms">2. Symptoms</h2>
+
+    <ul>
+        <li>Concurrent requests complete with "Warning: Post Processing failed" or "Error" status</li>
+        <li>Users cannot view output files for completed requests</li>
+        <li>Output files show as "Unavailable" in the Request Completion window</li>
+        <li>OPP queue depth climbing in TuneVault EBS health check</li>
+        <li>CM log shows: <code>OPP service deactivated</code> or <code>Post Processing Agent not responding</code></li>
+        <li>In <code>FNDOPP</code> log: <code>java.lang.OutOfMemoryError</code></li>
+    </ul>
+
+    <h2 id="diagnose">3. Diagnose: OPP Status and Queue</h2>
+
+    <h3>3a. Check OPP service status in EBS</h3>
+    <pre><code><span class="comment">-- OPP manager status (check ACTIVE_PROCESSES)</span>
+<span class="keyword">SELECT</span>
+  cm.concurrent_queue_name,
+  cm.description,
+  cm.max_processes,
+  cm.running_processes,
+  cm.worker_count
+<span class="keyword">FROM</span> apps.fnd_concurrent_queues cm
+<span class="keyword">WHERE</span> cm.concurrent_queue_name = <span class="string">'FNDOPP'</span>;</code></pre>
+
+    <h3>3b. Check OPP queue depth</h3>
+    <pre><code><span class="comment">-- Count requests waiting for OPP post-processing</span>
+<span class="keyword">SELECT</span> COUNT(*)
+<span class="keyword">FROM</span> apps.fnd_concurrent_requests
+<span class="keyword">WHERE</span> phase_code = <span class="string">'C'</span>   <span class="comment">-- Completed</span>
+  <span class="keyword">AND</span> status_code = <span class="string">'C'</span>   <span class="comment">-- Completed (waiting for post-processing)</span>
+  <span class="keyword">AND</span> print_group IS NOT NULL;
+
+<span class="comment">-- Detail: top requests in OPP queue</span>
+<span class="keyword">SELECT</span>
+  r.request_id,
+  r.concurrent_program_id,
+  p.user_concurrent_program_name,
+  r.requested_start_date,
+  r.actual_completion_date,
+  r.status_code,
+  r.completion_text
+<span class="keyword">FROM</span> apps.fnd_concurrent_requests r
+<span class="keyword">JOIN</span> apps.fnd_concurrent_programs_vl p
+  <span class="keyword">ON</span> p.concurrent_program_id = r.concurrent_program_id
+  <span class="keyword">AND</span> p.application_id = r.program_application_id
+<span class="keyword">WHERE</span> r.status_code <span class="keyword">IN</span> (<span class="string">'D'</span>, <span class="string">'Z'</span>)  <span class="comment">-- Pending post-processing</span>
+<span class="keyword">ORDER BY</span> r.actual_completion_date
+<span class="keyword">FETCH FIRST</span> 20 <span class="keyword">ROWS ONLY</span>;</code></pre>
+
+    <h3>3c. Check OPP log for errors</h3>
+    <pre><code><span class="comment">-- Find latest OPP log file on the apps tier</span>
+<span class="comment">-- As applmgr OS user:</span>
+<span class="comment">-- ls -lt $APPLLOG/FNDOPP*.log | head -5</span>
+<span class="comment">-- tail -200 $APPLLOG/FNDOPP_PID.log</span>
+
+<span class="comment">-- Look for these key patterns:</span>
+<span class="comment">-- "java.lang.OutOfMemoryError" → heap issue, increase JVM memory</span>
+<span class="comment">-- "ORA-01017" → APPS password authentication failed</span>
+<span class="comment">-- "UNABLE_TO_GET_DATA" → template not found or corrupted</span>
+<span class="comment">-- "Deactivated by Administrator" → manually deactivated</span></code></pre>
+
+    <h3>3d. Check temp directory space</h3>
+    <pre><code><span class="comment">-- Check APPLPTMP filesystem usage (as applmgr OS user)</span>
+<span class="comment">-- echo $APPLPTMP</span>
+<span class="comment">-- df -h $APPLPTMP</span>
+
+<span class="comment">-- Clean old temp files if disk is full</span>
+<span class="comment">-- find $APPLPTMP -name "*.tmp" -mtime +1 -delete</span>
+<span class="comment">-- find $APPLPTMP -name "*.pdf" -mtime +7 -delete</span></code></pre>
+
+    <h2 id="clear-queue">4. Clear Stuck OPP Requests</h2>
+
+    <div class="callout callout-warning">
+        <div class="callout-title">⚠️ Before clearing the queue</div>
+        Identify if there is a specific request causing OPP to hang. A single corrupted template can block all subsequent requests. Clearing the queue without removing the problem request will result in it immediately getting stuck again.
+    </div>
+
+    <pre><code><span class="comment">-- Find requests stuck in post-processing for more than 30 minutes</span>
+<span class="keyword">SELECT</span>
+  r.request_id,
+  p.user_concurrent_program_name,
+  r.actual_completion_date,
+  ROUND((SYSDATE - r.actual_completion_date) * 1440, 0) AS mins_waiting,
+  r.status_code
+<span class="keyword">FROM</span> apps.fnd_concurrent_requests r
+<span class="keyword">JOIN</span> apps.fnd_concurrent_programs_vl p
+  <span class="keyword">ON</span> p.concurrent_program_id = r.concurrent_program_id
+  <span class="keyword">AND</span> p.application_id = r.program_application_id
+<span class="keyword">WHERE</span> r.status_code = <span class="string">'Z'</span>
+  <span class="keyword">AND</span> (SYSDATE - r.actual_completion_date) * 1440 &gt; 30
+<span class="keyword">ORDER BY</span> r.actual_completion_date;
+
+<span class="comment">-- Mark a specific stuck request as errored to unblock the queue</span>
+<span class="comment">-- Replace 12345 with the actual request_id</span>
+<span class="keyword">UPDATE</span> apps.fnd_concurrent_requests
+<span class="keyword">SET</span> status_code = <span class="string">'E'</span>, completion_text = <span class="string">'Manually cleared - OPP recovery'</span>
+<span class="keyword">WHERE</span> request_id = 12345
+  <span class="keyword">AND</span> status_code = <span class="string">'Z'</span>;
+<span class="keyword">COMMIT</span>;</code></pre>
+
+    <h2 id="restart-opp">5. Restart OPP</h2>
+
+    <h3>5a. Restart via EBS System Administrator</h3>
+    <p>Preferred method for production:</p>
+    <ol>
+        <li>Log in to EBS as System Administrator</li>
+        <li>Navigate to: <strong>Concurrent → Manager → Administer</strong></li>
+        <li>Find <strong>Output Post Processor</strong> in the list</li>
+        <li>Click <strong>Deactivate</strong>, wait for processes to stop</li>
+        <li>Click <strong>Activate</strong></li>
+    </ol>
+
+    <h3>5b. Restart via SQL (when UI is inaccessible)</h3>
+    <pre><code><span class="comment">-- Deactivate OPP via SQL</span>
+<span class="keyword">UPDATE</span> apps.fnd_concurrent_queues
+<span class="keyword">SET</span> running_processes = 0, max_processes = 0
+<span class="keyword">WHERE</span> concurrent_queue_name = <span class="string">'FNDOPP'</span>;
+<span class="keyword">COMMIT</span>;
+
+<span class="comment">-- Wait 30 seconds for processes to stop, then reactivate</span>
+<span class="keyword">UPDATE</span> apps.fnd_concurrent_queues
+<span class="keyword">SET</span> max_processes = 1  <span class="comment">-- or your target thread count</span>
+<span class="keyword">WHERE</span> concurrent_queue_name = <span class="string">'FNDOPP'</span>;
+<span class="keyword">COMMIT</span>;</code></pre>
+
+    <h3>5c. Bounce OPP from OS (last resort)</h3>
+    <pre><code><span class="comment">-- As applmgr OS user, source EBS environment first</span>
+<span class="comment">-- . /u01/oracle/ebs/EBSapps.env run</span>
+
+<span class="comment">-- Stop OPP</span>
+<span class="comment">-- cmctl stop FNDOPP</span>
+
+<span class="comment">-- Verify it stopped</span>
+<span class="comment">-- ps -ef | grep FNDOPP</span>
+
+<span class="comment">-- Start OPP</span>
+<span class="comment">-- cmctl start FNDOPP</span></code></pre>
+
+    <h2 id="tune-threads">6. Tune OPP Thread Count</h2>
+
+    <p>The default OPP thread count of 1 is insufficient for environments with heavy BI Publisher usage. Recommended values:</p>
+    <ul>
+        <li><strong>Low volume</strong> (fewer than 50 XML Publisher reports/day): 1–2 threads</li>
+        <li><strong>Medium volume</strong> (50–200 reports/day): 3–5 threads</li>
+        <li><strong>High volume</strong> (200+ reports/day): 5–10 threads</li>
+    </ul>
+
+    <pre><code><span class="comment">-- Increase OPP max processes</span>
+<span class="keyword">UPDATE</span> apps.fnd_concurrent_queues
+<span class="keyword">SET</span> max_processes = 5,    <span class="comment">-- target thread count</span>
+    worker_count = 5
+<span class="keyword">WHERE</span> concurrent_queue_name = <span class="string">'FNDOPP'</span>;
+<span class="keyword">COMMIT</span>;
+
+<span class="comment">-- Restart OPP for the change to take effect (use method from Step 5)</span></code></pre>
+
+    <h3>6b. Increase OPP JVM heap (for OOM errors)</h3>
+    <pre><code><span class="comment">-- Find OPP JVM args profile option</span>
+<span class="keyword">SELECT</span> profile_option_value
+<span class="keyword">FROM</span> apps.fnd_profile_option_values
+<span class="keyword">WHERE</span> profile_option_id = (
+  <span class="keyword">SELECT</span> profile_option_id
+  <span class="keyword">FROM</span> apps.fnd_profile_options
+  <span class="keyword">WHERE</span> profile_option_name = <span class="string">'FND_OPP_USE_JVM'</span>
+);
+
+<span class="comment">-- In EBS: System Admin → Profiles → System</span>
+<span class="comment">-- Profile: FND: Output Post Processor JVM Parameters</span>
+<span class="comment">-- Add: -Xmx1024m (increase from default 512m to 1024m)</span></code></pre>
+
+    <h2 id="verify">7. Verify and Monitor</h2>
+
+    <pre><code><span class="comment">-- Confirm OPP is running with correct thread count</span>
+<span class="keyword">SELECT</span>
+  concurrent_queue_name,
+  running_processes,
+  max_processes,
+  worker_count
+<span class="keyword">FROM</span> apps.fnd_concurrent_queues
+<span class="keyword">WHERE</span> concurrent_queue_name = <span class="string">'FNDOPP'</span>;
+
+<span class="comment">-- Test: submit a simple BI Publisher report and verify it completes</span>
+<span class="comment">-- Check: status_code should move from Z to C (completed) within a minute</span>
+<span class="keyword">SELECT</span> request_id, status_code, completion_text
+<span class="keyword">FROM</span> apps.fnd_concurrent_requests
+<span class="keyword">WHERE</span> request_id = &YOUR_TEST_REQUEST_ID;</code></pre>
+
+    <div class="callout callout-success">
+        <div class="callout-title">✅ OPP health checklist</div>
+        <ul style="margin:8px 0 0 20px;">
+            <li>OPP running with at least 3 processes for medium-volume EBS</li>
+            <li>JVM heap at least 1GB (<code>-Xmx1024m</code>)</li>
+            <li><code>$APPLPTMP</code> filesystem monitored and purged weekly</li>
+            <li>TuneVault health check monitoring OPP queue depth</li>
+            <li>Alert when queue depth exceeds 50 requests</li>
+        </ul>
+    </div>
+
+    <div class="cta-box">
+        <h3>Monitor OPP automatically</h3>
+        <p>TuneVault's EBS health checks include OPP queue depth, process count, and error rates — visible on every health check run.</p>
+        <a href="/signup?path=health-check&redirect=/dashboard" class="cta-btn">Run a Free Health Check →</a>
+    </div>
+
+    <div class="nav-footer">
+        <a href="/resources/runbooks/archive-log-destination-full">← Archive Log Destination Full</a>
+        <a href="/resources/runbooks/workflow-mailer-smtp-recovery">Workflow Mailer Recovery →</a>
+    </div>
+
+</div>
+
+<footer>
+    <div class="footer-links">
+        <a href="/">TuneVault</a>
+        <a href="/resources/runbooks">Runbooks</a>
+        <a href="/blog">Blog</a>
+        <a href="/compare">Compare Tools</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/about">About</a>
+        <a href="/privacy">Privacy</a>
+    </div>
+    <p style="margin-top:12px;">© 2026 TuneVault · <a href="mailto:hello@tunevault.app">hello@tunevault.app</a></p>
+</footer>
+
+</body>
+</html>

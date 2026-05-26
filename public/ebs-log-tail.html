@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Log Tailing — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c;
+      --surface: #111114;
+      --surface-2: #1a1a1f;
+      --border: #2a2a30;
+      --text: #e8e8ed;
+      --text-dim: #b8b8c8;
+      --accent: #f0a830;
+      --accent-dim: rgba(240,168,48,0.12);
+      --green: #34d399;
+      --green-dim: rgba(52,211,153,0.12);
+      --red: #f87171;
+      --red-dim: rgba(248,113,113,0.12);
+      --yellow: #fbbf24;
+      --yellow-dim: rgba(251,191,36,0.12);
+      --blue: #60a5fa;
+      --blue-dim: rgba(96,165,250,0.12);
+      --purple: #a78bfa;
+    }
+    body {
+      font-family: 'Space Grotesk', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    .grain {
+      position: fixed; top:0; left:0; right:0; bottom:0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 999;
+    }
+    .page-wrap { max-width: 1400px; margin: 0 auto; padding: 32px 24px 80px; }
+
+    /* ── Top bar ── */
+    .topbar {
+      display: flex; align-items: flex-start; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;
+    }
+    .topbar-title h1 { font-size: 22px; font-weight: 700; }
+    .topbar-title p { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+
+    .controls {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-left: auto;
+    }
+    select.ctrl {
+      background: var(--surface); border: 1px solid var(--border); color: var(--text);
+      font-family: inherit; font-size: 13px; padding: 8px 12px; border-radius: 8px;
+      cursor: pointer; min-width: 200px;
+    }
+    select.ctrl:focus { outline: none; border-color: var(--accent); }
+
+    /* ── Two-col layout ── */
+    .layout { display: grid; grid-template-columns: 260px 1fr; gap: 20px; align-items: start; }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+    /* ── Log key sidebar ── */
+    .sidebar { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+    .sidebar-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+                     color: var(--text-dim); margin-bottom: 12px; }
+    .cat-label {
+      font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--text-dim); padding: 6px 0 4px; margin-top: 8px;
+    }
+    .cat-label:first-child { margin-top: 0; }
+    .log-btn {
+      display: block; width: 100%; text-align: left; background: none; border: 1px solid transparent;
+      color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 11.5px;
+      padding: 6px 10px; border-radius: 6px; cursor: pointer; transition: all 0.12s;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .log-btn:hover { background: var(--surface-2); border-color: var(--border); }
+    .log-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+
+    /* ── Terminal panel ── */
+    .terminal-wrap {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      display: flex; flex-direction: column; overflow: hidden; min-height: 520px;
+    }
+    .terminal-header {
+      display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+      border-bottom: 1px solid var(--border); background: var(--surface-2); flex-wrap: wrap;
+    }
+    .terminal-header .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .dot-red    { background: #ef4444; }
+    .dot-yellow { background: #eab308; }
+    .dot-green  { background: #22c55e; }
+    .terminal-log-name {
+      font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); flex: 1;
+      min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .terminal-status {
+      font-size: 11px; padding: 3px 8px; border-radius: 20px;
+      font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .status-idle    { background: var(--surface); color: var(--text-dim); border: 1px solid var(--border); }
+    .status-live    { background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,0.3); }
+    .status-stopped { background: var(--red-dim); color: var(--red); border: 1px solid rgba(248,113,113,0.3); }
+    .status-proxy   { background: var(--yellow-dim); color: var(--yellow); border: 1px solid rgba(251,191,36,0.3); }
+
+    .btn-sm {
+      font-family: inherit; font-size: 12px; font-weight: 500; padding: 5px 12px;
+      border-radius: 6px; cursor: pointer; border: 1px solid; transition: all 0.15s;
+    }
+    .btn-stop  { background: var(--red-dim); color: var(--red); border-color: rgba(248,113,113,0.3); }
+    .btn-stop:hover  { background: rgba(248,113,113,0.2); }
+    .btn-copy  { background: var(--surface); color: var(--text-dim); border-color: var(--border); }
+    .btn-copy:hover  { color: var(--text); }
+    .btn-clear { background: var(--surface); color: var(--text-dim); border-color: var(--border); }
+    .btn-clear:hover { color: var(--text); }
+    .btn-auto  { background: var(--green-dim); color: var(--green); border-color: rgba(52,211,153,0.3); }
+    .btn-auto.off { background: var(--surface); color: var(--text-dim); border-color: var(--border); }
+
+    .terminal-body {
+      flex: 1; overflow-y: auto; padding: 12px 0; background: #0d0d10;
+      font-family: 'JetBrains Mono', monospace; font-size: 12.5px; line-height: 1.7;
+      min-height: 400px; max-height: 65vh;
+    }
+    .terminal-body::-webkit-scrollbar { width: 6px; }
+    .terminal-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .log-line {
+      display: flex; gap: 8px; padding: 0 16px;
+      transition: background 0.05s;
+    }
+    .log-line:hover { background: rgba(255,255,255,0.02); }
+    .log-ts { color: #3a3a50; font-size: 11px; flex-shrink: 0; user-select: none; padding-top: 1px; }
+    .log-text { flex: 1; white-space: pre-wrap; word-break: break-all; }
+
+    /* Color coding */
+    .log-line.line-error  .log-text { color: var(--red); }
+    .log-line.line-warn   .log-text { color: var(--yellow); }
+    .log-line.line-info   .log-text { color: var(--blue); }
+    .log-line.line-ok     .log-text { color: var(--green); }
+    .log-line.line-meta   .log-text { color: var(--text-dim); font-style: italic; }
+
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100%; min-height: 300px; gap: 12px; color: var(--text-dim);
+    }
+    .empty-state .icon { font-size: 36px; opacity: 0.4; }
+    .empty-state h3 { font-size: 15px; font-weight: 600; }
+    .empty-state p { font-size: 12px; text-align: center; max-width: 280px; }
+
+    /* ── Line counter ── */
+    .terminal-footer {
+      border-top: 1px solid var(--border); padding: 8px 16px;
+      display: flex; align-items: center; gap: 12px; background: var(--surface-2);
+    }
+    .footer-stat { font-size: 11px; color: var(--text-dim); }
+    .footer-stat span { color: var(--text); font-weight: 500; }
+
+    /* ── No-connection banner ── */
+    .banner {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      padding: 20px 24px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;
+    }
+    .banner-icon { font-size: 20px; }
+    .banner p { font-size: 13px; color: var(--text-dim); }
+    .banner a { color: var(--accent); }
+    .banner.hidden { display: none; }
+
+    /* ── SSH target picker ── */
+    .target-row {
+      display: flex; align-items: center; gap: 10px; padding: 10px 0;
+      border-bottom: 1px solid var(--border); font-size: 13px;
+    }
+    .target-row:last-child { border-bottom: none; }
+    .target-badge {
+      font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600;
+      background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(240,168,48,0.3);
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+<div class="grain"></div>
+
+<nav id="nav-root"></nav>
+
+<div class="page-wrap">
+  <div class="topbar">
+    <div class="topbar-title">
+      <h1>Live Log Tailing</h1>
+      <p>Stream EBS log files in real-time — oacore, Apache, OPMN, ADOP, CM and more</p>
+    </div>
+    <div class="controls">
+      <select id="connSelect" class="ctrl">
+        <option value="">— Select connection —</option>
+      </select>
+      <select id="targetSelect" class="ctrl" style="min-width: 180px;" disabled>
+        <option value="">— SSH target —</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="noBanner" class="banner">
+    <span class="banner-icon">ℹ️</span>
+    <p>Select an EBS connection with an <strong>apps_tier</strong> SSH target to start tailing logs.
+       Configure SSH targets at <a href="/settings/ssh-targets">Settings → SSH Targets</a>.</p>
+  </div>
+
+  <div class="layout">
+    <!-- Sidebar: log key buttons -->
+    <div class="sidebar">
+      <div class="sidebar-title">Available logs</div>
+      <div id="logList"><div style="font-size:12px;color:var(--text-dim);">Select a connection first</div></div>
+    </div>
+
+    <!-- Terminal pane -->
+    <div class="terminal-wrap">
+      <div class="terminal-header">
+        <div class="dot dot-red"></div>
+        <div class="dot dot-yellow"></div>
+        <div class="dot dot-green"></div>
+        <span class="terminal-log-name" id="termLogName">No log selected</span>
+        <span class="terminal-status status-idle" id="termStatus">Idle</span>
+        <button class="btn-sm btn-auto" id="btnAutoScroll" title="Toggle auto-scroll">↓ Auto</button>
+        <button class="btn-sm btn-copy" id="btnCopy">Copy</button>
+        <button class="btn-sm btn-clear" id="btnClear">Clear</button>
+        <button class="btn-sm btn-stop" id="btnStop" disabled>■ Stop</button>
+      </div>
+      <div class="terminal-body" id="termBody">
+        <div class="empty-state">
+          <div class="icon">📋</div>
+          <h3>No log stream active</h3>
+          <p>Pick a connection and SSH target, then click a log button on the left to start tailing.</p>
+        </div>
+      </div>
+      <div class="terminal-footer">
+        <span class="footer-stat">Lines: <span id="lineCount">0</span></span>
+        <span class="footer-stat">Bytes: <span id="byteCount">0</span></span>
+        <span class="footer-stat" id="footerTime" style="margin-left:auto;"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/connection-state.js"></script>
+<script src="/nav-component.js"></script>
+<script>
+window.tvNav.init('ebs-log-tail');
+
+
+(function () {
+  'use strict';
+
+  // ── State ────────────────────────────────────────────────────────────────────
+  let connections  = [];
+  let catalog      = {};
+  let activeConnId = null;
+  let activeTargetId = null;
+  let activeLogKey = null;
+  let activeES     = null;
+  let autoScroll   = true;
+  let lineCount    = 0;
+  let byteCount    = 0;
+  let startTime    = null;
+  let footerTimer  = null;
+
+  const connSelect   = document.getElementById('connSelect');
+  const targetSelect = document.getElementById('targetSelect');
+  const termBody     = document.getElementById('termBody');
+  const termLogName  = document.getElementById('termLogName');
+  const termStatus   = document.getElementById('termStatus');
+  const logList      = document.getElementById('logList');
+  const btnStop      = document.getElementById('btnStop');
+  const btnCopy      = document.getElementById('btnCopy');
+  const btnClear     = document.getElementById('btnClear');
+  const btnAutoScroll= document.getElementById('btnAutoScroll');
+  const lineCountEl  = document.getElementById('lineCount');
+  const byteCountEl  = document.getElementById('byteCount');
+  const footerTimeEl = document.getElementById('footerTime');
+  const noBanner     = document.getElementById('noBanner');
+
+  // ── API helpers ──────────────────────────────────────────────────────────────
+  async function apiFetch(url) {
+    const r = await fetch(url, { credentials: 'include' });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  }
+
+  // ── Load connections ─────────────────────────────────────────────────────────
+  async function loadConnections() {
+    try {
+      const data = await apiFetch('/api/connections');
+      connections = tvConn.parseList(data);
+      connSelect.innerHTML = '<option value="">— Select connection —</option>';
+      const ebsConns = connections.filter(c => c.ebs_detected || c.ebs_login_url);
+      const allConns = connections;
+      (ebsConns.length ? ebsConns : allConns).forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = `${c.name || c.host} — ${c.host}`;
+        connSelect.appendChild(opt);
+      });
+      tvConn.bind(connSelect, connections);
+      if (connSelect.value) {
+        activeConnId = connSelect.value;
+        await loadTargets(activeConnId);
+        renderLogList();
+      }
+    } catch (e) {
+      console.error('Failed to load connections:', e);
+    }
+  }
+
+  // ── Load catalog ─────────────────────────────────────────────────────────────
+  async function loadCatalog() {
+    try {
+      const data = await apiFetch('/api/ssh-tail/catalog');
+      catalog = data.grouped || {};
+      renderLogList();
+    } catch (e) {
+      logList.innerHTML = '<div style="font-size:12px;color:var(--red-dim);">Failed to load catalog</div>';
+    }
+  }
+
+  // ── Load SSH targets for connection ──────────────────────────────────────────
+  async function loadTargets(connId) {
+    targetSelect.innerHTML = '<option value="">Loading…</option>';
+    targetSelect.disabled = true;
+    try {
+      // Try user-scoped then admin-scoped endpoint
+      let targets = [];
+      try {
+        const data = await apiFetch(`/api/user/ssh/targets?connection_id=${connId}`);
+        targets = data.targets || data || [];
+      } catch (_) {
+        const data = await apiFetch(`/api/ssh/targets?connection_id=${connId}`);
+        targets = data.targets || data || [];
+      }
+
+      // Filter to apps_tier targets (log tailing requires apps_tier)
+      const appsTier = targets.filter(t => t.role === 'apps_tier' || !t.role);
+
+      targetSelect.innerHTML = '<option value="">— SSH target —</option>';
+      if (appsTier.length === 0) {
+        targetSelect.innerHTML = '<option value="">No apps_tier target found</option>';
+        noBanner.classList.remove('hidden');
+      } else {
+        noBanner.classList.add('hidden');
+        appsTier.forEach(t => {
+          const opt = document.createElement('option');
+          opt.value = t.id;
+          opt.textContent = `${t.label || t.host} (${t.role || 'apps_tier'})`;
+          targetSelect.appendChild(opt);
+        });
+        // Auto-select if only one
+        if (appsTier.length === 1) {
+          targetSelect.value = appsTier[0].id;
+          activeTargetId = appsTier[0].id;
+        }
+        targetSelect.disabled = false;
+      }
+    } catch (e) {
+      targetSelect.innerHTML = '<option value="">Error loading targets</option>';
+    }
+  }
+
+  // ── Render log list in sidebar ────────────────────────────────────────────────
+  function renderLogList() {
+    if (!activeConnId || !activeTargetId) {
+      logList.innerHTML = '<div style="font-size:12px;color:var(--text-dim);">Select connection + SSH target</div>';
+      return;
+    }
+    logList.innerHTML = '';
+    const categories = Object.keys(catalog);
+    if (categories.length === 0) {
+      logList.innerHTML = '<div style="font-size:12px;color:var(--text-dim);">No logs available</div>';
+      return;
+    }
+    categories.forEach(cat => {
+      const catDiv = document.createElement('div');
+      catDiv.className = 'cat-label';
+      catDiv.textContent = cat;
+      logList.appendChild(catDiv);
+
+      catalog[cat].forEach(entry => {
+        const btn = document.createElement('button');
+        btn.className = 'log-btn' + (entry.key === activeLogKey ? ' active' : '');
+        btn.textContent = entry.label;
+        btn.title = entry.label;
+        btn.dataset.key = entry.key;
+        btn.addEventListener('click', () => startTail(entry.key, entry.label));
+        logList.appendChild(btn);
+      });
+    });
+  }
+
+  // ── Terminal helpers ─────────────────────────────────────────────────────────
+  function classifyLine(text) {
+    const t = text.toLowerCase();
+    if (/\[error\]|\berror\b|exception|fatal|ora-\d{4}|critical/.test(t)) return 'line-error';
+    if (/\[warn\]|\bwarning\b|warn:/.test(t)) return 'line-warn';
+    if (/\[info\]|\binfo\b|started|running|complete|success|\bOK\b/.test(t)) return 'line-info';
+    if (/✓|success|patch applied|finalize complete/.test(t)) return 'line-ok';
+    if (/^\[tail\]/.test(text)) return 'line-meta';
+    return '';
+  }
+
+  function nowTs() {
+    return new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  function appendLine(text, forceCls) {
+    const wasEmpty = termBody.querySelector('.empty-state');
+    if (wasEmpty) termBody.innerHTML = '';
+
+    const cls = forceCls || classifyLine(text);
+    const line = document.createElement('div');
+    line.className = 'log-line' + (cls ? ' ' + cls : '');
+
+    const ts = document.createElement('span');
+    ts.className = 'log-ts';
+    ts.textContent = nowTs();
+
+    const txt = document.createElement('span');
+    txt.className = 'log-text';
+    txt.textContent = text;
+
+    line.appendChild(ts);
+    line.appendChild(txt);
+    termBody.appendChild(line);
+
+    lineCount++;
+    byteCount += text.length + 1;
+    lineCountEl.textContent = lineCount.toLocaleString();
+    byteCountEl.textContent = byteCount > 1024
+      ? (byteCount > 1_048_576 ? (byteCount / 1_048_576).toFixed(1) + ' MB' : (byteCount / 1024).toFixed(1) + ' KB')
+      : byteCount + ' B';
+
+    if (autoScroll) termBody.scrollTop = termBody.scrollHeight;
+  }
+
+  function setStatus(label, cls) {
+    termStatus.textContent = label;
+    termStatus.className = 'terminal-status ' + cls;
+  }
+
+  function startFooterTimer() {
+    clearInterval(footerTimer);
+    startTime = Date.now();
+    footerTimer = setInterval(() => {
+      if (!startTime) return;
+      const sec = Math.floor((Date.now() - startTime) / 1000);
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      footerTimeEl.textContent = `${m}:${String(s).padStart(2,'0')} elapsed`;
+    }, 1000);
+  }
+
+  function stopFooterTimer() {
+    clearInterval(footerTimer);
+    footerTimer = null;
+  }
+
+  // ── Start tail ───────────────────────────────────────────────────────────────
+  function startTail(logKey, logLabel) {
+    if (!activeConnId || !activeTargetId) {
+      alert('Select a connection and SSH target first.');
+      return;
+    }
+
+    // Stop existing stream
+    stopTail();
+
+    activeLogKey = logKey;
+    termLogName.textContent = logLabel;
+    termBody.innerHTML = '';
+    lineCount = 0; byteCount = 0;
+    lineCountEl.textContent = '0';
+    byteCountEl.textContent = '0 B';
+
+    // Update sidebar button states
+    document.querySelectorAll('.log-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.key === logKey);
+    });
+
+    setStatus('Connecting…', 'status-live');
+    btnStop.disabled = false;
+    startFooterTimer();
+
+    const url = `/api/ssh-tail/logs/${activeConnId}/${encodeURIComponent(logKey)}?target_id=${activeTargetId}`;
+    const es = new EventSource(url, { withCredentials: true });
+    activeES = es;
+
+    es.onmessage = (evt) => {
+      try {
+        const msg = JSON.parse(evt.data);
+        if (msg.type === 'line') {
+          appendLine(msg.text);
+        } else if (msg.type === 'info') {
+          appendLine(msg.text, 'line-meta');
+          if (msg.text.includes('proxy')) setStatus('Live (proxy)', 'status-proxy');
+          else if (msg.text.includes('Connected')) setStatus('Live', 'status-live');
+        } else if (msg.type === 'error') {
+          appendLine(msg.text, 'line-error');
+          setStatus('Error', 'status-stopped');
+        } else if (msg.type === 'done') {
+          appendLine(`[session ended: ${msg.reason}]`, 'line-meta');
+          setStatus('Stopped', 'status-stopped');
+          stopFooterTimer();
+          btnStop.disabled = true;
+          activeES = null;
+        }
+      } catch (_) {}
+    };
+
+    es.onerror = () => {
+      if (es.readyState === EventSource.CLOSED) {
+        setStatus('Disconnected', 'status-stopped');
+        appendLine('[connection closed]', 'line-meta');
+        stopFooterTimer();
+        btnStop.disabled = true;
+        activeES = null;
+      }
+    };
+  }
+
+  // ── Stop tail ─────────────────────────────────────────────────────────────────
+  function stopTail() {
+    if (activeES) {
+      activeES.close();
+      activeES = null;
+    }
+    setStatus('Idle', 'status-idle');
+    btnStop.disabled = true;
+    stopFooterTimer();
+  }
+
+  // ── Button handlers ──────────────────────────────────────────────────────────
+  btnStop.addEventListener('click', () => {
+    stopTail();
+    appendLine('[tailing stopped by user]', 'line-meta');
+  });
+
+  btnCopy.addEventListener('click', () => {
+    const lines = Array.from(termBody.querySelectorAll('.log-text')).map(el => el.textContent);
+    navigator.clipboard.writeText(lines.join('\n')).then(() => {
+      btnCopy.textContent = '✓ Copied';
+      setTimeout(() => { btnCopy.textContent = 'Copy'; }, 1500);
+    }).catch(() => {
+      btnCopy.textContent = 'Copy failed';
+      setTimeout(() => { btnCopy.textContent = 'Copy'; }, 1500);
+    });
+  });
+
+  btnClear.addEventListener('click', () => {
+    termBody.innerHTML = '<div class="empty-state"><div class="icon">📋</div><h3>Terminal cleared</h3><p>Stream is still active if the status shows Live.</p></div>';
+    lineCount = 0; byteCount = 0;
+    lineCountEl.textContent = '0';
+    byteCountEl.textContent = '0 B';
+  });
+
+  btnAutoScroll.addEventListener('click', () => {
+    autoScroll = !autoScroll;
+    btnAutoScroll.classList.toggle('off', !autoScroll);
+    btnAutoScroll.textContent = autoScroll ? '↓ Auto' : '↕ Manual';
+  });
+
+  // Pause auto-scroll when user scrolls up manually
+  termBody.addEventListener('scroll', () => {
+    const atBottom = termBody.scrollTop + termBody.clientHeight >= termBody.scrollHeight - 20;
+    if (!atBottom && autoScroll) {
+      autoScroll = false;
+      btnAutoScroll.classList.add('off');
+      btnAutoScroll.textContent = '↕ Manual';
+    } else if (atBottom && !autoScroll) {
+      autoScroll = true;
+      btnAutoScroll.classList.remove('off');
+      btnAutoScroll.textContent = '↓ Auto';
+    }
+  });
+
+  // ── Connection/target selectors ──────────────────────────────────────────────
+  connSelect.addEventListener('change', async () => {
+    activeConnId = connSelect.value || null;
+    if (activeConnId) tvConn.save(activeConnId);
+    activeTargetId = null;
+    targetSelect.value = '';
+    stopTail();
+
+    if (!activeConnId) {
+      noBanner.classList.remove('hidden');
+      targetSelect.disabled = true;
+      targetSelect.innerHTML = '<option value="">— SSH target —</option>';
+      logList.innerHTML = '<div style="font-size:12px;color:var(--text-dim);">Select a connection first</div>';
+      return;
+    }
+
+    await loadTargets(activeConnId);
+    renderLogList();
+  });
+
+  targetSelect.addEventListener('change', () => {
+    activeTargetId = targetSelect.value || null;
+    stopTail();
+    renderLogList();
+    if (!activeTargetId) noBanner.classList.remove('hidden');
+    else noBanner.classList.add('hidden');
+  });
+
+  // ── Init ─────────────────────────────────────────────────────────────────────
+  (async function init() {
+    await Promise.all([loadConnections(), loadCatalog()]);
+    // Pre-select connection if query param present (connection_id takes priority)
+    const params = new URLSearchParams(location.search);
+    const qConn = params.get('connection_id');
+    if (qConn && qConn !== connSelect.value) {
+      connSelect.value = qConn;
+      connSelect.dispatchEvent(new Event('change'));
+    }
+  })();
+})();
+</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

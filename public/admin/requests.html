@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inbound Requests — TuneVault Admin</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="canonical" href="https://tunevault.app/admin/requests">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0c;
+            --surface: #111114;
+            --surface-2: #1a1a1f;
+            --border: #2a2a30;
+            --text: #e8e8ed;
+            --text-dim: #9898a8;
+            --accent: #f0a830;
+            --accent-dim: rgba(240, 168, 48, 0.12);
+            --green: #34d399;
+            --green-dim: rgba(52, 211, 153, 0.12);
+            --red: #f87171;
+            --red-dim: rgba(248, 113, 113, 0.12);
+            --blue: #60a5fa;
+            --blue-dim: rgba(96, 165, 250, 0.12);
+            --purple: #a78bfa;
+            --purple-dim: rgba(167, 139, 250, 0.12);
+            --amber: #fbbf24;
+            --amber-dim: rgba(251, 191, 36, 0.12);
+            --gray: #6b7280;
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .grain {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 48px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: var(--text);
+        }
+
+        .logo-icon {
+            width: 26px;
+            height: 26px;
+            background: var(--accent);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--bg);
+        }
+
+        .nav-meta {
+            font-size: 13px;
+            color: var(--text-dim);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 48px 80px;
+        }
+
+        /* ── Page header ── */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 32px;
+            gap: 20px;
+        }
+
+        .page-header-left h1 {
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: -1px;
+            line-height: 1.2;
+        }
+
+        .page-header-left .subtitle {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-top: 6px;
+        }
+
+        .page-header-left .subtitle strong {
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        /* ── Buttons ── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 12px;
+            font-weight: 500;
+            padding: 7px 14px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text-dim);
+            cursor: pointer;
+            transition: all 0.15s;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .btn:hover { border-color: var(--accent); color: var(--accent); }
+
+        .btn-accent {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: var(--bg);
+            font-weight: 600;
+        }
+        .btn-accent:hover { background: #e09820; border-color: #e09820; color: var(--bg); }
+
+        .btn-danger { color: var(--red); }
+        .btn-danger:hover { border-color: var(--red); color: var(--red); background: var(--red-dim); }
+
+        .btn svg { flex-shrink: 0; }
+        .btn.spinning svg.refresh-icon { animation: spin 0.6s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Stats row ── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 18px;
+            cursor: pointer;
+            transition: border-color 0.15s;
+        }
+
+        .stat-card:hover, .stat-card.active { border-color: currentColor; }
+
+        .stat-card .stat-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .stat-card .stat-count {
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: -1px;
+        }
+
+        .stat-card[data-status="all"] .stat-count { color: var(--text); }
+        .stat-card[data-status="new"] .stat-count { color: var(--accent); }
+        .stat-card[data-status="contacted"] .stat-count { color: var(--blue); }
+        .stat-card[data-status="converted"] .stat-count { color: var(--green); }
+        .stat-card[data-status="stale"] .stat-count { color: var(--text-dim); }
+        .stat-card[data-status="scheduled"] .stat-count { color: var(--purple); }
+        .stat-card[data-status="completed"] .stat-count { color: var(--green); }
+        .stat-card[data-status="closed"] .stat-count { color: var(--text-dim); }
+
+        .stat-card[data-status="all"] { color: var(--text); }
+        .stat-card[data-status="new"] { color: var(--accent); }
+        .stat-card[data-status="contacted"] { color: var(--blue); }
+        .stat-card[data-status="converted"] { color: var(--green); }
+        .stat-card[data-status="stale"] { color: var(--text-dim); }
+
+        /* ── Action bar ── */
+        .action-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .action-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .action-bar-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .filter-select {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 12px;
+            font-weight: 500;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 7px 32px 7px 12px;
+            cursor: pointer;
+            background-color: var(--surface);
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%238888a0' d='M1 3.5l4 4 4-4'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            appearance: none;
+            color: var(--text-dim);
+            transition: border-color 0.15s;
+            outline: none;
+        }
+
+        .filter-select:focus, .filter-select:hover { border-color: var(--accent); color: var(--text); }
+
+        .result-count {
+            font-size: 12px;
+            color: var(--text-dim);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* ── Table ── */
+        .table-wrap {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .table-scroll { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead th {
+            text-align: left;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-dim);
+            padding: 11px 16px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 500;
+            background: var(--surface-2);
+            white-space: nowrap;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid rgba(42, 42, 48, 0.5);
+            transition: background 0.1s;
+        }
+
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: rgba(26, 26, 31, 0.6); }
+
+        td {
+            padding: 13px 16px;
+            font-size: 13px;
+            vertical-align: middle;
+        }
+
+        /* Lead cell */
+        .lead-name {
+            font-weight: 600;
+            color: var(--text);
+            white-space: nowrap;
+        }
+
+        .lead-email {
+            color: var(--accent);
+            font-size: 11px;
+            text-decoration: none;
+            display: block;
+            margin-top: 2px;
+            font-family: 'JetBrains Mono', monospace;
+            white-space: nowrap;
+        }
+
+        .lead-email:hover { text-decoration: underline; }
+
+        /* Company cell */
+        .lead-company {
+            font-size: 13px;
+            color: var(--text);
+            white-space: nowrap;
+        }
+
+        .meta-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--text-dim);
+            background: var(--surface-2);
+            padding: 2px 7px;
+            border-radius: 4px;
+            display: inline-block;
+            margin: 2px 3px 2px 0;
+            white-space: nowrap;
+        }
+
+        /* Source badge */
+        .source-badge {
+            font-size: 11px;
+            font-weight: 500;
+            padding: 3px 9px;
+            border-radius: 100px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            white-space: nowrap;
+        }
+
+        .source-badge.landing { color: var(--purple); border-color: rgba(167,139,250,0.3); background: var(--purple-dim); }
+        .source-badge.form { color: var(--accent); border-color: rgba(240,168,48,0.3); background: var(--accent-dim); }
+        .source-badge.demo { color: var(--blue); border-color: rgba(96,165,250,0.3); background: var(--blue-dim); }
+        .source-badge.direct { color: var(--text-dim); border-color: var(--border); }
+
+        /* Status badge */
+        .status-badge {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 100px;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-badge::before {
+            content: '';
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .status-badge.new { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(240,168,48,0.3); }
+        .status-badge.new::before { background: var(--accent); }
+        .status-badge.contacted { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(251,191,36,0.3); }
+        .status-badge.contacted::before { background: var(--amber); }
+        .status-badge.scheduled { background: var(--purple-dim); color: var(--purple); border: 1px solid rgba(167,139,250,0.3); }
+        .status-badge.scheduled::before { background: var(--purple); }
+        .status-badge.completed, .status-badge.converted { background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,0.3); }
+        .status-badge.completed::before, .status-badge.converted::before { background: var(--green); }
+        .status-badge.stale, .status-badge.closed { background: rgba(107,114,128,0.12); color: var(--gray); border: 1px solid rgba(107,114,128,0.3); }
+        .status-badge.stale::before, .status-badge.closed::before { background: var(--gray); }
+
+        /* Date */
+        .date-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-dim);
+            white-space: nowrap;
+        }
+
+        /* Actions */
+        .action-cell {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .row-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 11px;
+            font-weight: 500;
+            padding: 5px 10px;
+            border-radius: 5px;
+            border: 1px solid var(--border);
+            background: var(--surface-2);
+            color: var(--text-dim);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .row-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .row-btn.reply:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-dim); }
+        .row-btn.mark:hover { border-color: var(--amber); color: var(--amber); background: var(--amber-dim); }
+        .row-btn.del:hover { border-color: var(--red); color: var(--red); background: var(--red-dim); }
+        .row-btn.del { opacity: 0.5; }
+        .row-btn.del:hover { opacity: 1; }
+
+        /* Pain point */
+        .pain-point-text {
+            font-size: 12px;
+            color: var(--text-dim);
+            line-height: 1.5;
+            max-width: 180px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* ── Empty state ── */
+        .empty-state {
+            text-align: center;
+            padding: 80px 40px;
+        }
+
+        .empty-icon {
+            width: 52px;
+            height: 52px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+        }
+
+        .empty-state h3 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+        .empty-state p { font-size: 13px; color: var(--text-dim); line-height: 1.6; max-width: 340px; margin: 0 auto; }
+        .empty-state .share-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 16px;
+            font-size: 12px;
+            padding: 7px 14px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--surface-2);
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 500;
+            transition: border-color 0.15s;
+        }
+        .empty-state .share-link:hover { border-color: var(--accent); }
+
+        /* ── Modal ── */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.visible { opacity: 1; pointer-events: all; }
+
+        .modal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 28px;
+            width: 100%;
+            max-width: 520px;
+            transform: translateY(16px);
+            transition: transform 0.2s;
+        }
+
+        .modal-overlay.visible .modal { transform: translateY(0); }
+
+        .modal-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 { font-size: 16px; font-weight: 700; }
+        .modal-header .modal-to { font-size: 12px; color: var(--text-dim); margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: color 0.15s;
+            flex-shrink: 0;
+        }
+        .modal-close:hover { color: var(--text); }
+
+        .modal-field {
+            margin-bottom: 16px;
+        }
+
+        .modal-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            margin-bottom: 7px;
+            display: block;
+        }
+
+        .modal-input, .modal-textarea {
+            width: 100%;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 13px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 12px;
+            color: var(--text);
+            outline: none;
+            transition: border-color 0.15s;
+            resize: vertical;
+        }
+
+        .modal-input:focus, .modal-textarea:focus { border-color: var(--accent); }
+
+        .modal-textarea { min-height: 120px; line-height: 1.6; }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        /* ── Toast ── */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--surface);
+            border: 1px solid var(--green);
+            border-radius: 8px;
+            padding: 11px 16px;
+            font-size: 13px;
+            color: var(--green);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transform: translateY(80px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 1000;
+            max-width: 320px;
+        }
+
+        .toast.visible { transform: translateY(0); opacity: 1; }
+
+        /* ── Confirm overlay ── */
+        .confirm-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.15s;
+        }
+        .confirm-overlay.visible { opacity: 1; pointer-events: all; }
+        .confirm-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px 28px;
+            width: 100%;
+            max-width: 380px;
+        }
+        .confirm-box h4 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+        .confirm-box p { font-size: 13px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.5; }
+        .confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+        /* ── Responsive ── */
+        @media (max-width: 960px) {
+            nav { padding: 14px 24px; }
+            .container { padding: 28px 24px 60px; }
+            .stats-row { grid-template-columns: repeat(3, 1fr); }
+            .page-header { flex-direction: column; }
+        }
+
+        @media (max-width: 640px) {
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            .table-scroll { overflow-x: auto; }
+            table { min-width: 780px; }
+            .action-bar { flex-direction: column; align-items: flex-start; }
+            .action-bar-right { width: 100%; }
+            .header-actions { flex-wrap: wrap; }
+            .action-cell { flex-direction: column; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <div class="grain"></div>
+
+    <nav id="nav-root"></nav>
+
+    <div class="container">
+        <!-- Page header -->
+        <div class="page-header">
+            <div class="page-header-left">
+                <h1>Inbound Requests</h1>
+                <div class="subtitle">People who want a free health check &mdash; <strong id="total-count">loading...</strong> total</div>
+            </div>
+            <div class="header-actions">
+                <button class="btn" id="refresh-btn" onclick="loadRequests()">
+                    <svg class="refresh-icon" width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path d="M10.5 2A5 5 0 1 0 11 6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        <path d="M10.5 2v3h-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Refresh
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats row (clickable filters) -->
+        <div class="stats-row" id="stats-row">
+            <div class="stat-card" data-status="all" onclick="filterByStatus('all')">
+                <div class="stat-label">All</div>
+                <div class="stat-count" id="stat-all">—</div>
+            </div>
+            <div class="stat-card" data-status="new" onclick="filterByStatus('new')">
+                <div class="stat-label">New</div>
+                <div class="stat-count" id="stat-new">—</div>
+            </div>
+            <div class="stat-card" data-status="contacted" onclick="filterByStatus('contacted')">
+                <div class="stat-label">Contacted</div>
+                <div class="stat-count" id="stat-contacted">—</div>
+            </div>
+            <div class="stat-card" data-status="scheduled" onclick="filterByStatus('scheduled')">
+                <div class="stat-label">Scheduled</div>
+                <div class="stat-count" id="stat-scheduled">—</div>
+            </div>
+            <div class="stat-card" data-status="completed" onclick="filterByStatus('completed')">
+                <div class="stat-label">Converted</div>
+                <div class="stat-count" id="stat-completed">—</div>
+            </div>
+        </div>
+
+        <!-- Action bar -->
+        <div class="action-bar">
+            <div class="action-bar-left">
+                <select class="filter-select" id="status-filter" onchange="applyFilter()">
+                    <option value="all">All statuses</option>
+                    <option value="new">New</option>
+                    <option value="contacted">Contacted</option>
+                    <option value="scheduled">Scheduled</option>
+                    <option value="completed">Completed</option>
+                    <option value="closed">Closed</option>
+                </select>
+                <span class="result-count" id="result-count"></span>
+            </div>
+            <div class="action-bar-right">
+                <button class="btn" onclick="markAllContacted()">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path d="M1.5 6.5l3 3 6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Mark All Contacted
+                </button>
+                <button class="btn btn-accent" onclick="exportCSV()">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path d="M6 1v7M3 5.5l3 3 3-3M2 10h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Export CSV
+                </button>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-wrap">
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Lead</th>
+                            <th>Company</th>
+                            <th>Source</th>
+                            <th>Pain Point</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        <tr>
+                            <td colspan="7" style="text-align:center;padding:40px;color:var(--text-dim);font-size:13px;">Loading requests...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reply Modal -->
+    <div class="modal-overlay" id="reply-modal" onclick="closeReplyModal(event)">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <h3>Send Reply</h3>
+                    <div class="modal-to" id="modal-to-label"></div>
+                </div>
+                <button class="modal-close" onclick="closeReplyModal()">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-field">
+                <label class="modal-label" for="modal-subject">Subject</label>
+                <input class="modal-input" type="text" id="modal-subject" placeholder="Re: Your Oracle Health Check Request" />
+            </div>
+            <div class="modal-field">
+                <label class="modal-label" for="modal-body">Message</label>
+                <textarea class="modal-textarea" id="modal-body" placeholder="Hi [Name],&#10;&#10;Thanks for your interest in TuneVault..."></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn" onclick="closeReplyModal()">Cancel</button>
+                <button class="btn btn-accent" onclick="sendReply()" id="send-btn">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path d="M1 6h9M7 3l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Send Email
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete confirm overlay -->
+    <div class="confirm-overlay" id="confirm-overlay">
+        <div class="confirm-box">
+            <h4>Delete request?</h4>
+            <p>This will permanently remove the lead from your pipeline. This action cannot be undone.</p>
+            <div class="confirm-actions">
+                <button class="btn" onclick="cancelDelete()">Cancel</button>
+                <button class="btn btn-danger" onclick="confirmDelete()" id="confirm-delete-btn">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path id="toast-icon-path" d="M2 7l4 4 6-6" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span id="toast-text">Done</span>
+    </div>
+
+    <script>
+        let requests = [];
+        let filtered = [];
+        let currentFilter = 'all';
+        let pendingDeleteId = null;
+        let replyTarget = null;
+
+        // ── Source URL → readable label ──────────────────────────────
+        function sourceLabel(url) {
+            if (!url) return { label: 'Direct', cls: 'direct' };
+            try {
+                const path = new URL(url).pathname.replace(/\/$/, '') || '/';
+                if (path === '/' || path === '') return { label: 'Landing Page', cls: 'landing' };
+                if (path.includes('request-health-check') || path.includes('request')) return { label: 'Health Check Form', cls: 'form' };
+                if (path.includes('demo')) return { label: 'Demo', cls: 'demo' };
+                if (path.includes('pricing')) return { label: 'Pricing', cls: 'landing' };
+                if (path.includes('blog')) return { label: 'Blog', cls: 'direct' };
+                // Fallback: show the path cleanly
+                return { label: path.slice(1) || 'Direct', cls: 'direct' };
+            } catch {
+                return { label: 'Direct', cls: 'direct' };
+            }
+        }
+
+        // ── Status display label ─────────────────────────────────────
+        function statusDisplay(status) {
+            const map = {
+                new: 'New',
+                contacted: 'Contacted',
+                scheduled: 'Scheduled',
+                completed: 'Converted',
+                closed: 'Closed',
+                stale: 'Stale',
+            };
+            return map[status] || status;
+        }
+
+        // ── Compute effective status (stale logic) ───────────────────
+        function effectiveStatus(req) {
+            if (req.status !== 'new' && req.status !== 'contacted') return req.status;
+            const daysSince = (Date.now() - new Date(req.created_at)) / (1000 * 60 * 60 * 24);
+            if (daysSince >= 7) return 'stale';
+            return req.status;
+        }
+
+        // ── Load ─────────────────────────────────────────────────────
+        async function loadRequests() {
+            const refreshBtn = document.getElementById('refresh-btn');
+            refreshBtn.classList.add('spinning');
+
+            try {
+                const res = await fetch('/api/admin/health-check-requests');
+                if (res.status === 401) {
+                    document.getElementById('table-body').innerHTML =
+                        '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-dim);font-size:13px;">Sign in first, then return to this page.</td></tr>';
+                    return;
+                }
+                if (res.status === 403) {
+                    document.getElementById('table-body').innerHTML =
+                        '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--red);font-size:13px;">Admin access required. This page is restricted to TuneVault administrators.</td></tr>';
+                    return;
+                }
+                if (!res.ok) throw new Error('Failed to load');
+                requests = await res.json();
+                applyFilter();
+                updateStats();
+                document.getElementById('total-count').textContent = requests.length;
+            } catch (err) {
+                document.getElementById('table-body').innerHTML =
+                    `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--red);font-size:13px;">
+                        Failed to load requests.
+                        <button onclick="loadRequests()" style="background:none;border:none;color:var(--accent);cursor:pointer;text-decoration:underline;font-size:13px;">Try again</button>
+                    </td></tr>`;
+            } finally {
+                refreshBtn.classList.remove('spinning');
+            }
+        }
+
+        // ── Filter ───────────────────────────────────────────────────
+        function filterByStatus(status) {
+            currentFilter = status;
+            document.getElementById('status-filter').value = status === 'all' ? 'all' : status;
+            // Highlight the stat card
+            document.querySelectorAll('.stat-card').forEach(c => c.classList.toggle('active', c.dataset.status === status));
+            applyFilter();
+        }
+
+        function applyFilter() {
+            const sel = document.getElementById('status-filter').value;
+            if (sel !== 'all') currentFilter = sel;
+
+            filtered = requests.filter(r => {
+                if (currentFilter === 'all') return true;
+                if (currentFilter === 'stale') return effectiveStatus(r) === 'stale';
+                // Treat 'completed' filter as matching both 'completed' and showing converted badge
+                return r.status === currentFilter;
+            });
+
+            document.getElementById('result-count').textContent =
+                filtered.length === requests.length ? '' : `${filtered.length} shown`;
+
+            renderTable();
+        }
+
+        // ── Stats ────────────────────────────────────────────────────
+        function updateStats() {
+            const counts = { all: 0, new: 0, contacted: 0, scheduled: 0, completed: 0, closed: 0 };
+            requests.forEach(r => {
+                counts.all++;
+                if (counts[r.status] !== undefined) counts[r.status]++;
+            });
+            document.getElementById('stat-all').textContent = counts.all;
+            document.getElementById('stat-new').textContent = counts.new;
+            document.getElementById('stat-contacted').textContent = counts.contacted;
+            document.getElementById('stat-scheduled').textContent = counts.scheduled;
+            document.getElementById('stat-completed').textContent = counts.completed;
+        }
+
+        // ── Render ───────────────────────────────────────────────────
+        function renderTable() {
+            const tbody = document.getElementById('table-body');
+
+            if (filtered.length === 0) {
+                const isEmpty = requests.length === 0;
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7">
+                            <div class="empty-state">
+                                <div class="empty-icon">
+                                    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                                        <path d="M3 8h16M3 8V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8Z" stroke="#9898a8" stroke-width="1.5" stroke-linejoin="round"/>
+                                        <path d="M8 4V2M14 4V2" stroke="#9898a8" stroke-width="1.5" stroke-linecap="round"/>
+                                        <circle cx="8" cy="13" r="1" fill="#9898a8"/>
+                                        <circle cx="11" cy="13" r="1" fill="#9898a8"/>
+                                        <circle cx="14" cy="13" r="1" fill="#9898a8"/>
+                                    </svg>
+                                </div>
+                                ${isEmpty
+                                    ? `<h3>No requests yet</h3>
+                                       <p>Share your TuneVault link to start capturing leads.</p>
+                                       <a href="/request-health-check" target="_blank" class="share-link">
+                                           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                                               <path d="M2 10L10 2M10 2H5M10 2v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                           </svg>
+                                           View request form
+                                       </a>`
+                                    : `<h3>No ${currentFilter} requests</h3>
+                                       <p>Try a different filter, or <button onclick="filterByStatus('all')" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:13px;padding:0;font-family:inherit;">view all ${requests.length}</button>.</p>`
+                                }
+                            </div>
+                        </td>
+                    </tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(r => {
+                const date = new Date(r.created_at);
+                const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                const src = sourceLabel(r.source_url);
+                const effStatus = effectiveStatus(r);
+                const statusLabel = statusDisplay(effStatus);
+
+                return `<tr data-id="${r.id}">
+                    <td>
+                        <div class="lead-name">${escapeHtml(r.name)}</div>
+                        <a href="mailto:${escapeHtml(r.email)}" class="lead-email">${escapeHtml(r.email)}</a>
+                    </td>
+                    <td>
+                        <div class="lead-company">${escapeHtml(r.company)}</div>
+                        ${r.oracle_version ? `<span class="meta-tag">${escapeHtml(r.oracle_version)}</span>` : ''}
+                        ${r.env_type ? `<span class="meta-tag">${escapeHtml(r.env_type)}</span>` : ''}
+                    </td>
+                    <td>
+                        <span class="source-badge ${src.cls}">${escapeHtml(src.label)}</span>
+                    </td>
+                    <td>
+                        <div class="pain-point-text">${r.pain_point ? escapeHtml(r.pain_point) : '<em style="opacity:0.35;">—</em>'}</div>
+                    </td>
+                    <td>
+                        <span class="status-badge ${effStatus}">${statusLabel}</span>
+                    </td>
+                    <td>
+                        <div class="date-text">${dateStr}</div>
+                        <div class="date-text" style="opacity:0.55;">${timeStr}</div>
+                    </td>
+                    <td>
+                        <div class="action-cell">
+                            <button class="row-btn reply" onclick="openReplyModal(${r.id})" title="Reply by email">
+                                <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                                    <path d="M1 3.5L6 7l5-3.5M1 3.5V9.5h10V3.5M1 3.5h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                Reply
+                            </button>
+                            ${r.status !== 'contacted' && r.status !== 'completed' && r.status !== 'closed'
+                                ? `<button class="row-btn mark" onclick="markContacted(${r.id})" title="Mark as contacted">
+                                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                                        <path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                    Contacted
+                                   </button>`
+                                : ''}
+                            <button class="row-btn del" onclick="deleteRequest(${r.id})" title="Delete">
+                                <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                                    <path d="M2 3h8M5 1.5h2M4 3v6a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        // ── Status update ────────────────────────────────────────────
+        async function updateStatus(id, newStatus) {
+            const req = requests.find(r => r.id == id);
+            const oldStatus = req ? req.status : null;
+
+            try {
+                const res = await fetch(`/api/admin/health-check-requests/${id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: newStatus }),
+                });
+                if (!res.ok) throw new Error('Update failed');
+                if (req) req.status = newStatus;
+                applyFilter();
+                updateStats();
+                showToast('Marked as ' + statusDisplay(newStatus));
+            } catch (err) {
+                showToast('Failed to update status', true);
+            }
+        }
+
+        function markContacted(id) { updateStatus(id, 'contacted'); }
+
+        async function markAllContacted() {
+            const targets = filtered.filter(r => r.status === 'new');
+            if (targets.length === 0) { showToast('No new requests to mark', true); return; }
+            const ids = targets.map(r => r.id);
+            try {
+                const res = await fetch('/api/admin/health-check-requests/bulk-status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids, status: 'contacted' }),
+                });
+                if (!res.ok) throw new Error('Bulk update failed');
+                targets.forEach(r => r.status = 'contacted');
+                applyFilter();
+                updateStats();
+                showToast(`${ids.length} request${ids.length > 1 ? 's' : ''} marked as contacted`);
+            } catch (err) {
+                showToast('Failed to update', true);
+            }
+        }
+
+        // ── Delete ───────────────────────────────────────────────────
+        function deleteRequest(id) {
+            pendingDeleteId = id;
+            document.getElementById('confirm-overlay').classList.add('visible');
+        }
+
+        function cancelDelete() {
+            pendingDeleteId = null;
+            document.getElementById('confirm-overlay').classList.remove('visible');
+        }
+
+        async function confirmDelete() {
+            if (!pendingDeleteId) return;
+            const id = pendingDeleteId;
+            document.getElementById('confirm-overlay').classList.remove('visible');
+            pendingDeleteId = null;
+
+            try {
+                const res = await fetch(`/api/admin/health-check-requests/${id}`, { method: 'DELETE' });
+                if (!res.ok) throw new Error('Delete failed');
+                requests = requests.filter(r => r.id !== id);
+                document.getElementById('total-count').textContent = requests.length;
+                applyFilter();
+                updateStats();
+                showToast('Request deleted');
+            } catch (err) {
+                showToast('Failed to delete', true);
+            }
+        }
+
+        // ── Reply modal ──────────────────────────────────────────────
+        function openReplyModal(id) {
+            replyTarget = requests.find(r => r.id === id);
+            if (!replyTarget) return;
+
+            document.getElementById('modal-to-label').textContent = `To: ${replyTarget.name} <${replyTarget.email}>`;
+            document.getElementById('modal-subject').value = 'Re: Your Oracle Health Check Request';
+            document.getElementById('modal-body').value =
+                `Hi ${replyTarget.name.split(' ')[0]},\n\nThanks for your interest in TuneVault! I'd love to set up a time to run a free Oracle health check on your database.\n\nWould you be available for a 30-minute call this week?\n\nBest,\nTuneVault Team`;
+            document.getElementById('reply-modal').classList.add('visible');
+            setTimeout(() => document.getElementById('modal-body').focus(), 200);
+        }
+
+        function closeReplyModal(e) {
+            if (e && e.target !== document.getElementById('reply-modal')) return;
+            document.getElementById('reply-modal').classList.remove('visible');
+            replyTarget = null;
+        }
+
+        async function sendReply() {
+            if (!replyTarget) return;
+            const subject = document.getElementById('modal-subject').value.trim();
+            const body = document.getElementById('modal-body').value.trim();
+            if (!subject || !body) { showToast('Subject and message are required', true); return; }
+
+            const sendBtn = document.getElementById('send-btn');
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-dasharray="20" stroke-dashoffset="10" style="animation:spin 0.6s linear infinite"/></svg> Sending...';
+
+            try {
+                const res = await fetch('/api/admin/send-reply', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        to: replyTarget.email,
+                        name: replyTarget.name,
+                        subject,
+                        body,
+                        requestId: replyTarget.id,
+                    }),
+                });
+
+                if (!res.ok) throw new Error('Send failed');
+
+                // Mark as contacted after sending
+                if (replyTarget.status === 'new') {
+                    await updateStatus(replyTarget.id, 'contacted');
+                }
+
+                document.getElementById('reply-modal').classList.remove('visible');
+                replyTarget = null;
+                showToast('Email sent ✓');
+            } catch (err) {
+                showToast('Failed to send email', true);
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 6h9M7 3l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Send Email';
+            }
+        }
+
+        // ── CSV Export ───────────────────────────────────────────────
+        function exportCSV() {
+            const filter = document.getElementById('status-filter').value;
+            const url = filter && filter !== 'all'
+                ? `/api/admin/health-check-requests/export.csv?status=${filter}`
+                : '/api/admin/health-check-requests/export.csv';
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'health-check-requests.csv';
+            a.click();
+            showToast('CSV download started');
+        }
+
+        // ── Toast ────────────────────────────────────────────────────
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('toast');
+            const toastText = document.getElementById('toast-text');
+            const iconPath = document.getElementById('toast-icon-path');
+            toastText.textContent = msg;
+            const color = isError ? '#f87171' : '#34d399';
+            toast.style.borderColor = color;
+            toast.style.color = color;
+            if (iconPath) iconPath.setAttribute('stroke', color);
+            toast.classList.add('visible');
+            clearTimeout(toast._timer);
+            toast._timer = setTimeout(() => toast.classList.remove('visible'), 2800);
+        }
+
+        // ── Escape ───────────────────────────────────────────────────
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        // ── Keyboard shortcuts ───────────────────────────────────────
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                document.getElementById('reply-modal').classList.remove('visible');
+                cancelDelete();
+            }
+        });
+
+        // Initial load + auto-refresh
+        loadRequests();
+        setInterval(loadRequests, 30000);
+    </script>
+
+    <!-- Navigation component initialization -->
+    <script src="/nav-component.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        window.tvNav.init('admin');
+    });
+    </script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

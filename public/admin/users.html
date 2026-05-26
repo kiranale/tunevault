@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Users — TuneVault Admin</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="canonical" href="https://tunevault.app/admin/users">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0c;
+            --surface: #111114;
+            --surface-2: #1a1a1f;
+            --border: #2a2a30;
+            --text: #e8e8ed;
+            --text-dim: #9898a8;
+            --accent: #f0a830;
+            --accent-dim: rgba(240, 168, 48, 0.12);
+            --green: #34d399;
+            --red: #f87171;
+            --blue: #60a5fa;
+            --purple: #a78bfa;
+            --gray: #6b7280;
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .grain {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 48px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: var(--text);
+        }
+
+        .logo-icon {
+            width: 26px;
+            height: 26px;
+            background: var(--accent);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--bg);
+        }
+
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .nav-link {
+            font-size: 13px;
+            color: var(--text-dim);
+            text-decoration: none;
+            font-family: 'JetBrains Mono', monospace;
+            transition: color 0.2s;
+        }
+
+        .nav-link:hover { color: var(--accent); }
+        .nav-link.active { color: var(--text); }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 48px 80px;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 32px;
+            gap: 20px;
+        }
+
+        .page-header h1 {
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: -1px;
+        }
+
+        .header-meta {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-shrink: 0;
+        }
+
+        .total-badge {
+            font-size: 12px;
+            color: var(--text-dim);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            padding: 4px 12px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .refresh-btn {
+            font-size: 12px;
+            color: var(--text-dim);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 14px;
+            cursor: pointer;
+            font-family: 'Space Grotesk', sans-serif;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .refresh-btn svg { transition: transform 0.3s; }
+        .refresh-btn.spinning svg { animation: spin 0.6s linear infinite; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Stats row */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px 20px;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+
+        .stat-count {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -1px;
+        }
+
+        .stat-count.accent { color: var(--accent); }
+        .stat-count.blue { color: var(--blue); }
+        .stat-count.green { color: var(--green); }
+        .stat-count.purple { color: var(--purple); }
+        .stat-count.gray { color: var(--text-dim); }
+
+        /* Table */
+        .table-wrap {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead th {
+            text-align: left;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-dim);
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 500;
+            background: var(--surface-2);
+        }
+
+        tbody tr {
+            border-bottom: 1px solid rgba(42, 42, 48, 0.5);
+            transition: background 0.15s;
+        }
+
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: rgba(26, 26, 31, 0.5); }
+
+        td {
+            padding: 14px 20px;
+            font-size: 13px;
+            vertical-align: middle;
+        }
+
+        .user-email {
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .user-name {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
+
+        .auth-badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 500;
+            padding: 3px 9px;
+            border-radius: 100px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .auth-badge.google {
+            color: var(--blue);
+            background: rgba(96, 165, 250, 0.1);
+            border: 1px solid rgba(96, 165, 250, 0.25);
+        }
+
+        .auth-badge.magic_link {
+            color: var(--purple);
+            background: rgba(167, 139, 250, 0.1);
+            border: 1px solid rgba(167, 139, 250, 0.25);
+        }
+
+        .date-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        .date-never {
+            font-size: 11px;
+            color: var(--gray);
+            font-style: italic;
+        }
+
+        .hc-count {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .hc-count.none { color: var(--gray); }
+        .hc-count.some { color: var(--text); }
+
+        .hc-breakdown {
+            display: flex;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .hc-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            padding: 1px 6px;
+            border-radius: 4px;
+        }
+
+        .hc-tag.demo {
+            color: var(--text-dim);
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+        }
+
+        .hc-tag.own {
+            color: var(--green);
+            background: rgba(52, 211, 153, 0.08);
+            border: 1px solid rgba(52, 211, 153, 0.2);
+        }
+
+        /* Empty / loading states */
+        .loading-row td {
+            padding: 24px;
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 13px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 80px 40px;
+        }
+
+        .empty-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+        }
+
+        .empty-state h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .empty-state p {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            nav { padding: 14px 24px; }
+            .container { padding: 28px 24px 60px; }
+            .stats-row { grid-template-columns: repeat(3, 1fr); }
+            .page-header { flex-direction: column; }
+        }
+
+        @media (max-width: 640px) {
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            .table-wrap { overflow-x: auto; }
+            table { min-width: 700px; }
+            .nav-right .nav-link { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="grain"></div>
+
+    <nav id="nav-root"></nav>
+
+    <div class="container">
+        <div class="page-header">
+            <h1>Users</h1>
+            <div class="header-meta">
+                <a href="/admin/connections" style="font-size:12px;color:var(--red);background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.3);border-radius:6px;padding:5px 14px;text-decoration:none;font-family:'JetBrains Mono',monospace;white-space:nowrap;">🗑 Bulk-Delete Connections</a>
+                <span class="total-badge" id="total-badge">Loading...</span>
+                <button class="refresh-btn" id="refresh-btn" onclick="loadUsers()">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path d="M10.5 2A5 5 0 1 0 11 6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        <path d="M10.5 2v3h-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Refresh
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats row -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-label">Total Users</div>
+                <div class="stat-count accent" id="stat-total">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Google</div>
+                <div class="stat-count blue" id="stat-google">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Magic Link</div>
+                <div class="stat-count purple" id="stat-magic">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Health Checks</div>
+                <div class="stat-count green" id="stat-checks">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Own DB Users</div>
+                <div class="stat-count gray" id="stat-owndb">—</div>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Email</th>
+                        <th>Auth</th>
+                        <th>Signed Up</th>
+                        <th>Last Login</th>
+                        <th>Health Checks</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                    <tr class="loading-row">
+                        <td colspan="5">Loading users...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let users = [];
+
+        async function loadUsers() {
+            const refreshBtn = document.getElementById('refresh-btn');
+            refreshBtn.classList.add('spinning');
+
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '<tr class="loading-row"><td colspan="5">Loading users...</td></tr>';
+
+            try {
+                const res = await fetch('/api/admin/users');
+                if (res.status === 401) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-dim);">Sign in first, then return to this page.</td></tr>';
+                    document.getElementById('total-badge').textContent = '—';
+                    return;
+                }
+                if (res.status === 403) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--red);">Admin access required. This page is restricted to TuneVault administrators.</td></tr>';
+                    document.getElementById('total-badge').textContent = 'Access denied';
+                    return;
+                }
+                if (!res.ok) throw new Error('Failed to load');
+                users = await res.json();
+                renderTable();
+                updateStats();
+                document.getElementById('total-badge').textContent = `${users.length} users`;
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--red);">Failed to load users. <button onclick="loadUsers()" style="background:none;border:none;color:var(--accent);cursor:pointer;text-decoration:underline;font-size:13px;">Try again</button></td></tr>`;
+                document.getElementById('total-badge').textContent = 'Error';
+            } finally {
+                refreshBtn.classList.remove('spinning');
+            }
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('table-body');
+
+            if (users.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5">
+                            <div class="empty-state">
+                                <div class="empty-icon">
+                                    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                                        <circle cx="11" cy="8" r="4" stroke="#9898a8" stroke-width="1.5"/>
+                                        <path d="M3 19c0-4 3.6-7 8-7s8 3 8 7" stroke="#9898a8" stroke-width="1.5" stroke-linecap="round"/>
+                                    </svg>
+                                </div>
+                                <h3>No users yet</h3>
+                                <p>Users will appear here once people sign up.</p>
+                            </div>
+                        </td>
+                    </tr>`;
+                return;
+            }
+
+            tbody.innerHTML = users.map(u => {
+                const signupDate = fmtDate(u.created_at);
+                const loginDate = u.last_login ? fmtDate(u.last_login) : null;
+
+                const authClass = u.auth_method === 'google' ? 'google' : 'magic_link';
+                const authLabel = u.auth_method === 'google'
+                    ? '<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1.2"/><path d="M5 5h3M5 3v4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>Google'
+                    : '<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1l1.2 2.5L9 4.1 7 6l.5 2.9L5 7.6 2.5 8.9 3 6 1 4.1l2.8-.6z" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/></svg>Magic Link';
+
+                const totalChecks = parseInt(u.total_checks) || 0;
+                const demoChecks = parseInt(u.demo_checks) || 0;
+                const ownChecks = parseInt(u.own_db_checks) || 0;
+
+                const checksHtml = totalChecks === 0
+                    ? '<span class="hc-count none">0</span>'
+                    : `<span class="hc-count some">${totalChecks}</span>
+                       <div class="hc-breakdown">
+                         ${demoChecks > 0 ? `<span class="hc-tag demo">${demoChecks} demo</span>` : ''}
+                         ${ownChecks > 0 ? `<span class="hc-tag own">${ownChecks} own DB</span>` : ''}
+                       </div>`;
+
+                return `<tr>
+                    <td>
+                        <div class="user-email">${escHtml(u.email)}</div>
+                        ${u.name ? `<div class="user-name">${escHtml(u.name)}</div>` : ''}
+                    </td>
+                    <td>
+                        <span class="auth-badge ${authClass}">${authLabel}</span>
+                    </td>
+                    <td>
+                        <div class="date-text">${signupDate.date}</div>
+                        <div class="date-text" style="opacity:0.6;">${signupDate.time}</div>
+                    </td>
+                    <td>
+                        ${loginDate
+                            ? `<div class="date-text">${loginDate.date}</div><div class="date-text" style="opacity:0.6;">${loginDate.time}</div>`
+                            : '<span class="date-never">Never</span>'
+                        }
+                    </td>
+                    <td>${checksHtml}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        function updateStats() {
+            const total = users.length;
+            const google = users.filter(u => u.auth_method === 'google').length;
+            const magic = users.filter(u => u.auth_method === 'magic_link').length;
+            const totalChecks = users.reduce((sum, u) => sum + (parseInt(u.total_checks) || 0), 0);
+            const ownDbUsers = users.filter(u => parseInt(u.own_db_checks) > 0).length;
+
+            document.getElementById('stat-total').textContent = total;
+            document.getElementById('stat-google').textContent = google;
+            document.getElementById('stat-magic').textContent = magic;
+            document.getElementById('stat-checks').textContent = totalChecks;
+            document.getElementById('stat-owndb').textContent = ownDbUsers;
+        }
+
+        function fmtDate(iso) {
+            const d = new Date(iso);
+            return {
+                date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                time: d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+            };
+        }
+
+        function escHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        loadUsers();
+        setInterval(loadUsers, 30000);
+    </script>
+
+    <!-- Navigation component initialization -->
+    <script src="/nav-component.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        window.tvNav.init('admin');
+    });
+    </script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

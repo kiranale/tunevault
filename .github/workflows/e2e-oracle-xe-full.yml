@@ -1,0 +1,555 @@
+name: E2E — Oracle XE 21c full install proof
+
+# Task #1911614: Prove the installer end-to-end on a fresh box.
+# Ubuntu 22.04 + Oracle XE 21c: agent online + DB auto-detected + first health check ≤ 5 min.
+#
+# HARD CONSTRAINTS (from task spec):
+#   - ZERO Cloudflare tunnel. Native outbound HTTPS long-poll only.
+#   - No SSH proxy. Agent runs on same host as Oracle.
+#   - do NOT modify install.sh. Report failure evidence if it breaks.
+#
+# Token path: POST /api/agent/mint-token (documented customer path, not smoke shortcut).
+#
+# Required GitHub Secrets:
+#   E2E_ADMIN_COOKIE   — session cookie for an admin account (used to mint token)
+#   E2E_API_URL        — optional override (default: https://tunevault-wney.polsia.app)
+#
+# Workflow dispatch (manual trigger):
+on:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: "TuneVault API URL (leave blank for production)"
+        required: false
+        default: "https://tunevault-wney.polsia.app"
+      connection_name:
+        description: "Connection name to create for this test run"
+        required: false
+        default: "xe21c-e2e-test"
+
+jobs:
+  e2e-oracle-xe:
+    name: "E2E — Ubuntu 22.04 + Oracle XE 21c"
+    # Privileged runner required: Oracle XE needs huge pages, /dev/shm, and
+    # systemd as PID 1 inside the install container.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+
+    # Oracle XE 21c sidecar — gvenzl/oracle-xe is the canonical slim image.
+    # SYSTEM password set to 'oracle' for the test; ORACLE_SID defaults to 'XE'.
+    services:
+      oracle-xe:
+        image: gvenzl/oracle-xe:21-slim-faststart
+        env:
+          ORACLE_PASSWORD: oracle
+          APP_USER: tunevault_monitor
+          APP_USER_PASSWORD: TuneVault123#
+        ports:
+          - 1521:1521
+        options: >-
+          --shm-size=1g
+          --health-cmd "healthcheck.sh"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      API_URL: ${{ github.event.inputs.api_url || 'https://tunevault-wney.polsia.app' }}
+      CONN_NAME: ${{ github.event.inputs.connection_name || format('xe21c-e2e-{0}', github.run_id) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── t0: record test start ──────────────────────────────────────────────
+      - name: Record t0 (test start)
+        id: t0
+        run: echo "T0=$(date +%s)" >> $GITHUB_OUTPUT
+
+      # ── Wait for Oracle XE to be ready ────────────────────────────────────
+      # The service health check polls healthcheck.sh, but we also wait for
+      # the listener to accept TCP connections on 1521 before proceeding.
+      - name: Wait for Oracle XE listener on 1521
+        run: |
+          echo "Waiting for Oracle XE to be ready..."
+          for i in $(seq 1 30); do
+            if nc -z localhost 1521 2>/dev/null; then
+              echo "Oracle XE listener is up on port 1521 (attempt $i)"
+              break
+            fi
+            echo "Attempt $i: port 1521 not yet open..."
+            sleep 5
+          done
+          nc -z localhost 1521 || (echo "FATAL: Oracle listener never came up on port 1521" && exit 1)
+
+      # ── Grant SELECT_CATALOG_ROLE to APP_USER (gvenzl creates APP_USER but
+      #    doesn't grant catalog role — needed for TuneVault health checks) ──
+      # We exec into the Oracle container itself — sqlplus lives there, not on the runner.
+      - name: Grant SELECT_CATALOG_ROLE to tunevault_monitor inside Oracle container
+        run: |
+          ORA_CONTAINER=$(docker ps -qf "ancestor=gvenzl/oracle-xe:21-slim-faststart")
+          echo "Oracle container: ${ORA_CONTAINER}"
+
+          docker exec "${ORA_CONTAINER}" bash -c \
+            'echo "GRANT SELECT_CATALOG_ROLE TO tunevault_monitor; GRANT CREATE SESSION TO tunevault_monitor; GRANT SELECT ANY DICTIONARY TO tunevault_monitor; EXIT;" | sqlplus -s SYSTEM/oracle@//localhost:1521/XE'
+          echo "Grants applied successfully"
+
+      # ── Mint a fresh install token via the documented customer path ─────────
+      # POST /api/agent/mint-token — same endpoint the UI calls.
+      # Body: { name, host_ip } — agent-mode: agent auto-detects Oracle SIDs.
+      - name: Mint install token via /api/agent/mint-token
+        id: mint
+        env:
+          E2E_ADMIN_COOKIE: ${{ secrets.E2E_ADMIN_COOKIE }}
+        run: |
+          echo "Minting install token for connection: ${CONN_NAME}"
+          echo "API: ${API_URL}"
+
+          MINT_RESP=$(curl -fsS \
+            -X POST "${API_URL}/api/agent/mint-token" \
+            -H "Cookie: ${E2E_ADMIN_COOKIE}" \
+            -H "Content-Type: application/json" \
+            -d "{\"name\":\"${CONN_NAME}\",\"host_ip\":\"127.0.0.1\"}" \
+            2>&1) || {
+            echo "FATAL: POST /api/agent/mint-token failed"
+            echo "Response: ${MINT_RESP}"
+            exit 1
+          }
+
+          echo "Mint response: ${MINT_RESP}"
+
+          # Parse token and connection_id
+          TOKEN=$(echo "${MINT_RESP}" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d["token"])' 2>/dev/null) || {
+            echo "FATAL: Could not parse token from response: ${MINT_RESP}"
+            exit 1
+          }
+          CONN_ID=$(echo "${MINT_RESP}" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d["connection_id"])' 2>/dev/null) || {
+            echo "FATAL: Could not parse connection_id from response"
+            exit 1
+          }
+          INSTALL_CMD=$(echo "${MINT_RESP}" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get("install_cmd",""))' 2>/dev/null) || true
+
+          echo "Connection ID: ${CONN_ID}"
+          echo "Install command: ${INSTALL_CMD}"
+
+          echo "TOKEN=${TOKEN}" >> $GITHUB_OUTPUT
+          echo "CONN_ID=${CONN_ID}" >> $GITHUB_OUTPUT
+          echo "INSTALL_CMD=${INSTALL_CMD}" >> $GITHUB_OUTPUT
+
+      # ── DELIVERABLE: exact one-liner command ───────────────────────────────
+      - name: "DELIVERABLE: One-liner install command"
+        run: |
+          echo "================================================================"
+          echo "EXACT ONE-LINER COMMAND (copy-paste from API response):"
+          echo ""
+          echo "${{ steps.mint.outputs.INSTALL_CMD }}"
+          echo ""
+          echo "================================================================"
+
+      # ── Build a systemd-capable Ubuntu 22.04 container ────────────────────
+      # We run install.sh inside a container that has systemd as PID 1 — exact
+      # customer path. The container uses --network=host so it can reach both
+      # Oracle XE on localhost:1521 AND the TuneVault API on the internet.
+      - name: Launch systemd Ubuntu 22.04 container
+        id: container
+        run: |
+          CONTAINER_NAME="tunevault-e2e-xe-${{ github.run_id }}"
+          echo "CONTAINER_NAME=${CONTAINER_NAME}" >> $GITHUB_OUTPUT
+
+          docker run -d \
+            --name "${CONTAINER_NAME}" \
+            --privileged \
+            --network host \
+            --tmpfs /run \
+            --tmpfs /run/lock \
+            --volume /sys/fs/cgroup:/sys/fs/cgroup:ro \
+            jrei/systemd-ubuntu:22.04 \
+            /sbin/init
+
+          # Wait for systemd to stabilise
+          sleep 4
+
+          # Install prerequisites
+          docker exec "${CONTAINER_NAME}" bash -c \
+            'apt-get update -qq 2>/dev/null && apt-get install -y -qq curl python3 python3-pip python3-venv sudo gcc netcat-openbsd 2>/dev/null' \
+            || true
+
+          echo "Container ${CONTAINER_NAME} ready"
+
+      # ── Verify Oracle is reachable from inside the container ──────────────
+      - name: Verify Oracle 1521 reachable from install container
+        run: |
+          CONTAINER_NAME="${{ steps.container.outputs.CONTAINER_NAME }}"
+          docker exec "${CONTAINER_NAME}" bash -c \
+            'nc -z 127.0.0.1 1521 && echo "Oracle port 1521: REACHABLE" || echo "Oracle port 1521: NOT REACHABLE"'
+
+      # ── t0: record actual install start ───────────────────────────────────
+      - name: Record t0 (install start)
+        id: t0_install
+        run: echo "T0_INSTALL=$(date +%s)" >> $GITHUB_OUTPUT
+
+      # ── Execute the exact one-liner from the docs — verbatim ──────────────
+      # This is what a customer would paste. We set TUNEVAULT_API to the correct
+      # instance URL (not tunevault.app which may differ from the test instance).
+      - name: "STEP 4: Execute documented one-liner install command"
+        id: install
+        run: |
+          CONTAINER_NAME="${{ steps.container.outputs.CONTAINER_NAME }}"
+          TOKEN="${{ steps.mint.outputs.TOKEN }}"
+
+          echo "================================================================"
+          echo "EXECUTING INSTALL (verbatim customer command):"
+          echo "curl -fsSL ${API_URL}/install.sh | sudo TUNEVAULT_TOKEN=<token> bash"
+          echo "================================================================"
+          echo ""
+
+          # Capture full stdout+stderr
+          set +e
+          INSTALL_LOG=$(docker exec "${CONTAINER_NAME}" bash -c \
+            "TUNEVAULT_TOKEN='${TOKEN}' TUNEVAULT_API='${API_URL}' bash <(curl -fsSL '${API_URL}/install.sh') 2>&1")
+          INSTALL_EXIT=$?
+          set -e
+
+          # Print full installer output as deliverable
+          echo "================================================================"
+          echo "DELIVERABLE: Full installer stdout/stderr log:"
+          echo "================================================================"
+          echo "${INSTALL_LOG}"
+          echo "================================================================"
+          echo "Install exit code: ${INSTALL_EXIT}"
+          echo "================================================================"
+
+          echo "INSTALL_EXIT=${INSTALL_EXIT}" >> $GITHUB_OUTPUT
+          if [ "${INSTALL_EXIT}" -ne 0 ]; then
+            echo "INSTALL_FAILED=true" >> $GITHUB_OUTPUT
+            echo "::error::install.sh exited ${INSTALL_EXIT}"
+          else
+            echo "INSTALL_FAILED=false" >> $GITHUB_OUTPUT
+          fi
+
+      # ── DELIVERABLE: systemctl status tunevault-agent ─────────────────────
+      - name: "DELIVERABLE: systemctl status tunevault-agent"
+        id: systemctl_status
+        if: always()
+        run: |
+          CONTAINER_NAME="${{ steps.container.outputs.CONTAINER_NAME }}"
+
+          echo "================================================================"
+          echo "DELIVERABLE: systemctl status tunevault-agent"
+          echo "================================================================"
+          docker exec "${CONTAINER_NAME}" systemctl status tunevault-agent --no-pager -l 2>&1 || true
+          echo ""
+          echo "--- journalctl (last 50 lines) ---"
+          docker exec "${CONTAINER_NAME}" journalctl -u tunevault-agent -n 50 --no-pager 2>&1 || true
+          echo "================================================================"
+
+          # Capture is-active for assertion
+          SYSTEMD_ACTIVE=$(docker exec "${CONTAINER_NAME}" systemctl is-active tunevault-agent 2>&1 || echo "unknown")
+          echo "SYSTEMD_ACTIVE=${SYSTEMD_ACTIVE}" >> $GITHUB_OUTPUT
+
+      # ── DELIVERABLE: tunevault-agent diagnose ─────────────────────────────
+      - name: "DELIVERABLE: tunevault-agent diagnose"
+        if: always()
+        run: |
+          CONTAINER_NAME="${{ steps.container.outputs.CONTAINER_NAME }}"
+
+          echo "================================================================"
+          echo "DELIVERABLE: tunevault-agent diagnose"
+          echo "================================================================"
+          docker exec "${CONTAINER_NAME}" tunevault-agent diagnose 2>&1 || \
+          docker exec "${CONTAINER_NAME}" bash -c \
+            'source /opt/tunevault/venv/bin/activate && python3 -m agent.cli diagnose 2>&1' || \
+          echo "(diagnose not available — agent package may not be installed)"
+          echo "================================================================"
+
+      # ── Record t1: poll for agent online ─────────────────────────────────
+      # Assert within 60s: agent appears on /admin/agents with status=online
+      # and heartbeat seconds_ago ≤ 30.
+      - name: "STEP 5: Wait for agent online (t1, max 60s)"
+        id: t1
+        env:
+          E2E_ADMIN_COOKIE: ${{ secrets.E2E_ADMIN_COOKIE }}
+        run: |
+          CONN_ID="${{ steps.mint.outputs.CONN_ID }}"
+          T1_START=$(date +%s)
+          DEADLINE=$(( T1_START + 60 ))
+          AGENT_ONLINE=false
+
+          echo "Polling /api/agent/heartbeat-check?connection_id=${CONN_ID} for online status..."
+
+          while [ "$(date +%s)" -lt "${DEADLINE}" ]; do
+            HEARTBEAT=$(curl -fsS \
+              "${API_URL}/api/agent/heartbeat-check?connection_id=${CONN_ID}" \
+              2>/dev/null) || HEARTBEAT=""
+
+            ALIVE=$(echo "${HEARTBEAT}" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get("alive","false"))' 2>/dev/null || echo "false")
+            SECONDS_AGO=$(echo "${HEARTBEAT}" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get("seconds_ago",999))' 2>/dev/null || echo "999")
+
+            if [ "${ALIVE}" = "True" ] || [ "${ALIVE}" = "true" ]; then
+              T1_END=$(date +%s)
+              T1_ELAPSED=$(( T1_END - T1_START ))
+              echo "✓ AGENT ONLINE — alive=${ALIVE}, seconds_ago=${SECONDS_AGO} (${T1_ELAPSED}s elapsed)"
+              AGENT_ONLINE=true
+              echo "T1_ELAPSED=${T1_ELAPSED}" >> $GITHUB_OUTPUT
+              echo "T1_SECONDS_AGO=${SECONDS_AGO}" >> $GITHUB_OUTPUT
+              break
+            fi
+
+            echo "  Not yet online (alive=${ALIVE}, seconds_ago=${SECONDS_AGO}). Waiting..."
+            sleep 5
+          done
+
+          if [ "${AGENT_ONLINE}" = "false" ]; then
+            T1_END=$(date +%s)
+            echo "::error::STEP 5 FAILED — Agent did not come online within 60s"
+            echo "Last heartbeat response: ${HEARTBEAT}"
+            echo "T1_ELAPSED=TIMEOUT" >> $GITHUB_OUTPUT
+            echo "AGENT_ONLINE=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          echo "AGENT_ONLINE=${AGENT_ONLINE}" >> $GITHUB_OUTPUT
+
+      # ── Check /admin/agents for status pill ───────────────────────────────
+      - name: "API EVIDENCE: Agent visible on /api/admin/agents"
+        id: admin_agents
+        env:
+          E2E_ADMIN_COOKIE: ${{ secrets.E2E_ADMIN_COOKIE }}
+        run: |
+          CONN_ID="${{ steps.mint.outputs.CONN_ID }}"
+
+          AGENTS=$(curl -fsS \
+            "${API_URL}/api/admin/agents" \
+            -H "Cookie: ${E2E_ADMIN_COOKIE}" \
+            2>&1) || AGENTS="(request failed)"
+
+          echo "================================================================"
+          echo "API EVIDENCE: /api/admin/agents response (filtered to connection ${CONN_ID}):"
+          echo "================================================================"
+          echo "${AGENTS}" | python3 -c "
+          import sys, json
+          try:
+            agents = json.load(sys.stdin)
+            for a in (agents if isinstance(agents, list) else agents.get('agents', [])):
+              if str(a.get('connection_id','')) == '${{ steps.mint.outputs.CONN_ID }}':
+                print(json.dumps(a, indent=2))
+          except Exception as e:
+            print('Parse error:', e)
+            sys.stdin = open('/dev/stdin')
+          " 2>/dev/null || echo "${AGENTS}"
+          echo "================================================================"
+
+      # ── STEP 6: Wait for DB auto-detected (t2, max 3 min) ─────────────────
+      # Oracle XE has SID=XE. install.sh detects it via PMON /proc/*/comm scan,
+      # then POSTs /api/agent/confirm with oracle_sids=[].  The server stores sids
+      # in agent_tunnels.  The canonical poller endpoint is registration-status —
+      # NOT /api/connections/:id, which never returns oracle_sids.
+      - name: "STEP 6: Wait for Oracle DB auto-detected (t2, max 3 min)"
+        id: t2
+        env:
+          E2E_ADMIN_COOKIE: ${{ secrets.E2E_ADMIN_COOKIE }}
+        run: |
+          CONN_ID="${{ steps.mint.outputs.CONN_ID }}"
+          T2_START=$(date +%s)
+          DEADLINE=$(( T2_START + 180 ))
+          DB_DETECTED=false
+
+          echo "Polling /api/connections/${CONN_ID}/registration-status for SID auto-detection..."
+
+          while [ "$(date +%s)" -lt "${DEADLINE}" ]; do
+            REG_STATUS=$(curl -fsS \
+              "${API_URL}/api/connections/${CONN_ID}/registration-status" \
+              -H "Cookie: ${E2E_ADMIN_COOKIE}" \
+              2>/dev/null) || REG_STATUS=""
+
+            STATUS=$(echo "${REG_STATUS}" | python3 -c \
+              'import sys,json; d=json.load(sys.stdin); print(d.get("status",""))' \
+              2>/dev/null || echo "")
+            SIDS=$(echo "${REG_STATUS}" | python3 -c \
+              'import sys,json; d=json.load(sys.stdin); sids=d.get("oracle_sids",[]); print(sids)' \
+              2>/dev/null || echo "[]")
+
+            if [ "${STATUS}" = "registered" ]; then
+              T2_END=$(date +%s)
+              T2_ELAPSED=$(( T2_END - T2_START ))
+              echo "✓ ORACLE DB DETECTED — status=registered SIDs=${SIDS} (${T2_ELAPSED}s elapsed)"
+              DB_DETECTED=true
+              echo "T2_ELAPSED=${T2_ELAPSED}" >> $GITHUB_OUTPUT
+              echo "DETECTED_SIDS=${SIDS}" >> $GITHUB_OUTPUT
+              break
+            fi
+
+            echo "  Not yet registered (status=${STATUS}, sids=${SIDS}). Waiting..."
+            sleep 10
+          done
+
+          if [ "${DB_DETECTED}" = "false" ]; then
+            echo "::error::STEP 6 FAILED — Oracle DB not auto-detected within 3 minutes"
+            echo "Last registration-status: ${REG_STATUS}"
+            echo "T2_ELAPSED=TIMEOUT" >> $GITHUB_OUTPUT
+            echo "DB_DETECTED=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          echo "DB_DETECTED=${DB_DETECTED}" >> $GITHUB_OUTPUT
+
+      # ── Configure connection with Oracle credentials ───────────────────────
+      # Agent connections (proxy type) can run health checks via OS auth with no
+      # credentials, using the SID auto-detected by install.sh.  We still set
+      # the service_name so the health-check engine uses the correct SID, and
+      # add the monitor user credentials as a fallback.
+      #
+      # PATCH /api/connections/:id accepts only name/username/password (host/port/
+      # service_name are identity fields — locked after creation).
+      # service_name is set separately via PATCH /api/connections/:id/set-service.
+      - name: Configure connection service_name and credentials for health check
+        env:
+          E2E_ADMIN_COOKIE: ${{ secrets.E2E_ADMIN_COOKIE }}
+        run: |
+          CONN_ID="${{ steps.mint.outputs.CONN_ID }}"
+
+          # Step A: set service_name to XE (the auto-detected SID)
+          SVC_RESP=$(curl -fsS \
+            -X PATCH "${API_URL}/api/connections/${CONN_ID}/set-service" \
+            -H "Cookie: ${E2E_ADMIN_COOKIE}" \
+            -H "Content-Type: application/json" \
+            -d '{"service_name":"XE"}' 2>&1) || SVC_RESP="(request failed)"
+          echo "set-service response: ${SVC_RESP}"
+
+          # Step B: set monitor credentials (username + password only — host is set by agent confirm)
+          CRED_RESP=$(curl -fsS \
+            -X PATCH "${API_URL}/api/connections/${CONN_ID}" \
+            -H "Cookie: ${E2E_ADMIN_COOKIE}" \
+            -H "Content-Type: application/json" \
+            -d '{"username":"tunevault_monitor","password":"TuneVault123#"}' \
+            2>&1) || CRED_RESP="(request failed)"
+          echo "credential patch response: ${CRED_RESP}"
+
+      # ── STEP 7: Trigger first health check and wait for completion (t3, max 5 min) ──
+      - name: "STEP 7: Trigger first health check (t3, max 5 min)"
+        id: t3
+        env:
+          E2E_ADMIN_COOKIE: ${{ secrets.E2E_ADMIN_COOKIE }}
+        run: |
+          CONN_ID="${{ steps.mint.outputs.CONN_ID }}"
+
+          echo "Triggering first health check..."
+          HC_RESP=$(curl -fsS \
+            -X POST "${API_URL}/api/health-checks" \
+            -H "Cookie: ${E2E_ADMIN_COOKIE}" \
+            -H "Content-Type: application/json" \
+            -d "{\"connection_id\": ${CONN_ID}}" \
+            2>&1) || HC_RESP="(request failed)"
+
+          echo "Health check trigger response: ${HC_RESP}"
+
+          HC_ID=$(echo "${HC_RESP}" | python3 -c \
+            'import sys,json; d=json.load(sys.stdin); print(d.get("id",""))' \
+            2>/dev/null || echo "")
+          echo "Health check ID: ${HC_ID}"
+          echo "HC_ID=${HC_ID}" >> $GITHUB_OUTPUT
+
+          # Poll for completion
+          T3_START=$(date +%s)
+          DEADLINE=$(( T3_START + 300 ))
+          HC_DONE=false
+
+          echo "Polling for health check completion..."
+
+          while [ "$(date +%s)" -lt "${DEADLINE}" ]; do
+            if [ -z "${HC_ID}" ]; then
+              # Fallback: poll the connection's health check list
+              HC_STATUS=$(curl -fsS \
+                "${API_URL}/api/connections/${CONN_ID}/health-checks?limit=1" \
+                -H "Cookie: ${E2E_ADMIN_COOKIE}" \
+                2>/dev/null) || HC_STATUS=""
+              STATUS=$(echo "${HC_STATUS}" | python3 -c \
+                'import sys,json; d=json.load(sys.stdin); hcs=d if isinstance(d,list) else d.get("health_checks",[]); print(hcs[0].get("status","") if hcs else "")' \
+                2>/dev/null || echo "")
+            else
+              HC_STATUS=$(curl -fsS \
+                "${API_URL}/api/health-checks/${HC_ID}" \
+                -H "Cookie: ${E2E_ADMIN_COOKIE}" \
+                2>/dev/null) || HC_STATUS=""
+              STATUS=$(echo "${HC_STATUS}" | python3 -c \
+                'import sys,json; d=json.load(sys.stdin); print(d.get("status",""))' \
+                2>/dev/null || echo "")
+            fi
+
+            if [ "${STATUS}" = "completed" ]; then
+              T3_END=$(date +%s)
+              T3_ELAPSED=$(( T3_END - T3_START ))
+              echo "✓ HEALTH CHECK COMPLETED in ${T3_ELAPSED}s"
+              HC_DONE=true
+              echo "T3_ELAPSED=${T3_ELAPSED}" >> $GITHUB_OUTPUT
+              echo ""
+              echo "================================================================"
+              echo "DELIVERABLE: First health check result:"
+              echo "================================================================"
+              echo "${HC_STATUS}" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(json.dumps(d, indent=2))' 2>/dev/null || echo "${HC_STATUS}"
+              echo "================================================================"
+              break
+            elif [ "${STATUS}" = "error" ]; then
+              echo "::error::Health check completed with status=error"
+              echo "Health check response: ${HC_STATUS}"
+              echo "T3_ELAPSED=ERROR" >> $GITHUB_OUTPUT
+              echo "HC_STATUS=error" >> $GITHUB_OUTPUT
+              HC_DONE=true
+              break
+            fi
+
+            echo "  Health check status: ${STATUS}. Waiting..."
+            sleep 10
+          done
+
+          if [ "${HC_DONE}" = "false" ]; then
+            echo "::error::STEP 7 FAILED — Health check did not complete within 5 minutes"
+            echo "T3_ELAPSED=TIMEOUT" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      # ── DELIVERABLE: Timing summary ───────────────────────────────────────
+      - name: "DELIVERABLE: Timing breakdown"
+        if: always()
+        run: |
+          T0_INSTALL="${{ steps.t0_install.outputs.T0_INSTALL }}"
+          T1_ELAPSED="${{ steps.t1.outputs.T1_ELAPSED }}"
+          T2_ELAPSED="${{ steps.t2.outputs.T2_ELAPSED }}"
+          T3_ELAPSED="${{ steps.t3.outputs.T3_ELAPSED }}"
+
+          echo "================================================================"
+          echo "DELIVERABLE: TIMING BREAKDOWN"
+          echo "================================================================"
+          echo "t0 = install start"
+          echo "t1 = agent online        → ${T1_ELAPSED}s after install start"
+          echo "t2 = DB detected         → +${T2_ELAPSED}s after t1"
+          echo "t3 = first health check  → +${T3_ELAPSED}s after t2"
+          echo ""
+          echo "Agent heartbeat seconds_ago: ${{ steps.t1.outputs.T1_SECONDS_AGO }}"
+          echo "Detected Oracle SIDs:        ${{ steps.t2.outputs.DETECTED_SIDS }}"
+          echo "systemd unit state:          ${{ steps.systemctl_status.outputs.SYSTEMD_ACTIVE }}"
+          echo "Agent online (60s target):   ${{ steps.t1.outputs.AGENT_ONLINE }}"
+          echo "DB detected (3min target):   ${{ steps.t2.outputs.DB_DETECTED }}"
+          echo "================================================================"
+
+      # ── Cleanup: delete test connection ───────────────────────────────────
+      - name: Cleanup test connection
+        if: always()
+        env:
+          E2E_ADMIN_COOKIE: ${{ secrets.E2E_ADMIN_COOKIE }}
+        run: |
+          CONN_ID="${{ steps.mint.outputs.CONN_ID }}"
+          if [ -n "${CONN_ID}" ]; then
+            curl -fsS \
+              -X DELETE "${API_URL}/api/connections/${CONN_ID}" \
+              -H "Cookie: ${E2E_ADMIN_COOKIE}" \
+              2>/dev/null || true
+            echo "Deleted test connection ${CONN_ID}"
+          fi
+
+      # ── Cleanup: remove Docker container ──────────────────────────────────
+      - name: Cleanup install container
+        if: always()
+        run: |
+          CONTAINER_NAME="${{ steps.container.outputs.CONTAINER_NAME }}"
+          if [ -n "${CONTAINER_NAME}" ]; then
+            docker rm -f "${CONTAINER_NAME}" 2>/dev/null || true
+          fi

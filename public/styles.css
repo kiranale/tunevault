@@ -1,0 +1,54 @@
+/*
+ * TuneVault shared stylesheet
+ * Single source of truth for cross-page status badge tokens and the
+ * StatusBadge component class.  Pages that need these classes link to
+ * /styles.css — do not duplicate the definitions locally.
+ */
+
+/* ── Status badge tokens ──────────────────────────────────────────────────── */
+/* Canonical pass/warn/fail/pending palette used on every page.               */
+:root {
+  --tv-pass:         #34d399;
+  --tv-pass-bg:      rgba(52, 211, 153, 0.12);
+  --tv-pass-border:  rgba(52, 211, 153, 0.25);
+
+  --tv-fail:         #f87171;
+  --tv-fail-bg:      rgba(248, 113, 113, 0.12);
+  --tv-fail-border:  rgba(248, 113, 113, 0.25);
+
+  --tv-warn:         #fbbf24;
+  --tv-warn-bg:      rgba(251, 191, 36, 0.12);
+  --tv-warn-border:  rgba(251, 191, 36, 0.25);
+
+  --tv-pending:      #60a5fa;
+  --tv-pending-bg:   rgba(96, 165, 250, 0.12);
+  --tv-pending-border: rgba(96, 165, 250, 0.25);
+
+  --tv-neutral:      #8888a0;
+  --tv-neutral-bg:   rgba(136, 136, 160, 0.10);
+  --tv-neutral-border: rgba(136, 136, 160, 0.20);
+}
+
+/* ── StatusBadge component ────────────────────────────────────────────────── */
+/*
+ * Usage: <span class="tv-badge tv-badge--pass">PASS</span>
+ * Variants: pass | warn | fail | pending | neutral
+ */
+.tv-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  border-width: 1px;
+  border-style: solid;
+  white-space: nowrap;
+}
+
+.tv-badge--pass    { background: var(--tv-pass-bg);    color: var(--tv-pass);    border-color: var(--tv-pass-border); }
+.tv-badge--fail    { background: var(--tv-fail-bg);    color: var(--tv-fail);    border-color: var(--tv-fail-border); }
+.tv-badge--warn    { background: var(--tv-warn-bg);    color: var(--tv-warn);    border-color: var(--tv-warn-border); }
+.tv-badge--pending { background: var(--tv-pending-bg); color: var(--tv-pending); border-color: var(--tv-pending-border); }
+.tv-badge--neutral { background: var(--tv-neutral-bg); color: var(--tv-neutral); border-color: var(--tv-neutral-border); }

@@ -1,0 +1,10 @@
+const fs = require('fs');
+const c = fs.readFileSync('public/report.html', 'utf8');
+console.log('OACore header:', c.includes('OACore (OA Framework) Heap'));
+console.log('oac.status in file:', c.includes('oac.status'));
+console.log('if (oac) in file:', c.includes('if (oac)'));
+console.log('oac.status count:', (c.match(/oac.status/g) || []).length);
+console.log('if (oac) count:', (c.match(/if \\(oac\\)/g) || []).length);
+console.log('Forms Server header:', c.includes('Forms Server</h3>'));
+console.log('if (frm) count:', (c.match(/if \\(frm\\)/g) || []).length);
+console.log('frm.status count:', (c.match(/frm.status/g) || []).length);

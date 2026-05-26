@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Proxy Self-Test — TuneVault Admin</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0c;
+      --surface: #111114;
+      --surface-2: #1a1a1f;
+      --border: #2a2a30;
+      --text: #e8e8ed;
+      --text-dim: #9898a8;
+      --accent: #f0a830;
+      --accent-dim: rgba(240, 168, 48, 0.12);
+      --green: #34d399;
+      --green-dim: rgba(52, 211, 153, 0.10);
+      --red: #f87171;
+      --red-dim: rgba(248, 113, 113, 0.10);
+      --yellow: #fbbf24;
+      --yellow-dim: rgba(251, 191, 36, 0.10);
+      --blue: #60a5fa;
+      --mono: 'JetBrains Mono', monospace;
+    }
+
+    body {
+      font-family: 'Space Grotesk', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .grain {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 999;
+    }
+
+    nav {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 16px 48px; border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      font-size: 16px; font-weight: 700; letter-spacing: -0.5px;
+      display: flex; align-items: center; gap: 10px;
+      color: var(--text); text-decoration: none;
+    }
+
+    .nav-links { display: flex; gap: 24px; align-items: center; }
+    .nav-links a { color: var(--text-dim); text-decoration: none; font-size: 14px; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-badge {
+      background: var(--red-dim); color: var(--red);
+      font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px;
+      font-family: var(--mono); letter-spacing: 0.5px;
+    }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 48px 24px; }
+
+    .page-header { margin-bottom: 40px; }
+    .page-header h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 8px; }
+    .page-header p { color: var(--text-dim); font-size: 15px; max-width: 680px; }
+
+    .section { margin-bottom: 40px; }
+    .section-title {
+      font-size: 13px; font-weight: 600; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--text-dim);
+      margin-bottom: 16px; padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* Scenario grid */
+    .scenario-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;
+    }
+    @media (max-width: 600px) { .scenario-grid { grid-template-columns: 1fr; } }
+
+    .scenario-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 24px; cursor: pointer; transition: border-color 0.15s, background 0.15s;
+      position: relative; overflow: hidden;
+    }
+    .scenario-card:hover { border-color: var(--accent); background: var(--surface-2); }
+    .scenario-card.running { border-color: var(--yellow); background: var(--yellow-dim); }
+    .scenario-card.done    { border-color: var(--green); }
+    .scenario-card.error   { border-color: var(--red); }
+
+    .scenario-badge {
+      display: inline-block; font-size: 11px; font-weight: 600;
+      font-family: var(--mono); padding: 3px 10px; border-radius: 4px;
+      margin-bottom: 12px; letter-spacing: 0.04em;
+    }
+    .badge-healthy  { background: var(--green-dim); color: var(--green); }
+    .badge-warning  { background: var(--yellow-dim); color: var(--yellow); }
+    .badge-critical { background: var(--red-dim); color: var(--red); }
+    .badge-patching { background: var(--accent-dim); color: var(--accent); }
+
+    .scenario-title { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+    .scenario-desc  { font-size: 13px; color: var(--text-dim); line-height: 1.5; margin-bottom: 16px; }
+
+    .scenario-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+    .tag {
+      font-size: 11px; font-family: var(--mono); padding: 2px 8px;
+      border-radius: 4px; background: var(--surface-2); color: var(--text-dim);
+      border: 1px solid var(--border);
+    }
+
+    .run-btn {
+      width: 100%; padding: 10px 16px; border: none; border-radius: 8px;
+      font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+      background: var(--accent); color: #000; transition: opacity 0.15s;
+    }
+    .run-btn:hover { opacity: 0.85; }
+    .run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .run-btn.loading::after { content: ' …'; }
+
+    .result-area {
+      margin-top: 12px; padding: 12px; border-radius: 8px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      font-size: 13px; display: none;
+    }
+    .result-area.visible { display: block; }
+    .result-area.success { border-color: var(--green); }
+    .result-area.failure { border-color: var(--red); }
+
+    .result-score {
+      font-size: 28px; font-weight: 700; font-family: var(--mono);
+      margin-bottom: 4px;
+    }
+    .score-green  { color: var(--green); }
+    .score-yellow { color: var(--yellow); }
+    .score-red    { color: var(--red); }
+
+    .result-link {
+      display: inline-block; margin-top: 10px; padding: 8px 16px;
+      background: var(--green); color: #000; border-radius: 6px;
+      text-decoration: none; font-size: 13px; font-weight: 600;
+      transition: opacity 0.15s;
+    }
+    .result-link:hover { opacity: 0.85; }
+
+    .result-meta { margin-top: 8px; color: var(--text-dim); font-size: 12px; font-family: var(--mono); }
+
+    /* Recent runs table */
+    .runs-table {
+      width: 100%; border-collapse: collapse; font-size: 13px;
+    }
+    .runs-table th, .runs-table td {
+      text-align: left; padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .runs-table th { color: var(--text-dim); font-weight: 500; font-size: 12px; }
+    .runs-table tbody tr:hover { background: var(--surface-2); }
+    .runs-table a { color: var(--blue); text-decoration: none; }
+    .runs-table a:hover { text-decoration: underline; }
+
+    .status-pill {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: 11px; font-weight: 600; font-family: var(--mono);
+    }
+    .pill-completed { background: var(--green-dim); color: var(--green); }
+    .pill-error     { background: var(--red-dim); color: var(--red); }
+    .pill-running   { background: var(--yellow-dim); color: var(--yellow); }
+
+    .no-runs { color: var(--text-dim); font-size: 14px; padding: 24px 0; }
+
+    /* Usage guide */
+    .guide {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px;
+    }
+    .guide h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+    .guide table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .guide td, .guide th { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+    .guide th { color: var(--text-dim); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+    .guide td:first-child { font-family: var(--mono); font-size: 12px; color: var(--accent); white-space: nowrap; }
+
+    pre.curl-block {
+      background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+      padding: 14px 16px; font-family: var(--mono); font-size: 12px; color: var(--text);
+      overflow-x: auto; margin-top: 16px; line-height: 1.7;
+    }
+
+    .alert {
+      padding: 12px 16px; border-radius: 8px; margin-bottom: 24px;
+      display: flex; align-items: flex-start; gap: 10px; font-size: 14px;
+    }
+    .alert-warn { background: var(--yellow-dim); border: 1px solid rgba(251,191,36,0.3); }
+    .alert-warn span:first-child { font-size: 16px; }
+
+    #auth-error {
+      display: none; padding: 32px; text-align: center; color: var(--red);
+    }
+    #main-content { display: none; }
+  </style>
+</head>
+<body>
+<div class="grain"></div>
+
+<nav id="nav-root"></nav>
+
+<div id="auth-error">
+  <p style="font-size:18px; margin-bottom:8px;">🔐 Admin access required</p>
+  <p style="color:var(--text-dim)">Sign in with an admin account to access this page.</p>
+  <a href="/login?redirect=/admin/proxy-self-test" style="display:inline-block;margin-top:16px;padding:10px 20px;background:var(--accent);color:#000;border-radius:8px;text-decoration:none;font-weight:600;">Sign In</a>
+</div>
+
+<div id="main-content">
+  <div class="container">
+    <div class="page-header">
+      <h1>Proxy Self-Test</h1>
+      <p>Validate the full EBS proxy ingestion pipeline — parse → score → persist → AI — using synthetic fixtures. No live Oracle box needed. Run after any proxy or scoring code change to confirm end-to-end behavior.</p>
+    </div>
+
+    <div class="alert alert-warn">
+      <span>⚡</span>
+      <span>Each run creates a real health_check record under <code>selftest@tunevault.app</code>. Reports are fully viewable. The <strong>critical</strong> scenario is the primary regression check — it exercises all 4 new EBS checks from the bug-fix task.</span>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Run a Scenario</div>
+      <div class="scenario-grid">
+
+        <!-- Healthy -->
+        <div class="scenario-card" id="card-healthy">
+          <div class="scenario-badge badge-healthy">HEALTHY</div>
+          <div class="scenario-title">All-green baseline</div>
+          <div class="scenario-desc">All CMs running at target, no patching, backups fresh, WF Mailer up. Use to confirm EBS sections render correctly when everything is healthy.</div>
+          <div class="scenario-tags">
+            <span class="tag">score ≥ 85</span>
+            <span class="tag">EBS OK</span>
+            <span class="tag">ADOP: none</span>
+            <span class="tag">backup: OK</span>
+          </div>
+          <button class="run-btn" data-action="run-scenario" data-scenario="healthy">Run Healthy</button>
+          <div class="result-area" id="result-healthy"></div>
+        </div>
+
+        <!-- Warning -->
+        <div class="scenario-card" id="card-warning">
+          <div class="scenario-badge badge-warning">WARNING</div>
+          <div class="scenario-title">Degraded — amber paths</div>
+          <div class="scenario-desc">Tablespace at 86%, OPP below target (2/4 running), WF notification backlog >2h, requests pending elevated. Use to validate amber severity rows and warning-level EBS checks.</div>
+          <div class="scenario-tags">
+            <span class="tag">score 55–70</span>
+            <span class="tag">OPP: degraded</span>
+            <span class="tag">WF backlog</span>
+            <span class="tag">TS: 86%</span>
+          </div>
+          <button class="run-btn" data-action="run-scenario" data-scenario="warning">Run Warning</button>
+          <div class="result-area" id="result-warning"></div>
+        </div>
+
+        <!-- Critical -->
+        <div class="scenario-card" id="card-critical">
+          <div class="scenario-badge badge-critical">CRITICAL ★ PRIMARY</div>
+          <div class="scenario-title">Full failure — primary regression check</div>
+          <div class="scenario-desc">ICM down, OPP down (0/4), WF Mailer + Agent Listener stopped, 2 failed ADOP sessions, tablespaces >98%, 84 invalid objects. Exercises all 4 bug-fix EBS checks.</div>
+          <div class="scenario-tags">
+            <span class="tag">score &lt; 40</span>
+            <span class="tag">ICM: DOWN</span>
+            <span class="tag">OPP: DOWN</span>
+            <span class="tag">WF services: STOPPED</span>
+            <span class="tag">ADOP: FAILED</span>
+            <span class="tag">TS: 98%</span>
+          </div>
+          <button class="run-btn" data-action="run-scenario" data-scenario="critical">Run Critical</button>
+          <div class="result-area" id="result-critical"></div>
+        </div>
+
+        <!-- EBS Patching -->
+        <div class="scenario-card" id="card-ebs_patching">
+          <div class="scenario-badge badge-patching">EBS PATCHING</div>
+          <div class="scenario-title">ADOP cutover in progress</div>
+          <div class="scenario-desc">1 active ADOP session in CUTOVER phase (status R). Most CMs paused, OPP at 1/4. Use to validate ADOP amber state renders correctly and does not show as critical.</div>
+          <div class="scenario-tags">
+            <span class="tag">score 65–80</span>
+            <span class="tag">ADOP: CUTOVER</span>
+            <span class="tag">OPP: 1/4</span>
+            <span class="tag">CM: paused</span>
+          </div>
+          <button class="run-btn" data-action="run-scenario" data-scenario="ebs_patching">Run EBS Patching</button>
+          <div class="result-area" id="result-ebs_patching"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Recent runs -->
+    <div class="section">
+      <div class="section-title">Recent Runs <span style="float:right"><button data-action="refresh-runs" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:12px;font-family:inherit">↻ Refresh</button></span></div>
+      <div id="runs-container">
+        <div class="no-runs">Loading…</div>
+      </div>
+    </div>
+
+    <!-- Regression guide -->
+    <div class="section">
+      <div class="section-title">Regression Guide</div>
+      <div class="guide">
+        <h3>Which scenario to use for each regression class</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Scenario</th>
+              <th>Use when you change…</th>
+              <th>What to verify</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>critical</td>
+              <td>EBS check rows, scoring, Critical Issues rendering, ADOP logic, WF service components</td>
+              <td>Red badges on EBS_CM01, EBS_CM03, EBS_WF09, EBS_ADOP_SESSIONS. "Critical Issues" header visible. AI summary mentions EBS failures.</td>
+            </tr>
+            <tr>
+              <td>warning</td>
+              <td>Amber severity paths, OPP degraded check, notification backlog thresholds</td>
+              <td>Amber badges on EBS_CM03 (2/4), EBS_WF08. Score 55–70. No red in Critical Issues.</td>
+            </tr>
+            <tr>
+              <td>ebs_patching</td>
+              <td>ADOP session detection, patching-in-progress UX, active vs failed session distinction</td>
+              <td>EBS_ADOP_SESSIONS shows amber (not red). Message reads "1 active ADOP… CUTOVER phase". CMs show as degraded, not down.</td>
+            </tr>
+            <tr>
+              <td>healthy</td>
+              <td>Baseline rendering, PDF export, overall score calculation</td>
+              <td>Score ≥ 85. No Critical Issues. All EBS checks green. PDF export produces complete document with EBS tab.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3 style="margin-top:24px;">curl equivalent</h3>
+        <pre class="curl-block"># Run critical scenario (primary regression check after any EBS code change)
+curl -X POST https://tunevault.app/api/admin/proxy/self-test \
+     -H "Authorization: Bearer &lt;YOUR_ADMIN_TOKEN&gt;" \
+     -H "Content-Type: application/json" \
+     -d '{"scenario":"critical"}'
+
+# Response includes report URL — open in browser to verify full render
+# {"success":true,"health_check_id":123,"scenario":"critical","overall_score":38,
+#  "ebs_detected":true,"ebs_status":"critical","ai_outcome":"ai","total_ms":8200,
+#  "report_url":"/report/123"}</pre>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── Auth check ─────────────────────────────────────────────────────────────────
+async function checkAuth() {
+  try {
+    const res = await fetch('/api/admin/proxy/self-test/runs', { credentials: 'include' });
+    if (res.status === 401 || res.status === 403) {
+      document.getElementById('auth-error').style.display = 'block';
+      return false;
+    }
+    document.getElementById('main-content').style.display = 'block';
+    return true;
+  } catch (e) {
+    document.getElementById('auth-error').style.display = 'block';
+    return false;
+  }
+}
+
+// ── Score color ─────────────────────────────────────────────────────────────────
+function scoreClass(n) {
+  if (n >= 80) return 'score-green';
+  if (n >= 60) return 'score-yellow';
+  return 'score-red';
+}
+
+// ── Run scenario ───────────────────────────────────────────────────────────────
+async function runScenario(scenario) {
+  const btn    = document.querySelector(`#card-${scenario} .run-btn`);
+  const result = document.getElementById(`result-${scenario}`);
+  const card   = document.getElementById(`card-${scenario}`);
+
+  btn.disabled = true;
+  btn.classList.add('loading');
+  btn.textContent = 'Running';
+  card.classList.add('running');
+  result.className = 'result-area visible';
+  result.innerHTML = '<span style="color:var(--yellow)">⏳ Running pipeline… (AI analysis takes ~8s)</span>';
+
+  try {
+    const res  = await fetch('/api/admin/proxy/self-test', {
+      method:      'POST',
+      credentials: 'include',
+      headers:     { 'Content-Type': 'application/json' },
+      body:        JSON.stringify({ scenario })
+    });
+    const data = await res.json();
+
+    if (!data.success) throw new Error(data.error || 'Unknown error');
+
+    const sc    = data.overall_score;
+    const color = scoreClass(sc);
+    card.classList.remove('running');
+    card.classList.add('done');
+    result.className = 'result-area visible success';
+    result.innerHTML = `
+      <div class="result-score ${color}">${sc}<span style="font-size:14px;font-weight:400;color:var(--text-dim)">/100</span></div>
+      <div style="font-size:13px;color:var(--text-dim);margin-bottom:4px">
+        EBS: <strong style="color:${data.ebs_detected ? 'var(--green)' : 'var(--red)'}">${data.ebs_detected ? data.ebs_status || 'detected' : 'not detected'}</strong>
+        &nbsp;·&nbsp; AI: <strong style="color:var(--green)">${data.ai_outcome}</strong>
+        &nbsp;·&nbsp; ${data.total_ms}ms
+      </div>
+      <a class="result-link" href="${data.report_url}" target="_blank">View Report →</a>
+      <div class="result-meta">run_id: ${data.run_id || '—'} &nbsp;·&nbsp; hc_id: ${data.health_check_id}</div>
+    `;
+
+    // Refresh runs list
+    loadRuns();
+  } catch (err) {
+    card.classList.remove('running');
+    card.classList.add('error');
+    result.className = 'result-area visible failure';
+    result.innerHTML = `<span style="color:var(--red)">❌ ${err.message}</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    btn.textContent = 'Run ' + scenario.charAt(0).toUpperCase() + scenario.slice(1).replace('_', ' ');
+  }
+}
+
+// ── Load recent runs ───────────────────────────────────────────────────────────
+async function loadRuns() {
+  const container = document.getElementById('runs-container');
+  try {
+    const res  = await fetch('/api/admin/proxy/self-test/runs', { credentials: 'include' });
+    const data = await res.json();
+
+    if (!data.success || !data.runs.length) {
+      container.innerHTML = '<div class="no-runs">No self-test runs yet. Click a scenario above to run one.</div>';
+      return;
+    }
+
+    const rows = data.runs.map(r => {
+      const scoreNum = r.overall_score || 0;
+      const sc       = scoreClass(scoreNum);
+      const statusCls = r.status === 'completed' ? 'pill-completed' : r.status === 'error' ? 'pill-error' : 'pill-running';
+      const scenario  = (r.connection_name || '').replace(/\[Self-Test: |\] .*$/g, '');
+      const dt        = r.completed_at ? new Date(r.completed_at).toLocaleString() : '—';
+      return `<tr>
+        <td>${dt}</td>
+        <td style="font-family:var(--mono);color:var(--accent);font-size:12px">${scenario}</td>
+        <td><span class="result-score ${sc}" style="font-size:16px">${scoreNum}</span></td>
+        <td><span class="status-pill ${statusCls}">${r.status}</span></td>
+        <td><a href="/report/${r.id}" target="_blank">View →</a></td>
+      </tr>`;
+    }).join('');
+
+    container.innerHTML = `
+      <table class="runs-table">
+        <thead><tr>
+          <th>Completed</th><th>Scenario</th><th>Score</th><th>Status</th><th>Report</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  } catch (e) {
+    container.innerHTML = `<div class="no-runs" style="color:var(--red)">Error loading runs: ${e.message}</div>`;
+  }
+}
+
+// ── Delegated click handler — replaces inline onclick to avoid Helmet 8.x CSP script-src-attr blocks
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+  if (action === 'run-scenario') runScenario(btn.dataset.scenario);
+  if (action === 'refresh-runs') loadRuns();
+});
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+(async () => {
+  const ok = await checkAuth();
+  if (ok) loadRuns();
+})();
+</script>
+
+<script src="/nav-component.js"></script>
+<script>window.tvNav.init('admin');</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>

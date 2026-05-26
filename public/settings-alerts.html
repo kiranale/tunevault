@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alert Policies — TuneVault</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0c; --surface: #111114; --surface-2: #1a1a1f;
+      --border: #2a2a30; --text: #e8e8ed; --text-dim: #b8b8c8;
+      --accent: #f0a830; --accent-dim: rgba(240,168,48,.12);
+      --green: #34d399; --green-dim: rgba(52,211,153,.10);
+      --red: #f87171; --red-dim: rgba(248,113,113,.10);
+      --amber: #f59e0b; --amber-dim: rgba(245,158,11,.10);
+      --blue: #60a5fa; --blue-dim: rgba(96,165,250,.10);
+      --purple: #a78bfa; --purple-dim: rgba(167,139,250,.10);
+      --mono: 'JetBrains Mono', monospace;
+    }
+    body { font-family: 'Space Grotesk', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    main { max-width: 920px; margin: 0 auto; padding: 48px 24px 100px; }
+    h1 { font-size: 26px; font-weight: 700; letter-spacing: -.5px; }
+    .subtitle { color: var(--text-dim); font-size: 14px; margin-top: 6px; line-height: 1.5; }
+
+    .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: 13px; text-decoration: none; margin-bottom: 28px; transition: color .15s; }
+    .back-link:hover { color: var(--text); }
+
+    .section { margin-top: 36px; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .section-label { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); }
+
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .card-row { display: flex; align-items: flex-start; justify-content: space-between; padding: 18px 24px; gap: 16px; border-bottom: 1px solid var(--border); }
+    .card-row:last-child { border-bottom: none; }
+    .card-empty { padding: 40px 24px; text-align: center; color: var(--text-dim); font-size: 14px; }
+
+    .row-left { flex: 1; min-width: 0; }
+    .row-label { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .row-meta { font-size: 12px; color: var(--text-dim); margin-top: 4px; display: flex; gap: 12px; flex-wrap: wrap; }
+    .row-right { flex-shrink: 0; display: flex; gap: 8px; align-items: center; }
+
+    .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .badge-warning  { background: var(--amber-dim);  color: var(--amber);  border: 1px solid rgba(245,158,11,.2); }
+    .badge-critical { background: var(--red-dim);    color: var(--red);    border: 1px solid rgba(248,113,113,.2); }
+    .badge-info     { background: var(--blue-dim);   color: var(--blue);   border: 1px solid rgba(96,165,250,.2); }
+    .badge-green    { background: var(--green-dim);  color: var(--green);  border: 1px solid rgba(52,211,153,.2); }
+    .badge-gold     { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(240,168,48,.25); }
+    .badge-purple   { background: var(--purple-dim); color: var(--purple); border: 1px solid rgba(167,139,250,.2); }
+    .badge-neutral  { background: rgba(255,255,255,.06); color: var(--text-dim); border: 1px solid var(--border); }
+
+    .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: 8px; font-family: 'Space Grotesk', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; text-decoration: none; white-space: nowrap; }
+    .btn-primary { background: var(--accent); color: #0a0a0c; }
+    .btn-primary:hover { background: #f7b84a; transform: translateY(-1px); }
+    .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-outline:hover { border-color: var(--text-dim); background: rgba(255,255,255,.04); }
+    .btn-ghost  { background: transparent; color: var(--text-dim); border: none; padding: 6px 10px; }
+    .btn-ghost:hover { color: var(--text); }
+    .btn-danger { background: var(--red-dim); color: var(--red); border: 1px solid rgba(248,113,113,.2); }
+    .btn-danger:hover { background: rgba(248,113,113,.22); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    .btn-sm { padding: 6px 13px; font-size: 12px; }
+    .btn-xs { padding: 4px 10px; font-size: 11px; gap: 4px; }
+
+    /* Toggle switch */
+    .toggle { position: relative; display: inline-block; width: 40px; height: 22px; cursor: pointer; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-track { position: absolute; inset: 0; background: var(--border); border-radius: 11px; transition: .2s; }
+    .toggle input:checked + .toggle-track { background: var(--green); }
+    .toggle-thumb { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; background: #fff; border-radius: 50%; transition: .2s; }
+    .toggle input:checked ~ .toggle-thumb { transform: translateX(18px); }
+
+    /* Modal */
+    .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 200; align-items: center; justify-content: center; padding: 24px; }
+    .modal-backdrop.open { display: flex; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 680px; max-height: 90vh; overflow-y: auto; }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 24px 28px 20px; border-bottom: 1px solid var(--border); }
+    .modal-title { font-size: 17px; font-weight: 700; }
+    .modal-close { background: none; border: none; color: var(--text-dim); cursor: pointer; padding: 6px; border-radius: 6px; font-size: 20px; line-height: 1; }
+    .modal-close:hover { color: var(--text); background: rgba(255,255,255,.06); }
+    .modal-body { padding: 24px 28px; }
+    .modal-footer { display: flex; gap: 10px; justify-content: flex-end; padding: 20px 28px; border-top: 1px solid var(--border); }
+
+    /* Form elements */
+    .form-group { margin-bottom: 20px; }
+    .form-label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 7px; color: var(--text); }
+    .form-hint  { font-size: 12px; color: var(--text-dim); margin-top: 5px; }
+    .form-input { width: 100%; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 14px; padding: 10px 14px; font-family: 'Space Grotesk', sans-serif; outline: none; transition: border-color .15s; }
+    .form-input:focus { border-color: var(--accent); }
+    select.form-input { cursor: pointer; }
+    select.form-input option { background: var(--surface-2); color: var(--text); }
+
+    /* Conditions builder */
+    .conditions-list { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+    .condition-row { display: flex; gap: 8px; align-items: center; }
+    .condition-row .form-input { flex: 1; }
+    .condition-op { width: 80px; flex-shrink: 0; }
+    .condition-val { width: 100px; flex-shrink: 0; }
+    .condition-sev { width: 120px; flex-shrink: 0; }
+
+    /* Channels builder */
+    .channels-list { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+    .channel-card  { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+    .channel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .channel-type-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+    .channel-fields { display: flex; flex-direction: column; gap: 8px; }
+    .channel-field-row { display: flex; gap: 8px; }
+
+    /* Escalation chain */
+    .esc-list { display: flex; flex-direction: column; gap: 0; margin-top: 10px; }
+    .esc-step { display: flex; gap: 12px; align-items: flex-start; padding: 14px 0; border-bottom: 1px solid var(--border); }
+    .esc-step:last-child { border-bottom: none; }
+    .esc-timeline { display: flex; flex-direction: column; align-items: center; width: 36px; flex-shrink: 0; }
+    .esc-dot  { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); flex-shrink: 0; margin-top: 2px; }
+    .esc-line { width: 2px; flex: 1; background: var(--border); margin: 6px 0; min-height: 20px; }
+    .esc-content { flex: 1; }
+    .esc-delay-label { font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 8px; }
+
+    /* Events tab */
+    .event-row { display: flex; align-items: flex-start; gap: 14px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+    .event-row:last-child { border-bottom: none; }
+    .event-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+    .event-dot.triggered { background: var(--amber); }
+    .event-dot.escalated { background: var(--red); }
+    .event-dot.acknowledged { background: var(--blue); }
+    .event-dot.resolved { background: var(--green); }
+    .event-info { flex: 1; min-width: 0; }
+    .event-title { font-size: 14px; font-weight: 600; }
+    .event-meta  { font-size: 12px; color: var(--text-dim); margin-top: 3px; display: flex; gap: 10px; flex-wrap: wrap; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 2px; margin-bottom: 28px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 4px; width: fit-content; }
+    .tab  { padding: 8px 20px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; background: transparent; color: var(--text-dim); transition: all .15s; }
+    .tab.active { background: var(--surface-2); color: var(--text); }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* Info box */
+    .info-box { background: var(--blue-dim); border: 1px solid rgba(96,165,250,.2); border-radius: 10px; padding: 14px 18px; font-size: 13px; color: var(--blue); margin-bottom: 20px; line-height: 1.5; }
+    .upgrade-box { background: var(--accent-dim); border: 1px solid rgba(240,168,48,.25); border-radius: 10px; padding: 14px 18px; font-size: 13px; color: var(--accent); margin-bottom: 20px; }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 28px; right: 28px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 20px; font-size: 14px; z-index: 999; display: flex; align-items: center; gap: 10px; box-shadow: 0 8px 32px rgba(0,0,0,.5); transform: translateY(80px); opacity: 0; transition: all .3s; pointer-events: none; max-width: 360px; }
+    .toast.show { transform: translateY(0); opacity: 1; pointer-events: auto; }
+    .toast.success { border-color: rgba(52,211,153,.3); }
+    .toast.error   { border-color: rgba(248,113,113,.3); }
+
+    .loading { text-align: center; padding: 40px; color: var(--text-dim); font-size: 14px; }
+    .icon { font-size: 16px; }
+    nav { position: sticky; top: 0; z-index: 9999; background: rgba(10,10,12,.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); }
+  </style>
+</head>
+<body>
+<nav>
+  <div id="nav-root"></div>
+</nav>
+<main>
+  <a href="/settings" class="back-link">
+    ← Settings
+  </a>
+
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:28px;">
+    <div>
+      <h1>Alert Policies</h1>
+      <p class="subtitle">Get notified via Email, Slack, PagerDuty, Teams, or Webhook when database thresholds are breached.</p>
+    </div>
+    <button class="btn btn-primary" onclick="openCreateModal()">
+      <span>＋</span> New Policy
+    </button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('policies',this)">Policies</button>
+    <button class="tab" onclick="switchTab('events',this)">Alert Events</button>
+  </div>
+
+  <!-- Policies tab -->
+  <div id="tab-policies" class="tab-pane active">
+    <div id="policies-loading" class="loading">Loading policies…</div>
+    <div id="policies-list" style="display:none;"></div>
+  </div>
+
+  <!-- Events tab -->
+  <div id="tab-events" class="tab-pane">
+    <div id="events-loading" class="loading">Loading events…</div>
+    <div id="events-list" style="display:none;"></div>
+  </div>
+</main>
+
+<!-- ── Policy Editor Modal ─────────────────────────────────────────────── -->
+<div class="modal-backdrop" id="policy-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">New Alert Policy</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="modal-upgrade-box" class="upgrade-box" style="display:none;">
+        ⚠ Some features require a higher plan. <a href="/settings/billing" style="color:var(--accent);">Upgrade →</a>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Policy name</label>
+        <input type="text" class="form-input" id="field-name" placeholder="e.g. Tablespace Critical Alert">
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="form-group">
+          <label class="form-label">Check type</label>
+          <select class="form-input" id="field-check-type">
+            <option value="tablespace_usage">Tablespace Usage</option>
+            <option value="health_score">Health Score</option>
+            <option value="session_count">Session Count</option>
+            <option value="redo_log_frequency">Redo Log Frequency</option>
+            <option value="listener_status">Listener Status</option>
+            <option value="check_failure">Check Failure</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Connection</label>
+          <select class="form-input" id="field-connection">
+            <option value="">All connections</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Sustained for (minutes)</label>
+        <input type="number" class="form-input" id="field-sustained" placeholder="Leave blank to fire immediately" min="0" style="width:200px;">
+        <div class="form-hint">Alert only if condition holds for N minutes (prevents flapping).</div>
+      </div>
+
+      <!-- Conditions -->
+      <div class="form-group">
+        <label class="form-label">Threshold conditions</label>
+        <div class="conditions-list" id="conditions-list"></div>
+        <button class="btn btn-outline btn-sm" style="margin-top:10px;" onclick="addCondition()">＋ Add condition</button>
+      </div>
+
+      <!-- Notification channels -->
+      <div class="form-group">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <label class="form-label" style="margin-bottom:0;">Notification channels</label>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;" id="add-channel-buttons"></div>
+        </div>
+        <div class="channels-list" id="channels-list"></div>
+      </div>
+
+      <!-- Escalation chain -->
+      <div class="form-group" id="esc-section">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <label class="form-label" style="margin-bottom:0;">Escalation chain</label>
+          <button class="btn btn-outline btn-sm" onclick="addEscStep()" id="add-esc-btn">＋ Add step</button>
+        </div>
+        <div class="form-hint" style="margin-bottom:10px;">Notify additional channels if alert isn't acknowledged after a delay.</div>
+        <div class="esc-list" id="esc-list"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-outline btn-sm" onclick="testCurrentPolicy()" id="test-btn" style="margin-right:auto;">
+        🔔 Send test
+      </button>
+      <button class="btn btn-primary" onclick="savePolicy()" id="save-btn">Save Policy</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let tierInfo = { tier: 'individual', max_policies: 5, max_esc_steps: 0, allowed_channels: ['email'] };
+let policies = [];
+let events   = [];
+let editingId = null;
+let connections = [];
+
+const CHECK_TYPE_METRICS = {
+  tablespace_usage   : { metric: 'usage_percent', label: 'Usage %', ops: ['>=','<'], defaultOp: '>=', defaultVal: 90 },
+  health_score       : { metric: 'score',         label: 'Score',   ops: ['<','>='],  defaultOp: '<',  defaultVal: 50 },
+  session_count      : { metric: 'session_count', label: 'Sessions',ops: ['>=','>'],  defaultOp: '>=', defaultVal: 500 },
+  redo_log_frequency : { metric: 'switches_per_hour', label: 'Switches/hr', ops: ['>=','>'], defaultOp: '>=', defaultVal: 30 },
+  listener_status    : { metric: 'status', label: 'Status', ops: ['==','!='], defaultOp: '==', defaultVal: 'down' },
+  check_failure      : { metric: 'status', label: 'Status', ops: ['=='], defaultOp: '==', defaultVal: 'failed' },
+};
+
+const CHANNEL_LABELS = {
+  email    : '📧 Email',
+  slack    : '💬 Slack',
+  teams    : '🟦 Teams',
+  pagerduty: '📟 PagerDuty',
+  opsgenie : '🔔 OpsGenie',
+  webhook  : '🔗 Webhook',
+};
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init() {
+  try {
+    const [tierRes, connRes] = await Promise.all([
+      fetch('/api/alerts/tier').then(r => r.json()),
+      fetch('/api/connections').then(r => r.json()).catch(() => ({ connections: [] })),
+    ]);
+    if (tierRes.success) tierInfo = tierRes;
+    connections = connRes.connections || connRes || [];
+  } catch {}
+  await Promise.all([loadPolicies(), loadEvents()]);
+}
+
+async function loadPolicies() {
+  try {
+    const r = await fetch('/api/alerts/policies');
+    const d = await r.json();
+    policies = d.policies || [];
+    renderPolicies();
+  } catch {
+    document.getElementById('policies-loading').textContent = 'Failed to load policies.';
+  }
+}
+
+async function loadEvents() {
+  try {
+    const r = await fetch('/api/alerts/events?limit=50');
+    const d = await r.json();
+    events = d.events || [];
+    renderEvents();
+  } catch {
+    document.getElementById('events-loading').textContent = 'Failed to load events.';
+  }
+}
+
+// ── Render Policies ────────────────────────────────────────────────────────────
+function renderPolicies() {
+  const loading = document.getElementById('policies-loading');
+  const list    = document.getElementById('policies-list');
+  loading.style.display = 'none';
+  list.style.display = 'block';
+
+  if (policies.length === 0) {
+    list.innerHTML = `<div class="card"><div class="card-empty">No alert policies yet. Create one to get notified when thresholds are breached.</div></div>`;
+    return;
+  }
+
+  const html = `<div class="card">${policies.map(p => `
+    <div class="card-row">
+      <div class="row-left">
+        <div class="row-label">
+          ${escHtml(p.name)}
+          ${p.is_default ? `<span class="badge badge-neutral">Default</span>` : ''}
+        </div>
+        <div class="row-meta">
+          <span>${formatCheckType(p.check_type)}</span>
+          <span>${p.connection_name ? escHtml(p.connection_name) : 'All connections'}</span>
+          <span>${formatChannels(p.notification_channels)}</span>
+          ${p.escalation_chain?.length > 0 ? `<span>${p.escalation_chain.length} escalation step(s)</span>` : ''}
+        </div>
+      </div>
+      <div class="row-right">
+        <label class="toggle">
+          <input type="checkbox" ${p.is_active ? 'checked' : ''} onchange="togglePolicy(${p.id}, this.checked)">
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+        <button class="btn btn-outline btn-sm" onclick="openEditModal(${p.id})">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deletePolicy(${p.id})">Delete</button>
+      </div>
+    </div>`).join('')}</div>`;
+  list.innerHTML = html;
+}
+
+function formatCheckType(ct) {
+  return ct?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || ct;
+}
+
+function formatChannels(channels) {
+  if (!channels || channels.length === 0) return 'No channels';
+  const types = [...new Set(channels.filter(c => c.is_active !== false).map(c => c.type))];
+  return types.map(t => CHANNEL_LABELS[t] || t).join(', ');
+}
+
+// ── Render Events ─────────────────────────────────────────────────────────────
+function renderEvents() {
+  const loading = document.getElementById('events-loading');
+  const list    = document.getElementById('events-list');
+  loading.style.display = 'none';
+  list.style.display = 'block';
+
+  if (events.length === 0) {
+    list.innerHTML = `<div class="card"><div class="card-empty">No alert events yet. Events appear here when policies trigger.</div></div>`;
+    return;
+  }
+
+  const rows = events.map(e => `
+    <div class="event-row">
+      <div class="event-dot ${e.status}"></div>
+      <div class="event-info">
+        <div class="event-title">${escHtml(e.policy_name)}</div>
+        <div class="event-meta">
+          <span>${escHtml(e.connection_name)}</span>
+          <span>${formatSev(e.severity)}</span>
+          ${e.current_value ? `<span>${escHtml(e.current_value)}</span>` : ''}
+          <span>${formatStatus(e.status)}</span>
+          <span>${timeAgo(e.triggered_at)}</span>
+        </div>
+      </div>
+      <div style="flex-shrink:0;display:flex;gap:6px;">
+        ${e.status === 'triggered' || e.status === 'escalated' ? `
+          <button class="btn btn-outline btn-xs" onclick="acknowledgeEvent(${e.id})">Acknowledge</button>` : ''}
+      </div>
+    </div>`).join('');
+
+  list.innerHTML = `<div class="card">${rows}</div>`;
+}
+
+function formatSev(s) {
+  const cls = { critical: 'badge-critical', warning: 'badge-warning', info: 'badge-info' }[s] || 'badge-neutral';
+  return `<span class="badge ${cls}">${s?.toUpperCase()}</span>`;
+}
+
+function formatStatus(s) {
+  const map = { triggered: 'badge-warning', escalated: 'badge-critical', acknowledged: 'badge-blue', resolved: 'badge-green' };
+  const cls = map[s] || 'badge-neutral';
+  return `<span class="badge ${cls || 'badge-neutral'}">${s}</span>`;
+}
+
+function timeAgo(ts) {
+  if (!ts) return '';
+  const diff = Date.now() - new Date(ts).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h/24)}d ago`;
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ── Toggle / Delete / Acknowledge ─────────────────────────────────────────────
+async function togglePolicy(id, active) {
+  const r = await fetch(`/api/alerts/policies/${id}/toggle`, {
+    method: 'PATCH', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ isActive: active }),
+  });
+  const d = await r.json();
+  if (d.success) { toast('Policy ' + (active ? 'activated' : 'paused'), 'success'); await loadPolicies(); }
+  else toast(d.error || 'Failed', 'error');
+}
+
+async function deletePolicy(id) {
+  if (!confirm('Delete this alert policy? Active events will be removed.')) return;
+  const r = await fetch(`/api/alerts/policies/${id}`, { method: 'DELETE' });
+  const d = await r.json();
+  if (d.success) { toast('Policy deleted', 'success'); await loadPolicies(); }
+  else toast(d.error || 'Failed to delete', 'error');
+}
+
+async function acknowledgeEvent(id) {
+  const r = await fetch(`/api/alerts/events/${id}/acknowledge`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' });
+  const d = await r.json();
+  if (d.success) { toast('Event acknowledged', 'success'); await loadEvents(); }
+  else toast(d.error || 'Failed', 'error');
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+function openCreateModal() {
+  editingId = null;
+  document.getElementById('modal-title').textContent = 'New Alert Policy';
+  document.getElementById('field-name').value = '';
+  document.getElementById('field-check-type').value = 'tablespace_usage';
+  document.getElementById('field-connection').value = '';
+  document.getElementById('field-sustained').value = '';
+  document.getElementById('modal-upgrade-box').style.display = 'none';
+  populateConnectionSelect();
+  resetConditions();
+  resetChannels();
+  resetEscalation();
+  addCondition();
+  addChannel('email');
+  document.getElementById('policy-modal').classList.add('open');
+}
+
+function openEditModal(id) {
+  const p = policies.find(x => x.id === id);
+  if (!p) return;
+  editingId = id;
+  document.getElementById('modal-title').textContent = 'Edit Alert Policy';
+  document.getElementById('field-name').value = p.name;
+  document.getElementById('field-check-type').value = p.check_type;
+  document.getElementById('field-sustained').value = p.sustained_minutes || '';
+  document.getElementById('modal-upgrade-box').style.display = 'none';
+  populateConnectionSelect(p.connection_id);
+  resetConditions();
+  resetChannels();
+  resetEscalation();
+  (p.conditions || []).forEach(c => addCondition(c));
+  if ((p.conditions || []).length === 0) addCondition();
+  (p.notification_channels || []).forEach(ch => addChannel(ch.type, ch.config));
+  if ((p.notification_channels || []).length === 0) addChannel('email');
+  (p.escalation_chain || []).forEach(step => addEscStep(step));
+  document.getElementById('policy-modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('policy-modal').classList.remove('open');
+}
+
+function populateConnectionSelect(selectedId) {
+  const sel = document.getElementById('field-connection');
+  sel.innerHTML = '<option value="">All connections</option>';
+  connections.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.name || c.host;
+    if (c.id === selectedId) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+// ── Conditions builder ────────────────────────────────────────────────────────
+function resetConditions() {
+  document.getElementById('conditions-list').innerHTML = '';
+}
+
+function addCondition(existing) {
+  const list = document.getElementById('conditions-list');
+  const idx  = list.children.length;
+  const meta = CHECK_TYPE_METRICS[document.getElementById('field-check-type').value] || {};
+  const op   = existing?.operator || meta.defaultOp || '>=';
+  const val  = existing?.value    !== undefined ? existing.value : (meta.defaultVal ?? 90);
+  const sev  = existing?.severity || 'warning';
+  const div  = document.createElement('div');
+  div.className = 'condition-row';
+  div.innerHTML = `
+    <input type="text" class="form-input" value="${escHtml(String(meta.label || 'metric'))}" readonly style="max-width:140px;color:var(--text-dim);">
+    <select class="form-input condition-op">
+      ${['>=','<=','>','<','==','!='].map(o => `<option ${o===op?'selected':''}>${o}</option>`).join('')}
+    </select>
+    <input type="text" class="form-input condition-val" value="${escHtml(String(val))}">
+    <select class="form-input condition-sev">
+      ${['info','warning','critical'].map(s => `<option value="${s}" ${s===sev?'selected':''}>${s}</option>`).join('')}
+    </select>
+    <button class="btn btn-ghost btn-sm" onclick="this.closest('.condition-row').remove()">✕</button>
+  `;
+  list.appendChild(div);
+}
+
+function getConditions() {
+  const meta = CHECK_TYPE_METRICS[document.getElementById('field-check-type').value] || {};
+  return Array.from(document.querySelectorAll('.condition-row')).map(row => {
+    const inputs = row.querySelectorAll('input,select');
+    const op     = inputs[1].value;
+    const rawVal = inputs[2].value;
+    const sev    = inputs[3].value;
+    const value  = ['==','!='].includes(op) ? rawVal : (isNaN(Number(rawVal)) ? rawVal : Number(rawVal));
+    return { metric: meta.metric || 'value', operator: op, value, severity: sev };
+  });
+}
+
+// ── Channel builder ────────────────────────────────────────────────────────────
+function resetChannels() {
+  document.getElementById('channels-list').innerHTML = '';
+  renderAddChannelButtons();
+}
+
+function renderAddChannelButtons() {
+  const allowed = tierInfo.allowed_channels || ['email'];
+  const btns = document.getElementById('add-channel-buttons');
+  btns.innerHTML = allowed.map(t =>
+    `<button class="btn btn-outline btn-xs" onclick="addChannel('${t}')">${CHANNEL_LABELS[t] || t}</button>`
+  ).join('');
+}
+
+function addChannel(type, config = {}) {
+  const list = document.getElementById('channels-list');
+  const div  = document.createElement('div');
+  div.className = 'channel-card';
+  div.dataset.channelType = type;
+  div.innerHTML = buildChannelUI(type, config);
+  list.appendChild(div);
+}
+
+function buildChannelUI(type, config = {}) {
+  const label = CHANNEL_LABELS[type] || type;
+  const fields = {
+    email     : `<div class="form-hint" style="margin-bottom:6px;">Comma-separated email addresses</div>
+                 <input type="text" class="form-input" data-key="emails_raw" placeholder="dba@example.com, manager@example.com" value="${escHtml((config.emails || []).join(', '))}">`,
+    slack     : `<input type="text" class="form-input" data-key="webhook_url" placeholder="https://hooks.slack.com/services/…" value="${escHtml(config.webhook_url || '')}">`,
+    teams     : `<input type="text" class="form-input" data-key="webhook_url" placeholder="https://…webhook.office.com/…" value="${escHtml(config.webhook_url || '')}">`,
+    pagerduty : `<input type="text" class="form-input" data-key="integration_key" placeholder="PagerDuty Events API v2 integration key" value="${escHtml(config.integration_key || '')}">`,
+    opsgenie  : `<input type="text" class="form-input" data-key="api_key" placeholder="OpsGenie API key" value="${escHtml(config.api_key || '')}">`,
+    webhook   : `<input type="text" class="form-input" data-key="url" placeholder="https://your-endpoint.example.com/webhook" value="${escHtml(config.url || '')}">`,
+  }[type] || '';
+
+  return `
+    <div class="channel-header">
+      <span class="channel-type-label">${label}</span>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <button class="btn btn-outline btn-xs" onclick="testChannel(this)">Test</button>
+        <button class="btn btn-ghost btn-xs" onclick="this.closest('.channel-card').remove()">✕</button>
+      </div>
+    </div>
+    <div class="channel-fields">${fields}</div>`;
+}
+
+function getChannels() {
+  return Array.from(document.querySelectorAll('.channel-card')).map(card => {
+    const type   = card.dataset.channelType;
+    const config = {};
+    card.querySelectorAll('[data-key]').forEach(el => {
+      const key = el.dataset.key;
+      if (key === 'emails_raw') {
+        config.emails = el.value.split(',').map(e => e.trim()).filter(Boolean);
+      } else {
+        config[key] = el.value.trim();
+      }
+    });
+    return { type, config, is_active: true };
+  });
+}
+
+async function testChannel(btn) {
+  const card = btn.closest('.channel-card');
+  const type = card.dataset.channelType;
+  const config = {};
+  card.querySelectorAll('[data-key]').forEach(el => {
+    const key = el.dataset.key;
+    if (key === 'emails_raw') config.emails = el.value.split(',').map(e => e.trim()).filter(Boolean);
+    else config[key] = el.value.trim();
+  });
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const r = await fetch('/api/alerts/channels/test', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ type, config, is_active: true }),
+    });
+    const d = await r.json();
+    if (d.sent) toast(`Test ${CHANNEL_LABELS[type] || type} notification sent!`, 'success');
+    else toast(`Test failed: ${d.error || 'unknown'}`, 'error');
+  } catch { toast('Test failed', 'error'); }
+  btn.disabled = false; btn.textContent = 'Test';
+}
+
+// ── Escalation builder ────────────────────────────────────────────────────────
+function resetEscalation() {
+  document.getElementById('esc-list').innerHTML = '';
+}
+
+function addEscStep(existing) {
+  const maxSteps = tierInfo.max_esc_steps;
+  if (maxSteps === 0) {
+    toast('Escalation chains require Team tier or higher. Upgrade to unlock.', 'error');
+    return;
+  }
+  const list = document.getElementById('esc-list');
+  if (maxSteps !== -1 && list.children.length >= maxSteps) {
+    toast(`Your plan supports up to ${maxSteps} escalation step(s).`, 'error');
+    return;
+  }
+  const delay = existing?.delay_minutes || 15;
+  const div   = document.createElement('div');
+  div.className = 'esc-step';
+  const stepChannels = existing?.notification_channels || [];
+  div.innerHTML = `
+    <div class="esc-timeline">
+      <div class="esc-dot"></div>
+      <div class="esc-line"></div>
+    </div>
+    <div class="esc-content" style="flex:1;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:13px;color:var(--text-dim);">After</span>
+        <input type="number" class="form-input" data-key="delay" value="${delay}" min="1" style="width:80px;">
+        <span style="font-size:13px;color:var(--text-dim);">minutes, notify via:</span>
+        <button class="btn btn-ghost btn-xs" style="margin-left:auto;" onclick="this.closest('.esc-step').remove()">✕</button>
+      </div>
+      <div class="channels-list esc-channels-list" style="gap:8px;">
+        ${stepChannels.map(ch => buildEscChannelRow(ch.type, ch.config)).join('')}
+      </div>
+      <button class="btn btn-outline btn-xs" style="margin-top:8px;" onclick="addEscChannel(this)">＋ Add channel</button>
+    </div>`;
+  list.appendChild(div);
+}
+
+function buildEscChannelRow(type, config = {}) {
+  const label = CHANNEL_LABELS[type] || type;
+  const inputVal = config.webhook_url || config.integration_key || config.api_key || config.url || (config.emails || []).join(', ') || '';
+  return `<div class="channel-field-row" data-channel-type="${type}">
+    <span style="font-size:12px;font-weight:600;color:var(--text-dim);width:90px;flex-shrink:0;">${label}</span>
+    <input type="text" class="form-input" data-key="main_val" value="${escHtml(inputVal)}" placeholder="${getChannelPlaceholder(type)}">
+    <button class="btn btn-ghost btn-xs" onclick="this.closest('[data-channel-type]').remove()">✕</button>
+  </div>`;
+}
+
+function getChannelPlaceholder(type) {
+  return { email: 'emails (comma-separated)', slack: 'Slack webhook URL', teams: 'Teams webhook URL', pagerduty: 'integration key', opsgenie: 'API key', webhook: 'webhook URL' }[type] || '';
+}
+
+function addEscChannel(btn) {
+  const list = btn.previousElementSibling;
+  const type = prompt('Channel type (email, slack, teams, pagerduty, opsgenie, webhook):');
+  if (!type || !CHANNEL_LABELS[type]) { toast('Invalid channel type', 'error'); return; }
+  const allowed = tierInfo.allowed_channels || ['email'];
+  if (!allowed.includes(type)) { toast(`${type} requires a higher plan tier.`, 'error'); return; }
+  list.insertAdjacentHTML('beforeend', buildEscChannelRow(type, {}));
+}
+
+function getEscalationChain() {
+  return Array.from(document.querySelectorAll('.esc-step')).map(step => {
+    const delay = parseInt(step.querySelector('[data-key="delay"]').value, 10) || 15;
+    const channels = Array.from(step.querySelectorAll('[data-channel-type]')).map(row => {
+      const type   = row.dataset.channelType;
+      const rawVal = row.querySelector('[data-key="main_val"]').value.trim();
+      let config   = {};
+      if (type === 'email')     config.emails = rawVal.split(',').map(e => e.trim()).filter(Boolean);
+      else if (type === 'slack' || type === 'teams') config.webhook_url = rawVal;
+      else if (type === 'pagerduty') config.integration_key = rawVal;
+      else if (type === 'opsgenie')  config.api_key = rawVal;
+      else config.url = rawVal;
+      return { type, config, is_active: true };
+    });
+    return { delay_minutes: delay, notification_channels: channels };
+  });
+}
+
+// ── Save ──────────────────────────────────────────────────────────────────────
+async function savePolicy() {
+  const name        = document.getElementById('field-name').value.trim();
+  const checkType   = document.getElementById('field-check-type').value;
+  const connectionId = document.getElementById('field-connection').value || null;
+  const sustained   = parseInt(document.getElementById('field-sustained').value, 10) || null;
+  const conditions  = getConditions();
+  const channels    = getChannels();
+  const esc         = getEscalationChain();
+
+  if (!name) { toast('Policy name is required', 'error'); return; }
+  if (conditions.length === 0) { toast('Add at least one threshold condition', 'error'); return; }
+
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  const body = {
+    name, checkType, connectionId, conditions,
+    sustainedMinutes: sustained, notificationChannels: channels, escalationChain: esc,
+  };
+
+  try {
+    const url    = editingId ? `/api/alerts/policies/${editingId}` : '/api/alerts/policies';
+    const method = editingId ? 'PUT' : 'POST';
+    const r = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const d = await r.json();
+    if (d.success || d.policy) {
+      toast(editingId ? 'Policy updated' : 'Policy created', 'success');
+      closeModal();
+      await loadPolicies();
+    } else {
+      if (d.upgrade_required) document.getElementById('modal-upgrade-box').style.display = 'block';
+      toast(d.error || 'Failed to save', 'error');
+    }
+  } catch { toast('Failed to save', 'error'); }
+  btn.disabled = false; btn.textContent = 'Save Policy';
+}
+
+async function testCurrentPolicy() {
+  if (!editingId) { toast('Save the policy first, then test it', 'error'); return; }
+  const btn = document.getElementById('test-btn');
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const r = await fetch(`/api/alerts/policies/${editingId}/test`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ connectionName: 'Test Connection' }),
+    });
+    const d = await r.json();
+    if (d.success) toast('Test notifications sent!', 'success');
+    else toast(d.error || 'Test failed', 'error');
+  } catch { toast('Test failed', 'error'); }
+  btn.disabled = false; btn.textContent = '🔔 Send test';
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+let toastTimer;
+function toast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className   = `toast ${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 4000);
+}
+
+// Dismiss modal on backdrop click
+document.getElementById('policy-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+init();
+</script>
+<script src="/nav-component.js"></script>
+<script>window.tvNav.init('settings');</script>
+<script src="/tunebot.js"></script>
+</body>
+</html>
