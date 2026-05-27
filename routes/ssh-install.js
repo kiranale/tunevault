@@ -99,7 +99,7 @@ router.post('/api/connections/draft', requireAuth, enforceConnectionCap, async (
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     await agentDb.setInstallTokenHash(conn.id, tokenHash);
 
-    const installCmd = `curl -fsSL ${APP_URL}/install.sh | sudo TUNEVAULT_TOKEN=${token} bash`;
+    const installCmd = `curl -fsSL ${APP_URL}/install.sh | sudo TUNEVAULT_TOKEN=${token} TUNEVAULT_API=${APP_URL} bash`;
 
     res.json({
       draft_id:        conn.id,
