@@ -611,7 +611,7 @@ function renderCard(c, isRemoved) {
     ${restartLoopBanner}
     <div class="card-footer">
       ${!isRemoved ? `
-        <button class="card-btn primary" onclick="event.stopPropagation(); runHealthCheck(${c.id})">▶ Health Check</button>
+        <button class="card-btn primary" data-hc-id="${c.id}" onclick="event.stopPropagation(); runHealthCheck(${c.id})">▶ Health Check</button>
         <button class="card-btn" onclick="event.stopPropagation(); openSlideout(${c.id})">Details</button>
         <button class="card-btn danger" onclick="event.stopPropagation(); confirmDelete(${c.id})">Delete</button>
       ` : `
@@ -847,7 +847,24 @@ async function doRename(connId) {
 
 // ── Health check ─────────────────────────────────────────────────────────────
 async function runHealthCheck(connId) {
-  // Redirect to dashboard with connection pre-selected
+  const conn = allConnections.find(x => x.id === connId);
+  const btn = document.querySelector(`[data-hc-id="${connId}"]`);
+  if (btn) { btn.disabled = true; btn.textContent = 'Running…'; }
+  try {
+    const res = await api('/api/health-check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ connection_id: connId }),
+    });
+    if (res && res.ok) {
+      const d = await res.json();
+      if (d.id) {
+        window.location.href = '/report/' + d.id;
+        return;
+      }
+    }
+  } catch (_) {}
+  // Fallback to dashboard
   window.location.href = '/dashboard?run=' + connId;
 }
 
