@@ -266,22 +266,26 @@ window.tvNav = (function() {
       // Activity and Manager moved to Admin dropdown
 
       // User email + admin links
-      if (type === 'dashboard') {
-        rightHtml += '<span id="nav-user-email" style="font-size:13px;color:var(--text-dim);padding:0 4px;"></span>';
-      }
       if (isAdmin) {
         rightHtml += buildAdminDropdown(true);
       }
-      // Secondary utility items — same items, same order on every authenticated page
-      var secStyle = 'font-size:11px;color:var(--text);text-decoration:none;padding:4px 8px;border:1px solid rgba(255,255,255,0.15);border-radius:5px;transition:all 0.2s;white-space:nowrap;flex-shrink:0;';
-      var secHover = "this.style.color='var(--accent)';this.style.borderColor='var(--accent)'";
-      var secOut   = "this.style.color='var(--text)';this.style.borderColor='rgba(255,255,255,0.15)'";
-      rightHtml += '<span style="width:1px;height:14px;background:rgba(255,255,255,0.1);margin:0 2px;flex-shrink:0;"></span>';
-      rightHtml += '<a href="/settings/billing" style="' + secStyle + (type === 'billing' ? 'color:var(--accent);border-color:var(--accent);' : '') + '" onmouseover="' + secHover + '" onmouseout="' + secOut + '">Billing</a>';
-      rightHtml += '<a href="/pricing" style="' + secStyle + (type === 'pricing' ? 'color:var(--accent);border-color:var(--accent);' : '') + '" onmouseover="' + secHover + '" onmouseout="' + secOut + '">Pricing</a>';
-      rightHtml += '<a href="/settings/security" style="' + secStyle + (type === 'security' ? 'color:var(--accent);border-color:var(--accent);' : '') + '" onmouseover="' + secHover + '" onmouseout="' + secOut + '">Security</a>';
-      rightHtml += '<a href="/settings/sso" style="' + secStyle + (type === 'settings' ? 'color:var(--accent);border-color:var(--accent);' : '') + '" onmouseover="' + secHover + '" onmouseout="' + secOut + '">SSO</a>';
-      rightHtml += '<button id="nav-signout-btn" onclick="window.tvNav.signOut()" style="background:none;' + secStyle + 'cursor:pointer;" onmouseover="' + secHover + '" onmouseout="' + secOut + '">Sign out</button>';
+      // User account dropdown — replaces scattered Billing/Pricing/Security/SSO/Sign out buttons
+      rightHtml += '<div style="' + dropdownWrapStyle + '" class="tv-dropdown">' +
+        '<button id="nav-user-btn" style="background:none;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--text-dim);padding:4px 8px;border:1px solid rgba(255,255,255,0.15);border-radius:5px;white-space:nowrap;flex-shrink:0;transition:all 0.2s;" ' +
+          'onclick="tvNavToggleDropdown(this)" ' +
+          'onmouseover="this.style.color=\'var(--accent)\';this.style.borderColor=\'var(--accent)\'" ' +
+          'onmouseout="this.style.color=\'var(--text-dim)\';this.style.borderColor=\'rgba(255,255,255,0.15)\'">' +
+          '<span id="nav-user-email" style="font-size:13px;">Account</span> &#9662;' +
+        '</button>' +
+        '<div class="tv-dropdown-menu" role="menu" style="' + dropdownMenuStyle + 'right:0;left:auto;">' +
+          buildDropdownItem('/settings/billing', '💳 Billing', 'Subscription and usage') +
+          buildDropdownItem('/pricing', '📋 Pricing', 'Plans and features') +
+          buildDropdownItem('/settings/security', '🔒 Security', 'Password and 2FA') +
+          buildDropdownItem('/settings/sso', '🔑 SSO', 'Single sign-on settings') +
+          '<div style="border-top:1px solid rgba(255,255,255,0.1);margin:4px 0;"></div>' +
+          '<button id="nav-signout-btn" onclick="window.tvNav.signOut()" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;padding:10px 16px;font-size:13px;color:var(--text-dim);display:flex;align-items:center;gap:10px;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(255,255,255,0.05)\'" onmouseout="this.style.background=\'none\'">🚪 Sign out</button>' +
+        '</div>' +
+      '</div>';
 
     } else if (isLoggedIn) {
       // Authenticated user on public/marketing pages — Pricing stays visible (dynamic buttons)
