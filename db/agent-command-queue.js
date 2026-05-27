@@ -241,7 +241,7 @@ async function findByRequestId(requestId, agentId) {
 async function notifyAgentCmd(agentId, payload) {
   await pool.query('SELECT pg_notify($1, $2)', [
     `agent_cmd:${agentId}`,
-    notifyPayload,
+    payload,
   ]);
 }
 
