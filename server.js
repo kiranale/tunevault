@@ -2557,11 +2557,27 @@ app.post('/api/health-checks', requireAuth, requireRole('junior_dba'), enforceHe
             connProxyUrl = `http://${connHost}:3100`;
             resolved = true;
           }
+          // Priority 3: agent polling channel active — no proxy_url needed
+          if (!resolved) {
+            const agentActive = await pool.query(
+              `SELECT id FROM agent_tunnels WHERE connection_id = $1 AND status = 'active' LIMIT 1`,
+              [connId]
+            );
+            if (agentActive.rows.length > 0) {
+              resolved = true;
+              connProxyUrl = null;
+            }
+          }
           // Persist resolved URL so future health checks don't hit this path
-          if (resolved) {
+          if (resolved && connProxyUrl) {
             await pool.query(
               `UPDATE oracle_connections SET proxy_url = $1, updated_at = NOW() WHERE id = $2 AND proxy_url = 'https://pending.tunevault.agent'`,
               [connProxyUrl, connId]
+            );
+          } else if (resolved && !connProxyUrl) {
+            await pool.query(
+              `UPDATE oracle_connections SET proxy_url = NULL, updated_at = NOW() WHERE id = $1 AND proxy_url = 'https://pending.tunevault.agent'`,
+              [connId]
             );
           }
         } catch (_resolveErr) {
