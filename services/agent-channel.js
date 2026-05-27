@@ -151,11 +151,21 @@ async function sendToAgent(connectionId, request, timeoutMs = 120_000) {
 
     unsub = await subscribe(resultChannel, async (payload) => {
       try {
-        const result = JSON.parse(payload);
-        await cleanup(resolve, {
-          statusCode: result.status_code || 200,
-          body: result.body || {},
-        });
+        // pg_notify payload is just a signal — fetch actual result from DB
+        const row = await db.getCompletedResult(requestId);
+        if (row) {
+          await cleanup(resolve, {
+            statusCode: row.status_code || 200,
+            body: row.body || {},
+          });
+        } else {
+          // Fallback: try parsing payload directly (legacy path)
+          const result = JSON.parse(payload);
+          await cleanup(resolve, {
+            statusCode: result.status_code || 200,
+            body: result.body || {},
+          });
+        }
       } catch (e) {
         await cleanup(reject, e);
       }

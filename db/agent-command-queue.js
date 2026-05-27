@@ -241,7 +241,7 @@ async function findByRequestId(requestId, agentId) {
 async function notifyAgentCmd(agentId, payload) {
   await pool.query('SELECT pg_notify($1, $2)', [
     `agent_cmd:${agentId}`,
-    payload,
+    notifyPayload,
   ]);
 }
 
@@ -252,9 +252,11 @@ async function notifyAgentCmd(agentId, payload) {
  * @param {string} payload  — JSON-stringified result
  */
 async function notifyAgentResult(requestId, payload) {
+  // pg_notify has 8KB limit — only send requestId as signal, result is in DB
+  const notifyPayload = JSON.stringify({ request_id: requestId, ok: true });
   await pool.query('SELECT pg_notify($1, $2)', [
     `agent_result:${requestId}`,
-    payload,
+    notifyPayload,
   ]);
 }
 
@@ -286,5 +288,17 @@ module.exports = {
   findByRequestId,
   notifyAgentCmd,
   notifyAgentResult,
+  getCompletedResult,
   isRecentlyPolled,
 };
+
+async function getCompletedResult(requestId) {
+  const r = await pool.query(
+    `SELECT result FROM agent_command_queue 
+     WHERE payload->>'request_id' = $1 
+     AND status = 'completed' 
+     ORDER BY completed_at DESC LIMIT 1`,
+    [requestId]
+  );
+  return r.rows[0]?.result || null;
+}
