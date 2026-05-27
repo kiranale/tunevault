@@ -847,25 +847,29 @@ async function doRename(connId) {
 
 // ── Health check ─────────────────────────────────────────────────────────────
 async function runHealthCheck(connId) {
-  const conn = allConnections.find(x => x.id === connId);
-  const btn = document.querySelector(`[data-hc-id="${connId}"]`);
+  const btn = document.querySelector('[data-hc-id="' + connId + '"]');
   if (btn) { btn.disabled = true; btn.textContent = 'Running…'; }
   try {
-    const res = await api('/api/health-check', {
+    const res = await api('/api/health-checks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ connection_id: connId }),
     });
     if (res && res.ok) {
       const d = await res.json();
-      if (d.id) {
-        window.location.href = '/report/' + d.id;
-        return;
-      }
+      if (d.id) { window.location.href = '/report/' + d.id; return; }
     }
-  } catch (_) {}
-  // Fallback to dashboard
-  window.location.href = '/dashboard?run=' + connId;
+    if (res && res.status === 429) {
+      const d = await res.json().catch(() => ({}));
+      alert(d.message || d.error || 'Rate limit reached — try again shortly');
+    } else if (res) {
+      const d = await res.json().catch(() => ({}));
+      alert(d.message || d.error || 'Failed to start health check');
+    }
+  } catch (err) {
+    alert('Network error: ' + err.message);
+  }
+  if (btn) { btn.disabled = false; btn.textContent = '▶ Health Check'; }
 }
 
 // ── Restore server ───────────────────────────────────────────────────────────
