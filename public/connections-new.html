@@ -26,8 +26,6 @@
       font-family: 'Space Grotesk', system-ui, sans-serif;
       font-size: 15px; line-height: 1.6; min-height: 100vh;
     }
-
-    /* Nav */
     .nav {
       background: rgba(17,17,20,0.95); border-bottom: 1px solid var(--border);
       backdrop-filter: blur(12px); display: flex; align-items: center;
@@ -39,15 +37,8 @@
       padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; transition: all .15s;
     }
     .nav-back:hover { color: var(--text); border-color: var(--muted); }
-
-    /* Layout */
     .page-wrap { max-width: 560px; margin: 0 auto; padding: 56px 24px 120px; }
-
-    /* Stepper */
-    .stepper {
-      display: flex; align-items: center; gap: 0;
-      margin-bottom: 40px;
-    }
+    .stepper { display: flex; align-items: center; gap: 0; margin-bottom: 40px; }
     .step-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
     .step-item.active { color: var(--text); font-weight: 600; }
     .step-item.done   { color: var(--green); }
@@ -60,16 +51,12 @@
     .step-item.active .step-num { background: var(--accent); border-color: var(--accent); color: #000; }
     .step-item.done   .step-num { background: var(--green);  border-color: var(--green);  color: #000; }
     .step-connector { flex: 1; height: 1px; background: var(--border); min-width: 20px; max-width: 40px; }
-
-    /* Card */
     .card {
       background: var(--bg2); border: 1px solid var(--border);
       border-radius: var(--radius); padding: 32px; margin-bottom: 16px;
     }
     .card-title { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 8px; }
     .card-sub   { color: var(--muted); font-size: 14px; margin-bottom: 28px; line-height: 1.6; }
-
-    /* Field */
     .field { margin-bottom: 16px; }
     .field label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 7px; }
     .field input {
@@ -82,16 +69,12 @@
     .field input.invalid { border-color: var(--red); }
     .field-error { display: none; font-size: 12px; color: var(--red); margin-top: 5px; }
     .field.has-error .field-error { display: block; }
-
-    /* Button */
     .btn { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700; padding: 12px 22px; border-radius: 8px; cursor: pointer; border: none; transition: all .15s; }
     .btn-primary { background: var(--accent); color: #000; }
     .btn-primary:hover { background: #e09820; }
     .btn-primary:disabled { background: var(--bg3); color: var(--muted); cursor: default; }
     .btn-secondary { background: var(--bg3); color: var(--text); border: 1px solid var(--border); }
     .btn-secondary:hover { border-color: var(--muted); }
-
-    /* Install command box */
     .cmd-box {
       background: var(--bg3); border: 1px solid var(--border);
       border-radius: 8px; padding: 14px 16px;
@@ -109,18 +92,13 @@
     }
     .copy-btn:hover { color: var(--text); border-color: var(--muted); }
     .copy-btn.copied { color: var(--green); border-color: var(--green); }
-
     .cmd-hint { font-size: 12px; color: var(--muted); }
-
-    /* Token TTL badge */
     .token-badge {
       display: inline-flex; align-items: center; gap: 6px;
       background: rgba(240,168,48,.12); border: 1px solid rgba(240,168,48,.3);
       border-radius: 6px; padding: 4px 10px; font-size: 12px; color: var(--accent);
       margin-bottom: 20px;
     }
-
-    /* Polling bar */
     .poll-bar {
       background: var(--bg3); border: 1px solid var(--border);
       border-radius: 8px; padding: 16px 20px; display: flex;
@@ -138,8 +116,6 @@
       flex-shrink: 0; animation: pulse-dot 1.4s ease-in-out infinite;
     }
     .poll-label { font-size: 14px; color: var(--muted); }
-
-    /* Success state */
     .success-banner {
       text-align: center; padding: 40px 24px;
       background: rgba(52,211,153,.06); border: 1px solid rgba(52,211,153,.25);
@@ -151,8 +127,6 @@
     .success-meta { font-size: 12px; color: var(--muted); font-family: 'JetBrains Mono', monospace; margin-bottom: 20px; }
     .btn-go { display: inline-block; padding: 12px 24px; background: var(--green); color: #000; font-weight: 700; font-size: 14px; border-radius: 8px; text-decoration: none; transition: background .15s; }
     .btn-go:hover { background: #16a34a; }
-
-    /* SID picker */
     .sid-option {
       display: flex; align-items: flex-start; gap: 12px;
       padding: 14px 16px; background: var(--bg3); border: 2px solid var(--border);
@@ -183,22 +157,24 @@
     }
     .btn-confirm-sid:hover { background: #e09820; }
     .btn-confirm-sid:disabled { background: var(--bg3); color: var(--muted); cursor: default; }
-
-    /* Error notice */
     #error-notice {
       display: none; background: rgba(239,68,68,.08); border: 1px solid var(--red);
       border-radius: var(--radius); padding: 14px 18px; margin-top: 16px;
       font-size: 13px; color: var(--red);
     }
     #error-notice strong { display: block; margin-bottom: 4px; font-size: 14px; }
-
-    /* Tip box */
     .tip-box {
       display: flex; align-items: flex-start; gap: 10px;
       background: rgba(96,165,250,.06); border: 1px solid rgba(96,165,250,.2);
       border-radius: 8px; padding: 14px 16px; margin-top: 20px; font-size: 13px; color: #93c5fd;
     }
     .tip-box .icon { font-size: 16px; flex-shrink: 0; }
+    /* Credentials form */
+    .cred-info {
+      display: flex; align-items: flex-start; gap: 10px;
+      background: rgba(240,168,48,.06); border: 1px solid rgba(240,168,48,.2);
+      border-radius: 8px; padding: 14px 16px; margin-bottom: 20px; font-size: 13px; color: var(--accent);
+    }
   </style>
 </head>
 <body>
@@ -210,7 +186,6 @@
 
 <div class="page-wrap">
 
-  <!-- Stepper -->
   <div class="stepper" id="stepper">
     <div class="step-item active" id="step1-item">
       <div class="step-num">1</div>
@@ -224,25 +199,21 @@
     <div class="step-connector"></div>
     <div class="step-item" id="step3-item">
       <div class="step-num">3</div>
-      <span>Done</span>
+      <span>Connect Oracle</span>
     </div>
   </div>
 
-  <!-- ── Step 1: Name ─────────────────────────────────────────────────────── -->
+  <!-- Step 1 -->
   <div id="step1">
     <div class="card">
       <div class="card-title">Name your server</div>
       <div class="card-sub">Give this server a label you'll recognize. No technical details needed.</div>
-
       <div class="field">
         <label>Server name</label>
         <input type="text" id="name-input" placeholder="e.g. PROD-EBS-DB or Test-Oracle" autocomplete="off"/>
         <p class="field-error">Server name is required</p>
       </div>
-
-      <button class="btn btn-primary" id="btn-create" onclick="createServer()">
-        Continue →
-      </button>
+      <button class="btn btn-primary" id="btn-create" onclick="createServer()">Continue →</button>
     </div>
     <div id="error-notice">
       <strong id="error-title">Error</strong>
@@ -250,7 +221,7 @@
     </div>
   </div>
 
-  <!-- ── Step 2: Install agent ─────────────────────────────────────────── -->
+  <!-- Step 2 -->
   <div id="step2" style="display:none">
     <div class="card">
       <div class="card-title">Install the TuneVault agent</div>
@@ -258,41 +229,33 @@
         Run this one-liner on your Oracle server. The agent connects outbound over HTTPS —
         <strong>no firewall rules or inbound ports needed</strong>.
       </div>
-
       <div class="token-badge">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
         </svg>
         Token expires in <span id="token-ttl">30:00</span>
       </div>
-
       <div class="cmd-box">
         <pre class="cmd-pre" id="install-cmd">…</pre>
         <button class="copy-btn" id="copy-btn" onclick="copyCmd()">Copy</button>
       </div>
-      <p class="cmd-hint">
-        Paste this into a terminal with <code>sudo</code> access on the server.
-      </p>
-
+      <p class="cmd-hint">Paste this into a terminal with <code>sudo</code> access on the server.</p>
       <div class="tip-box">
         <span class="icon">ℹ️</span>
         <span>The agent will register automatically when it starts. This page updates when the server connects.</span>
       </div>
-
-      <!-- Poll bar -->
       <div class="poll-bar" id="poll-bar">
         <div class="spinner"></div>
         <span class="poll-label" id="poll-label">Waiting for agent to register…</span>
         <div class="poll-dot"></div>
       </div>
     </div>
-
     <a href="/connections" id="skip-link" class="btn btn-secondary" style="display:block;text-align:center;margin-top:12px">
       Skip — monitor from /connections
     </a>
   </div>
 
-  <!-- ── Step 3: SID picker / Done ───────────────────────────────────────── -->
+  <!-- Step 3 -->
   <div id="step3" style="display:none">
     <!-- SID picker -->
     <div id="sid-picker" style="display:none">
@@ -305,11 +268,36 @@
       </div>
     </div>
 
+    <!-- Credentials form -->
+    <div id="credentials-form" style="display:none">
+      <div class="card">
+        <div class="card-title">🔑 Oracle credentials</div>
+        <div class="card-sub">Provide a read-only Oracle user so TuneVault can collect health data. You can skip and configure later via Edit on the Servers page.</div>
+        <div class="cred-info">
+          <span>ℹ️</span>
+          <span>Create a <strong>tunevault_reader</strong> user with <code>SELECT_CATALOG_ROLE</code> on your Oracle server, then enter the credentials below.</span>
+        </div>
+        <div class="field">
+          <label>Oracle Username</label>
+          <input type="text" id="cred-username" placeholder="e.g. tunevault_reader" autocomplete="off"/>
+        </div>
+        <div class="field">
+          <label>Oracle Password</label>
+          <input type="password" id="cred-password" placeholder="Enter password" autocomplete="off"/>
+        </div>
+        <div id="cred-error" style="display:none;margin-top:8px;font-size:13px;color:var(--red);"></div>
+        <div style="display:flex;gap:12px;margin-top:24px;align-items:center;">
+          <button class="btn-confirm-sid" id="btn-save-creds" style="margin-top:0;flex:1;" onclick="saveCredentials()">Save &amp; Run Health Check →</button>
+          <button onclick="showSuccessBanner()" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:8px;white-space:nowrap;flex-shrink:0;">Skip for now</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Success -->
     <div id="success-banner" class="success-banner" style="display:none">
       <div class="success-icon">✅</div>
       <h2>Server connected</h2>
-      <p id="success-detail">Agent is online and running health checks.</p>
+      <p id="success-detail">Agent is online and ready for health checks.</p>
       <div class="success-meta" id="success-meta"></div>
       <a href="/connections" class="btn-go">View All Servers →</a>
     </div>
@@ -318,7 +306,6 @@
 </div>
 
 <script>
-// ── State ─────────────────────────────────────────────────────────────────────
 let _draftId = null;
 let _installCmd = '';
 let _tokenExpiresAt = null;
@@ -326,25 +313,20 @@ let _ttlInterval = null;
 let _pollInterval = null;
 let _registrationData = null;
 
-// ── Step 1: Create server ──────────────────────────────────────────────────────
 async function createServer() {
   const nameInput = document.getElementById('name-input');
   const name = nameInput.value.trim();
-
   if (!name) {
     nameInput.classList.add('invalid');
     nameInput.closest('.field').classList.add('has-error');
     nameInput.focus();
     return;
   }
-
   clearFieldError(nameInput);
-
   const btn = document.getElementById('btn-create');
   btn.disabled = true;
   btn.textContent = 'Creating…';
   hideError();
-
   try {
     const res = await fetch('/api/connections/draft', {
       method: 'POST',
@@ -352,14 +334,11 @@ async function createServer() {
       body: JSON.stringify({ name }),
     });
     const data = await res.json();
-    if (!res.ok) { showError(data.error || `HTTP ${res.status}`); btn.disabled = false; btn.textContent = 'Continue →'; return; }
-
+    if (!res.ok) { showError(data.error || 'HTTP ' + res.status); btn.disabled = false; btn.textContent = 'Continue →'; return; }
     _draftId = data.draft_id;
     _installCmd = data.install_command || '';
     _tokenExpiresAt = Date.now() + 30 * 60 * 1000;
-
     document.getElementById('install-cmd').textContent = _installCmd;
-
     setStep(2);
     startTtlCounter();
     startPolling();
@@ -370,7 +349,6 @@ async function createServer() {
   }
 }
 
-// ── Step management ─────────────────────────────────────────────────────────────
 function setStep(n) {
   ['step1','step2','step3'].forEach((id, i) => {
     document.getElementById(id).style.display = (i + 1 === n) ? '' : 'none';
@@ -382,7 +360,6 @@ function setStep(n) {
   });
 }
 
-// ── TTL countdown ─────────────────────────────────────────────────────────────
 function startTtlCounter() {
   if (_ttlInterval) clearInterval(_ttlInterval);
   _ttlInterval = setInterval(() => {
@@ -396,11 +373,10 @@ function startTtlCounter() {
     }
     const m = Math.floor(ms / 60000);
     const s = Math.floor((ms % 60000) / 1000);
-    document.getElementById('token-ttl').textContent = `${m}:${String(s).padStart(2,'0')}`;
+    document.getElementById('token-ttl').textContent = m + ':' + String(s).padStart(2,'0');
   }, 1000);
 }
 
-// ── Registration poller ───────────────────────────────────────────────────────
 function startPolling() {
   if (_pollInterval) clearInterval(_pollInterval);
   _pollInterval = setInterval(checkRegistration, 4000);
@@ -413,7 +389,7 @@ function stopPolling() {
 async function checkRegistration() {
   if (!_draftId) return;
   try {
-    const res = await fetch(`/api/connections/${_draftId}/registration-status`);
+    const res = await fetch('/api/connections/' + _draftId + '/registration-status');
     if (!res.ok) return;
     const data = await res.json();
     if (data.status === 'registered') {
@@ -425,15 +401,12 @@ async function checkRegistration() {
   } catch (_) {}
 }
 
-// ── On registered ───────────────────────────────────────────────────────────────
 async function onRegistered(data) {
   setStep(3);
-
-  // Try service discovery (classifier)
   let services = null;
   if (_draftId) {
     try {
-      const resp = await fetch(`/api/connections/discover-services?connection_id=${_draftId}`);
+      const resp = await fetch('/api/connections/discover-services?connection_id=' + _draftId);
       if (resp.ok) {
         const body = await resp.json();
         if (body.ok && Array.isArray(body.services) && body.services.length > 0) {
@@ -442,60 +415,46 @@ async function onRegistered(data) {
       }
     } catch (_) {}
   }
-
-  // Raw fallback
-  const cdbSids  = Array.isArray(data.oracle_sids)  ? data.oracle_sids  : [];
-  const pdbSvcs  = Array.isArray(data.pdb_services) ? data.pdb_services : [];
-  const allOpts  = services || [...pdbSvcs, ...cdbSids];
-
+  const cdbSids = Array.isArray(data.oracle_sids)  ? data.oracle_sids  : [];
+  const pdbSvcs = Array.isArray(data.pdb_services) ? data.pdb_services : [];
+  const allOpts = services || [...pdbSvcs, ...cdbSids];
   if (allOpts.length > 1) {
     renderSidPicker(services || cdbSids, pdbSvcs, services ? 'classifier' : 'fallback');
   } else if (allOpts.length === 1) {
     await autoSelectSid(allOpts[0].network_name || allOpts[0].name || allOpts[0]);
-    showSuccess(data);
+    showCredentialsForm(data);
   } else {
-    showSuccess(data);
+    showCredentialsForm(data);
   }
 }
 
-function renderSidPicker(services, cdbSids, mode) {
+function renderSidPicker(services, pdbSvcs, mode) {
   const container = document.getElementById('sid-options');
   let defaultSid = null;
   let html = '';
-
   if (mode === 'classifier') {
     services.forEach(svc => {
       const isDefault = !defaultSid && !svc.blocked;
       if (isDefault) defaultSid = svc.network_name || svc.name;
       const isRec = !!svc.recommended;
-      html += `
-        <label class="sid-option${isDefault ? ' selected' : ''}" onclick="selectSid(this)">
-          ${isRec ? '<span class="badge-rec">✓ Recommended</span>' : ''}
-          <input type="radio" name="sid-choice" value="${escAttr(svc.network_name || svc.name)}"${isDefault ? ' checked' : ''}/>
-          <div class="sid-label">
-            <div class="sid-name">${esc(svc.network_name || svc.name)}</div>
-            <div class="sid-meta">${esc(svc.label || svc.classification || '')}</div>
-          </div>
-          <span class="sid-badge ${svc.pdb_name ? 'badge-pdb' : 'badge-cdb'}">${svc.pdb_name ? 'PDB' : 'CDB'}</span>
-        </label>`;
+      html += '<label class="sid-option' + (isDefault ? ' selected' : '') + '" onclick="selectSid(this)">' +
+        (isRec ? '<span class="badge-rec">✓ Recommended</span>' : '') +
+        '<input type="radio" name="sid-choice" value="' + escAttr(svc.network_name || svc.name) + '"' + (isDefault ? ' checked' : '') + '/>' +
+        '<div class="sid-label"><div class="sid-name">' + esc(svc.network_name || svc.name) + '</div>' +
+        '<div class="sid-meta">' + esc(svc.label || svc.classification || '') + '</div></div>' +
+        '<span class="sid-badge ' + (svc.pdb_name ? 'badge-pdb' : 'badge-cdb') + '">' + (svc.pdb_name ? 'PDB' : 'CDB') + '</span></label>';
     });
   } else {
-    // fallback
-    [...(Array.isArray(pdbSvcs) ? pdbSvcs : []), ...(Array.isArray(cdbSids) ? cdbSids : [])].forEach((svc, idx) => {
+    [...(Array.isArray(pdbSvcs) ? pdbSvcs : []), ...(Array.isArray(services) ? services : [])].forEach((svc, idx) => {
       const isDefault = idx === 0 && !defaultSid;
       if (isDefault) defaultSid = svc;
-      html += `
-        <label class="sid-option${isDefault ? ' selected' : ''}" onclick="selectSid(this)">
-          <input type="radio" name="sid-choice" value="${escAttr(svc)}"${isDefault ? ' checked' : ''}/>
-          <div class="sid-label">
-            <div class="sid-name">${esc(svc)}</div>
-            <div class="sid-meta">${pdbSvcs.includes(svc) ? 'PDB service' : 'CDB instance'}</div>
-          </div>
-          <span class="sid-badge ${pdbSvcs.includes(svc) ? 'badge-pdb' : 'badge-cdb'}">${pdbSvcs.includes(svc) ? 'PDB' : 'CDB'}</span>
-        </label>`;
+      html += '<label class="sid-option' + (isDefault ? ' selected' : '') + '" onclick="selectSid(this)">' +
+        '<input type="radio" name="sid-choice" value="' + escAttr(svc) + '"' + (isDefault ? ' checked' : '') + '/>' +
+        '<div class="sid-label"><div class="sid-name">' + esc(svc) + '</div>' +
+        '<div class="sid-meta">' + (pdbSvcs.includes(svc) ? 'PDB service' : 'CDB instance') + '</div></div>' +
+        '<span class="sid-badge ' + (pdbSvcs.includes(svc) ? 'badge-pdb' : 'badge-cdb') + '">' + (pdbSvcs.includes(svc) ? 'PDB' : 'CDB') + '</span></label>';
     });
   }
-
   container.innerHTML = html;
   document.getElementById('sid-picker').style.display = '';
   document.getElementById('btn-confirm-sid').disabled = !defaultSid;
@@ -520,10 +479,8 @@ async function confirmSid() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ connection_id: _draftId, sid }),
     });
-    showSuccess(_registrationData);
-  } catch (_) {
-    showSuccess(_registrationData);
-  }
+  } catch (_) {}
+  showCredentialsForm(_registrationData);
 }
 
 async function autoSelectSid(sid) {
@@ -537,19 +494,61 @@ async function autoSelectSid(sid) {
   } catch (_) {}
 }
 
-function showSuccess(data) {
+function showCredentialsForm(data) {
   document.getElementById('sid-picker').style.display = 'none';
-  const banner = document.getElementById('success-banner');
-  banner.style.display = '';
-
-  const detail = [
-    data.agent_version ? `Agent v${data.agent_version}` : '',
-    data.hostname ? `Host: ${data.hostname}` : '',
+  window._successMeta = [
+    data && data.agent_version ? 'Agent v' + data.agent_version : '',
+    data && data.hostname ? 'Host: ' + data.hostname : '',
   ].filter(Boolean).join('  ·  ');
-  document.getElementById('success-meta').textContent = detail;
+  document.getElementById('credentials-form').style.display = '';
 }
 
-// ── Copy ───────────────────────────────────────────────────────────────────────
+function showSuccessBanner() {
+  document.getElementById('credentials-form').style.display = 'none';
+  document.getElementById('success-banner').style.display = '';
+  document.getElementById('success-meta').textContent = window._successMeta || '';
+}
+
+async function saveCredentials() {
+  const username = document.getElementById('cred-username').value.trim();
+  const password = document.getElementById('cred-password').value;
+  const errEl = document.getElementById('cred-error');
+  errEl.style.display = 'none';
+  if (!username && !password) { showSuccessBanner(); return; }
+  if (username && !password) {
+    errEl.textContent = 'Please enter a password for this user.';
+    errEl.style.display = '';
+    return;
+  }
+  if (!username && password) {
+    errEl.textContent = 'Please enter a username.';
+    errEl.style.display = '';
+    return;
+  }
+  const btn = document.getElementById('btn-save-creds');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    const res = await fetch('/api/connections/' + _draftId, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ username: username, password: password }),
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(function() { return {}; });
+      errEl.textContent = d.error || 'Failed to save credentials';
+      errEl.style.display = '';
+      btn.disabled = false; btn.textContent = 'Save & Run Health Check →';
+      return;
+    }
+    showSuccessBanner();
+  } catch (err) {
+    errEl.textContent = 'Network error: ' + err.message;
+    errEl.style.display = '';
+    btn.disabled = false; btn.textContent = 'Save & Run Health Check →';
+  }
+}
+
 function copyCmd() {
   const cmd = _installCmd || document.getElementById('install-cmd').textContent;
   const btn = document.getElementById('copy-btn');
@@ -572,7 +571,6 @@ function fallbackCopy(text, cb) {
   } catch (_) {}
 }
 
-// ── Error / field helpers ─────────────────────────────────────────────────────
 function showError(msg) {
   document.getElementById('error-title').textContent = 'Error';
   document.getElementById('error-text').textContent = ' ' + msg;
@@ -588,16 +586,12 @@ function clearFieldError(el) {
     if (f) f.classList.remove('has-error');
   }
 }
-
-// Wire up name input enter key
 document.getElementById('name-input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') createServer();
 });
 document.getElementById('name-input').addEventListener('input', function() {
   clearFieldError(this);
 });
-
-// ── Helpers ────────────────────────────────────────────────────────────────────
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function escAttr(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;'); }
 </script>
