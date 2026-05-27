@@ -391,8 +391,9 @@ ORACLE_SIDS=""
 
 PMON_SIDS=$(ps -ef 2>/dev/null \
   | grep '[o]ra_pmon_' \
-  | grep -o 'ora_pmon_[^ ]*' \
+  | grep -o 'ora_pmon_[A-Za-z0-9_]*' \
   | sed 's/^ora_pmon_//' \
+  | grep -E '^[A-Za-z0-9_]{1,30}$' \
   | sort -u | tr '\n' ',' | sed 's/,$//' || true)
 [ -n "$PMON_SIDS" ] && ORACLE_SIDS="$PMON_SIDS" && ok "Oracle SIDs (PMON): $ORACLE_SIDS"
 
