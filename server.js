@@ -3567,12 +3567,19 @@ async function runProxyHealthCheckInner(healthCheckId, { connectionId, serviceNa
 async function fetchMetricsFromProxy({ connectionId, serviceName, username, password, osAuth }) {
   // All proxy health checks MUST go through the outbound agent channel.
   // Direct inbound hits to proxy_url are retired — agents expose no inbound ports.
-  if (!connectionId || !agentChannel.isAgentConnected(connectionId)) {
-    throw new Error(
-      'Agent is not connected. The TuneVault Agent connects outbound to the cloud — ' +
-      'no inbound ports or firewall rules are needed. ' +
-      'Wait up to 30 seconds after install for the agent to check in, then retry.'
+  // Check agent_tunnels for active status (oracle-proxy.py uses HTTP polling not WS channel)
+  if (connectionId) {
+    const tunnelCheck = await pool.query(
+      `SELECT status FROM agent_tunnels WHERE connection_id = $1 AND status = 'active' LIMIT 1`,
+      [connectionId]
     );
+    if (tunnelCheck.rows.length === 0 && !agentChannel.isAgentConnected(connectionId)) {
+      throw new Error(
+        'Agent is not connected. The TuneVault Agent connects outbound to the cloud — ' +
+        'no inbound ports or firewall rules are needed. ' +
+        'Wait up to 30 seconds after install for the agent to check in, then retry.'
+      );
+    }
   }
 
   const payload = { service_name: serviceName || '', username: username || '', password: password || '' };
