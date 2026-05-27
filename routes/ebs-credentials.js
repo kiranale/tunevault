@@ -77,7 +77,7 @@ router.get('/', requireAuth, requireConnectionOwner, async (req, res) => {
 
 // DELETE /api/connections/:id/credentials/:type
 // Revoke a stored credential.
-router.delete('/:type', requireAuth, requireConnectionOwner, async (req, res) => {
+router.delete('/:id/credentials/:type', requireAuth, requireConnectionOwner, async (req, res) => {
   const connectionId = req.params.id;
   const credentialType = req.params.type;
 
