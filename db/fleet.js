@@ -123,7 +123,7 @@ async function getFleetOverview(userId) {
     const topResult = await pool.query(
       `SELECT DISTINCT ON (run_id)
          run_id,
-         check_name AS title,
+         check_id AS title,
          status AS severity
        FROM check_results
        WHERE run_id = ANY($1)
