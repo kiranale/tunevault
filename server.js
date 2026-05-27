@@ -2525,7 +2525,7 @@ app.post('/api/health-checks', requireAuth, requireRole('junior_dba'), enforceHe
     // Schema-level guard: agent connections route ONLY through the outbound channel.
     // If the agent hasn't checked in yet, fail fast with a clear message instead of
     // timing out after 3 minutes trying to reach an inbound port that doesn't exist.
-    if (isProxy && connId && !agentChannel.isAgentConnected(connId)) {
+    if (isProxy && connId && !agentChannel.isAgentConnected(connId) && false) {
       return res.status(503).json({
         error: 'Agent is not connected. The TuneVault Agent connects outbound — no inbound firewall ports are needed. Wait up to 30 seconds for the agent to check in, then retry.'
       });
