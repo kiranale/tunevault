@@ -263,17 +263,7 @@ window.tvNav = (function() {
       // Fleet
       rightHtml += '<a href="/fleet" id="nav-fleet" style="' + currentLinkStyle + (type === 'fleet' ? 'color:var(--accent);' : '') + '" onmouseover="' + (type === 'fleet' ? "this.style.opacity='0.75'" : linkHover) + '" onmouseout="' + (type === 'fleet' ? "this.style.opacity='1'" : linkOut) + '">Fleet</a>';
 
-      // Activity Log
-      if (!isReportPage) {
-        var actActive = (type === 'activity');
-        rightHtml += '<a href="/activity" id="nav-activity" style="' + currentLinkStyle + (actActive ? 'color:var(--accent);' : '') + '" onmouseover="' + (actActive ? "this.style.opacity='0.75'" : linkHover) + '" onmouseout="' + (actActive ? "this.style.opacity='1'" : linkOut) + '">Activity</a>';
-      }
-
-      // Manager dashboard — shown only to users with manager/sdm/admin role (fetched async via /api/me/role)
-      if (!isReportPage) {
-        var mgrActive = (type === 'manager');
-        rightHtml += '<a href="/manager" id="nav-manager" style="display:none;' + currentLinkStyle + (mgrActive ? 'color:var(--accent);' : '') + '" onmouseover="' + (mgrActive ? "this.style.opacity='0.75'" : linkHover) + '" onmouseout="' + (mgrActive ? "this.style.opacity='1'" : linkOut) + '">Manager</a>';
-      }
+      // Activity and Manager moved to Admin dropdown
 
       // User email + admin links
       if (type === 'dashboard') {
