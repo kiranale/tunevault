@@ -80,8 +80,7 @@ window.tvNav = (function() {
         'Connections &#9662;' +
       '</button>' +
       '<div class="tv-dropdown-menu" role="menu" style="' + dropdownMenuStyle + '">' +
-        buildDropdownItem('/dashboard', '🗄️ DB Connections', 'All connected Oracle databases with health status') +
-        buildDropdownItem('/settings/connection-targets', '🤖 Connection Targets', 'Agent tunnel management and installer') +
+        buildDropdownItem('/connections', '🗄️ DB Connections', 'All connected Oracle databases with health status') +
         buildDropdownItem('/connections/new', '＋ Add Connection', 'Connect a new Oracle database via agent or direct') +
       '</div>' +
     '</div>';
