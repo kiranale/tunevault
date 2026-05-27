@@ -41,7 +41,7 @@ echo ""
 [ "$(id -u)" -eq 0 ] || err "Run as root:  curl ... | sudo TUNEVAULT_TOKEN=xxx bash"
 
 # ── API URL ───────────────────────────────────────────────────────────────────
-API="${TUNEVAULT_API:-https://tunevault.app}"
+API="${TUNEVAULT_API:-https://tunevault.app}"  # Will be overridden by provisioning response
 
 # ── Token check ───────────────────────────────────────────────────────────────
 if [ "$UPGRADE_ONLY" -eq 0 ] && [ "$HEADLESS" -eq 0 ]; then
@@ -324,30 +324,39 @@ ok "Config written to $ENV_FILE"
 info "Setting up Python venv at ${VENV_DIR}..."
 mkdir -p "$INSTALL_DIR"
 
-if [ ! -f "$VENV_PYTHON" ]; then
-  "$PYTHON3_BIN" -m venv "$VENV_DIR" 2>/dev/null || {
+# Check if venv exists AND is using python3.8+
+_VENV_NEEDS_REBUILD=0
+if [ -f "$VENV_PYTHON" ]; then
+  _VENV_MAJ=$("$VENV_PYTHON" -c "import sys; print(sys.version_info.major)" 2>/dev/null || echo 0)
+  _VENV_MIN=$("$VENV_PYTHON" -c "import sys; print(sys.version_info.minor)" 2>/dev/null || echo 0)
+  if [ "$_VENV_MAJ" -lt 3 ] || { [ "$_VENV_MAJ" -eq 3 ] && [ "$_VENV_MIN" -lt 8 ]; }; then
+    warn "venv uses Python ${_VENV_MAJ}.${_VENV_MIN} — rebuilding with Python 3.8+"
+    _VENV_NEEDS_REBUILD=1
+  else
+    ok "venv exists with Python ${_VENV_MAJ}.${_VENV_MIN} — reusing"
+  fi
+fi
+
+if [ ! -f "$VENV_PYTHON" ] || [ "$_VENV_NEEDS_REBUILD" -eq 1 ]; then
+  if [ -f /opt/rh/rh-python38/root/usr/lib64/libpython3.8.so.1.0 ]; then
+    export LD_LIBRARY_PATH="/opt/rh/rh-python38/root/usr/lib64:${LD_LIBRARY_PATH:-}"
+  fi
+  "$PYTHON3_BIN" -m venv "$VENV_DIR" --clear 2>/dev/null || {
     info "venv module missing — installing..."
     if [ "$PKG_MGR" = "apt" ]; then
       apt-get install -y -q python3-venv python3-pip 2>/dev/null || true
     else
-      # Try to install python3-venv or python38-venv
       yum install -y python3-venv --disablerepo=ngrok --disablerepo=cloudflare \
         >/dev/null 2>&1 || true
-      # For SCL python38, venv is built-in — just needs the lib path
-      if [ -f /opt/rh/rh-python38/root/usr/lib64/libpython3.8.so.1.0 ]; then
-        export LD_LIBRARY_PATH="/opt/rh/rh-python38/root/usr/lib64:${LD_LIBRARY_PATH:-}"
-      fi
     fi
-    "$PYTHON3_BIN" -m venv "$VENV_DIR" \
+    "$PYTHON3_BIN" -m venv "$VENV_DIR" --clear \
       || err "Cannot create venv. Try: $PYTHON3_BIN -m venv $VENV_DIR"
   }
-  ok "venv created"
-else
-  ok "venv exists — reusing"
+  ok "venv created with $PYTHON3_BIN"
 fi
 
 # Ensure SCL libs are in venv's LD path for OEL7
-if [ -f /opt/rh/rh-python38/root/usr/lib64/libpython3.8.so.1.0]; then
+if [ -f /opt/rh/rh-python38/root/usr/lib64/libpython3.8.so.1.0 ]; then
   echo "/opt/rh/rh-python38/root/usr/lib64" > /etc/ld.so.conf.d/rh-python38.conf
   ldconfig 2>/dev/null || true
 fi
