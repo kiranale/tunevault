@@ -1025,9 +1025,10 @@ async function openEditPanel(connId) {
           </div>
         </div>
         <div class="field-group">
-          <label class="field-label">SID / Service Name</label>
-          <div class="field-input" style="background:var(--bg);opacity:.6;cursor:not-allowed">${esc(c.service_name || '—')}</div>
-          <div class="field-sub">Host and service details cannot be changed — delete and re-add the connection instead.</div>
+          <label class="field-label" for="edit-service">SID / Service Name</label>
+          <input class="field-input" id="edit-service" type="text"
+                 value="${esc(c.service_name || '')}" placeholder="e.g. EBSDB or ORCL" maxlength="128"/>
+          <div class="field-sub">Update if the wrong service was auto-detected during install.</div>
         </div>
         <div class="field-group">
           <label class="field-label" for="edit-username">Oracle Username</label>
@@ -1059,12 +1060,14 @@ async function submitEdit(connId) {
   const name     = document.getElementById('edit-name').value.trim();
   const username = document.getElementById('edit-username').value.trim();
   const password = document.getElementById('edit-password').value;
+  const service_name = document.getElementById('edit-service') ? document.getElementById('edit-service').value.trim() : '';
 
   // Build payload — only name/username/password (PATCH scope)
   const payload = {};
   const c = allConnections.find(x => x.id === connId);
   if (name     && name     !== (c.name     || '')) payload.name     = name;
   if (username && username !== (c.username || '')) payload.username = username;
+  if (service_name && service_name !== (c.service_name || '')) payload.service_name = service_name;
   if (password)                                  payload.password = password;
 
   if (Object.keys(payload).length === 0) {
@@ -1074,7 +1077,7 @@ async function submitEdit(connId) {
   }
 
   const res = await api(`/api/connections/${connId}`, {
-    method: 'PATCH',
+    method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
