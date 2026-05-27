@@ -75,8 +75,27 @@ async function getFleetOverview(userId) {
     latestByConn[r.connection_id] = r;
   }
 
-  // Step 3: Severity counts from check_results for each latest run_id.
-  const runIds = Object.values(latestByConn).map(r => r.run_id).filter(Boolean);
+  // Step 3: Severity counts from check_results.
+  // check_results uses UUID run_id independent of health_checks.id
+  // Join by connection_id and get latest run_id per connection
+  const runIds = [];
+  if (connectionIds.length > 0) {
+    const latestRunResult = await pool.query(
+      `SELECT DISTINCT ON (connection_id) connection_id, run_id
+       FROM check_results
+       WHERE connection_id = ANY($1)
+       ORDER BY connection_id, executed_at DESC`,
+      [connectionIds]
+    );
+    for (const r of latestRunResult.rows) {
+      runIds.push(r.run_id);
+      // Update latestByConn with the correct UUID run_id
+      if (latestByConn[r.connection_id]) {
+        latestByConn[r.connection_id].run_id = r.run_id;
+      }
+    }
+  }
+  const _unusedRunIds = runIds; // keep for compatibility
 
   let severityByRun = {};
   let topFindingByRun = {};
