@@ -1634,6 +1634,8 @@
             // Sync active connection to shared state so TuneBot picks it up
             if (data.connection_id && window.tvConn) {
                 window.tvConn.save(data.connection_id);
+                window.tuneBotConnectionId = data.connection_id;
+                if (window.tbRefreshContext) window.tbRefreshContext(data.connection_id);
             }
         }
         injectExportButtons();

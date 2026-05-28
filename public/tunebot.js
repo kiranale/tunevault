@@ -1132,6 +1132,8 @@
               'font-weight:600;letter-spacing:0.2px;border-radius:20px;',
               'padding:2px 8px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">',
             '</div>',
+            '<select id="tb-conn-select" style="display:none;margin-top:6px;font-size:11px;background:rgba(255,255,255,0.06);border:1px solid rgba(240,168,48,0.3);color:#e8e8ed;border-radius:6px;padding:3px 6px;cursor:pointer;font-family:inherit;max-width:210px;" onchange="tbSwitchConnection(this.value)">',
+            '</select>',
           '</div>',
         '</div>',
         '<div style="display:flex;align-items:center;gap:6px;">',
@@ -1662,8 +1664,25 @@
     badge.style.background = scoreColor;
     badge.style.color = score !== null ? (score >= 80 ? '#34d399' : score >= 50 ? '#f0a830' : '#f87171') : '#9090a8';
     badge.style.display = 'inline-block';
+    renderConnSelector();
   }
 
+  function renderConnSelector() {
+    var sel = document.getElementById('tb-conn-select');
+    if (!sel || !tbContext) return;
+    var conns = tbContext.connections || [];
+    if (conns.length <= 1) { sel.style.display = 'none'; return; }
+    var activeId = tbContext.activeConnection ? tbContext.activeConnection.id : null;
+    sel.innerHTML = conns.map(function(c) {
+      return '<option value="' + c.id + '"' + (c.id === activeId ? ' selected' : '') + '>' + c.name + '</option>';
+    }).join('');
+    sel.style.display = 'block';
+  }
+  function tbSwitchConnection(connId) {
+    tbContext = null;
+    tbContextLoaded = false;
+    fetchContext(parseInt(connId, 10));
+  }
   function updateWelcomeForContext() {
     if (!tbContext) return;
     var welcomeEl = document.getElementById('tb-welcome');
@@ -2618,5 +2637,6 @@
   } else {
     init();
   }
+  window.tbRefreshContext = function(connectionId) { fetchContext(connectionId); };
 
 })();
