@@ -196,25 +196,16 @@ router.post('/chat', requireAuth, chatRateLimit, async (req, res) => {
     })),
     { role: 'user', content: message.trim() }
   ];
-
   try {
-    // Use the same OpenAI client as server.js (OPENAI_API_KEY + OPENAI_BASE_URL)
-    const OpenAI = require('openai');
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-      baseURL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
-      timeout: 30000,
-      maxRetries: 0
-    });
-
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [{ role: 'system', content: systemPrompt }, ...messages],
+    const Anthropic = require('@anthropic-ai/sdk');
+    const anthropic = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const completion = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 800,
-      temperature: 0.3 // Low temp — factual DBA advice, not creative
+      system: systemPrompt,
+      messages: messages,
     });
-
-    const reply = completion.choices[0]?.message?.content || 'Sorry, I couldn\'t generate a response.';
+    const reply = completion.content[0]?.text || 'Sorry, I could not generate a response.';
     res.json({ reply, source: 'ai' });
   } catch (err) {
     console.error('[tunebot] /chat AI error:', err.message);
