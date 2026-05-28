@@ -2001,6 +2001,7 @@
     // Load context on first open, or re-fetch if the active connection changed
     var currentConnId = detectConnectionIdFromPage();
     var connChanged = tbContextLoaded && currentConnId && currentConnId !== tbContextConnId;
+    if (tbContextLoaded && !connChanged) renderConnSelector();
     if ((!tbContextLoaded && !tbContextLoading) || connChanged) {
       fetchContext(connChanged ? currentConnId : undefined);
     }
