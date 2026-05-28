@@ -53,6 +53,11 @@ INSTALL_DIR="/opt/tunevault"
 VENV_DIR="${INSTALL_DIR}/venv"
 VENV_PYTHON="${VENV_DIR}/bin/python3"
 VENV_PIP="${VENV_DIR}/bin/pip"
+# Fallback to pip3.8 or pip3 if pip not present
+if [ ! -f "$VENV_PIP" ]; then
+  [ -f "${VENV_DIR}/bin/pip3.8" ] && VENV_PIP="${VENV_DIR}/bin/pip3.8"
+  [ -f "${VENV_DIR}/bin/pip3" ] && [ ! -f "${VENV_DIR}/bin/pip3.8" ] && VENV_PIP="${VENV_DIR}/bin/pip3"
+fi
 PROXY_SCRIPT="${INSTALL_DIR}/oracle-proxy.py"
 ENV_FILE="/etc/tunevault/agent.env"
 SERVICE_NAME="tunevault-agent"
