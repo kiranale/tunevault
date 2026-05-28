@@ -373,6 +373,10 @@ if [ ! -f "$VENV_PIP" ]; then
   "$VENV_PYTHON" -m ensurepip 2>/dev/null || \
     curl -fsSL https://bootstrap.pypa.io/pip/3.8/get-pip.py | "$VENV_PYTHON" 2>/dev/null || \
     info "pip bootstrap failed — will try anyway"
+# Re-detect VENV_PIP after venv creation and bootstrap
+[ -f "${VENV_DIR}/bin/pip" ]   && VENV_PIP="${VENV_DIR}/bin/pip"
+[ -f "${VENV_DIR}/bin/pip3.8" ] && VENV_PIP="${VENV_DIR}/bin/pip3.8"
+[ -f "${VENV_DIR}/bin/pip3" ]  && VENV_PIP="${VENV_DIR}/bin/pip3"
 fi
 # Upgrade pip
 "$VENV_PIP" install --quiet --upgrade pip 2>/dev/null || true
