@@ -2646,7 +2646,9 @@ app.post('/api/health-checks', requireAuth, requireRole('junior_dba'), enforceHe
         serviceName: connService,
         username: connUsername,
         password: connPassword,
-        osAuth: isAgentConnection
+        osAuth: isAgentConnection,
+        host: connHost,
+        port: connPort
       }).catch(err => {
         console.error('Proxy health check error:', err.message);
       });
@@ -3443,7 +3445,7 @@ const LATEST_PROXY_VERSION = '3.6.0';
 // Proxy Health Check Flow
 // ============================================================
 
-async function runProxyHealthCheck(healthCheckId, { connectionId, proxyUrl, proxyApiKey, serviceName, username, password, osAuth }) {
+async function runProxyHealthCheck(healthCheckId, { connectionId, proxyUrl, proxyApiKey, serviceName, username, password, osAuth, host, port }) {
   const t0 = Date.now(); // t0: collection started
 
   // Hard 3-minute deadline — protects against hung proxy connections where
@@ -3459,7 +3461,7 @@ async function runProxyHealthCheck(healthCheckId, { connectionId, proxyUrl, prox
 
   try {
     await Promise.race([
-      runProxyHealthCheckInner(healthCheckId, { connectionId, proxyUrl, proxyApiKey, serviceName, username, password, osAuth }, t0),
+      runProxyHealthCheckInner(healthCheckId, { connectionId, proxyUrl, proxyApiKey, serviceName, username, password, osAuth, host, port }, t0),
       proxyTimeoutPromise
     ]);
   } catch (err) {
@@ -3490,11 +3492,11 @@ async function runProxyHealthCheck(healthCheckId, { connectionId, proxyUrl, prox
 // Inner function extracted so Promise.race can wrap it with a hard timeout
 // proxyUrl/proxyApiKey are retained in the signature for backward compat but no longer used —
 // all traffic goes through the outbound agent channel (see fetchMetricsFromProxy).
-async function runProxyHealthCheckInner(healthCheckId, { connectionId, serviceName, username, password, osAuth }, t0) {
+async function runProxyHealthCheckInner(healthCheckId, { connectionId, serviceName, username, password, osAuth, host, port }, t0) {
   try {
     await pool.query(`UPDATE health_checks SET status = 'collecting', analysis_stage = 'collecting' WHERE id = $1`, [healthCheckId]);
 
-    const metrics = await fetchMetricsFromProxy({ connectionId, serviceName, username, password, osAuth });
+    const metrics = await fetchMetricsFromProxy({ connectionId, serviceName, username, password, osAuth, host, port });
 
     // Record proxy version on the connection row
     const proxyVersion = metrics.proxy_version || null;
@@ -3580,7 +3582,7 @@ async function runProxyHealthCheckInner(healthCheckId, { connectionId, serviceNa
   }
 }
 
-async function fetchMetricsFromProxy({ connectionId, serviceName, username, password, osAuth }) {
+async function fetchMetricsFromProxy({ connectionId, serviceName, username, password, osAuth, host, port }) {
   // All proxy health checks MUST go through the outbound agent channel.
   // Direct inbound hits to proxy_url are retired — agents expose no inbound ports.
   // Check agent_tunnels for active status (oracle-proxy.py uses HTTP polling not WS channel)
@@ -3598,7 +3600,7 @@ async function fetchMetricsFromProxy({ connectionId, serviceName, username, pass
     }
   }
 
-  const payload = { service_name: serviceName || '', username: username || '', password: password || '' };
+  const payload = { service_name: serviceName || '', username: username || '', password: password || '', host: host || 'localhost', port: port || 1521 };
   // Agent connections use OS auth — proxy connects as / as sysdba
   if (osAuth) payload.os_auth = true;
 
