@@ -136,6 +136,7 @@ info "Checking Python 3.8+..."
 
 # Find best available python3 binary
 PYTHON3_BIN=""
+export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
 for _py in python3.11 python3.10 python3.9 python3.8 python3; do
   _bin=$(command -v "$_py" 2>/dev/null || true)
   if [ -n "$_bin" ]; then
@@ -247,7 +248,8 @@ if [ -z "$PYTHON3_BIN" ]; then
   fi
 
   # Re-scan for python after install
-  for _py in python3.11 python3.10 python3.9 python3.8 python3; do
+  export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+for _py in python3.11 python3.10 python3.9 python3.8 python3; do
     _bin=$(command -v "$_py" 2>/dev/null || true)
     if [ -n "$_bin" ]; then
       _maj=$("$_bin" -c "import sys; print(sys.version_info.major)" 2>/dev/null || echo 0)
