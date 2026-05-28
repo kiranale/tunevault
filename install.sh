@@ -343,7 +343,7 @@ if [ ! -f "$VENV_PYTHON" ] || [ "$_VENV_NEEDS_REBUILD" -eq 1 ]; then
   if [ -f /opt/rh/rh-python38/root/usr/lib64/libpython3.8.so.1.0 ]; then
     export LD_LIBRARY_PATH="/opt/rh/rh-python38/root/usr/lib64:${LD_LIBRARY_PATH:-}"
   fi
-  "$PYTHON3_BIN" -m venv "$VENV_DIR" --clear 2>/dev/null || {
+  "$PYTHON3_BIN" -m venv "$VENV_DIR" --clear --without-pip 2>/dev/null ||     "$PYTHON3_BIN" -m venv "$VENV_DIR" --clear 2>/dev/null || {
     info "venv module missing — installing..."
     if [ "$PKG_MGR" = "apt" ]; then
       apt-get install -y -q python3-venv python3-pip 2>/dev/null || true
@@ -363,6 +363,10 @@ if [ -f /opt/rh/rh-python38/root/usr/lib64/libpython3.8.so.1.0 ]; then
   ldconfig 2>/dev/null || true
 fi
 
+# Bootstrap pip if missing (venv created with --without-pip)
+if [ ! -f "$VENV_PIP" ]; then
+  "$VENV_PYTHON" -m ensurepip 2>/dev/null || \n    curl -fsSL https://bootstrap.pypa.io/get-pip.py | "$VENV_PYTHON" 2>/dev/null || \n    info "pip bootstrap failed — will try anyway"
+fi
 # Upgrade pip
 "$VENV_PIP" install --quiet --upgrade pip 2>/dev/null || true
 
