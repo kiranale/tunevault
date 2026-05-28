@@ -1030,7 +1030,8 @@ async function openEditPanel(connId) {
         <div class="so-info-grid" style="margin-bottom:0">
           <div class="field-group">
             <label class="field-label">Host</label>
-            <div class="field-input" style="background:var(--bg);opacity:.6;cursor:not-allowed">${esc(c.host || '—')}</div>
+            <input class="field-input" id="edit-host" type="text"
+                   value="${esc(c.host || '')}" placeholder="e.g. dbserver.example.com" maxlength="255"/>
           </div>
           <div class="field-group">
             <label class="field-label">Port</label>
@@ -1081,6 +1082,8 @@ async function submitEdit(connId) {
   if (name     && name     !== (c.name     || '')) payload.name     = name;
   if (username && username !== (c.username || '')) payload.username = username;
   if (service_name && service_name !== (c.service_name || '')) payload.service_name = service_name;
+  const host = document.getElementById('edit-host') ? document.getElementById('edit-host').value.trim() : '';
+  if (host && host !== (c.host || '')) payload.host = host;
   if (password)                                  payload.password = password;
 
   if (Object.keys(payload).length === 0) {
