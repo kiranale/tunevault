@@ -1132,8 +1132,8 @@
               'font-weight:600;letter-spacing:0.2px;border-radius:20px;',
               'padding:2px 8px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">',
             '</div>',
-            '<select id="tb-conn-select" style="display:none;margin-top:6px;font-size:11px;background:rgba(255,255,255,0.06);border:1px solid rgba(240,168,48,0.3);color:#e8e8ed;border-radius:6px;padding:3px 6px;cursor:pointer;font-family:inherit;max-width:210px;" onchange="tbSwitchConnection(this.value)">',
-            '</select>',
+            '<div id="tb-conn-select" style="display:none;">',
+            '</div>',
           '</div>',
         '</div>',
         '<div style="display:flex;align-items:center;gap:6px;">',
@@ -1673,10 +1673,11 @@
     var conns = tbContext.connections || [];
     if (conns.length <= 1) { sel.style.display = 'none'; return; }
     var activeId = tbContext.activeConnection ? tbContext.activeConnection.id : null;
-    sel.innerHTML = conns.map(function(c) {
-      return '<option value="' + c.id + '"' + (c.id === activeId ? ' selected' : '') + '>' + c.name + '</option>';
-    }).join('');
-    sel.style.display = 'block';
+    var next = conns.find(function(c) { return c.id !== activeId; });
+    if (!next) { sel.style.display = 'none'; return; }
+    sel.style.cssText = 'display:inline-block;background:none;border:1px solid rgba(240,168,48,0.3);border-radius:6px;padding:2px 8px;font-size:10px;color:#f0a830;cursor:pointer;margin-top:4px;';
+    sel.innerHTML = 'Switch to ' + next.name + ' »';
+    sel.onclick = function() { window.tbSwitchConnection(next.id); };
   }
   function tbSwitchConnection(connId) {
     tbContext = null;
