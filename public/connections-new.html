@@ -550,6 +550,21 @@ async function saveCredentials() {
   }
 }
 
+async function cancelInstall() {
+  stopPolling();
+  if (_ttlInterval) clearInterval(_ttlInterval);
+  const btn = document.getElementById('cancel-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Cancelling…'; }
+  if (_draftId) {
+    try {
+      await fetch('/api/connections/' + _draftId, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+    } catch (_) {}
+  }
+  window.location.href = '/connections';
+}
 function copyCmd() {
   const cmd = _installCmd || document.getElementById('install-cmd').textContent;
   const btn = document.getElementById('copy-btn');
