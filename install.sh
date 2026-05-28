@@ -379,8 +379,8 @@ fi
 
 # ── Install Oracle thin driver ─────────────────────────────────────────────────
 info "Installing python-oracledb (thin mode — no Oracle client needed)..."
-"$VENV_PIP" install --quiet "python-oracledb>=2.3.0" 2>/dev/null \
-  || "$VENV_PIP" install --quiet "oracledb" 2>/dev/null \
+  "$VENV_PIP" install --quiet "oracledb" 2>/dev/null \
+  || "$VENV_PIP" install --quiet "python-oracledb>=2.3.0" 2>/dev/null \
   || err "Failed to install python-oracledb. Check pip network access."
 
 "$VENV_PYTHON" -c "import oracledb; print('oracledb', oracledb.__version__)" 2>/dev/null \
