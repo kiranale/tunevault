@@ -333,16 +333,7 @@
 <body>
 
 <!-- Nav -->
-<nav class="nav">
-  <a href="/dashboard" class="nav-logo">TuneVault</a>
-  <div class="nav-links">
-    <a href="/dashboard" class="nav-link">Dashboard</a>
-    <a href="/connections" class="nav-link active">Servers</a>
-    <a href="/db-ops" class="nav-link">DB Ops</a>
-  </div>
-  <div class="nav-spacer"></div>
-  <span class="nav-user" id="nav-user"></span>
-</nav>
+<div id="tv-nav-placeholder"></div>
 
 <div class="page-wrap">
 
@@ -1169,6 +1160,7 @@ function showToast(msg, type) {
 // ── Boot ─────────────────────────────────────────────────────────────────────
 init();
 </script>
+<script src="/nav-component.js"></script>
 <script src="/tunebot.js"></script>
 </body>
 </html>
