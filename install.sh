@@ -244,7 +244,7 @@ if [ -z "$PYTHON3_BIN" ]; then
       || err "Cannot download Python 3.8 source. Check internet connectivity."
     tar xzf Python-3.8.18.tgz
     cd Python-3.8.18
-    ./configure --enable-optimizations --quiet 2>/dev/null
+    ./configure --enable-optimizations --with-openssl=/usr --quiet 2>/dev/null
     make -j$(nproc) altinstall >/dev/null 2>&1
     cd /
     rm -rf /tmp/Python-3.8.18 /tmp/Python-3.8.18.tgz
