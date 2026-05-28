@@ -402,26 +402,64 @@ curl -fsSL "${API}/downloads/oracle-proxy.py" -o "$PROXY_SCRIPT" \
 chmod +x "$PROXY_SCRIPT"
 ok "oracle-proxy.py downloaded"
 
-# ── Detect Oracle SIDs ────────────────────────────────────────────────────────
+# ── Detect Oracle environment type ────────────────────────────────────────────
 info "Detecting Oracle environment..."
 ORACLE_SIDS=""
+SERVER_TYPE="unknown"
+EBS_CONTEXT_FILE=""
+EBS_DB_HOST=""
+EBS_SERVICE_NAME=""
 
+# Step 1: Detect DB server via PMON
 PMON_SIDS=$(ps -ef 2>/dev/null \
   | grep '[o]ra_pmon_' \
   | grep -o 'ora_pmon_[A-Za-z0-9_]*' \
   | sed 's/^ora_pmon_//' \
   | grep -E '^[A-Za-z0-9_]{1,30}$' \
   | sort -u | tr '\n' ',' | sed 's/,$//' || true)
-[ -n "$PMON_SIDS" ] && ORACLE_SIDS="$PMON_SIDS" && ok "Oracle SIDs (PMON): $ORACLE_SIDS"
-
-if [ -z "$ORACLE_SIDS" ] && [ -f /etc/oratab ]; then
-  ORACLE_SIDS=$(grep -v '^#' /etc/oratab 2>/dev/null \
-    | grep -v '^$' | grep -v '^\*' \
-    | cut -d: -f1 | tr '\n' ',' | sed 's/,$//' || true)
-  [ -n "$ORACLE_SIDS" ] && ok "Oracle SIDs (oratab): $ORACLE_SIDS"
+if [ -n "$PMON_SIDS" ]; then
+  ORACLE_SIDS="$PMON_SIDS"
+  SERVER_TYPE="db"
+  ok "DB server detected — Oracle SIDs: $ORACLE_SIDS"
 fi
 
-[ -z "$ORACLE_SIDS" ] && info "No Oracle SIDs detected — agent will auto-detect on first run"
+# Step 2: Detect EBS app tier via context file
+if [ -n "$CONTEXT_FILE" ] && [ -f "$CONTEXT_FILE" ]; then
+  EBS_CONTEXT_FILE="$CONTEXT_FILE"
+fi
+if [ -z "$EBS_CONTEXT_FILE" ]; then
+  for _ctx in \
+    /u01/install/APPS/fs1/inst/apps/*/appl/admin/*_*.xml \
+    /u01/install/APPS/fs2/inst/apps/*/appl/admin/*_*.xml \
+    /u01/app/oracle/inst/apps/*/appl/admin/*_*.xml; do
+    if [ -f "$_ctx" ]; then
+      EBS_CONTEXT_FILE="$_ctx"
+      break
+    fi
+  done
+fi
+if [ -n "$EBS_CONTEXT_FILE" ]; then
+  EBS_DB_HOST=$(grep 's_dbhost' "$EBS_CONTEXT_FILE" 2>/dev/null \
+    | sed 's/.*oa_var="s_dbhost"[^>]*>//;s/<.*//' | grep -v '^$' | head -1 || true)
+  EBS_SERVICE_NAME=$(grep 's_db_serv_sid\|s_dbSid' "$EBS_CONTEXT_FILE" 2>/dev/null \
+    | sed 's/.*>//;s/<.*//' | grep -v '^$' | head -1 || true)
+  if [ "$SERVER_TYPE" = "db" ]; then
+    SERVER_TYPE="both"
+  else
+    SERVER_TYPE="apps"
+  fi
+  ok "EBS app tier detected — context: $(basename $EBS_CONTEXT_FILE)"
+  [ -n "$EBS_DB_HOST" ] && ok "EBS DB host: $EBS_DB_HOST"
+  [ -n "$EBS_SERVICE_NAME" ] && ok "EBS service: $EBS_SERVICE_NAME"
+fi
+
+case "$SERVER_TYPE" in
+  db)   ok "Server type: Database server" ;;
+  apps) ok "Server type: EBS Application server" ;;
+  both) ok "Server type: Combined DB + EBS server" ;;
+  *)    info "Server type: Unknown — agent will auto-detect on first run" ;;
+esac
+[ -z "$ORACLE_SIDS" ] && info "No Oracle DB SIDs detected on this server"
 
 # ── Install systemd service ────────────────────────────────────────────────────
 if [ "$HEADLESS" -eq 0 ]; then
@@ -521,7 +559,7 @@ SVCEOF
   CONFIRM=$(curl -fsSL -X POST \
     -H "Content-Type: application/json" \
     -H "X-TuneVault-Key: ${API_KEY}" \
-    -d "{\"connection_id\":${CONNECTION_ID},\"oracle_sids\":${SIDS_JSON},\"machine_hostname\":\"${_HOST}\",\"installer_version\":\"8.0.0\",\"python_version\":\"${_PY_VER}\",\"oracle_driver\":\"oracledb-${_DRV_VER}\"}" \
+    -d "{\"connection_id\":${CONNECTION_ID},\"oracle_sids\":${SIDS_JSON},\"machine_hostname\":\"${_HOST}\",\"installer_version\":\"8.0.0\",\"python_version\":\"${_PY_VER}\",\"oracle_driver\":\"oracledb-${_DRV_VER}\",\"server_type\":\"${SERVER_TYPE}\",\"ebs_context_file\":\"${EBS_CONTEXT_FILE}\",\"ebs_db_host\":\"${EBS_DB_HOST}\",\"ebs_service\":\"${EBS_SERVICE_NAME}\"}" \
     "${API}/api/agent/confirm" 2>/dev/null) || CONFIRM="{}"
 
   echo "$CONFIRM" | grep -q '"ok":true' \
