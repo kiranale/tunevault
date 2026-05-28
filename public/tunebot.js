@@ -2638,5 +2638,6 @@
     init();
   }
   window.tbRefreshContext = function(connectionId) { fetchContext(connectionId); };
+  window.tbSwitchConnection = function(connId) { fetchContext(parseInt(connId, 10)); };
 
 })();
