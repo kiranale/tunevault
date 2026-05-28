@@ -366,7 +366,7 @@ fi
 # Bootstrap pip if missing (venv created with --without-pip)
 if [ ! -f "$VENV_PIP" ]; then
   "$VENV_PYTHON" -m ensurepip 2>/dev/null || \
-    curl -fsSL https://bootstrap.pypa.io/get-pip.py | "$VENV_PYTHON" 2>/dev/null || \
+    curl -fsSL https://bootstrap.pypa.io/pip/3.8/get-pip.py | "$VENV_PYTHON" 2>/dev/null || \
     info "pip bootstrap failed — will try anyway"
 fi
 # Upgrade pip
