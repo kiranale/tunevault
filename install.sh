@@ -424,8 +424,8 @@ if [ -n "$PMON_SIDS" ]; then
 fi
 
 # Step 2: Detect EBS app tier via context file
-if [ -n "$CONTEXT_FILE" ] && [ -f "$CONTEXT_FILE" ]; then
-  EBS_CONTEXT_FILE="$CONTEXT_FILE"
+if [ -n "${CONTEXT_FILE:-}" ] && [ -f "${CONTEXT_FILE:-}" ]; then
+  EBS_CONTEXT_FILE="${CONTEXT_FILE:-}"
 fi
 if [ -z "$EBS_CONTEXT_FILE" ]; then
   for _ctx in \
