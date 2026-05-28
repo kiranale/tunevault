@@ -250,9 +250,10 @@
         <div class="poll-dot"></div>
       </div>
     </div>
-    <a href="/connections" id="skip-link" class="btn btn-secondary" style="display:block;text-align:center;margin-top:12px">
-      Skip — monitor from /connections
-    </a>
+    <div style="display:flex;gap:10px;margin-top:12px;">
+      <button id="cancel-btn" onclick="cancelInstall()" class="btn btn-secondary" style="flex:1;text-align:center;">Cancel &amp; Delete</button>
+      <a href="/connections" id="skip-link" class="btn btn-secondary" style="flex:1;text-align:center;">Skip for now</a>
+    </div>
   </div>
 
   <!-- Step 3 -->
