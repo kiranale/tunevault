@@ -1673,11 +1673,41 @@
     var conns = tbContext.connections || [];
     if (conns.length <= 1) { sel.style.display = 'none'; return; }
     var activeId = tbContext.activeConnection ? tbContext.activeConnection.id : null;
-    var next = conns.find(function(c) { return c.id !== activeId; });
-    if (!next) { sel.style.display = 'none'; return; }
+    var others = conns.filter(function(c) { return c.id !== activeId; });
+    if (others.length === 0) { sel.style.display = 'none'; return; }
     sel.style.cssText = 'display:inline-block;background:none;border:1px solid rgba(240,168,48,0.3);border-radius:6px;padding:2px 8px;font-size:10px;color:#f0a830;cursor:pointer;margin-top:4px;';
-    sel.innerHTML = 'Switch to ' + next.name + ' »';
-    sel.onclick = function() { window.tbSwitchConnection(next.id); };
+    var label = others.length === 1 ? 'Switch to ' + others[0].name + ' »' : 'Switch server (' + others.length + ') ▾';
+    sel.textContent = label;
+    sel.onclick = function(e) {
+      e.stopPropagation();
+      // Remove existing popup
+      var existing = document.getElementById('tb-conn-popup');
+      if (existing) { existing.remove(); return; }
+      var popup = document.createElement('div');
+      popup.id = 'tb-conn-popup';
+      var rect = sel.getBoundingClientRect();
+      popup.style.cssText = 'position:fixed;z-index:99999;background:#1a1a1f;border:1px solid rgba(240,168,48,0.4);border-radius:8px;padding:4px 0;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,0.6);';
+      popup.style.top = (rect.bottom + 4) + 'px';
+      popup.style.left = rect.left + 'px';
+      conns.forEach(function(c) {
+        var item = document.createElement('div');
+        item.style.cssText = 'padding:8px 14px;font-size:12px;cursor:pointer;color:' + (c.id === activeId ? '#f0a830' : '#e8e8ed') + ';white-space:nowrap;';
+        item.textContent = (c.id === activeId ? '● ' : '○ ') + c.name;
+        if (c.id !== activeId) {
+          item.onmouseover = function() { this.style.background = 'rgba(255,255,255,0.06)'; };
+          item.onmouseout = function() { this.style.background = 'none'; };
+          item.onclick = function(e) { e.stopPropagation(); popup.remove(); window.tbSwitchConnection(c.id); };
+        }
+        popup.appendChild(item);
+      });
+      document.body.appendChild(popup);
+      setTimeout(function() {
+        document.addEventListener('click', function handler() {
+          popup.remove();
+          document.removeEventListener('click', handler);
+        });
+      }, 0);
+    };
   }
   function tbSwitchConnection(connId) {
     tbContext = null;
