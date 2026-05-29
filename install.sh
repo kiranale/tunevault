@@ -426,7 +426,7 @@ if [ -n "$PMON_SIDS" ]; then
 fi
 # Also detect DB server via Oracle binary (works even when DB is down)
 if [ "$SERVER_TYPE" = "unknown" ]; then
-  _oracle_bin=$(find /u01 /u02 /oracle /opt/oracle 2>/dev/null \n    -maxdepth 8 -name "oracle" -path "*/bin/oracle" -perm /111 \n    2>/dev/null | head -1 || true)
+  _oracle_bin=$(find /u* /oracle /opt/oracle 2>/dev/null \n    -maxdepth 8 -name "oracle" -path "*/bin/oracle" -perm /111 \n    2>/dev/null | head -1 || true)
   if [ -n "$_oracle_bin" ]; then
     SERVER_TYPE="db"
     ok "DB server detected — Oracle binary: $_oracle_bin"
