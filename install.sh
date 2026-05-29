@@ -386,8 +386,7 @@ fi
 
 # ── Install Oracle thin driver ─────────────────────────────────────────────────
 info "Installing python-oracledb (thin mode — no Oracle client needed)..."
-  "$VENV_PIP" install --quiet "oracledb" 2>/dev/null \
-  || "$VENV_PIP" install --quiet "python-oracledb>=2.3.0" 2>/dev/null \
+  "$VENV_PIP" install --quiet "python-oracledb==2.5.1" 2>/dev/null \
   || err "Failed to install python-oracledb. Check pip network access."
 
 "$VENV_PYTHON" -c "import oracledb; print('oracledb', oracledb.__version__)" 2>/dev/null \
@@ -772,7 +771,7 @@ case "\${1:-}" in
     ;;
   repair)
     echo "Reinstalling dependencies..."
-    "\$VENV_PIP" install --quiet --upgrade oracledb paramiko requests pyyaml 2>/dev/null
+    "\$VENV_PIP" install --quiet "python-oracledb==2.5.1" paramiko requests pyyaml 2>/dev/null
     systemctl restart "\$SERVICE" 2>/dev/null && echo "Repaired and restarted." || echo "Repaired. Restart manually: systemctl restart \$SERVICE"
     ;;
   rotate-key)

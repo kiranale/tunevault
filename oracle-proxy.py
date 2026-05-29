@@ -77,19 +77,28 @@ except ImportError:
 
 if _ORACLE_DRIVER is None:
     try:
-        # Clear LD_LIBRARY_PATH before importing oracledb.
-        # oracledb's thick_impl Cython extension triggers the dynamic linker to
-        # dlopen whatever Oracle client libs are in LD_LIBRARY_PATH at import
-        # time — before any Python code runs. On EBS app servers with Oracle
-        # 10g/11g in LD_LIBRARY_PATH this causes a SIGSEGV that cannot be caught
-        # by except Exception. Import with a clean environment, then restore so
-        # child processes (sqlplus, lsnrctl) are unaffected.
-        _saved_ldpath = os.environ.pop("LD_LIBRARY_PATH", None)
+        # Block thick_impl.so from loading at import time via sys.modules stub.
+        #
+        # oracledb 3.x imports thick_impl at package level (__init__.py does
+        # `from . import thick_impl`). On EBS app servers with Oracle 10g/11g
+        # client, dlopen of thick_impl.so segfaults in the Cython module init
+        # function before any Python exception handler can run — not catchable
+        # by except Exception, and not preventable by clearing LD_LIBRARY_PATH
+        # (thick_impl.so is loaded by Python's own import machinery, not by
+        # the dynamic linker via LD_LIBRARY_PATH).
+        #
+        # Python checks sys.modules before loading any .so. If the entry already
+        # exists, the .so is never opened. We pre-populate with an empty module,
+        # import oracledb safely, then evict the stub. init_oracle_client() uses
+        # its own importlib path to load the real thick_impl.so and will replace
+        # the entry when (if) our version gate decides thick mode is safe.
+        _thick_stub = type(sys)('oracledb.thick_impl')
+        sys.modules['oracledb.thick_impl'] = _thick_stub
         try:
             import oracledb as cx_Oracle  # noqa: N811  — alias so all call sites below work unchanged
         finally:
-            if _saved_ldpath is not None:
-                os.environ["LD_LIBRARY_PATH"] = _saved_ldpath
+            if sys.modules.get('oracledb.thick_impl') is _thick_stub:
+                del sys.modules['oracledb.thick_impl']
 
         _ORACLE_DRIVER = "oracledb"
         _ORACLE_VERSION = cx_Oracle.__version__
@@ -189,7 +198,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.10.0"  # clear LD_LIBRARY_PATH before oracledb import to prevent 10g dlopen segfault
+VERSION = "3.11.0"  # sys.modules stub blocks thick_impl.so at import; install.sh pins python-oracledb==2.5.1
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
