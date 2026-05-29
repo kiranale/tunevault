@@ -384,15 +384,6 @@ fi
 # Upgrade pip
 "$VENV_PIP" install --quiet --upgrade pip 2>/dev/null || true
 
-# ── Install Oracle thin driver ─────────────────────────────────────────────────
-info "Installing python-oracledb (thin mode — no Oracle client needed)..."
-  "$VENV_PIP" install --quiet "python-oracledb==2.5.1" 2>/dev/null \
-  || err "Failed to install python-oracledb. Check pip network access."
-
-"$VENV_PYTHON" -c "import oracledb; print('oracledb', oracledb.__version__)" 2>/dev/null \
-  || err "python-oracledb import failed after install."
-ok "python-oracledb thin driver ready"
-
 # ── Install other deps ─────────────────────────────────────────────────────────
 info "Installing paramiko, requests, pyyaml..."
 "$VENV_PIP" install --quiet "paramiko>=3.4.0" "requests>=2.31.0" "pyyaml>=6.0" 2>/dev/null || true
@@ -539,6 +530,18 @@ case "$SERVER_TYPE" in
   *)    info "Server type: Unknown — agent will auto-detect on first run" ;;
 esac
 [ -z "$ORACLE_SIDS" ] && info "No Oracle DB SIDs detected on this server"
+
+# ── Install Oracle driver (DB/both/unknown only — app servers skip) ───────────
+if [ "$SERVER_TYPE" != "apps" ]; then
+  info "Installing python-oracledb (thin mode — no Oracle client needed)..."
+  "$VENV_PIP" install --quiet "python-oracledb==2.5.1" 2>/dev/null \
+    || err "Failed to install python-oracledb. Check pip network access."
+  "$VENV_PYTHON" -c "import oracledb; print('oracledb', oracledb.__version__)" 2>/dev/null \
+    || err "python-oracledb import failed after install."
+  ok "python-oracledb thin driver ready"
+else
+  info "App server — skipping oracledb install (no direct Oracle DB connection needed)"
+fi
 
 # ── Install systemd service ────────────────────────────────────────────────────
 if [ "$HEADLESS" -eq 0 ]; then
@@ -691,13 +694,18 @@ else
   ok "[1/4] Service check skipped (headless)"
 fi
 
-_DRV=$("$VENV_PYTHON" -c "import oracledb; print(oracledb.__version__)" 2>/dev/null || true)
-if [ -n "$_DRV" ]; then
-  ok "[2/4] python-oracledb $_DRV importable"
+if [ "$SERVER_TYPE" = "apps" ]; then
+  ok "[2/4] python-oracledb skipped (app server — no direct DB connection)"
   _PASS=$((_PASS+1))
 else
-  echo -e "${RED}[FAIL]${NC} [2/4] python-oracledb not importable  → tunevault-agent repair"
-  _FAIL=$((_FAIL+1))
+  _DRV=$("$VENV_PYTHON" -c "import oracledb; print(oracledb.__version__)" 2>/dev/null || true)
+  if [ -n "$_DRV" ]; then
+    ok "[2/4] python-oracledb $_DRV importable"
+    _PASS=$((_PASS+1))
+  else
+    echo -e "${RED}[FAIL]${NC} [2/4] python-oracledb not importable  → tunevault-agent repair"
+    _FAIL=$((_FAIL+1))
+  fi
 fi
 
 if [ -f "$PROXY_SCRIPT" ]; then
