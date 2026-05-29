@@ -94,13 +94,34 @@ if _ORACLE_DRIVER is None:
                 ):
                     _lib_dir = _ldir
                     break
+
+        def _oracle_client_major(lib_dir):
+            """Read major version from libclntsh.so.MAJOR.MINOR filename — safe, no dlopen."""
+            import glob as _g
+            for _f in _g.glob(os.path.join(lib_dir, "libclntsh.so.*.*")):
+                try:
+                    return int(os.path.basename(_f).split(".")[2])
+                except (IndexError, ValueError):
+                    pass
+            return 0
+
+        # oracledb thick mode requires Oracle client 12.1+.
+        # 10g/11g clients (libclntsh.so.10.x / 11.x) cause a segfault at dlopen
+        # time — version-gate by inspecting the libclntsh.so.X.Y filename before
+        # calling init_oracle_client(), which never touches the .so itself.
+        _thick_ok = True
+        if _lib_dir:
+            _cv = _oracle_client_major(_lib_dir)
+            if _cv and _cv < 12:
+                _thick_ok = False  # 10g/11g — skip thick mode to avoid segfault
         try:
-            if _lib_dir:
-                cx_Oracle.init_oracle_client(lib_dir=_lib_dir)
-            else:
-                # No explicit dir found — let oracledb search LD_LIBRARY_PATH / standard paths
-                cx_Oracle.init_oracle_client()
-            _ORACLEDB_THICK_MODE = True
+            if _thick_ok:
+                if _lib_dir:
+                    cx_Oracle.init_oracle_client(lib_dir=_lib_dir)
+                else:
+                    # No explicit dir — let oracledb search LD_LIBRARY_PATH / standard paths
+                    cx_Oracle.init_oracle_client()
+                _ORACLEDB_THICK_MODE = True
         except Exception:
             pass  # thick mode unavailable (no client libs) — stay in thin mode
     except ImportError:
@@ -156,7 +177,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.8.0"  # thick-mode init for oracledb: DPY-3015 (verifier 0x939) fix
+VERSION = "3.9.0"  # version-gate thick mode on Oracle client >= 12 to avoid 10g/11g segfault
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
