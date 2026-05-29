@@ -430,24 +430,27 @@ if [ -n "${CONTEXT_FILE:-}" ] && [ -f "${CONTEXT_FILE:-}" ]; then
   EBS_CONTEXT_FILE="${CONTEXT_FILE:-}"
 fi
 if [ -z "$EBS_CONTEXT_FILE" ]; then
-  for _ctx in \
-    /u01/install/APPS/fs1/inst/apps/*/appl/admin/*_*.xml \
-    /u01/install/APPS/fs2/inst/apps/*/appl/admin/*_*.xml \
-    /u01/app/oracle/inst/apps/*/appl/admin/*_*.xml; do
-    if [ -f "$_ctx" ]; then
-      EBS_CONTEXT_FILE="$_ctx"
-      break
-    fi
-  done
+  # Search common EBS context file locations dynamically
+  EBS_CONTEXT_FILE=$(find /u01 /u02 /oracle /app 2>/dev/null \
+    -maxdepth 10 -name "*_*.xml" \
+    \( -path "*/inst/apps/*/appl/admin/*" \
+       -o -path "*/appsutil/*" \
+    \) \
+    -not -name "EBSDB_apps.xml" \
+    2>/dev/null | head -1 || true)
 fi
 if [ -n "$EBS_CONTEXT_FILE" ]; then
   EBS_DB_HOST=$(grep 's_dbhost' "$EBS_CONTEXT_FILE" 2>/dev/null \
-    | sed 's/.*oa_var="s_dbhost"[^>]*>//;s/<.*//' | grep -v '^$' | head -1 || true)
-  EBS_SERVICE_NAME=$(grep 's_db_serv_sid\|s_dbSid' "$EBS_CONTEXT_FILE" 2>/dev/null \
-    | sed 's/.*>//;s/<.*//' | grep -v '^$' | head -1 || true)
-  if [ "$SERVER_TYPE" = "db" ]; then
-    SERVER_TYPE="both"
-  else
+    | sed 's/.*oa_var="s_dbhost"[^>]*>//;s/<.*//' \
+    | sed 's/.*>\([^<]*\)<.*//' \
+    | grep -v '^$' | grep -v '^<' | head -1 || true)
+  EBS_SERVICE_NAME=$(grep 's_dbSid' "$EBS_CONTEXT_FILE" 2>/dev/null \
+    | sed 's/.*oa_var="s_dbSid"[^>]*>//;s/<.*//' \
+    | sed 's/.*>\([^<]*\)<.*//' \
+    | grep -v '^$' | grep -v '^<' | head -1 || true)
+  # Only mark as apps/both if this is NOT already confirmed as a pure DB server
+  # On DB servers, context file may exist but PMON is the authoritative indicator
+  if [ "$SERVER_TYPE" = "unknown" ]; then
     SERVER_TYPE="apps"
   fi
   ok "EBS app tier detected — context: $(basename $EBS_CONTEXT_FILE)"
