@@ -124,10 +124,24 @@ def _find_system_libclntsh() -> Optional[str]:
         "/opt/oracle/instantclient",
         "/usr/local/lib",
     ]
-    # Also check env var paths
+    # Check ORACLE_HOME env var first (highest priority — set by install.sh in agent.env)
     oracle_home = os.environ.get("ORACLE_HOME", "")
     if oracle_home:
         search_dirs.insert(0, f"{oracle_home}/lib")
+
+    # Also glob full Oracle DB server product paths (e.g. /u01/app/oracle/product/19.0.0/db_1/lib)
+    # These are present on DB servers but NOT on Instant Client / app-tier-only installs.
+    # We add them dynamically so we don't hardcode version numbers.
+    import glob as _glob
+    _db_globs = [
+        "/u*/app/oracle/product/*/db_*/lib",
+        "/u*/app/oracle/product/*/dbhome_*/lib",
+        "/oracle/app/oracle/product/*/db_*/lib",
+    ]
+    for _pat in _db_globs:
+        for _match in sorted(_glob.glob(_pat), reverse=True):  # newest version first
+            if _match not in search_dirs:
+                search_dirs.append(_match)
 
     for d in search_dirs:
         candidate = os.path.join(d, "libclntsh.so")

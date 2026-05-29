@@ -325,6 +325,7 @@ TUNEVAULT_API_URL=${API}
 TUNEVAULT_CONNECTION_ID=${CONNECTION_ID}
 VERSION=8.0.0
 INSTALLED_AT=${_INSTALLED_AT}
+ORACLE_HOME=${DETECTED_ORACLE_HOME}
 ENVEOF
 chmod 600 "$ENV_FILE"
 ok "Config written to $ENV_FILE"
@@ -469,6 +470,32 @@ if [ -n "$EBS_CONTEXT_FILE" ]; then
   [ -n "$EBS_SERVICE_NAME" ] && ok "EBS service: $EBS_SERVICE_NAME"
 fi
 
+# ── Detect ORACLE_HOME for thick-mode bootstrap ───────────────────────────────
+# The agent's bootstrap.py needs ORACLE_HOME to find libclntsh.so on DB servers
+# (avoids downloading Instant Client when the full Oracle DB client is already present).
+# Detection order:
+#   1. Already set in environment (e.g. caller sourced oraenv)
+#   2. Derive from the oracle binary found above
+#   3. Parse /etc/oratab for the first non-comment DB entry
+DETECTED_ORACLE_HOME="${ORACLE_HOME:-}"
+if [ -z "$DETECTED_ORACLE_HOME" ] && [ -n "${_oracle_bin:-}" ]; then
+  # _oracle_bin = /u01/app/oracle/product/19.0.0/db_1/bin/oracle
+  # → ORACLE_HOME = two levels up from bin/oracle
+  DETECTED_ORACLE_HOME="$(dirname "$(dirname "$_oracle_bin")")"
+fi
+if [ -z "$DETECTED_ORACLE_HOME" ] && [ -f /etc/oratab ]; then
+  _oratab_home=$(grep -v '^#' /etc/oratab 2>/dev/null \
+    | grep -v '^[[:space:]]*$' \
+    | head -1 | cut -d: -f2 || true)
+  [ -n "$_oratab_home" ] && [ -d "$_oratab_home" ] && DETECTED_ORACLE_HOME="$_oratab_home"
+fi
+if [ -n "$DETECTED_ORACLE_HOME" ] && [ -d "$DETECTED_ORACLE_HOME" ]; then
+  ok "ORACLE_HOME detected: $DETECTED_ORACLE_HOME"
+else
+  DETECTED_ORACLE_HOME=""
+  info "ORACLE_HOME not detected — thick-mode bootstrap will scan standard paths"
+fi
+
 # Allow env var override: TUNEVAULT_SERVER_TYPE=db|apps|both
 if [ -n "${TUNEVAULT_SERVER_TYPE:-}" ]; then
   SERVER_TYPE="$TUNEVAULT_SERVER_TYPE"
@@ -519,6 +546,13 @@ if [ "$HEADLESS" -eq 0 ]; then
     _LD_EXTRA="Environment=LD_LIBRARY_PATH=/opt/rh/rh-python38/root/usr/lib64"
   fi
 
+  # ORACLE_HOME in the service unit — ensures bootstrap.py finds libclntsh.so
+  # without having to download Instant Client RPMs when the full DB client is present.
+  _OH_EXTRA=""
+  if [ -n "${DETECTED_ORACLE_HOME:-}" ]; then
+    _OH_EXTRA="Environment=ORACLE_HOME=${DETECTED_ORACLE_HOME}"
+  fi
+
   cat > "$SERVICE_FILE" <<SVCEOF
 [Unit]
 Description=TuneVault Oracle Agent v8
@@ -529,6 +563,7 @@ Wants=network-online.target
 Type=simple
 EnvironmentFile=${ENV_FILE}
 ${_LD_EXTRA}
+${_OH_EXTRA}
 ExecStart=${VENV_PYTHON} ${PROXY_SCRIPT}
 WorkingDirectory=${INSTALL_DIR}
 Restart=on-failure
