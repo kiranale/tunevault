@@ -146,6 +146,8 @@ router.get('/api/connections/:id/registration-status', requireAuth, async (req, 
         // CDB/PDB picker: send both arrays so UI can show labeled options
         oracle_sids:  tunnel.oracle_sids  || [],
         pdb_services: tunnel.pdb_services || [],
+        ebs_service:  conn.ebs_service || conn.service_name || null,
+        server_type:  conn.server_type || null,
       });
     }
 
