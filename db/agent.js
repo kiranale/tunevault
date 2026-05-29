@@ -312,6 +312,16 @@ async function updateConnectionSid(connectionId, serviceName) {
   );
 }
 
+async function updateConnectionInstallerInfo(connectionId, { serverType, ebsService }) {
+  await pool.query(
+    `UPDATE oracle_connections SET
+      server_type = COALESCE($1, server_type),
+      ebs_service = COALESCE($2, ebs_service),
+      updated_at = NOW()
+     WHERE id = $3`,
+    [serverType || null, ebsService || null, connectionId]
+  );
+}
 async function clearConnectionProxy(connectionId) {
   await pool.query(
     `UPDATE oracle_connections SET proxy_url = NULL, updated_at = NOW() WHERE id = $1`,
@@ -629,6 +639,7 @@ module.exports = {
   getConnectionById,
   updateConnectionProxyUrl,
   updateConnectionSid,
+  updateConnectionInstallerInfo,
   touchConnectionKeyUsage,
   clearConnectionProxy,
   getAgentStatus,

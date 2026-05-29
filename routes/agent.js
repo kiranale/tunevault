@@ -337,11 +337,10 @@ router.post('/confirm', async (req, res) => {
     await agentDb.touchConnectionKeyUsage(parsedConnId);
     // Save server_type and ebs_service detected by installer
     if (server_type || ebs_service) {
-      const { pool } = require("../db/pool");
-      await pool.query(
-        `UPDATE oracle_connections SET server_type = COALESCE($1, server_type), ebs_service = COALESCE($2, ebs_service), updated_at = NOW() WHERE id = $3`,
-        [server_type || null, ebs_service || null, parsedConnId]
-      );
+      await agentDb.updateConnectionInstallerInfo(parsedConnId, {
+        serverType: server_type || null,
+        ebsService: ebs_service || null,
+      });
     }
 
     res.json({ ok: true, status: 'confirmed' });
