@@ -163,6 +163,34 @@ def _read_server_type():
 
 _SERVER_TYPE = _read_server_type()  # "db" | "apps" | "both" | "unknown" | ""
 
+# Read EBS_DB_HOST from agent.env — used on app servers to redirect Oracle DB connections
+# to the remote DB instead of localhost (app servers have no local Oracle instance).
+_EBS_DB_HOST = ""
+for _p in ("/etc/tunevault/agent.env", "/etc/tunevault/proxy.env"):
+    try:
+        with open(_p) as _f:
+            for _line in _f:
+                if _line.strip().startswith("EBS_DB_HOST="):
+                    _EBS_DB_HOST = _line.strip().split("=", 1)[1].strip()
+                    break
+        if _EBS_DB_HOST:
+            break
+    except Exception:
+        pass
+
+
+def _resolve_db_host(params):
+    """Return the Oracle DB host for a request.
+
+    On app servers the Oracle DB is always remote. Override whatever host the
+    TuneVault backend sent with EBS_DB_HOST from agent.env so connections reach
+    the actual DB tier rather than localhost.
+    """
+    if _SERVER_TYPE == "apps" and _EBS_DB_HOST:
+        return _EBS_DB_HOST
+    return params.get("host", "localhost")
+
+
 if _ORACLE_DRIVER is None:
     if _SERVER_TYPE == "apps":
         # App servers run EBS app-tier checks (SSH-based: Apache, Forms, OACore, WLS)
@@ -4362,7 +4390,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 service_name = params.get("service_name", "")
                 username = params.get("username", "")
                 password = params.get("password", "")
-                host = params.get("host", "localhost")
+                host = _resolve_db_host(params)
                 port = int(params.get("port", 1521))
                 os_auth = params.get("os_auth", False)
 
@@ -4437,7 +4465,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 service_name = params.get("service_name", "")
                 username = params.get("username", "")
                 password = params.get("password", "")
-                host = params.get("host", "localhost")
+                host = _resolve_db_host(params)
                 port = int(params.get("port", 1521))
                 os_auth = params.get("os_auth", False)
 
@@ -4883,7 +4911,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 service_name = params.get("service_name", "")
                 username = params.get("username", "")
                 password = params.get("password", "")
-                host = params.get("host", "localhost")
+                host = _resolve_db_host(params)
                 port = int(params.get("port", 1521))
                 lookback_hours = min(int(params.get("lookback_hours", 24)), 168)
 
@@ -4918,7 +4946,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 service_name = params.get("service_name", "")
                 username = params.get("username", "")
                 password = params.get("password", "")
-                host = params.get("host", "localhost")
+                host = _resolve_db_host(params)
                 port = int(params.get("port", 1521))
 
                 if not service_name or not username or not password:
@@ -4955,7 +4983,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 service_name = params.get("service_name", "")
                 username     = params.get("username", "")
                 password     = params.get("password", "")
-                host         = params.get("host", "localhost")
+                host         = _resolve_db_host(params)
                 port         = int(params.get("port", 1521))
                 os_auth      = params.get("os_auth", False)
 
@@ -5080,7 +5108,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 service_name = params.get("service_name", "")
                 username     = params.get("username", "")
                 password     = params.get("password", "")
-                host         = params.get("host", "localhost")
+                host         = _resolve_db_host(params)
                 port         = int(params.get("port", 1521))
 
                 if not service_name or not username or not password:

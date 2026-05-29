@@ -327,6 +327,7 @@ VERSION=8.0.0
 INSTALLED_AT=${_INSTALLED_AT}
 ORACLE_HOME=${DETECTED_ORACLE_HOME:-}
 SERVER_TYPE=unknown
+EBS_DB_HOST=
 ENVEOF
 chmod 600 "$ENV_FILE"
 ok "Config written to $ENV_FILE"
@@ -460,6 +461,8 @@ if [ -n "$EBS_CONTEXT_FILE" ]; then
   [ -n "$EBS_DB_HOST" ] && ok "EBS DB host: $EBS_DB_HOST"
   [ -n "$EBS_SERVICE_NAME" ] && ok "EBS service: $EBS_SERVICE_NAME"
 fi
+# Patch agent.env — written before EBS detection ran, so EBS_DB_HOST= placeholder is there
+sed -i "s|^EBS_DB_HOST=.*|EBS_DB_HOST=${EBS_DB_HOST}|" "$ENV_FILE" 2>/dev/null || true
 
 # ── Detect ORACLE_HOME for thick-mode bootstrap ───────────────────────────────
 # The agent's bootstrap.py needs ORACLE_HOME to find libclntsh.so on DB servers
