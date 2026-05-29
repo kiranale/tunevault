@@ -426,9 +426,9 @@ if [ -n "$PMON_SIDS" ]; then
 fi
 # Also detect DB server via Oracle binary (works even when DB is down)
 if [ "$SERVER_TYPE" = "unknown" ]; then
-  _oracle_bin=$(find /u* /oracle /opt/oracle 2>/dev/null \
+  _oracle_bin=$(set +o pipefail; find /u* /oracle /opt/oracle 2>/dev/null \
     -maxdepth 8 -name "oracle" -path "*/bin/oracle" -perm /111 \
-    2>/dev/null | head -1 || true)
+    2>/dev/null | head -1; set -o pipefail) || true
   if [ -n "$_oracle_bin" ]; then
     SERVER_TYPE="db"
     ok "DB server detected — Oracle binary: $_oracle_bin"
@@ -441,13 +441,13 @@ if [ -n "${CONTEXT_FILE:-}" ] && [ -f "${CONTEXT_FILE:-}" ]; then
 fi
 if [ -z "$EBS_CONTEXT_FILE" ]; then
   # Search common EBS context file locations dynamically
-  EBS_CONTEXT_FILE=$(find /u* /oracle /app 2>/dev/null \
+  EBS_CONTEXT_FILE=$(set +o pipefail; find /u* /oracle /app 2>/dev/null \
     -maxdepth 10 -name "*_*.xml" \
     \( -path "*/inst/apps/*/appl/admin/*" \
        -o -path "*/appsutil/*" \
     \) \
     -not -name "EBSDB_apps.xml" \
-    2>/dev/null | head -1 || true)
+    2>/dev/null | head -1; set -o pipefail) || true
 fi
 if [ -n "$EBS_CONTEXT_FILE" ]; then
   EBS_DB_HOST=$(grep 's_dbhost' "$EBS_CONTEXT_FILE" 2>/dev/null \
