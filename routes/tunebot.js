@@ -219,13 +219,26 @@ router.post('/chat', requireAuth, chatRateLimit, async (req, res) => {
 
 // ── Prompt builder ────────────────────────────────────────────────────────────
 
+const TUNEVAULT_PRODUCT_KNOWLEDGE = `## TuneVault Product Knowledge
+- **What it does:** Connects to Oracle databases and runs 200+ health checks across 13 DB categories + 5 EBS categories. Results display in a 9-tab dashboard with PDF/XLSX export.
+- **Agent install:** \`curl -fsSL https://tunevault-bm8c.onrender.com/install.sh | sudo TUNEVAULT_TOKEN=<token> TUNEVAULT_API=https://tunevault-bm8c.onrender.com bash\`
+- **Get a token:** Go to /connections/new in the TuneVault UI — the token is generated there.
+- **Agent:** A Python service (oracle-proxy.py) that runs on the Oracle server. Installs to /opt/tunevault/. Managed by systemd as tunevault-agent.service.
+- **Supported OS:** Oracle Linux (OEL) 7/8/9, RHEL 7/8/9, Amazon Linux 2/2023, Ubuntu/Debian.
+- **Connectivity:** Outbound polling only — no inbound ports, no firewall rules, no VPN required. Agent polls the TuneVault cloud every 25s.
+- **DB user:** Creates a least-privilege \`tunevault_reader\` role with SELECT_CATALOG_ROLE. Script at /docs/privileges.
+- **Pricing:** See /pricing page. Free tier available; paid plans unlock deeper checks and EBS operations.
+- **Support:** support@tunevault.app`;
+
 function buildSystemPrompt(ctx) {
   const lines = [
     'You are TuneBot, an expert Oracle DBA assistant embedded in TuneVault — a database health monitoring platform.',
     'Your job is to give concrete, actionable DBA advice. Be direct and specific. Lead with the answer.',
     'Format responses in markdown. Use bullet points and code blocks where relevant.',
     'Keep responses concise — 3-6 sentences unless the question requires more detail.',
-    ''
+    '',
+    TUNEVAULT_PRODUCT_KNOWLEDGE,
+    '',
   ];
 
   if (!ctx) {

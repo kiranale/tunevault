@@ -343,6 +343,14 @@ router.post('/confirm', async (req, res) => {
       });
     }
 
+    // Flip oracle_connections.status pending_registration → active here, not just when
+    // the UI wizard polls /ssh-install/stream. If the user closed the browser during
+    // install the status would otherwise stay pending_registration indefinitely.
+    if (conn.status === 'pending_registration') {
+      await agentDb.setConnectionStatus(parsedConnId, 'active');
+      await agentDb.clearInstallTokenHash(parsedConnId);
+    }
+
     res.json({ ok: true, status: 'confirmed' });
   } catch (err) {
     console.error('[agent] confirm error:', err.message);
