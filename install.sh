@@ -424,6 +424,14 @@ if [ -n "$PMON_SIDS" ]; then
   SERVER_TYPE="db"
   ok "DB server detected — Oracle SIDs: $ORACLE_SIDS"
 fi
+# Also detect DB server via Oracle binary (works even when DB is down)
+if [ "$SERVER_TYPE" = "unknown" ]; then
+  _oracle_bin=$(find /u01 /u02 /oracle /opt/oracle 2>/dev/null \n    -maxdepth 8 -name "oracle" -path "*/bin/oracle" -perm /111 \n    2>/dev/null | head -1 || true)
+  if [ -n "$_oracle_bin" ]; then
+    SERVER_TYPE="db"
+    ok "DB server detected — Oracle binary: $_oracle_bin"
+  fi
+fi
 
 # Step 2: Detect EBS app tier via context file
 if [ -n "${CONTEXT_FILE:-}" ] && [ -f "${CONTEXT_FILE:-}" ]; then
@@ -456,6 +464,31 @@ if [ -n "$EBS_CONTEXT_FILE" ]; then
   ok "EBS app tier detected — context: $(basename $EBS_CONTEXT_FILE)"
   [ -n "$EBS_DB_HOST" ] && ok "EBS DB host: $EBS_DB_HOST"
   [ -n "$EBS_SERVICE_NAME" ] && ok "EBS service: $EBS_SERVICE_NAME"
+fi
+
+# Allow env var override: TUNEVAULT_SERVER_TYPE=db|apps|both
+if [ -n "${TUNEVAULT_SERVER_TYPE:-}" ]; then
+  SERVER_TYPE="$TUNEVAULT_SERVER_TYPE"
+  ok "Server type override: $SERVER_TYPE"
+fi
+
+# If still unknown and running interactively — prompt user
+if [ "$SERVER_TYPE" = "unknown" ] && [ -t 0 ]; then
+  echo ""
+  echo "  Could not auto-detect server type. Please select:"
+  echo "  1) Database server (Oracle DB instance)"
+  echo "  2) EBS Application server (app tier only)"
+  echo "  3) Both (DB + EBS on same server)"
+  echo ""
+  printf "  Enter choice [1/2/3]: "
+  read _stype_choice
+  case "$_stype_choice" in
+    1) SERVER_TYPE="db" ;;
+    2) SERVER_TYPE="apps" ;;
+    3) SERVER_TYPE="both" ;;
+    *) SERVER_TYPE="db" ;;
+  esac
+  ok "Server type selected: $SERVER_TYPE"
 fi
 
 case "$SERVER_TYPE" in
