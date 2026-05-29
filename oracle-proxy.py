@@ -246,7 +246,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.12.0"  # app server support: skip oracledb FATAL when SERVER_TYPE=apps in agent.env
+VERSION = "3.13.0"  # app server support: use EBS_DB_HOST from agent.env for Oracle DB connections
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
