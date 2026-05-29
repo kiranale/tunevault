@@ -148,12 +148,32 @@ if _ORACLE_DRIVER is None:
     except ImportError:
         pass
 
+# Read SERVER_TYPE from agent.env early — needed to decide whether a missing
+# Oracle driver is fatal (db/both) or acceptable (apps).
+def _read_server_type():
+    for _p in ("/etc/tunevault/agent.env", "/etc/tunevault/proxy.env"):
+        try:
+            with open(_p) as _f:
+                for _line in _f:
+                    if _line.strip().startswith("SERVER_TYPE="):
+                        return _line.strip().split("=", 1)[1].strip()
+        except Exception:
+            pass
+    return ""
+
+_SERVER_TYPE = _read_server_type()  # "db" | "apps" | "both" | "unknown" | ""
+
 if _ORACLE_DRIVER is None:
-    print("FATAL: Neither cx_Oracle nor oracledb is installed.")
-    print("Install Oracle Instant Client first, then run the repair command:")
-    print("  curl -fsSL https://tunevault.app/install.sh | sudo bash -s -- --repair")
-    print("This is a hard failure — agent cannot connect to Oracle without cx_Oracle.")
-    sys.exit(1)
+    if _SERVER_TYPE == "apps":
+        # App servers run EBS app-tier checks (SSH-based: Apache, Forms, OACore, WLS)
+        # and don't connect to Oracle DB directly — oracledb is not required.
+        print("[warn] App server — oracledb not installed. Oracle DB checks disabled; EBS app-tier checks active.")
+    else:
+        print("FATAL: Neither cx_Oracle nor oracledb is installed.")
+        print("Install Oracle Instant Client first, then run the repair command:")
+        print("  curl -fsSL https://tunevault.app/install.sh | sudo bash -s -- --repair")
+        print("This is a hard failure — agent cannot connect to Oracle without cx_Oracle.")
+        sys.exit(1)
 
 # paramiko is optional — required only for SSH exec endpoints
 try:
@@ -198,7 +218,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.11.0"  # sys.modules stub blocks thick_impl.so at import; install.sh pins python-oracledb==2.5.1
+VERSION = "3.12.0"  # app server support: skip oracledb FATAL when SERVER_TYPE=apps in agent.env
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
