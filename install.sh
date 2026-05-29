@@ -238,6 +238,8 @@ if [ -z "$PYTHON3_BIN" ]; then
       yum install -y $_build_deps \
         --disablerepo=ngrok --disablerepo=cloudflare \
         >/dev/null 2>&1 || true
+      # Verify openssl-devel installed — critical for SSL in compiled Python
+      rpm -q openssl-devel >/dev/null 2>&1 || yum install -y openssl-devel 2>/dev/null || true
     fi
     cd /tmp
     curl -fsSL https://www.python.org/ftp/python/3.8.18/Python-3.8.18.tgz -o Python-3.8.18.tgz \
