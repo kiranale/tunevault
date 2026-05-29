@@ -426,7 +426,9 @@ if [ -n "$PMON_SIDS" ]; then
 fi
 # Also detect DB server via Oracle binary (works even when DB is down)
 if [ "$SERVER_TYPE" = "unknown" ]; then
-  _oracle_bin=$(find /u* /oracle /opt/oracle 2>/dev/null \n    -maxdepth 8 -name "oracle" -path "*/bin/oracle" -perm /111 \n    2>/dev/null | head -1 || true)
+  _oracle_bin=$(find /u* /oracle /opt/oracle 2>/dev/null \
+    -maxdepth 8 -name "oracle" -path "*/bin/oracle" -perm /111 \
+    2>/dev/null | head -1 || true)
   if [ -n "$_oracle_bin" ]; then
     SERVER_TYPE="db"
     ok "DB server detected — Oracle binary: $_oracle_bin"
@@ -439,7 +441,7 @@ if [ -n "${CONTEXT_FILE:-}" ] && [ -f "${CONTEXT_FILE:-}" ]; then
 fi
 if [ -z "$EBS_CONTEXT_FILE" ]; then
   # Search common EBS context file locations dynamically
-  EBS_CONTEXT_FILE=$(find /u01 /u02 /oracle /app 2>/dev/null \
+  EBS_CONTEXT_FILE=$(find /u* /oracle /app 2>/dev/null \
     -maxdepth 10 -name "*_*.xml" \
     \( -path "*/inst/apps/*/appl/admin/*" \
        -o -path "*/appsutil/*" \
@@ -461,7 +463,8 @@ if [ -n "$EBS_CONTEXT_FILE" ]; then
   if [ "$SERVER_TYPE" = "unknown" ]; then
     SERVER_TYPE="apps"
   fi
-  ok "EBS app tier detected — context: $(basename $EBS_CONTEXT_FILE)"
+  [ "$SERVER_TYPE" = "apps" ] && ok "EBS app tier detected — context: $(basename $EBS_CONTEXT_FILE)"
+  [ "$SERVER_TYPE" = "db" ] && ok "EBS context found on DB server — context: $(basename $EBS_CONTEXT_FILE)"
   [ -n "$EBS_DB_HOST" ] && ok "EBS DB host: $EBS_DB_HOST"
   [ -n "$EBS_SERVICE_NAME" ] && ok "EBS service: $EBS_SERVICE_NAME"
 fi
