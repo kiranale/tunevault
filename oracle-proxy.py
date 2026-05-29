@@ -64,11 +64,9 @@ except ImportError:
 # Try cx_Oracle first (thick driver, requires Oracle Instant Client).
 # Fall back to oracledb thin driver (pure Python, no client libs required).
 # If neither is available the agent cannot connect to Oracle — abort to prevent crash-loop.
-# Try cx_Oracle first (thick driver, requires Oracle Instant Client).
-# Fall back to oracledb thin driver (pure Python, no client libs required).
-# If neither is available the agent cannot connect to Oracle — abort to prevent crash-loop.
 _ORACLE_DRIVER = None
 _ORACLE_VERSION = "unknown"
+_ORACLEDB_THICK_MODE = False  # True when oracledb.init_oracle_client() succeeded
 
 try:
     import cx_Oracle
@@ -82,6 +80,29 @@ if _ORACLE_DRIVER is None:
         import oracledb as cx_Oracle  # noqa: N811  — alias so all call sites below work unchanged
         _ORACLE_DRIVER = "oracledb"
         _ORACLE_VERSION = cx_Oracle.__version__
+        # Switch to thick mode when Oracle client libraries are present on this server.
+        # Thin mode rejects password verifier type 0x939 with DPY-3015; thick mode
+        # supports all verifier types. EBS servers always have ORACLE_HOME set.
+        # Must be called once here, before any cx_Oracle.connect() call.
+        _oh = os.environ.get("ORACLE_HOME", "")
+        _lib_dir = os.path.join(_oh, "lib") if _oh and os.path.isdir(os.path.join(_oh, "lib")) else None
+        if _lib_dir is None:
+            # Fall back to LD_LIBRARY_PATH entries that look like Oracle client dirs
+            for _ldir in os.environ.get("LD_LIBRARY_PATH", "").split(":"):
+                if _ldir and os.path.isdir(_ldir) and (
+                    "oracle" in _ldir.lower() or "instantclient" in _ldir.lower()
+                ):
+                    _lib_dir = _ldir
+                    break
+        try:
+            if _lib_dir:
+                cx_Oracle.init_oracle_client(lib_dir=_lib_dir)
+            else:
+                # No explicit dir found — let oracledb search LD_LIBRARY_PATH / standard paths
+                cx_Oracle.init_oracle_client()
+            _ORACLEDB_THICK_MODE = True
+        except Exception:
+            pass  # thick mode unavailable (no client libs) — stay in thin mode
     except ImportError:
         pass
 
@@ -135,7 +156,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.7.0"  # 3-tier watchdog: AGENT_WATCHDOG_DEGRADED_S/RESTART_S/POLL_BACKOFF_MAX_S + restart-reason reporting
+VERSION = "3.8.0"  # thick-mode init for oracledb: DPY-3015 (verifier 0x939) fix
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5629,6 +5650,8 @@ def _cloud_poll_loop():
                 "proxy_version": _PROXY_VERSION or VERSION,
                 "python_version": "%d.%d.%d" % sys.version_info[:3],
                 "cx_oracle_version": _ORACLE_VERSION if _ORACLE_DRIVER else "",
+                "oracle_driver": _ORACLE_DRIVER or "",
+                "oracle_mode": "thick" if (_ORACLE_DRIVER == "cx_Oracle" or _ORACLEDB_THICK_MODE) else "thin",
                 "os_id": _OS_ID,
                 "kernel": _KERNEL,
             }
@@ -5920,7 +5943,8 @@ def main():
         _requests_version = _requests_mod.__version__
     except ImportError:
         _requests_version = "not-installed"
-    logger.info("python deps ok — %s=%s requests=%s", _ORACLE_DRIVER or "oracle-driver", _ORACLE_VERSION, _requests_version)
+    _oracle_mode = "thick" if (_ORACLE_DRIVER == "cx_Oracle" or _ORACLEDB_THICK_MODE) else "thin"
+    logger.info("python deps ok — %s=%s mode=%s requests=%s", _ORACLE_DRIVER or "oracle-driver", _ORACLE_VERSION, _oracle_mode, _requests_version)
 
     # Auto-update thread (non-fatal if it crashes)
     if not no_auto_update:
