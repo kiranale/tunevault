@@ -279,6 +279,11 @@
           <span>Create a <strong>tunevault_reader</strong> user with <code>SELECT_CATALOG_ROLE</code> on your Oracle server, then enter the credentials below.</span>
         </div>
         <div class="field">
+          <label>SID / Service Name</label>
+          <input type="text" id="cred-service" placeholder="e.g. EBSDEV or FREEPDB1" autocomplete="off"/>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">Auto-detected — update if incorrect.</div>
+        </div>
+        <div class="field">
           <label>Oracle Username</label>
           <input type="text" id="cred-username" placeholder="e.g. tunevault_reader" autocomplete="off"/>
         </div>
@@ -501,6 +506,15 @@ function showCredentialsForm(data) {
     data && data.agent_version ? 'Agent v' + data.agent_version : '',
     data && data.hostname ? 'Host: ' + data.hostname : '',
   ].filter(Boolean).join('  ·  ');
+  // Pre-fill detected service name
+  const svcField = document.getElementById('cred-service');
+  if (svcField && data && data.oracle_sids) {
+    const sids = data.oracle_sids.split ? data.oracle_sids.split(',') : (Array.isArray(data.oracle_sids) ? data.oracle_sids : []);
+    if (sids.length > 0) svcField.value = sids[0].trim();
+  }
+  if (svcField && (!svcField.value) && data && data.ebs_service) {
+    svcField.value = data.ebs_service;
+  }
   document.getElementById('credentials-form').style.display = '';
 }
 
@@ -533,7 +547,7 @@ async function saveCredentials() {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ username: username, password: password }),
+      body: JSON.stringify({ username: username, password: password, service_name: document.getElementById('cred-service')?.value.trim() || '' }),
     });
     if (!res.ok) {
       const d = await res.json().catch(function() { return {}; });
