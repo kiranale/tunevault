@@ -475,8 +475,10 @@ fi
 # (avoids downloading Instant Client when the full Oracle DB client is already present).
 # Detection order:
 #   1. Already set in environment (e.g. caller sourced oraenv)
-#   2. Derive from the oracle binary found above
+#   2. Derive from the oracle binary found above (only set when SERVER_TYPE was still unknown)
 #   3. Parse /etc/oratab for the first non-comment DB entry
+#   4. Read from running ora_pmon process environ — most reliable on a live DB server
+#      (covers the case where PMON detection set SERVER_TYPE before _oracle_bin search ran)
 DETECTED_ORACLE_HOME="${ORACLE_HOME:-}"
 if [ -z "$DETECTED_ORACLE_HOME" ] && [ -n "${_oracle_bin:-}" ]; then
   # _oracle_bin = /u01/app/oracle/product/19.0.0/db_1/bin/oracle
@@ -489,8 +491,18 @@ if [ -z "$DETECTED_ORACLE_HOME" ] && [ -f /etc/oratab ]; then
     | head -1 | cut -d: -f2 || true)
   [ -n "$_oratab_home" ] && [ -d "$_oratab_home" ] && DETECTED_ORACLE_HOME="$_oratab_home"
 fi
+if [ -z "$DETECTED_ORACLE_HOME" ]; then
+  _pmon_pid=$(pgrep -f "ora_pmon_" 2>/dev/null | head -1 || true)
+  if [ -n "$_pmon_pid" ] && [ -r "/proc/$_pmon_pid/environ" ]; then
+    _proc_oh=$(tr '\0' '\n' < "/proc/$_pmon_pid/environ" 2>/dev/null \
+      | grep '^ORACLE_HOME=' | cut -d= -f2 | head -1 || true)
+    [ -n "$_proc_oh" ] && [ -d "$_proc_oh" ] && DETECTED_ORACLE_HOME="$_proc_oh"
+  fi
+fi
 if [ -n "$DETECTED_ORACLE_HOME" ] && [ -d "$DETECTED_ORACLE_HOME" ]; then
   ok "ORACLE_HOME detected: $DETECTED_ORACLE_HOME"
+  # Patch agent.env — it was written before detection ran, so ORACLE_HOME= is blank there
+  sed -i "s|^ORACLE_HOME=.*|ORACLE_HOME=${DETECTED_ORACLE_HOME}|" "$ENV_FILE" 2>/dev/null || true
 else
   DETECTED_ORACLE_HOME=""
   info "ORACLE_HOME not detected — thick-mode bootstrap will scan standard paths"
