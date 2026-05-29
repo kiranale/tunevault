@@ -326,6 +326,7 @@ TUNEVAULT_CONNECTION_ID=${CONNECTION_ID}
 VERSION=8.0.0
 INSTALLED_AT=${_INSTALLED_AT}
 ORACLE_HOME=${DETECTED_ORACLE_HOME:-}
+SERVER_TYPE=unknown
 ENVEOF
 chmod 600 "$ENV_FILE"
 ok "Config written to $ENV_FILE"
@@ -529,6 +530,8 @@ case "$SERVER_TYPE" in
   both) ok "Server type: Combined DB + EBS server" ;;
   *)    info "Server type: Unknown — agent will auto-detect on first run" ;;
 esac
+# Patch agent.env — written before detection ran, so SERVER_TYPE= placeholder is there
+sed -i "s|^SERVER_TYPE=.*|SERVER_TYPE=${SERVER_TYPE}|" "$ENV_FILE" 2>/dev/null || true
 [ -z "$ORACLE_SIDS" ] && info "No Oracle DB SIDs detected on this server"
 
 # ── Install Oracle driver (DB/both/unknown only — app servers skip) ───────────
