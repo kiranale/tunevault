@@ -77,12 +77,25 @@ except ImportError:
 
 if _ORACLE_DRIVER is None:
     try:
-        import oracledb as cx_Oracle  # noqa: N811  — alias so all call sites below work unchanged
+        # Clear LD_LIBRARY_PATH before importing oracledb.
+        # oracledb's thick_impl Cython extension triggers the dynamic linker to
+        # dlopen whatever Oracle client libs are in LD_LIBRARY_PATH at import
+        # time — before any Python code runs. On EBS app servers with Oracle
+        # 10g/11g in LD_LIBRARY_PATH this causes a SIGSEGV that cannot be caught
+        # by except Exception. Import with a clean environment, then restore so
+        # child processes (sqlplus, lsnrctl) are unaffected.
+        _saved_ldpath = os.environ.pop("LD_LIBRARY_PATH", None)
+        try:
+            import oracledb as cx_Oracle  # noqa: N811  — alias so all call sites below work unchanged
+        finally:
+            if _saved_ldpath is not None:
+                os.environ["LD_LIBRARY_PATH"] = _saved_ldpath
+
         _ORACLE_DRIVER = "oracledb"
         _ORACLE_VERSION = cx_Oracle.__version__
         # Switch to thick mode when Oracle client libraries are present on this server.
         # Thin mode rejects password verifier type 0x939 with DPY-3015; thick mode
-        # supports all verifier types. EBS servers always have ORACLE_HOME set.
+        # supports all verifier types. EBS DB servers always have ORACLE_HOME set.
         # Must be called once here, before any cx_Oracle.connect() call.
         _oh = os.environ.get("ORACLE_HOME", "")
         _lib_dir = os.path.join(_oh, "lib") if _oh and os.path.isdir(os.path.join(_oh, "lib")) else None
@@ -106,14 +119,13 @@ if _ORACLE_DRIVER is None:
             return 0
 
         # oracledb thick mode requires Oracle client 12.1+.
-        # 10g/11g clients (libclntsh.so.10.x / 11.x) cause a segfault at dlopen
-        # time — version-gate by inspecting the libclntsh.so.X.Y filename before
-        # calling init_oracle_client(), which never touches the .so itself.
+        # Version-gate by inspecting the libclntsh.so.X.Y filename before calling
+        # init_oracle_client() — filename check never dlopens anything.
         _thick_ok = True
         if _lib_dir:
             _cv = _oracle_client_major(_lib_dir)
             if _cv and _cv < 12:
-                _thick_ok = False  # 10g/11g — skip thick mode to avoid segfault
+                _thick_ok = False  # 10g/11g — skip thick mode
         try:
             if _thick_ok:
                 if _lib_dir:
@@ -177,7 +189,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.9.0"  # version-gate thick mode on Oracle client >= 12 to avoid 10g/11g segfault
+VERSION = "3.10.0"  # clear LD_LIBRARY_PATH before oracledb import to prevent 10g dlopen segfault
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
