@@ -306,6 +306,8 @@ router.post('/confirm', async (req, res) => {
     service_names, machine_hostname,
     // CDB/PDB picker (v4.5+): PDB service names from lsnrctl, separate from CDB instance SIDs
     pdb_services,
+    // v8: server type and EBS context info from installer
+    server_type, ebs_service, ebs_db_host, ebs_context_file,
   } = req.body;
   if (!connection_id) return res.status(400).json({ error: 'connection_id required' });
   const parsedConnId = parseInt(connection_id, 10);
@@ -333,6 +335,14 @@ router.post('/confirm', async (req, res) => {
 
     // proxy_url is not used — all communication goes through the outbound agent channel.
     await agentDb.touchConnectionKeyUsage(parsedConnId);
+    // Save server_type and ebs_service detected by installer
+    if (server_type || ebs_service) {
+      const { pool } = require("../db/pool");
+      await pool.query(
+        `UPDATE oracle_connections SET server_type = COALESCE($1, server_type), ebs_service = COALESCE($2, ebs_service), updated_at = NOW() WHERE id = $3`,
+        [server_type || null, ebs_service || null, parsedConnId]
+      );
+    }
 
     res.json({ ok: true, status: 'confirmed' });
   } catch (err) {
