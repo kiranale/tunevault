@@ -75,29 +75,59 @@ try:
 except ImportError:
     pass
 
+def _oracle_client_major(lib_dir):
+    """Read major version from libclntsh.so.MAJOR.MINOR filename — safe, no dlopen."""
+    import glob as _g
+    for _f in _g.glob(os.path.join(lib_dir, "libclntsh.so.*.*")):
+        try:
+            return int(os.path.basename(_f).split(".")[2])
+        except (IndexError, ValueError):
+            pass
+    return 0
+
+
+def _pre_import_client_major():
+    """Peek at Oracle client major version from ORACLE_HOME/lib before importing oracledb."""
+    _oh = os.environ.get("ORACLE_HOME", "")
+    _dirs = [os.path.join(_oh, "lib")] if _oh else []
+    for _d in os.environ.get("LD_LIBRARY_PATH", "").split(":"):
+        if _d and ("oracle" in _d.lower() or "instantclient" in _d.lower()):
+            _dirs.append(_d)
+    for _d in _dirs:
+        if os.path.isdir(_d):
+            _v = _oracle_client_major(_d)
+            if _v:
+                return _v
+    return 0
+
+
 if _ORACLE_DRIVER is None:
     try:
-        # Block thick_impl.so from loading at import time via sys.modules stub.
+        # The sys.modules stub blocks thick_impl.so from loading at import time.
+        # oracledb 2.x and 3.x both import thick_impl at package level and access
+        # its attributes immediately. On EBS app servers with Oracle 10g/11g client,
+        # dlopen of thick_impl.so segfaults in the Cython init — uncatchable.
         #
-        # oracledb 3.x imports thick_impl at package level (__init__.py does
-        # `from . import thick_impl`). On EBS app servers with Oracle 10g/11g
-        # client, dlopen of thick_impl.so segfaults in the Cython module init
-        # function before any Python exception handler can run — not catchable
-        # by except Exception, and not preventable by clearing LD_LIBRARY_PATH
-        # (thick_impl.so is loaded by Python's own import machinery, not by
-        # the dynamic linker via LD_LIBRARY_PATH).
+        # But: with Oracle 12c+ the .so loads cleanly. Stubbing it out on DB servers
+        # with 12c+ breaks the import (oracledb gets an empty module, accesses missing
+        # attributes, raises AttributeError → ImportError → FATAL).
         #
-        # Python checks sys.modules before loading any .so. If the entry already
-        # exists, the .so is never opened. We pre-populate with an empty module,
-        # import oracledb safely, then evict the stub. init_oracle_client() uses
-        # its own importlib path to load the real thick_impl.so and will replace
-        # the entry when (if) our version gate decides thick mode is safe.
-        _thick_stub = type(sys)('oracledb.thick_impl')
-        sys.modules['oracledb.thick_impl'] = _thick_stub
+        # Rule: only stub when client major < 12 (10g/11g segfault risk).
+        # - 12c+: no stub → thick_impl.so loads fine → import succeeds → thick mode.
+        # - 10g/11g: stub → import blocked safely → thin mode (or FATAL if needed).
+        # - No client: no stub → thick_impl.so raises ImportError (no libclntsh.so,
+        #   catchable) → oracledb imports in thin mode.
+        _pre_major = _pre_import_client_major()
+        _need_stub = _pre_major > 0 and _pre_major < 12
+
+        _thick_stub = None
+        if _need_stub:
+            _thick_stub = type(sys)('oracledb.thick_impl')
+            sys.modules['oracledb.thick_impl'] = _thick_stub
         try:
             import oracledb as cx_Oracle  # noqa: N811  — alias so all call sites below work unchanged
         finally:
-            if sys.modules.get('oracledb.thick_impl') is _thick_stub:
+            if _thick_stub is not None and sys.modules.get('oracledb.thick_impl') is _thick_stub:
                 del sys.modules['oracledb.thick_impl']
 
         _ORACLE_DRIVER = "oracledb"
@@ -109,7 +139,6 @@ if _ORACLE_DRIVER is None:
         _oh = os.environ.get("ORACLE_HOME", "")
         _lib_dir = os.path.join(_oh, "lib") if _oh and os.path.isdir(os.path.join(_oh, "lib")) else None
         if _lib_dir is None:
-            # Fall back to LD_LIBRARY_PATH entries that look like Oracle client dirs
             for _ldir in os.environ.get("LD_LIBRARY_PATH", "").split(":"):
                 if _ldir and os.path.isdir(_ldir) and (
                     "oracle" in _ldir.lower() or "instantclient" in _ldir.lower()
@@ -117,19 +146,6 @@ if _ORACLE_DRIVER is None:
                     _lib_dir = _ldir
                     break
 
-        def _oracle_client_major(lib_dir):
-            """Read major version from libclntsh.so.MAJOR.MINOR filename — safe, no dlopen."""
-            import glob as _g
-            for _f in _g.glob(os.path.join(lib_dir, "libclntsh.so.*.*")):
-                try:
-                    return int(os.path.basename(_f).split(".")[2])
-                except (IndexError, ValueError):
-                    pass
-            return 0
-
-        # oracledb thick mode requires Oracle client 12.1+.
-        # Version-gate by inspecting the libclntsh.so.X.Y filename before calling
-        # init_oracle_client() — filename check never dlopens anything.
         _thick_ok = True
         if _lib_dir:
             _cv = _oracle_client_major(_lib_dir)
@@ -140,7 +156,6 @@ if _ORACLE_DRIVER is None:
                 if _lib_dir:
                     cx_Oracle.init_oracle_client(lib_dir=_lib_dir)
                 else:
-                    # No explicit dir — let oracledb search LD_LIBRARY_PATH / standard paths
                     cx_Oracle.init_oracle_client()
                 _ORACLEDB_THICK_MODE = True
         except Exception:
