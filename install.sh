@@ -578,6 +578,8 @@ if [ "$HEADLESS" -eq 0 ]; then
 Description=TuneVault Oracle Agent v8
 After=network.target
 Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=3
 
 [Service]
 Type=simple
@@ -588,8 +590,6 @@ ExecStart=${VENV_PYTHON} ${PROXY_SCRIPT}
 WorkingDirectory=${INSTALL_DIR}
 Restart=on-failure
 RestartSec=10
-StartLimitIntervalSec=300
-StartLimitBurst=3
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=tunevault-agent
