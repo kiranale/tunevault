@@ -540,10 +540,10 @@ sed -i "s|^SERVER_TYPE=.*|SERVER_TYPE=${SERVER_TYPE}|" "$ENV_FILE" 2>/dev/null |
 # ── Install Oracle driver (DB/both/unknown only — app servers skip) ───────────
 if [ "$SERVER_TYPE" != "apps" ]; then
   info "Installing python-oracledb (thin mode — no Oracle client needed)..."
-  "$VENV_PIP" install --quiet "python-oracledb==2.5.1" 2>/dev/null \
-    || err "Failed to install python-oracledb. Check pip network access."
+  "$VENV_PIP" install --quiet "oracledb==2.5.0" 2>/dev/null \
+    || err "Failed to install oracledb. Check pip network access."
   "$VENV_PYTHON" -c "import oracledb; print('oracledb', oracledb.__version__)" 2>/dev/null \
-    || err "python-oracledb import failed after install."
+    || err "oracledb import failed after install."
   ok "python-oracledb thin driver ready"
 else
   info "App server — skipping oracledb install (no direct Oracle DB connection needed)"
@@ -785,7 +785,7 @@ case "\${1:-}" in
     ;;
   repair)
     echo "Reinstalling dependencies..."
-    "\$VENV_PIP" install --quiet "python-oracledb==2.5.1" paramiko requests pyyaml 2>/dev/null
+    "\$VENV_PIP" install --quiet "oracledb==2.5.0" paramiko requests pyyaml 2>/dev/null
     systemctl restart "\$SERVICE" 2>/dev/null && echo "Repaired and restarted." || echo "Repaired. Restart manually: systemctl restart \$SERVICE"
     ;;
   rotate-key)
