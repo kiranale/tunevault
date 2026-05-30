@@ -76,29 +76,33 @@ except ImportError:
     pass
 
 def _oracle_client_major(lib_dir):
-    """Read major version from libclntsh.so.MAJOR.MINOR filename — safe, no dlopen."""
+    """Read maximum major version from libclntsh.so.MAJOR.MINOR filenames — safe, no dlopen."""
     import glob as _g
+    _max = 0
     for _f in _g.glob(os.path.join(lib_dir, "libclntsh.so.*.*")):
         try:
-            return int(os.path.basename(_f).split(".")[2])
+            _v = int(os.path.basename(_f).split(".")[2])
+            if _v > _max:
+                _max = _v
         except (IndexError, ValueError):
             pass
-    return 0
+    return _max
 
 
 def _pre_import_client_major():
-    """Peek at Oracle client major version from ORACLE_HOME/lib before importing oracledb."""
+    """Peek at maximum Oracle client major version across ORACLE_HOME/lib and LD_LIBRARY_PATH dirs."""
     _oh = os.environ.get("ORACLE_HOME", "")
     _dirs = [os.path.join(_oh, "lib")] if _oh else []
     for _d in os.environ.get("LD_LIBRARY_PATH", "").split(":"):
         if _d and ("oracle" in _d.lower() or "instantclient" in _d.lower()):
             _dirs.append(_d)
+    _max = 0
     for _d in _dirs:
         if os.path.isdir(_d):
             _v = _oracle_client_major(_d)
-            if _v:
-                return _v
-    return 0
+            if _v > _max:
+                _max = _v
+    return _max
 
 
 if _ORACLE_DRIVER is None:
@@ -261,7 +265,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.14.0"  # gate thick_impl stub on Oracle client version, not unconditionally
+VERSION = "3.15.0"  # return max Oracle client major version across all libclntsh.so files
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
