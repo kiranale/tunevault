@@ -169,6 +169,28 @@
       border-radius: 8px; padding: 14px 16px; margin-top: 20px; font-size: 13px; color: #93c5fd;
     }
     .tip-box .icon { font-size: 16px; flex-shrink: 0; }
+    .stype-group { margin-bottom: 20px; }
+    .stype-group-label { font-size: 13px; color: var(--muted); font-weight: 600; margin-bottom: 10px; letter-spacing: .02em; }
+    .stype-option {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 13px 16px; background: var(--bg3); border: 2px solid var(--border);
+      border-radius: 8px; cursor: pointer; transition: border-color .15s; margin-bottom: 8px;
+    }
+    .stype-option:hover { border-color: var(--muted); }
+    .stype-option.selected { border-color: var(--accent); background: rgba(240,168,48,.06); }
+    .stype-option input[type="radio"] { margin-top: 2px; accent-color: var(--accent); flex-shrink: 0; }
+    .stype-name { font-size: 14px; font-weight: 600; color: var(--text); }
+    .stype-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .ctx-file-row { margin-bottom: 4px; margin-top: 4px; }
+    .ctx-file-row label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 7px; font-weight: 500; }
+    .ctx-file-row input {
+      width: 100%; background: var(--bg3); border: 1px solid var(--border);
+      color: var(--text); border-radius: 8px; padding: 11px 14px; font-size: 12px;
+      font-family: 'JetBrains Mono', monospace; transition: border-color .15s;
+    }
+    .ctx-file-row input:focus { outline: none; border-color: var(--accent); }
+    .ctx-file-row input::placeholder { color: var(--muted); font-size: 11px; }
+    .ctx-file-hint { font-size: 11px; color: var(--muted); margin-top: 5px; }
     /* Credentials form */
     .cred-info {
       display: flex; align-items: flex-start; gap: 10px;
@@ -226,28 +248,67 @@
     <div class="card">
       <div class="card-title">Install the TuneVault agent</div>
       <div class="card-sub">
-        Run this one-liner on your Oracle server. The agent connects outbound over HTTPS —
-        <strong>no firewall rules or inbound ports needed</strong>.
+        Select your server type to generate the install command, then run it on the server.
+        The agent connects outbound over HTTPS — <strong>no firewall rules or inbound ports needed</strong>.
       </div>
-      <div class="token-badge">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-        </svg>
-        Token expires in <span id="token-ttl">30:00</span>
+
+      <!-- Server type selector -->
+      <div class="stype-group">
+        <div class="stype-group-label">Server type</div>
+        <label class="stype-option" id="stype-db" onclick="selectStype('db')">
+          <input type="radio" name="stype" value="db" onchange="buildInstallCmd()"/>
+          <div>
+            <div class="stype-name">Database server</div>
+            <div class="stype-desc">Oracle DB instance — PMON running, direct DB connection</div>
+          </div>
+        </label>
+        <label class="stype-option" id="stype-apps" onclick="selectStype('apps')">
+          <input type="radio" name="stype" value="apps" onchange="buildInstallCmd()"/>
+          <div>
+            <div class="stype-name">EBS Application server</div>
+            <div class="stype-desc">App tier only — Forms, Apache, WLS (no Oracle DB on this host)</div>
+          </div>
+        </label>
+        <label class="stype-option" id="stype-both" onclick="selectStype('both')">
+          <input type="radio" name="stype" value="both" onchange="buildInstallCmd()"/>
+          <div>
+            <div class="stype-name">Both — DB + EBS on same server</div>
+            <div class="stype-desc">Combined install: DB checks via oracledb + EBS SSH checks</div>
+          </div>
+        </label>
       </div>
-      <div class="cmd-box">
-        <pre class="cmd-pre" id="install-cmd">…</pre>
-        <button class="copy-btn" id="copy-btn" onclick="copyCmd()">Copy</button>
+
+      <!-- EBS context file (apps / both only) -->
+      <div class="ctx-file-row" id="ctx-file-row" style="display:none">
+        <label for="ctx-file-input">EBS context file path <span style="font-weight:400;color:var(--muted);font-size:11px;">(optional)</span></label>
+        <input type="text" id="ctx-file-input"
+          placeholder="/u01/install/APPS/fs1/inst/apps/EBSDEV_hostname/appl/admin/EBSDEV_hostname.xml"
+          oninput="buildInstallCmd()" autocomplete="off"/>
+        <div class="ctx-file-hint">Leave blank — install.sh will prompt you for it interactively.</div>
       </div>
-      <p class="cmd-hint">Paste this into a terminal with <code>sudo</code> access on the server.</p>
-      <div class="tip-box">
-        <span class="icon">ℹ️</span>
-        <span>The agent will register automatically when it starts. This page updates when the server connects.</span>
-      </div>
-      <div class="poll-bar" id="poll-bar">
-        <div class="spinner"></div>
-        <span class="poll-label" id="poll-label">Waiting for agent to register…</span>
-        <div class="poll-dot"></div>
+
+      <!-- Token + command (hidden until type selected) -->
+      <div id="cmd-section" style="display:none">
+        <div class="token-badge">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          Token expires in <span id="token-ttl">30:00</span>
+        </div>
+        <div class="cmd-box">
+          <pre class="cmd-pre" id="install-cmd">…</pre>
+          <button class="copy-btn" id="copy-btn" onclick="copyCmd()">Copy</button>
+        </div>
+        <p class="cmd-hint">Paste this into a terminal with <code>sudo</code> access on the server.</p>
+        <div class="tip-box">
+          <span class="icon">ℹ️</span>
+          <span>The agent will register automatically when it starts. This page updates when the server connects.</span>
+        </div>
+        <div class="poll-bar" id="poll-bar">
+          <div class="spinner"></div>
+          <span class="poll-label" id="poll-label">Waiting for agent to register…</span>
+          <div class="poll-dot"></div>
+        </div>
       </div>
     </div>
     <div style="display:flex;gap:10px;margin-top:12px;">
@@ -313,6 +374,7 @@
 
 <script>
 let _draftId = null;
+let _baseInstallCmd = '';
 let _installCmd = '';
 let _tokenExpiresAt = null;
 let _ttlInterval = null;
@@ -342,9 +404,8 @@ async function createServer() {
     const data = await res.json();
     if (!res.ok) { showError(data.error || 'HTTP ' + res.status); btn.disabled = false; btn.textContent = 'Continue →'; return; }
     _draftId = data.draft_id;
-    _installCmd = data.install_command || '';
+    _baseInstallCmd = data.install_command || '';
     _tokenExpiresAt = Date.now() + 30 * 60 * 1000;
-    document.getElementById('install-cmd').textContent = _installCmd;
     setStep(2);
     startTtlCounter();
     startPolling();
@@ -353,6 +414,33 @@ async function createServer() {
     btn.disabled = false;
     btn.textContent = 'Continue →';
   }
+}
+
+function selectStype(val) {
+  ['db','apps','both'].forEach(v => {
+    const el = document.getElementById('stype-' + v);
+    if (el) el.classList.toggle('selected', v === val);
+    const radio = el && el.querySelector('input[type="radio"]');
+    if (radio) radio.checked = (v === val);
+  });
+  const needsCtx = (val === 'apps' || val === 'both');
+  document.getElementById('ctx-file-row').style.display = needsCtx ? '' : 'none';
+  if (!needsCtx) document.getElementById('ctx-file-input').value = '';
+  buildInstallCmd();
+}
+
+function buildInstallCmd() {
+  if (!_baseInstallCmd) return;
+  const radio = document.querySelector('input[name="stype"]:checked');
+  if (!radio) return;
+  const stype = radio.value;
+  const ctx   = (document.getElementById('ctx-file-input').value || '').trim();
+  let extras = ' TUNEVAULT_SERVER_TYPE=' + stype;
+  if (ctx) extras += ' TUNEVAULT_EBS_CONTEXT_FILE=' + ctx;
+  // Base cmd ends with '... bash' — insert env vars before that final token
+  _installCmd = _baseInstallCmd.replace(/ bash$/, extras + ' bash');
+  document.getElementById('install-cmd').textContent = _installCmd;
+  document.getElementById('cmd-section').style.display = '';
 }
 
 function setStep(n) {
