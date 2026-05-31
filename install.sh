@@ -419,7 +419,7 @@ if [ -n "$PMON_SIDS" ]; then
 fi
 # Also detect DB server via Oracle binary (works even when DB is down)
 if [ "$SERVER_TYPE" = "unknown" ]; then
-  _oracle_bin=$(set +o pipefail; find /u* /oracle /opt/oracle 2>/dev/null \
+  _oracle_bin=$(set +o pipefail; timeout 5 find /u* /oracle /opt/oracle 2>/dev/null \
     -maxdepth 8 -name "oracle" -path "*/bin/oracle" -perm /111 \
     2>/dev/null | head -1; set -o pipefail) || true
   if [ -n "$_oracle_bin" ]; then
@@ -428,41 +428,11 @@ if [ "$SERVER_TYPE" = "unknown" ]; then
   fi
 fi
 
-# Step 2: Detect EBS app tier via context file
-if [ -n "${CONTEXT_FILE:-}" ] && [ -f "${CONTEXT_FILE:-}" ]; then
-  EBS_CONTEXT_FILE="${CONTEXT_FILE:-}"
-fi
-if [ -z "$EBS_CONTEXT_FILE" ]; then
-  # Search common EBS context file locations dynamically
-  EBS_CONTEXT_FILE=$(set +o pipefail; find /u* /oracle /app 2>/dev/null \
-    -maxdepth 10 -name "*_*.xml" \
-    \( -path "*/inst/apps/*/appl/admin/*" \
-       -o -path "*/appsutil/*" \
-    \) \
-    -not -name "EBSDB_apps.xml" \
-    2>/dev/null | head -1; set -o pipefail) || true
-fi
-if [ -n "$EBS_CONTEXT_FILE" ]; then
-  EBS_DB_HOST=$(grep 's_dbhost' "$EBS_CONTEXT_FILE" 2>/dev/null \
-    | sed 's/.*oa_var="s_dbhost"[^>]*>//;s/<.*//' \
-    | sed 's/.*>\([^<]*\)<.*//' \
-    | grep -v '^$' | grep -v '^<' | head -1 || true)
-  EBS_SERVICE_NAME=$(grep 's_dbSid' "$EBS_CONTEXT_FILE" 2>/dev/null \
-    | sed 's/.*oa_var="s_dbSid"[^>]*>//;s/<.*//' \
-    | sed 's/.*>\([^<]*\)<.*//' \
-    | grep -v '^$' | grep -v '^<' | head -1 || true)
-  # Only mark as apps/both if this is NOT already confirmed as a pure DB server
-  # On DB servers, context file may exist but PMON is the authoritative indicator
-  if [ "$SERVER_TYPE" = "unknown" ]; then
-    SERVER_TYPE="apps"
-  fi
-  [ "$SERVER_TYPE" = "apps" ] && ok "EBS app tier detected — context: $(basename $EBS_CONTEXT_FILE)"
-  [ "$SERVER_TYPE" = "db" ] && ok "EBS context found on DB server — context: $(basename $EBS_CONTEXT_FILE)"
-  [ -n "$EBS_DB_HOST" ] && ok "EBS DB host: $EBS_DB_HOST"
-  [ -n "$EBS_SERVICE_NAME" ] && ok "EBS service: $EBS_SERVICE_NAME"
-fi
-# Patch agent.env — written before EBS detection ran, so EBS_DB_HOST= placeholder is there
-sed -i "s|^EBS_DB_HOST=.*|EBS_DB_HOST=${EBS_DB_HOST}|" "$ENV_FILE" 2>/dev/null || true
+# Step 2: EBS context file — env var override or interactive prompt (app servers only)
+# Set TUNEVAULT_EBS_CONTEXT_FILE for non-interactive installs; interactive prompt runs below
+# after server type is finalised. Find-based auto-detection removed (too slow, wrong matches
+# on multi-home servers).
+EBS_CONTEXT_FILE="${TUNEVAULT_EBS_CONTEXT_FILE:-}"
 
 # ── Detect ORACLE_HOME for thick-mode bootstrap ───────────────────────────────
 # The agent's bootstrap.py needs ORACLE_HOME to find libclntsh.so on DB servers
@@ -536,6 +506,32 @@ esac
 # Patch agent.env — written before detection ran, so SERVER_TYPE= placeholder is there
 sed -i "s|^SERVER_TYPE=.*|SERVER_TYPE=${SERVER_TYPE}|" "$ENV_FILE" 2>/dev/null || true
 [ -z "$ORACLE_SIDS" ] && info "No Oracle DB SIDs detected on this server"
+# ── EBS context file: env var or interactive prompt (app servers only) ─────────────────────
+if [ "$SERVER_TYPE" = "apps" ] && [ -z "$EBS_CONTEXT_FILE" ] && [ -t 0 ]; then
+  echo ""
+  printf "  Enter EBS context file path (e.g. /u01/install/APPS/fs1/inst/apps/EBSDEV_hostname/appl/admin/EBSDEV_hostname.xml) or press Enter to skip: "
+  read _ctx_input
+  if [ -n "${_ctx_input:-}" ] && [ -f "$_ctx_input" ]; then
+    EBS_CONTEXT_FILE="$_ctx_input"
+    ok "EBS context file: $EBS_CONTEXT_FILE"
+  elif [ -n "${_ctx_input:-}" ]; then
+    info "Context file not found at '$_ctx_input' — skipping"
+  fi
+fi
+if [ -n "$EBS_CONTEXT_FILE" ] && [ -f "$EBS_CONTEXT_FILE" ]; then
+  EBS_DB_HOST=$(grep 's_dbhost' "$EBS_CONTEXT_FILE" 2>/dev/null \
+    | sed 's/.*oa_var="s_dbhost"[^>]*>//;s/<.*//' \
+    | sed 's/.*>\([^<]*\)<.*/\1/' \
+    | grep -v '^$' | grep -v '^<' | head -1 || true)
+  EBS_SERVICE_NAME=$(grep 's_dbSid' "$EBS_CONTEXT_FILE" 2>/dev/null \
+    | sed 's/.*oa_var="s_dbSid"[^>]*>//;s/<.*//' \
+    | sed 's/.*>\([^<]*\)<.*/\1/' \
+    | grep -v '^$' | grep -v '^<' | head -1 || true)
+  [ -n "$EBS_DB_HOST" ] && ok "EBS DB host: $EBS_DB_HOST"
+  [ -n "$EBS_SERVICE_NAME" ] && ok "EBS service: $EBS_SERVICE_NAME"
+fi
+# Patch agent.env EBS_DB_HOST placeholder (written blank before detection ran)
+sed -i "s|^EBS_DB_HOST=.*|EBS_DB_HOST=${EBS_DB_HOST}|" "$ENV_FILE" 2>/dev/null || true
 
 # ── Install Oracle driver (DB/both/unknown only — app servers skip) ───────────
 if [ "$SERVER_TYPE" != "apps" ]; then
