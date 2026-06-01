@@ -217,21 +217,38 @@
     }
     @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
+    /* ── Nav ── */
+    .nav-wrapper {
+      border-bottom: 1px solid var(--border);
+      background: rgba(10,10,12,0.95);
+      backdrop-filter: blur(12px);
+      position: sticky; top: 0; z-index: 9999;
+    }
+    #nav-root {
+      max-width: 1400px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 48px; gap: 16px;
+    }
+
     /* ── Responsive ── */
     @media (max-width: 1024px) {
       .panels-row { grid-template-columns: 1fr; }
       .metric-strip { grid-template-columns: repeat(2, 1fr); }
+      #nav-root { padding: 14px 24px; }
     }
     @media (max-width: 600px) {
       .page { padding: 0 16px 60px; }
       .topbar { flex-direction: column; align-items: flex-start; }
       .metric-strip { grid-template-columns: 1fr 1fr; }
+      #nav-root { padding: 12px 16px; }
     }
   </style>
 </head>
 <body>
   <div class="grain"></div>
-  <div id="nav-root"></div>
+  <div class="nav-wrapper">
+    <nav id="nav-root"></nav>
+  </div>
 
   <div class="page">
 
@@ -242,7 +259,6 @@
         <div class="topbar-sub" id="topbar-sub">Loading fleet data…</div>
       </div>
       <div class="topbar-actions">
-        <button class="btn btn-ghost" id="runAllBtn" onclick="runAll()">▶ Run all</button>
         <a class="btn btn-primary" href="/connections/new">+ Add server</a>
       </div>
     </div>
@@ -723,44 +739,11 @@
       }).join('');
     }
 
-    // ── Run all ───────────────────────────────────────────────────────────────
-
-    async function runAll() {
-      var btn = document.getElementById('runAllBtn');
-      var eligible = (_conns || []).filter(function (c) {
-        return c.server_type !== 'apps';
-      });
-
-      if (eligible.length === 0) {
-        alert('No DB server connections to run.');
-        return;
-      }
-
-      btn.disabled = true;
-      var done = 0, total = eligible.length;
-      btn.textContent = 'Running 0/' + total + '…';
-
-      await Promise.allSettled(eligible.map(async function (c) {
-        try {
-          await authFetch('/api/health-checks', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ connection_id: c.id }),
-          });
-        } catch (_) {}
-        done++;
-        btn.textContent = 'Running ' + done + '/' + total + '…';
-      }));
-
-      btn.textContent = '▶ Run all';
-      btn.disabled = false;
-      // Health checks run async on server — refresh dashboard after a delay
-      setTimeout(loadDashboard, 4000);
-    }
-
-    window.runAll = runAll;
-
     // ── Boot ──────────────────────────────────────────────────────────────────
+
+    if (window.tvNav && typeof window.tvNav.init === 'function') {
+      window.tvNav.init('dashboard');
+    }
 
     (async function () {
       await initAuth();

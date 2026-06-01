@@ -265,7 +265,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.16.0"  # guard DB endpoints on app servers: return JSON error instead of crashing
+VERSION = "3.17.0"  # add /api/ebs-app-healthcheck aggregated app-tier health check
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5161,6 +5161,214 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 print("Parameters query failed: %s" % str(e))
                 traceback.print_exc()
                 self.send_json(500, {"success": False, "error": format_oracle_error(e)})
+            return
+
+        # POST /api/ebs-app-healthcheck — aggregated EBS app-tier health check.
+        # Only runs when SERVER_TYPE=apps. Returns structured findings + score.
+        # No DB connection needed — all checks run locally via OS commands.
+        if self.path == "/api/ebs-app-healthcheck":
+            if not self.check_auth():
+                return
+            if _SERVER_TYPE != "apps":
+                self.send_json(200, {
+                    "success": False,
+                    "error": "This endpoint is only available on EBS application servers "
+                             "(SERVER_TYPE=apps). Run /api/healthcheck on the DB server connection instead.",
+                })
+                return
+
+            timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+            print("[%s] EBS app-tier health check" % timestamp)
+
+            findings  = []
+            checks_ok = []
+
+            def _finding(check_id, title, severity, details, raw=""):
+                findings.append({
+                    "check_id": check_id,
+                    "title":    title,
+                    "severity": severity,
+                    "details":  details,
+                    "raw_output": raw[:2000] if raw else "",
+                })
+
+            def _ok(check_id, title, details):
+                checks_ok.append({"check_id": check_id, "title": title,
+                                   "status": "ok", "details": details})
+
+            # ── 1. Concurrent Manager status ──────────────────────────────────
+            adcmctl  = os.environ.get("ADCMCTL", "")
+            apps_pwd = os.environ.get("APPS_PWD", "") or os.environ.get("APPS_PASSWORD", "")
+            if not adcmctl:
+                _finding("cm_status", "Concurrent Manager Status", "warning",
+                         "ADCMCTL environment variable not set — cannot check CM status. "
+                         "Set ADCMCTL in proxy.env to enable this check.")
+            else:
+                argv = [adcmctl, "status", "apps/%s" % apps_pwd] if apps_pwd else [adcmctl, "status"]
+                stdout, stderr, exit_code, _ = run_os_command(argv, timeout=30)
+                out = stdout + stderr
+                if exit_code != 0:
+                    _finding("cm_status", "Concurrent Manager Not Running", "critical",
+                             "adcmctl status returned exit code %d — CM may be down." % exit_code, out)
+                elif any(kw in out.lower() for kw in ("not running", "down", "inactive", "stopped")):
+                    _finding("cm_status", "Concurrent Manager Not Running", "critical",
+                             "adcmctl reports CM is not running.", out)
+                else:
+                    _ok("cm_status", "Concurrent Manager Status", "CM processes running normally.")
+
+            # ── 2. OPMN / Forms server status ────────────────────────────────
+            oracle_home = os.environ.get("ORACLE_HOME", "")
+            if not oracle_home:
+                _finding("opmn_status", "OPMN Status", "warning",
+                         "ORACLE_HOME not set — cannot check OPMN/Forms status.")
+            else:
+                opmnctl = os.path.join(oracle_home, "opmn", "bin", "opmnctl")
+                if not os.path.isfile(opmnctl):
+                    _finding("opmn_status", "OPMN Not Found", "warning",
+                             "opmnctl not found at %s — OPMN may not be installed "
+                             "or ORACLE_HOME is incorrect." % opmnctl)
+                else:
+                    stdout, stderr, exit_code, _ = run_os_command(
+                        ["sh", "-c", "%s status" % opmnctl], timeout=20)
+                    out = stdout + stderr
+                    if exit_code != 0:
+                        _finding("opmn_status", "OPMN Status Check Failed", "warning",
+                                 "opmnctl status returned exit code %d." % exit_code, out)
+                    elif any(kw in out.lower() for kw in ("down", "failed", "not running", "stopped")):
+                        _finding("opmn_status", "OPMN Components Down", "critical",
+                                 "opmnctl reports one or more components are down.", out)
+                    else:
+                        _ok("opmn_status", "OPMN Status", "OPMN components running normally.")
+
+            # ── 3. ADOP patch cycle status ────────────────────────────────────
+            stdout, stderr, exit_code, _ = run_os_command(
+                ["sh", "-c", "adop phase=status"], timeout=30)
+            out = stdout + stderr
+            if exit_code == 127 or ("not found" in out.lower() and not stdout.strip()):
+                _finding("adop_status", "ADOP Not Available", "warning",
+                         "adop command not found — EBS R12.2+ patching utility not on PATH.", out)
+            elif exit_code != 0:
+                _finding("adop_status", "ADOP Status Check Failed", "warning",
+                         "adop phase=status returned exit code %d." % exit_code, out)
+            elif "failed" in out.lower():
+                _finding("adop_status", "ADOP Patch Cycle Failed", "critical",
+                         "ADOP reports a failed patch cycle that requires cleanup.", out)
+            elif any(kw in out.lower() for kw in
+                     ("patch in progress", "patching in progress", "apply phase")):
+                _finding("adop_status", "ADOP Patch Cycle Active", "warning",
+                         "An ADOP patch cycle is currently in progress — some operations may be blocked.",
+                         out)
+            else:
+                _ok("adop_status", "ADOP Status", "No active or failed patch cycle detected.")
+
+            # ── 4. EBS app-tier process check ─────────────────────────────────
+            stdout, stderr, exit_code, _ = run_os_command(
+                ["sh", "-c",
+                 "ps aux | grep -E '(FNDLIBR|FNDSM|OAFM|oacore|forms|f60webmx)' | grep -v grep"],
+                timeout=10)
+            procs = [l for l in stdout.strip().splitlines() if l.strip()]
+            if not procs:
+                _finding("ebs_processes", "No EBS App Tier Processes Found", "critical",
+                         "No EBS application processes detected (FNDLIBR, FNDSM, OAFM, oacore, forms). "
+                         "EBS may not be running.")
+            else:
+                has_fnd    = any("FNDLIBR" in l or "FNDSM" in l for l in procs)
+                has_oacore = any("oacore" in l or "OAFM" in l for l in procs)
+                has_forms  = any("forms" in l or "f60webmx" in l for l in procs)
+                missing = []
+                if not has_fnd:    missing.append("Concurrent Manager (FNDLIBR/FNDSM)")
+                if not has_oacore: missing.append("OACore/OAFM")
+                if not has_forms:  missing.append("Forms Server")
+                if missing:
+                    _finding("ebs_processes", "Some EBS Processes Missing", "warning",
+                             "Not all expected EBS app-tier processes found. Missing: %s"
+                             % ", ".join(missing),
+                             "\n".join(procs[:20]))
+                else:
+                    _ok("ebs_processes", "EBS App Tier Processes",
+                        "%d processes found covering CM, OACore, and Forms." % len(procs))
+
+            # ── 5. Disk usage ──────────────────────────────────────────────────
+            stdout, stderr, exit_code, _ = run_os_command(["df", "-h"], timeout=10)
+            if exit_code != 0:
+                _finding("disk_usage", "Disk Usage Check Failed", "warning",
+                         "df -h returned exit code %d." % exit_code, stderr)
+            else:
+                crit_fs = []
+                warn_fs = []
+                for line in stdout.splitlines()[1:]:
+                    parts = line.split()
+                    if len(parts) >= 5:
+                        pct_str = parts[4].rstrip("%")
+                        try:
+                            pct   = int(pct_str)
+                            mount = parts[5] if len(parts) >= 6 else parts[-1]
+                            if pct >= 95:
+                                crit_fs.append("%s at %d%%" % (mount, pct))
+                            elif pct >= 85:
+                                warn_fs.append("%s at %d%%" % (mount, pct))
+                        except ValueError:
+                            pass
+                if crit_fs:
+                    _finding("disk_usage", "Critical Disk Usage", "critical",
+                             "Filesystems at or above 95%%: %s" % ", ".join(crit_fs),
+                             stdout[:1000])
+                elif warn_fs:
+                    _finding("disk_usage", "High Disk Usage", "warning",
+                             "Filesystems at or above 85%%: %s" % ", ".join(warn_fs),
+                             stdout[:1000])
+                else:
+                    _ok("disk_usage", "Disk Usage", "All filesystems below 85%% threshold.")
+
+            # ── 6. Memory ──────────────────────────────────────────────────────
+            stdout, stderr, exit_code, _ = run_os_command(["free", "-m"], timeout=10)
+            if exit_code != 0:
+                _finding("memory_usage", "Memory Check Failed", "warning",
+                         "free -m returned exit code %d." % exit_code, stderr)
+            else:
+                available_mb = None
+                for line in stdout.splitlines():
+                    if line.startswith("Mem:"):
+                        parts = line.split()
+                        if len(parts) >= 7:
+                            try:
+                                available_mb = int(parts[6])
+                            except ValueError:
+                                pass
+                        break
+                if available_mb is None:
+                    _finding("memory_usage", "Memory Parse Failed", "warning",
+                             "Could not parse available memory from free -m output.", stdout[:300])
+                elif available_mb < 256:
+                    _finding("memory_usage", "Critical Memory Pressure", "critical",
+                             "Available memory: %dMB (below 256MB critical threshold)." % available_mb,
+                             stdout[:300])
+                elif available_mb < 512:
+                    _finding("memory_usage", "Low Available Memory", "warning",
+                             "Available memory: %dMB (below 512MB warning threshold)." % available_mb,
+                             stdout[:300])
+                else:
+                    _ok("memory_usage", "Memory Usage",
+                        "Available memory: %dMB." % available_mb)
+
+            # ── Score ──────────────────────────────────────────────────────────
+            score = 100
+            for f in findings:
+                if f["severity"] == "critical":
+                    score -= 25
+                elif f["severity"] == "warning":
+                    score -= 10
+            score = max(0, score)
+
+            self.send_json(200, {
+                "success":      True,
+                "server_type":  "apps",
+                "score":        score,
+                "findings":     findings,
+                "checks_ok":    checks_ok,
+                "checks_total": len(findings) + len(checks_ok),
+                "ran_at":       timestamp,
+            })
             return
 
         # POST /api/ssh/exec — execute a shell command on a remote host via SSH

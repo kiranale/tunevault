@@ -8,3 +8,4 @@ tmp/
 *.zip
 debug-nav-screenshot.png
 ebsdb-demo-setup.sql
+.github/
