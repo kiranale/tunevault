@@ -265,7 +265,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.15.0"  # return max Oracle client major version across all libclntsh.so files
+VERSION = "3.16.0"  # guard DB endpoints on app servers: return JSON error instead of crashing
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -4403,6 +4403,12 @@ class ProxyHandler(BaseHTTPRequestHandler):
         if self.path == "/api/healthcheck":
             if not self.check_auth():
                 return
+            if _ORACLE_DRIVER is None and _SERVER_TYPE == "apps":
+                self.send_json(200, {
+                    "success": False,
+                    "error": "App server — Oracle DB health checks run on the DB server connection. This server monitors EBS app tier only.",
+                })
+                return
             try:
                 body = self.read_body()
                 params = json.loads(body)
@@ -4924,6 +4930,9 @@ class ProxyHandler(BaseHTTPRequestHandler):
         if self.path == "/api/addm":
             if not self.check_auth():
                 return
+            if _ORACLE_DRIVER is None and _SERVER_TYPE == "apps":
+                self.send_json(200, {"success": False, "error": "App server — Oracle DB health checks run on the DB server connection. This server monitors EBS app tier only."})
+                return
             try:
                 body = self.read_body()
                 params = json.loads(body)
@@ -4958,6 +4967,9 @@ class ProxyHandler(BaseHTTPRequestHandler):
         # POST /api/maintenance - auto-maintenance window status (all editions)
         if self.path == "/api/maintenance":
             if not self.check_auth():
+                return
+            if _ORACLE_DRIVER is None and _SERVER_TYPE == "apps":
+                self.send_json(200, {"success": False, "error": "App server — Oracle DB health checks run on the DB server connection. This server monitors EBS app tier only."})
                 return
             try:
                 body = self.read_body()
@@ -4995,6 +5007,9 @@ class ProxyHandler(BaseHTTPRequestHandler):
         # Returns: { ebs_detected, concurrent_managers, recent_requests, error? }
         if self.path == "/api/ebs-probe":
             if not self.check_auth():
+                return
+            if _ORACLE_DRIVER is None and _SERVER_TYPE == "apps":
+                self.send_json(200, {"success": False, "error": "App server — Oracle DB health checks run on the DB server connection. This server monitors EBS app tier only."})
                 return
             try:
                 body = self.read_body()
@@ -5120,6 +5135,9 @@ class ProxyHandler(BaseHTTPRequestHandler):
         # POST /api/parameters — Oracle init parameters with recommended values (all editions)
         if self.path == "/api/parameters":
             if not self.check_auth():
+                return
+            if _ORACLE_DRIVER is None and _SERVER_TYPE == "apps":
+                self.send_json(200, {"success": False, "error": "App server — Oracle DB health checks run on the DB server connection. This server monitors EBS app tier only."})
                 return
             try:
                 body = self.read_body()
