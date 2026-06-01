@@ -2488,8 +2488,14 @@
         }
         .pricing-tiers {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 12px;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+        }
+        .tier-price-secondary {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-top: 2px;
+            margin-bottom: 14px;
         }
         .pricing-tier {
             background: var(--surface);
@@ -2585,12 +2591,15 @@
                 grid-template-columns: 1fr 1fr;
             }
             .pricing-tiers {
-                grid-template-columns: 1fr 1fr;
+                grid-template-columns: repeat(3, 1fr);
             }
         }
         @media (max-width: 640px) {
             .ent-section, .pricing-strip { padding: 48px 24px; }
             .security-grid { grid-template-columns: 1fr; }
+            .pricing-tiers { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 440px) {
             .pricing-tiers { grid-template-columns: 1fr; }
         }
         /* ── Enterprise Pillars Strip ── */
@@ -4331,42 +4340,57 @@
             <p class="pricing-strip-sub">Every tier gets the full check catalog. Pay for connections and team size, not features.</p>
         </div>
         <div class="pricing-tiers">
+            <div class="pricing-tier" style="border-color:rgba(52,211,153,0.25);">
+                <div class="tier-name" style="color:#34d399;">Free</div>
+                <div class="tier-price">$0<span> forever</span></div>
+                <div class="tier-tagline">No credit card required</div>
+                <ul class="tier-features">
+                    <li>1 Oracle connection</li>
+                    <li>5 health checks total</li>
+                    <li>DB + EBS checks included</li>
+                    <li>Full check catalog access</li>
+                    <li>No credit card needed</li>
+                </ul>
+                <a href="/signup?path=health-check&redirect=/dashboard" class="pricing-cta ghost" style="border-color:rgba(52,211,153,0.4);color:#34d399;" data-track="cta_start_free">Start free →</a>
+            </div>
             <div class="pricing-tier">
                 <div class="tier-name">Individual</div>
-                <div class="tier-price">$99<span>/mo</span></div>
+                <div class="tier-price">$49<span>/conn/mo</span></div>
                 <div class="tier-tagline">Solo DBA or consultant</div>
                 <ul class="tier-features">
-                    <li>3 Oracle connections</li>
+                    <li>Up to 5 connections</li>
                     <li>200+ DB &amp; EBS checks</li>
                     <li>Autonomous monitoring</li>
                     <li>PDF &amp; XLSX export</li>
                     <li>TuneBot AI assistant</li>
                 </ul>
-                <a href="/signup?path=health-check&redirect=/dashboard" class="pricing-cta ghost" data-track="cta_start_free">Start free →</a>
+                <a href="/pricing" class="pricing-cta ghost" data-track="cta_view_plan_individual">Get started →</a>
             </div>
             <div class="pricing-tier">
                 <div class="tier-name">Team</div>
-                <div class="tier-price">$249<span>/mo</span></div>
-                <div class="tier-tagline">DBA teams up to 5 seats</div>
+                <div class="tier-price">$39<span>/conn/mo</span></div>
+                <div class="tier-price-secondary">+ $29/seat/mo</div>
+                <div class="tier-tagline">DBA teams · up to 25 connections, 5 seats</div>
                 <ul class="tier-features">
-                    <li>10 Oracle connections</li>
-                    <li>5 team members</li>
                     <li>Role-based access control</li>
                     <li>TuneOps ticketing</li>
                     <li>Shared fleet dashboard</li>
+                    <li>Approval workflows</li>
+                    <li>Priority support</li>
                 </ul>
                 <a href="/pricing" class="pricing-cta ghost" data-track="cta_view_plan_team">View plan →</a>
             </div>
             <div class="pricing-tier featured">
                 <div class="tier-name">Business</div>
-                <div class="tier-price">$599<span>/mo</span></div>
-                <div class="tier-tagline">Scaling Oracle operations</div>
+                <div class="tier-price">$29<span>/conn/mo</span></div>
+                <div class="tier-price-secondary">+ $19/seat/mo</div>
+                <div class="tier-tagline">Scaling Oracle operations · up to 50 connections</div>
                 <ul class="tier-features">
-                    <li>50 Oracle connections</li>
-                    <li>25 team members</li>
                     <li>Approval workflows</li>
                     <li>Compliance reports (SOX/HIPAA)</li>
-                    <li>REST API (60 req/min)</li>
+                    <li>REST API v1 (60 req/min)</li>
+                    <li>Full DBA hierarchy</li>
+                    <li>Activity audit log</li>
                 </ul>
                 <a href="/pricing" class="pricing-cta" data-track="cta_view_plan_business">View plan →</a>
             </div>
@@ -4384,7 +4408,7 @@
                 <a href="/pricing" class="pricing-cta ghost" data-track="cta_contact_us">Contact us →</a>
             </div>
         </div>
-        <p class="pricing-note">All tiers start free — 5 health checks, no credit card required. <a href="/pricing" style="color:var(--accent);text-decoration:none;" data-track="cta_see_full_pricing">See full pricing →</a></p>
+        <p class="pricing-note"><a href="/pricing" style="color:var(--accent);text-decoration:none;" data-track="cta_see_full_pricing">See full pricing & calculator →</a></p>
     </section>
 
     <div class="section-divider"><hr></div>

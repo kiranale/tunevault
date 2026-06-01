@@ -291,9 +291,23 @@
         }
         .pricing-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
             align-items: start;
+        }
+        .plan-card.free-tier {
+            border-color: rgba(52, 211, 153, 0.3);
+        }
+        .plan-card.free-tier:hover {
+            border-color: rgba(52, 211, 153, 0.6);
+        }
+        .plan-card.free-tier .plan-tier-label { color: #34d399; }
+        .plan-card.free-tier .plan-cta {
+            background: #34d399;
+            color: #000;
+        }
+        .plan-card.free-tier .plan-cta:hover {
+            background: #4ade80;
         }
 
         /* Plan card */
@@ -1167,7 +1181,7 @@
 
         /* ─── Responsive ─── */
         @media (max-width: 1080px) {
-            .pricing-grid { grid-template-columns: repeat(2, 1fr); }
+            .pricing-grid { grid-template-columns: repeat(3, 1fr); }
             .plan-card.featured { order: -1; }
             .calculator-grid { grid-template-columns: 1fr 1fr; }
             .role-callout-inner { grid-template-columns: 1fr; gap: 20px; }
@@ -1219,17 +1233,6 @@
         </div>
     </div>
 
-    <!-- ─── Free tier callout ─── -->
-    <div class="free-callout">
-        <div class="free-callout-inner">
-            <span>&#x1F680;</span>
-            5 free health checks per company
-        </div>
-        <a href="/signup?redirect=/dashboard" class="free-callout-btn" id="free-hc-btn" data-track="cta_start_free">
-            Run free health check &rarr;
-        </a>
-    </div>
-
     <!-- ─── Pricing note ─── -->
     <div style="text-align:center;max-width:680px;margin:0 auto 24px;padding:0 24px;">
         <p style="color:var(--text-muted);font-size:13px;line-height:1.6;">
@@ -1241,6 +1244,46 @@
     <!-- ─── Pricing cards ─── -->
     <div class="pricing-section">
         <div class="pricing-grid">
+
+            <!-- ── Free ── -->
+            <div class="plan-card free-tier" id="card-free">
+                <div class="plan-tier-label">Free</div>
+                <div class="plan-name">Free</div>
+                <div class="plan-tagline">Try TuneVault with no commitment.</div>
+
+                <div class="plan-starting">&nbsp;</div>
+                <div class="plan-price-wrap">
+                    <span class="plan-price-currency">$</span>
+                    <span class="plan-price-amount">0</span>
+                    <span class="plan-price-per"> forever</span>
+                </div>
+                <div class="plan-price-secondary">&nbsp;</div>
+                <div class="annual-savings-badge">&nbsp;</div>
+                <div class="plan-price-note">no credit card required</div>
+
+                <a href="/signup?redirect=/dashboard" class="plan-cta" id="card-free-cta" data-track="pricing_cta_free">
+                    Start free &rarr;
+                </a>
+
+                <hr class="plan-divider">
+
+                <div class="capacity-row">
+                    <span class="capacity-label">Connections</span>
+                    <span class="capacity-val">1</span>
+                </div>
+                <div class="capacity-row">
+                    <span class="capacity-label">Health checks</span>
+                    <span class="capacity-val">5 total</span>
+                </div>
+
+                <div class="feature-section-label" style="margin-top:16px;">Includes</div>
+                <ul class="feature-list">
+                    <li><span class="feat-yes">&#x2713;</span><span>DB + EBS checks included</span></li>
+                    <li><span class="feat-yes">&#x2713;</span><span>Full 200+ check catalog</span></li>
+                    <li><span class="feat-yes">&#x2713;</span><span>PDF &amp; XLSX export</span></li>
+                    <li><span class="feat-yes">&#x2713;</span><span>No credit card required</span></li>
+                </ul>
+            </div>
 
             <!-- ── Individual ── -->
             <div class="plan-card" id="card-individual">
