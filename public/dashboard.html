@@ -311,7 +311,7 @@
       <div class="panel">
         <div class="panel-header">
           <span class="panel-title">Recent Health Checks</span>
-          <span class="panel-meta" id="checks-meta"></span>
+          <a class="panel-link" href="/fleet">View all →</a>
         </div>
         <div id="checksWrap"><div class="empty"><div class="skel" style="width:200px;height:13px;"></div></div></div>
       </div>
@@ -576,13 +576,13 @@
         var dotCls = statusDotClass(f.status);
         var score = scoreByConn[f.connection_id];
 
-        // App servers link to connections page; DB servers link to latest report
+        // Both app and DB servers link to latest report if one exists; fallback to /connections
         var nameHtml = esc(f.name);
         var reportId = latestHcById[f.connection_id];
-        if (isApp) {
-          nameHtml = '<a href="/connections">' + nameHtml + '</a>';
-        } else if (reportId) {
+        if (reportId) {
           nameHtml = '<a href="/report/' + esc(reportId) + '">' + nameHtml + '</a>';
+        } else if (isApp) {
+          nameHtml = '<a href="/connections">' + nameHtml + '</a>';
         }
 
         var typeBadge = f.ebs_detected
