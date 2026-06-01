@@ -2651,7 +2651,8 @@ app.post('/api/health-checks', requireAuth, requireRole('junior_dba'), enforceHe
         password: connPassword,
         osAuth: isAgentConnection,
         host: connHost,
-        port: connPort
+        port: connPort,
+        serverType: connServerType
       }).catch(err => {
         console.error('Proxy health check error:', err.message);
       });
@@ -3448,7 +3449,7 @@ const LATEST_PROXY_VERSION = '3.16.0';
 // Proxy Health Check Flow
 // ============================================================
 
-async function runProxyHealthCheck(healthCheckId, { connectionId, proxyUrl, proxyApiKey, serviceName, username, password, osAuth, host, port }) {
+async function runProxyHealthCheck(healthCheckId, { connectionId, proxyUrl, proxyApiKey, serviceName, username, password, osAuth, host, port, serverType = null }) {
   const t0 = Date.now(); // t0: collection started
 
   // Hard 3-minute deadline — protects against hung proxy connections where
@@ -3478,11 +3479,17 @@ async function runProxyHealthCheck(healthCheckId, { connectionId, proxyUrl, prox
       proxyUrl: proxyUrl
     });
     const errMsg = err.message || '';
-    const isSidError = /ORA-12514|ORA-12505|TNS.*listener|unknown.*service|timed out/i.test(errMsg);
-    const sidHint = isSidError
-      ? `\n- **Check the Oracle SID/service name** — the configured SID may not match any running instance. Run \`ps -ef | grep ora_pmon\` on the Oracle server to see active SIDs.`
-      : '';
-    const errorBody = `## Proxy Connection Error\n\n${errMsg}\n\n### Troubleshooting${sidHint}\n- Verify the proxy URL is reachable (try curl ${proxyUrl}/health)\n- Check the API key matches what's configured in TUNEVAULT_API_KEY on the proxy server\n- Ensure your outbound HTTPS proxy is routing HTTP traffic to http://localhost:3100 (not TCP)\n- Confirm the proxy is running: systemctl status tunevault-proxy (or python3 oracle-proxy.py)`;
+    let errorBody;
+    if (serverType === 'apps') {
+      errorBody = `## Health Check Error\n\n${errMsg}\n\n### Note\nThis is an EBS application server. Run the health check on the database server connection instead.`;
+    } else {
+      const isSidError = /ORA-12514|ORA-12505|TNS.*listener|unknown.*service|timed out/i.test(errMsg);
+      const sidHint = isSidError
+        ? `\n- **Check the Oracle SID/service name** — the configured SID may not match any running instance. Run \`ps -ef | grep ora_pmon\` on the Oracle server to see active SIDs.`
+        : '';
+      const curlStep = proxyUrl ? `\n- Verify the proxy URL is reachable (try \`curl ${proxyUrl}/health\`)` : '';
+      errorBody = `## Proxy Connection Error\n\n${errMsg}\n\n### Troubleshooting${sidHint}${curlStep}\n- Check the API key matches what's configured in TUNEVAULT_API_KEY on the proxy server\n- Ensure your outbound HTTPS proxy is routing HTTP traffic to http://localhost:3100 (not TCP)\n- Confirm the proxy is running: systemctl status tunevault-proxy (or python3 oracle-proxy.py)`;
+    }
     await pool.query(
       `UPDATE health_checks SET status = 'error', ai_analysis = $1, completed_at = NOW() WHERE id = $2`,
       [buildErrorAnalysis(diagnosis, errorBody), healthCheckId]
@@ -7066,7 +7073,7 @@ async function runScheduledHealthCheck(conn) {
         );
         if (tunnelRow.rows.length > 0 && tunnelRow.rows[0].dns_hostname) {
           resolvedProxyUrl = `https://${tunnelRow.rows[0].dns_hostname}`;
-        } else if (conn.host && conn.host !== 'pending.tunevault.agent') {
+        } else if (conn.server_type !== 'apps' && conn.host && conn.host !== 'pending.tunevault.agent') {
           resolvedProxyUrl = `http://${conn.host}:3100`;
         }
         if (resolvedProxyUrl !== 'https://pending.tunevault.agent') {
@@ -7104,7 +7111,8 @@ async function runScheduledHealthCheck(conn) {
         serviceName: conn.service_name,
         username: conn.username,
         password,
-        osAuth: isAgent
+        osAuth: isAgent,
+        serverType: conn.server_type || null
       }).catch(err => {
         console.error(`[scheduler] Proxy HC error for conn ${connId}:`, err.message);
       });
