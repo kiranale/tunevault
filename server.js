@@ -2458,6 +2458,7 @@ app.post('/api/health-checks', requireAuth, requireRole('junior_dba'), enforceHe
     let connConnectionType = 'direct';
     let connProxyUrl = null;
     let connProxyApiKey = null;
+    let connServerType = null;
     let isAgentConnection = false; // agent-installed: proxy on Oracle box, may lack credentials
 
     // Support inline proxy mode (no saved connection)
@@ -2470,7 +2471,7 @@ app.post('/api/health-checks', requireAuth, requireRole('junior_dba'), enforceHe
 
     if (connection_id) {
       const connResult = await pool.query(
-        'SELECT id, name, host, port, service_name, username, encrypted_password, connection_type, proxy_url, proxy_api_key_enc FROM oracle_connections WHERE id = $1 AND user_id = $2',
+        'SELECT id, name, host, port, service_name, username, encrypted_password, connection_type, proxy_url, proxy_api_key_enc, server_type FROM oracle_connections WHERE id = $1 AND user_id = $2',
         [connection_id, req.user.id]
       );
       if (connResult.rows.length === 0) {
@@ -2488,6 +2489,7 @@ app.post('/api/health-checks', requireAuth, requireRole('junior_dba'), enforceHe
       connConnectionType = conn.connection_type || 'direct';
       connProxyUrl = conn.proxy_url;
       connProxyApiKey = conn.proxy_api_key_enc ? decrypt(conn.proxy_api_key_enc) : null;
+      connServerType = conn.server_type || null;
 
       // Detect agent connection: proxy type with missing Oracle credentials
       // Agent-installed connections have the proxy running locally on the Oracle box;
@@ -2553,7 +2555,8 @@ app.post('/api/health-checks', requireAuth, requireRole('junior_dba'), enforceHe
             resolved = true;
           }
           // Priority 2: connection's host field (direct HTTP to proxy port)
-          if (!resolved && connHost && connHost !== 'pending.tunevault.agent') {
+          // Skip for app server connections — host is the remote DB host, not the proxy address.
+          if (!resolved && connServerType !== 'apps' && connHost && connHost !== 'pending.tunevault.agent') {
             connProxyUrl = `http://${connHost}:3100`;
             resolved = true;
           }
