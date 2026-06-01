@@ -3465,7 +3465,7 @@ async function runProxyHealthCheck(healthCheckId, { connectionId, proxyUrl, prox
 
   try {
     await Promise.race([
-      runProxyHealthCheckInner(healthCheckId, { connectionId, proxyUrl, proxyApiKey, serviceName, username, password, osAuth, host, port }, t0),
+      runProxyHealthCheckInner(healthCheckId, { connectionId, proxyUrl, proxyApiKey, serviceName, username, password, osAuth, host, port, serverType }, t0),
       proxyTimeoutPromise
     ]);
   } catch (err) {
@@ -3502,11 +3502,24 @@ async function runProxyHealthCheck(healthCheckId, { connectionId, proxyUrl, prox
 // Inner function extracted so Promise.race can wrap it with a hard timeout
 // proxyUrl/proxyApiKey are retained in the signature for backward compat but no longer used —
 // all traffic goes through the outbound agent channel (see fetchMetricsFromProxy).
-async function runProxyHealthCheckInner(healthCheckId, { connectionId, serviceName, username, password, osAuth, host, port }, t0) {
+async function runProxyHealthCheckInner(healthCheckId, { connectionId, serviceName, username, password, osAuth, host, port, serverType }, t0) {
   try {
     await pool.query(`UPDATE health_checks SET status = 'collecting', analysis_stage = 'collecting' WHERE id = $1`, [healthCheckId]);
 
-    const metrics = await fetchMetricsFromProxy({ connectionId, serviceName, username, password, osAuth, host, port });
+    const metrics = await fetchMetricsFromProxy({ connectionId, serviceName, username, password, osAuth, host, port, serverType });
+
+    // ── EBS app-tier path: findings stored directly, no AI analysis ───────────
+    if (metrics.server_type === 'apps') {
+      const appScore = metrics._app_score || 0;
+      delete metrics._app_score;
+      const t1 = Date.now();
+      console.log(`[pipeline] report=${healthCheckId} stage=app_tier_complete score=${appScore} dur_ms=${t1 - t0}`);
+      await pool.query(
+        `UPDATE health_checks SET metrics = $1, overall_score = $2, status = 'completed', completed_at = NOW(), analysis_stage = 'done' WHERE id = $3`,
+        [JSON.stringify(metrics), appScore, healthCheckId]
+      );
+      return;
+    }
 
     // Record proxy version on the connection row
     const proxyVersion = metrics.proxy_version || null;
@@ -3592,7 +3605,7 @@ async function runProxyHealthCheckInner(healthCheckId, { connectionId, serviceNa
   }
 }
 
-async function fetchMetricsFromProxy({ connectionId, serviceName, username, password, osAuth, host, port }) {
+async function fetchMetricsFromProxy({ connectionId, serviceName, username, password, osAuth, host, port, serverType }) {
   // All proxy health checks MUST go through the outbound agent channel.
   // Direct inbound hits to proxy_url are retired — agents expose no inbound ports.
   // Check agent_tunnels for active status (oracle-proxy.py uses HTTP polling not WS channel)
@@ -3610,6 +3623,28 @@ async function fetchMetricsFromProxy({ connectionId, serviceName, username, pass
     }
   }
 
+  // ── EBS app-tier: call /api/ebs-app-healthcheck instead of /api/healthcheck ─
+  if (serverType === 'apps') {
+    const resp = await agentChannel.sendToAgent(connectionId, {
+      method: 'POST',
+      path: '/api/ebs-app-healthcheck',
+      body: {},
+    }, 120000);
+    const parsed = resp.body || {};
+    if (resp.statusCode !== 200 || !parsed.success) {
+      throw new Error(parsed.error || `App-tier health check failed (HTTP ${resp.statusCode})`);
+    }
+    return {
+      server_type:  'apps',
+      findings:     parsed.findings     || [],
+      checks_ok:    parsed.checks_ok    || [],
+      checks_total: parsed.checks_total || 0,
+      ran_at:       parsed.ran_at       || null,
+      _app_score:   parsed.score        || 0,
+    };
+  }
+
+  // ── Oracle DB path ────────────────────────────────────────────────────────
   const payload = { service_name: serviceName || '', username: username || '', password: password || '', host: host || 'localhost', port: port || 1521 };
   // Agent connections use OS auth — proxy connects as / as sysdba
   if (osAuth) payload.os_auth = true;

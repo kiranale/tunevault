@@ -1847,6 +1847,162 @@
     // ============================================================
     // VITALS BAR
     // ============================================================
+    // ============================================================
+    // EBS App Tier Report
+    // ============================================================
+
+    function renderVitalsBarAppTier(data) {
+        const bar   = document.getElementById('vitalsBar');
+        const inner = document.getElementById('vitalsInner');
+        if (!data || !data.metrics) { bar.style.display = 'none'; return; }
+        const m = data.metrics;
+        const score = data.overall_score || 0;
+        const critCount = (m.findings || []).filter(f => f.severity === 'critical').length;
+        const warnCount = (m.findings || []).filter(f => f.severity === 'warning').length;
+        const scoreClass = score >= 85 ? 'ok' : score >= 70 ? 'warn' : 'crit';
+        const checkedAt = new Date(data.created_at);
+        const minutesAgo = Math.floor((Date.now() - checkedAt.getTime()) / 60000);
+        const timeAgo = minutesAgo < 1 ? 'just now' : minutesAgo < 60 ? minutesAgo + 'm ago' : Math.floor(minutesAgo/60) + 'h ago';
+        inner.innerHTML = `
+            <div class="vital-item">
+                <div class="vital-dot ok"></div>
+                <span class="vital-label">App Tier</span>
+                <span class="vital-value">Online</span>
+            </div>
+            <div class="vital-item">
+                <div class="vital-dot ${scoreClass}"></div>
+                <span class="vital-label">Score</span>
+                <span class="vital-value">${score}<span style="font-size:11px;color:var(--text-dim)">/100</span></span>
+            </div>
+            ${critCount > 0 ? `<div class="vital-item">
+                <div class="vital-dot crit"></div>
+                <span class="vital-label">Critical</span>
+                <span class="vital-value">${critCount}</span>
+            </div>` : ''}
+            ${warnCount > 0 ? `<div class="vital-item">
+                <div class="vital-dot warn"></div>
+                <span class="vital-label">Warnings</span>
+                <span class="vital-value">${warnCount}</span>
+            </div>` : ''}
+            <div class="vital-item">
+                <div class="vital-timestamp">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    Last checked: ${timeAgo}
+                </div>
+            </div>
+        `;
+        bar.style.display = 'block';
+    }
+
+    function renderAppTierReport(data) {
+        const m         = data.metrics;
+        const findings  = m.findings  || [];
+        const checksOk  = m.checks_ok || [];
+        const score     = data.overall_score || 0;
+        const critCount = findings.filter(f => f.severity === 'critical').length;
+        const warnCount = findings.filter(f => f.severity === 'warning').length;
+
+        const scoreColor = score >= 85 ? 'var(--green)' : score >= 70 ? 'var(--yellow)' : 'var(--red)';
+        const circumference = 2 * Math.PI * 38;
+        const offset = circumference - (score / 100) * circumference;
+
+        function sevColor(sev) {
+            return sev === 'critical' ? 'var(--red)' : sev === 'warning' ? 'var(--yellow)' : 'var(--green)';
+        }
+        function sevBg(sev) {
+            return sev === 'critical' ? '248,113,113' : '251,191,36';
+        }
+        function sevIcon(sev) {
+            return sev === 'critical' ? '✕' : '▲';
+        }
+
+        const findingCards = findings.map(f => `
+            <div style="display:flex;align-items:flex-start;gap:14px;padding:16px 18px;
+                        background:rgba(${sevBg(f.severity)},0.06);
+                        border:1px solid rgba(${sevBg(f.severity)},0.22);
+                        border-radius:10px;border-left:4px solid ${sevColor(f.severity)}">
+                <div style="font-size:14px;font-weight:700;color:${sevColor(f.severity)};flex-shrink:0;margin-top:1px;width:18px;text-align:center">${sevIcon(f.severity)}</div>
+                <div style="flex:1;min-width:0">
+                    <div style="font-size:14px;font-weight:600;margin-bottom:4px;color:var(--text)">${esc(f.title)}</div>
+                    <div style="font-size:13px;color:var(--text-dim);line-height:1.5">${esc(f.details)}</div>
+                    ${f.raw_output ? `<pre style="margin-top:10px;padding:8px 12px;background:rgba(0,0,0,0.3);border-radius:6px;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text-dim);white-space:pre-wrap;word-break:break-all;max-height:120px;overflow-y:auto">${esc(f.raw_output)}</pre>` : ''}
+                </div>
+            </div>`).join('');
+
+        const okRows = checksOk.map(c => `
+            <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 18px;border-bottom:1px solid rgba(42,42,48,0.5)">
+                <div style="color:var(--green);font-weight:700;font-size:14px;flex-shrink:0;margin-top:1px">✓</div>
+                <div>
+                    <div style="font-size:13px;font-weight:500;color:var(--text)">${esc(c.title)}</div>
+                    <div style="font-size:12px;color:var(--text-dim);margin-top:2px">${esc(c.details)}</div>
+                </div>
+            </div>`).join('');
+
+        const metricCards = [
+            { label: 'Critical Findings', value: critCount, color: critCount > 0 ? 'var(--red)'    : 'var(--green)' },
+            { label: 'Warnings',          value: warnCount, color: warnCount > 0 ? 'var(--yellow)' : 'var(--text-dim)' },
+            { label: 'Checks Passed',     value: checksOk.length + ' / ' + (m.checks_total || findings.length + checksOk.length), color: 'var(--green)' },
+        ].map(c => `
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px">
+                <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);margin-bottom:8px;font-family:'JetBrains Mono',monospace">${c.label}</div>
+                <div style="font-size:28px;font-weight:700;letter-spacing:-1px;line-height:1;color:${c.color}">${c.value}</div>
+            </div>`).join('');
+
+        document.getElementById('reportContent').innerHTML = `
+            <div class="report-header">
+                <div class="report-title">
+                    <h1>${esc(data.connection_name)}</h1>
+                    <div class="report-meta">
+                        <span style="background:rgba(167,139,250,0.12);color:#a78bfa;border:1px solid rgba(167,139,250,0.22);border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600;font-family:'JetBrains Mono',monospace;letter-spacing:0.04em">EBS APP TIER</span>
+                        <span class="dot"></span>
+                        <span>${new Date(data.created_at).toLocaleString()}</span>
+                        ${m.ran_at ? `<span class="dot"></span><span style="color:var(--text-dim)">Checked ${esc(m.ran_at)}</span>` : ''}
+                    </div>
+                </div>
+                <div class="score-section">
+                    <svg width="92" height="92" viewBox="0 0 92 92">
+                        <circle cx="46" cy="46" r="38" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="8"/>
+                        <circle cx="46" cy="46" r="38" fill="none" stroke="${scoreColor}" stroke-width="8"
+                            stroke-dasharray="${circumference.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}"
+                            stroke-linecap="round" transform="rotate(-90 46 46)"/>
+                        <text x="46" y="46" text-anchor="middle" dy="0.35em" fill="${scoreColor}"
+                              font-size="18" font-weight="700" font-family="'JetBrains Mono',monospace">${score}</text>
+                    </svg>
+                    <div style="font-size:11px;color:var(--text-dim);text-align:center;margin-top:4px;text-transform:uppercase;letter-spacing:0.08em">Health Score</div>
+                </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px">
+                ${metricCards}
+            </div>
+
+            ${findings.length > 0 ? `
+            <div style="margin-bottom:24px">
+                <div style="font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px">
+                    Findings (${findings.length})
+                </div>
+                <div style="display:flex;flex-direction:column;gap:10px">
+                    ${findingCards}
+                </div>
+            </div>` : ''}
+
+            ${checksOk.length > 0 ? `
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+                <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+                    <span style="font-size:13px;font-weight:600">Checks Passed</span>
+                    <span style="font-size:12px;color:var(--text-dim)">${checksOk.length} of ${m.checks_total || findings.length + checksOk.length}</span>
+                </div>
+                ${okRows}
+            </div>` : ''}
+
+            ${findings.length === 0 && checksOk.length === 0 ? `
+            <div style="text-align:center;padding:60px 20px;color:var(--text-dim)">
+                <div style="font-size:32px;margin-bottom:12px;color:var(--green)">✓</div>
+                <div style="font-size:14px">All app tier checks passed.</div>
+            </div>` : ''}
+        `;
+    }
+
     function renderVitalsBar(data) {
         const bar = document.getElementById('vitalsBar');
         const inner = document.getElementById('vitalsInner');
@@ -2020,6 +2176,14 @@
         }
 
         const m = data.metrics;
+
+        // ── EBS app-tier report ───────────────────────────────────────────────
+        if (m && m.server_type === 'apps') {
+            renderVitalsBarAppTier(data);
+            renderAppTierReport(data);
+            return;
+        }
+
         if (!m || !m.instance) {
             document.getElementById('reportContent').innerHTML = `
                 <div class="analyzing-state">
