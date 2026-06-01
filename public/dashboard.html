@@ -70,7 +70,7 @@
     }
     .metric-card {
       background: var(--surface); border: 1px solid var(--border);
-      border-radius: 12px; padding: 18px 20px;
+      border-radius: 12px; padding: 18px 20px; cursor: default; user-select: none;
     }
     .metric-label {
       font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px;
@@ -147,8 +147,10 @@
     .alert-item {
       display: flex; align-items: flex-start; gap: 11px;
       padding: 13px 18px; border-bottom: 1px solid rgba(42,42,48,0.5);
+      text-decoration: none; color: inherit;
     }
     .alert-item:last-child { border-bottom: none; }
+    .alert-item:hover { background: rgba(255,255,255,0.018); }
     .alert-icon {
       width: 26px; height: 26px; border-radius: 6px;
       display: flex; align-items: center; justify-content: center;
@@ -185,8 +187,10 @@
     .finding-item {
       display: flex; align-items: center; gap: 10px; padding: 11px 18px;
       border-bottom: 1px solid rgba(42,42,48,0.5);
+      text-decoration: none; color: inherit;
     }
     .finding-item:last-child { border-bottom: none; }
+    .finding-item:hover { background: rgba(255,255,255,0.018); }
     .finding-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
     .finding-dot.red   { background: var(--red); }
     .finding-dot.amber { background: var(--yellow); }
@@ -227,7 +231,7 @@
 </head>
 <body>
   <div class="grain"></div>
-  <nav id="nav-root"></nav>
+  <div id="nav-root"></div>
 
   <div class="page">
 
@@ -446,9 +450,18 @@
         }
       });
 
+      // Latest completed HC id per connection (used by fleet table + alert links)
+      var latestHcById = {};
+      hcs.forEach(function (hc) {
+        if (hc.connection_id && hc.status === 'completed' && !hc.is_demo &&
+            !latestHcById[hc.connection_id]) {
+          latestHcById[hc.connection_id] = hc.id;
+        }
+      });
+
       renderMetrics(fleet, conns, scoreByConn);
-      renderFleet(fleet, connById, scoreByConn, hcs);
-      renderAlerts(fleet);
+      renderFleet(fleet, connById, scoreByConn, latestHcById);
+      renderAlerts(fleet, latestHcById);
       renderChecks(hcs);
       renderFindings(fleet);
     }
@@ -525,7 +538,7 @@
 
     // ── Fleet status table ────────────────────────────────────────────────────
 
-    function renderFleet(fleet, connMap, scoreByConn, hcs) {
+    function renderFleet(fleet, connMap, scoreByConn, latestHcById) {
       var wrap = document.getElementById('fleetWrap');
       if (fleet.length === 0) {
         wrap.innerHTML = '<div class="empty"><div class="empty-icon">🔌</div>' +
@@ -541,24 +554,20 @@
                (b.red_count - a.red_count);
       });
 
-      // Build a map: connection_id → latest hc id (for report links)
-      var latestHcById = {};
-      hcs.forEach(function (hc) {
-        if (hc.connection_id && hc.status === 'completed' && !hc.is_demo &&
-            !latestHcById[hc.connection_id]) {
-          latestHcById[hc.connection_id] = hc.id;
-        }
-      });
-
       var rows = sorted.map(function (f) {
         var c = connMap[f.connection_id] || {};
         var isApp = c.server_type === 'apps';
         var dotCls = statusDotClass(f.status);
         var score = scoreByConn[f.connection_id];
 
+        // App servers link to connections page; DB servers link to latest report
         var nameHtml = esc(f.name);
         var reportId = latestHcById[f.connection_id];
-        if (reportId) nameHtml = '<a href="/report/' + esc(reportId) + '">' + nameHtml + '</a>';
+        if (isApp) {
+          nameHtml = '<a href="/connections">' + nameHtml + '</a>';
+        } else if (reportId) {
+          nameHtml = '<a href="/report/' + esc(reportId) + '">' + nameHtml + '</a>';
+        }
 
         var typeBadge = f.ebs_detected
           ? '<span class="badge badge-ebs">EBS</span>'
@@ -593,7 +602,7 @@
 
     // ── Active alerts ─────────────────────────────────────────────────────────
 
-    function renderAlerts(fleet) {
+    function renderAlerts(fleet, latestHcById) {
       var wrap  = document.getElementById('alertsWrap');
       var total = document.getElementById('alert-total');
 
@@ -621,14 +630,16 @@
         var countStr = '';
         if (f.red_count)   countStr += f.red_count   + ' critical';
         if (f.amber_count) countStr += (countStr ? ' · ' : '') + f.amber_count + ' warning';
+        var reportId = latestHcById[f.connection_id];
+        var href = reportId ? '/report/' + reportId : '/connections';
 
-        return '<div class="alert-item">' +
+        return '<a class="alert-item" href="' + esc(href) + '">' +
           '<div class="alert-icon ' + iconCls + '">' + icon + '</div>' +
           '<div style="flex:1;min-width:0;">' +
           '<div class="alert-conn">' + esc(f.name) + '</div>' +
           '<div class="alert-title">' + esc(title) + '</div>' +
           '<div class="alert-counts">' + countStr + '</div>' +
-          '</div></div>';
+          '</div></a>';
       }).join('');
     }
 
@@ -704,11 +715,11 @@
         var id   = entry[0], info = entry[1];
         var dot  = info.sev === 'red' ? 'red' : 'amber';
         var srv  = info.count === 1 ? '1 server' : info.count + ' servers';
-        return '<div class="finding-item">' +
+        return '<a class="finding-item" href="/fleet">' +
           '<div class="finding-dot ' + dot + '"></div>' +
           '<div class="finding-label">' + esc(formatCheckId(id)) + '</div>' +
           '<span class="finding-servers">' + srv + '</span>' +
-          '</div>';
+          '</a>';
       }).join('');
     }
 
