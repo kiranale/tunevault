@@ -89,7 +89,8 @@ router.get('/connections', requireAuth, async (req, res) => {
     const result = await pool.query(
       `SELECT oc.id, oc.name, oc.host, oc.port, oc.service_name, oc.username, oc.oracle_version,
               oc.last_tested_at, oc.last_test_success, oc.last_test_message, oc.created_at,
-              oc.connection_type, oc.proxy_url, oc.proxy_version, oc.is_ebs, oc.ebs_opt_in, oc.ebs_checks_enabled,
+              oc.connection_type, oc.proxy_url, oc.proxy_version, oc.server_type,
+              oc.is_ebs, oc.ebs_opt_in, oc.ebs_checks_enabled,
               oc.schedule_enabled, oc.schedule_cron, oc.last_scheduled_run_at, oc.next_scheduled_run_at,
               oc.gi_os_user, oc.gi_oracle_home, oc.asm_sid,
               oc.ebs_login_url, oc.weblogic_console_url,
