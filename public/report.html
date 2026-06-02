@@ -1624,6 +1624,7 @@
     let exportConnectionId = null;   // set when health check data arrives
     let exportIsEbs = false;         // set when EBS detected
     let exportIsDemo = false;        // set when demo health check
+    let exportIsAppTier = false;     // set when EBS application server report
 
     function showDownloadButton(data) {
         exportButtonsReady = true;
@@ -1631,6 +1632,7 @@
             exportConnectionId = data.connection_id || null;
             exportIsEbs = !!(data.is_ebs || (data.metrics && data.metrics.ebs_detected));
             exportIsDemo = !!(data.is_demo);
+            exportIsAppTier = !!(data.metrics && data.metrics.server_type === 'apps');
             // Sync active connection to shared state so TuneBot picks it up
             if (data.connection_id && window.tvConn) {
                 window.tvConn.save(data.connection_id);
@@ -1666,7 +1668,23 @@
             return btn;
         }
 
-        if (exportConnectionId) {
+        if (exportIsAppTier) {
+            // ── App tier: only Export PDF + Export CSV ──────────────────────────
+            const xpPdf = makeBtn('/api/health-checks/' + reportId + '/export?format=pdf', 'Export PDF',
+                'background:#f0a830;color:#0a0a0c;border:1.5px solid #f0a830;');
+            xpPdf.title = 'Severity-sorted per-check PDF';
+            xpPdf.addEventListener('mouseenter', function() { this.style.background = '#d4921e'; this.style.borderColor = '#d4921e'; this.style.transform = 'translateY(-1px)'; this.style.boxShadow = '0 4px 12px rgba(240,168,48,0.3)'; });
+            xpPdf.addEventListener('mouseleave', function() { this.style.background = '#f0a830'; this.style.borderColor = '#f0a830'; this.style.transform = 'translateY(0)'; this.style.boxShadow = 'none'; });
+            nav.appendChild(xpPdf);
+
+            const xpCsv = makeBtn('/api/health-checks/' + reportId + '/export?format=csv', 'Export CSV',
+                'background:transparent;color:#f0a830;border:1.5px solid #f0a830;');
+            xpCsv.title = 'CSV: one row per check, severity-sorted';
+            xpCsv.addEventListener('mouseenter', function() { this.style.background = 'rgba(240,168,48,0.15)'; this.style.borderColor = '#ffc040'; this.style.color = '#ffc040'; this.style.transform = 'translateY(-1px)'; });
+            xpCsv.addEventListener('mouseleave', function() { this.style.background = 'transparent'; this.style.borderColor = '#f0a830'; this.style.color = '#f0a830'; this.style.transform = 'translateY(0)'; });
+            nav.appendChild(xpCsv);
+
+        } else if (exportConnectionId) {
             // ── New split report buttons (connection-based, preferred) ──────────
             const base = '/api/reports/' + exportConnectionId;
 

@@ -3443,7 +3443,7 @@ async function runRealHealthCheckInner(healthCheckId, oracleConfig, t0) {
 }
 
 // Current canonical proxy version — bump this when oracle-proxy.py/oracle-proxy.js VERSION changes
-const LATEST_PROXY_VERSION = '3.17.0';
+const LATEST_PROXY_VERSION = '3.17.1';
 
 // ============================================================
 // Proxy Health Check Flow
@@ -6519,6 +6519,11 @@ app.get('/dashboard', (req, res) => {
   } else {
     res.redirect('/');
   }
+});
+
+// Health check history page
+app.get('/reports', requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'reports.html'));
 });
 
 // Report page — no-cache prevents stale HTML after deploys (express.static

@@ -241,8 +241,8 @@ window.tvNav = (function() {
     if (isLoggedIn && AUTH_TYPES[type]) {
       if (type === 'report') {
         rightHtml += '<span id="navActions" style="display:inline-flex;align-items:center;gap:8px;"></span>';
-        rightHtml += '<a href="/dashboard" style="' + reportBtnStyle + '" onmouseover="' + reportBtnHover + '" onmouseout="' + reportBtnOut + '">New Check</a>';
-        rightHtml += '<a href="/dashboard#history" style="' + reportBtnStyle + '" onmouseover="' + reportBtnHover + '" onmouseout="' + reportBtnOut + '">All Reports</a>';
+        rightHtml += '<a href="/connections" style="' + reportBtnStyle + '" onmouseover="' + reportBtnHover + '" onmouseout="' + reportBtnOut + '">New Check</a>';
+        rightHtml += '<a href="/reports" style="' + reportBtnStyle + '" onmouseover="' + reportBtnHover + '" onmouseout="' + reportBtnOut + '">All Reports</a>';
         rightHtml += '<span style="width:1px;height:16px;background:rgba(255,255,255,0.12);margin:0 4px;"></span>';
       }
 

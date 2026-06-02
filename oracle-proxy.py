@@ -265,7 +265,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.17.0"  # add /api/ebs-app-healthcheck aggregated app-tier health check
+VERSION = "3.17.1"  # cap ebs-app-healthcheck subprocess timeouts at 10s each (adcmctl/opmn/adop)
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5205,7 +5205,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                          "Set ADCMCTL in proxy.env to enable this check.")
             else:
                 argv = [adcmctl, "status", "apps/%s" % apps_pwd] if apps_pwd else [adcmctl, "status"]
-                stdout, stderr, exit_code, _ = run_os_command(argv, timeout=30)
+                stdout, stderr, exit_code, _ = run_os_command(argv, timeout=10)
                 out = stdout + stderr
                 if exit_code != 0:
                     _finding("cm_status", "Concurrent Manager Not Running", "critical",
@@ -5229,7 +5229,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                              "or ORACLE_HOME is incorrect." % opmnctl)
                 else:
                     stdout, stderr, exit_code, _ = run_os_command(
-                        ["sh", "-c", "%s status" % opmnctl], timeout=20)
+                        ["sh", "-c", "%s status" % opmnctl], timeout=10)
                     out = stdout + stderr
                     if exit_code != 0:
                         _finding("opmn_status", "OPMN Status Check Failed", "warning",
@@ -5242,7 +5242,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
 
             # ── 3. ADOP patch cycle status ────────────────────────────────────
             stdout, stderr, exit_code, _ = run_os_command(
-                ["sh", "-c", "adop phase=status"], timeout=30)
+                ["sh", "-c", "adop phase=status"], timeout=10)
             out = stdout + stderr
             if exit_code == 127 or ("not found" in out.lower() and not stdout.strip()):
                 _finding("adop_status", "ADOP Not Available", "warning",
