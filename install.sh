@@ -328,6 +328,8 @@ INSTALLED_AT=${_INSTALLED_AT}
 ORACLE_HOME=${DETECTED_ORACLE_HOME:-}
 SERVER_TYPE=unknown
 EBS_DB_HOST=
+APPS_BASE=
+APPS_ENV_FILE=
 ENVEOF
 chmod 600 "$ENV_FILE"
 ok "Config written to $ENV_FILE"
@@ -518,6 +520,8 @@ if [ "$SERVER_TYPE" = "apps" ] && [ -z "$EBS_CONTEXT_FILE" ] && [ -t 0 ]; then
     info "Context file not found at '$_ctx_input' — skipping"
   fi
 fi
+APPS_BASE=""
+APPS_ENV_FILE=""
 if [ -n "$EBS_CONTEXT_FILE" ] && [ -f "$EBS_CONTEXT_FILE" ]; then
   EBS_DB_HOST=$(grep 's_dbhost' "$EBS_CONTEXT_FILE" 2>/dev/null \
     | sed 's/.*oa_var="s_dbhost"[^>]*>//;s/<.*//' \
@@ -527,11 +531,21 @@ if [ -n "$EBS_CONTEXT_FILE" ] && [ -f "$EBS_CONTEXT_FILE" ]; then
     | sed 's/.*oa_var="s_dbSid"[^>]*>//;s/<.*//' \
     | sed 's/.*>\([^<]*\)<.*/\1/' \
     | grep -v '^$' | grep -v '^<' | head -1 || true)
-  [ -n "$EBS_DB_HOST" ] && ok "EBS DB host: $EBS_DB_HOST"
+  APPS_BASE=$(grep 's_base' "$EBS_CONTEXT_FILE" 2>/dev/null \
+    | sed 's/.*oa_var="s_base"[^>]*>//;s/<.*//' \
+    | grep -v '^$' | head -1 || true)
+  [ -n "$EBS_DB_HOST" ]     && ok "EBS DB host: $EBS_DB_HOST"
   [ -n "$EBS_SERVICE_NAME" ] && ok "EBS service: $EBS_SERVICE_NAME"
+  if [ -n "$APPS_BASE" ]; then
+    APPS_ENV_FILE="${APPS_BASE}/EBSapps.env"
+    ok "APPS_BASE: $APPS_BASE"
+    ok "APPS_ENV_FILE: $APPS_ENV_FILE"
+  fi
 fi
-# Patch agent.env EBS_DB_HOST placeholder (written blank before detection ran)
+# Patch agent.env placeholders (written blank before detection ran)
 sed -i "s|^EBS_DB_HOST=.*|EBS_DB_HOST=${EBS_DB_HOST}|" "$ENV_FILE" 2>/dev/null || true
+sed -i "s|^APPS_BASE=.*|APPS_BASE=${APPS_BASE}|" "$ENV_FILE" 2>/dev/null || true
+sed -i "s|^APPS_ENV_FILE=.*|APPS_ENV_FILE=${APPS_ENV_FILE}|" "$ENV_FILE" 2>/dev/null || true
 
 # ── Install Oracle driver (DB/both/unknown only — app servers skip) ───────────
 if [ "$SERVER_TYPE" != "apps" ]; then

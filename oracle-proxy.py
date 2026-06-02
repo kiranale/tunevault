@@ -198,6 +198,36 @@ for _p in ("/etc/tunevault/agent.env", "/etc/tunevault/proxy.env"):
         pass
 
 
+# Read APPS_ENV_FILE from agent.env — path to EBSapps.env on app servers.
+# Set by install.sh from the context file s_base attribute.
+_APPS_ENV_FILE = ""
+for _p in ("/etc/tunevault/agent.env", "/etc/tunevault/proxy.env"):
+    try:
+        with open(_p) as _f:
+            for _line in _f:
+                if _line.strip().startswith("APPS_ENV_FILE="):
+                    _APPS_ENV_FILE = _line.strip().split("=", 1)[1].strip()
+                    break
+        if _APPS_ENV_FILE:
+            break
+    except Exception:
+        pass
+
+# Read APPS_PWD from agent.env — Oracle APPS password for CM check (optional).
+_APPS_PWD = ""
+for _p in ("/etc/tunevault/agent.env", "/etc/tunevault/proxy.env"):
+    try:
+        with open(_p) as _f:
+            for _line in _f:
+                if _line.strip().startswith("APPS_PWD="):
+                    _APPS_PWD = _line.strip().split("=", 1)[1].strip()
+                    break
+        if _APPS_PWD:
+            break
+    except Exception:
+        pass
+
+
 def _resolve_db_host(params):
     """Return the Oracle DB host for a request.
 
@@ -265,7 +295,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.17.1"  # cap ebs-app-healthcheck subprocess timeouts at 10s each (adcmctl/opmn/adop)
+VERSION = "3.18.0"  # rewrite ebs-app-healthcheck: source EBSapps.env, use EBS admin scripts (adapcctl/adopmnctl/adalnctl/admanagedsrvctl/adadminsrvctl/adcmctl)
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5165,7 +5195,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
 
         # POST /api/ebs-app-healthcheck — aggregated EBS app-tier health check.
         # Only runs when SERVER_TYPE=apps. Returns structured findings + score.
-        # No DB connection needed — all checks run locally via OS commands.
+        # All checks source EBSapps.env (from APPS_ENV_FILE in agent.env) so that
+        # $ADMIN_SCRIPTS_HOME and $CONTEXT_FILE are available to each command.
         if self.path == "/api/ebs-app-healthcheck":
             if not self.check_auth():
                 return
@@ -5196,99 +5227,152 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 checks_ok.append({"check_id": check_id, "title": title,
                                    "status": "ok", "details": details})
 
-            # ── 1. Concurrent Manager status ──────────────────────────────────
-            adcmctl  = os.environ.get("ADCMCTL", "")
-            apps_pwd = os.environ.get("APPS_PWD", "") or os.environ.get("APPS_PASSWORD", "")
-            if not adcmctl:
-                _finding("cm_status", "Concurrent Manager Status", "warning",
-                         "ADCMCTL environment variable not set — cannot check CM status. "
-                         "Set ADCMCTL in proxy.env to enable this check.")
+            env_file = _APPS_ENV_FILE
+            env_src  = "source %s run" % env_file if env_file else ""
+
+            def _src_cmd(cmd):
+                """Prefix cmd with EBSapps.env source if available."""
+                return "%s && %s" % (env_src, cmd) if env_src else cmd
+
+            def _run(cmd, timeout=15):
+                return run_os_command(["bash", "-c", cmd], timeout=timeout)
+
+            no_env_msg = ("APPS_ENV_FILE not configured — reinstall agent with context file path "
+                          "so EBSapps.env can be sourced for this check.")
+
+            # ── 1. Apache / OHS status ────────────────────────────────────────
+            if not env_file:
+                _finding("apache_status", "Apache/OHS Status", "warning", no_env_msg)
             else:
-                argv = [adcmctl, "status", "apps/%s" % apps_pwd] if apps_pwd else [adcmctl, "status"]
-                stdout, stderr, exit_code, _ = run_os_command(argv, timeout=10)
+                cmd = _src_cmd("$ADMIN_SCRIPTS_HOME/adapcctl.sh status")
+                stdout, stderr, exit_code, _ = _run(cmd)
                 out = stdout + stderr
-                if exit_code != 0:
+                if exit_code != 0 or "stopped" in out.lower():
+                    _finding("apache_status", "Apache/OHS Not Running", "critical",
+                             "adapcctl.sh status reports Apache/OHS is stopped or failed "
+                             "(exit code %d)." % exit_code, out)
+                else:
+                    _ok("apache_status", "Apache/OHS Status", "Apache/OHS is running.")
+
+            # ── 2. OPMN status ────────────────────────────────────────────────
+            if not env_file:
+                _finding("opmn_status", "OPMN Status", "warning", no_env_msg)
+            else:
+                cmd = _src_cmd("$ADMIN_SCRIPTS_HOME/adopmnctl.sh status")
+                stdout, stderr, exit_code, _ = _run(cmd)
+                out = stdout + stderr
+                if any(kw in out for kw in ("Down", "down", "FAILED", "failed")):
+                    _finding("opmn_status", "OPMN Components Down", "critical",
+                             "adopmnctl.sh status reports one or more OPMN components are down.", out)
+                elif exit_code != 0:
+                    _finding("opmn_status", "OPMN Status Check Failed", "warning",
+                             "adopmnctl.sh status returned exit code %d." % exit_code, out)
+                else:
+                    _ok("opmn_status", "OPMN Status", "All OPMN components are Alive.")
+
+            # ── 3. Apps Listener (FNDSM) status ──────────────────────────────
+            if not env_file:
+                _finding("apps_listener", "Apps Listener Status", "warning", no_env_msg)
+            else:
+                cmd = _src_cmd("$ADMIN_SCRIPTS_HOME/adalnctl.sh status")
+                stdout, stderr, exit_code, _ = _run(cmd)
+                out = stdout + stderr
+                if exit_code != 0 or any(kw in out.lower() for kw in ("not running", "stopped", "down")):
+                    _finding("apps_listener", "Apps Listener Not Running", "warning",
+                             "adalnctl.sh status reports the Apps Listener (FNDSM) is not running.", out)
+                else:
+                    _ok("apps_listener", "Apps Listener Status", "Apps Listener is running.")
+
+            # ── 4. OACore managed servers ─────────────────────────────────────
+            if not env_file:
+                _finding("oacore_servers", "OACore Managed Servers", "warning", no_env_msg)
+            else:
+                cmd = _src_cmd(
+                    "SERVERS=$(grep -i 'oacore_server' \"$CONTEXT_FILE\" 2>/dev/null "
+                    "| sed -n 's/.*>\\(oacore_server[0-9]*\\)<.*/\\1/p' | sort -u); "
+                    "for s in $SERVERS; do "
+                    "echo \"=== $s ===\"; "
+                    "$ADMIN_SCRIPTS_HOME/admanagedsrvctl.sh status \"$s\"; "
+                    "done"
+                )
+                stdout, stderr, exit_code, _ = _run(cmd)
+                out = stdout + stderr
+                if not out.strip() or "oacore_server" not in out.lower():
+                    _finding("oacore_servers", "OACore Servers Not Found", "warning",
+                             "No OACore server entries found in CONTEXT_FILE, or CONTEXT_FILE not set.", out)
+                elif any(kw in out for kw in ("FAILED", "failed", "not running", "stopped")):
+                    _finding("oacore_servers", "OACore Server Down", "critical",
+                             "One or more OACore managed servers are not running.", out)
+                else:
+                    _ok("oacore_servers", "OACore Managed Servers", "All OACore servers running.")
+
+            # ── 5. Forms managed servers ──────────────────────────────────────
+            if not env_file:
+                _finding("forms_servers", "Forms Managed Servers", "warning", no_env_msg)
+            else:
+                cmd = _src_cmd(
+                    "SERVERS=$(grep -i 'forms_server' \"$CONTEXT_FILE\" 2>/dev/null "
+                    "| sed -n 's/.*>\\(forms_server[0-9]*\\)<.*/\\1/p' | sort -u); "
+                    "for s in $SERVERS; do "
+                    "echo \"=== $s ===\"; "
+                    "$ADMIN_SCRIPTS_HOME/admanagedsrvctl.sh status \"$s\"; "
+                    "done"
+                )
+                stdout, stderr, exit_code, _ = _run(cmd)
+                out = stdout + stderr
+                if not out.strip() or "forms_server" not in out.lower():
+                    _finding("forms_servers", "Forms Servers Not Found", "warning",
+                             "No Forms server entries found in CONTEXT_FILE, or CONTEXT_FILE not set.", out)
+                elif any(kw in out for kw in ("FAILED", "failed", "not running", "stopped")):
+                    _finding("forms_servers", "Forms Server Down", "critical",
+                             "One or more Forms managed servers are not running.", out)
+                else:
+                    _ok("forms_servers", "Forms Managed Servers", "All Forms servers running.")
+
+            # ── 6. WebLogic Admin Server (only if this host is the admin host) ─
+            if not env_file:
+                _finding("admin_server", "WebLogic Admin Server", "warning", no_env_msg)
+            else:
+                cmd = _src_cmd(
+                    "HOST=$(hostname -s); "
+                    "ADMIN_HOST=$(grep -i '<wls_admin_host' \"$CONTEXT_FILE\" 2>/dev/null "
+                    "| sed -E 's/.*>(.*)<.*/\\1/' | xargs 2>/dev/null); "
+                    "if [ \"$HOST\" = \"$ADMIN_HOST\" ]; then "
+                    "$ADMIN_SCRIPTS_HOME/adadminsrvctl.sh status; "
+                    "else echo \"skip: admin host is $ADMIN_HOST, this host is $HOST\"; "
+                    "fi"
+                )
+                stdout, stderr, exit_code, _ = _run(cmd)
+                out = stdout + stderr
+                if out.strip().startswith("skip:"):
+                    _ok("admin_server", "WebLogic Admin Server",
+                        "Admin Server runs on a different host (%s) — skipped." % out.strip())
+                elif exit_code != 0 or any(kw in out.lower() for kw in ("not running", "stopped", "failed")):
+                    _finding("admin_server", "WebLogic Admin Server Not Running", "critical",
+                             "adadminsrvctl.sh status reports Admin Server is not running.", out)
+                else:
+                    _ok("admin_server", "WebLogic Admin Server", "Admin Server is running.")
+
+            # ── 7. Concurrent Manager status ──────────────────────────────────
+            if not env_file:
+                _finding("cm_status", "Concurrent Manager Status", "warning", no_env_msg)
+            elif not _APPS_PWD:
+                _finding("cm_status", "Concurrent Manager Status", "warning",
+                         "CM check skipped — apps password not configured. "
+                         "Add APPS_PWD=<password> to /etc/tunevault/agent.env to enable this check.")
+            else:
+                cmd = _src_cmd(
+                    "$ADMIN_SCRIPTS_HOME/adcmctl.sh status apps/%s" % _APPS_PWD
+                )
+                stdout, stderr, exit_code, _ = _run(cmd)
+                out = stdout + stderr
+                if exit_code != 0 or any(kw in out.lower() for kw in ("not running", "down", "inactive", "stopped")):
                     _finding("cm_status", "Concurrent Manager Not Running", "critical",
-                             "adcmctl status returned exit code %d — CM may be down." % exit_code, out)
-                elif any(kw in out.lower() for kw in ("not running", "down", "inactive", "stopped")):
-                    _finding("cm_status", "Concurrent Manager Not Running", "critical",
-                             "adcmctl reports CM is not running.", out)
+                             "adcmctl.sh status reports CM is not running (exit code %d)." % exit_code, out)
                 else:
                     _ok("cm_status", "Concurrent Manager Status", "CM processes running normally.")
 
-            # ── 2. OPMN / Forms server status ────────────────────────────────
-            oracle_home = os.environ.get("ORACLE_HOME", "")
-            if not oracle_home:
-                _finding("opmn_status", "OPMN Status", "warning",
-                         "ORACLE_HOME not set — cannot check OPMN/Forms status.")
-            else:
-                opmnctl = os.path.join(oracle_home, "opmn", "bin", "opmnctl")
-                if not os.path.isfile(opmnctl):
-                    _finding("opmn_status", "OPMN Not Found", "warning",
-                             "opmnctl not found at %s — OPMN may not be installed "
-                             "or ORACLE_HOME is incorrect." % opmnctl)
-                else:
-                    stdout, stderr, exit_code, _ = run_os_command(
-                        ["sh", "-c", "%s status" % opmnctl], timeout=10)
-                    out = stdout + stderr
-                    if exit_code != 0:
-                        _finding("opmn_status", "OPMN Status Check Failed", "warning",
-                                 "opmnctl status returned exit code %d." % exit_code, out)
-                    elif any(kw in out.lower() for kw in ("down", "failed", "not running", "stopped")):
-                        _finding("opmn_status", "OPMN Components Down", "critical",
-                                 "opmnctl reports one or more components are down.", out)
-                    else:
-                        _ok("opmn_status", "OPMN Status", "OPMN components running normally.")
-
-            # ── 3. ADOP patch cycle status ────────────────────────────────────
-            stdout, stderr, exit_code, _ = run_os_command(
-                ["sh", "-c", "adop phase=status"], timeout=10)
-            out = stdout + stderr
-            if exit_code == 127 or ("not found" in out.lower() and not stdout.strip()):
-                _finding("adop_status", "ADOP Not Available", "warning",
-                         "adop command not found — EBS R12.2+ patching utility not on PATH.", out)
-            elif exit_code != 0:
-                _finding("adop_status", "ADOP Status Check Failed", "warning",
-                         "adop phase=status returned exit code %d." % exit_code, out)
-            elif "failed" in out.lower():
-                _finding("adop_status", "ADOP Patch Cycle Failed", "critical",
-                         "ADOP reports a failed patch cycle that requires cleanup.", out)
-            elif any(kw in out.lower() for kw in
-                     ("patch in progress", "patching in progress", "apply phase")):
-                _finding("adop_status", "ADOP Patch Cycle Active", "warning",
-                         "An ADOP patch cycle is currently in progress — some operations may be blocked.",
-                         out)
-            else:
-                _ok("adop_status", "ADOP Status", "No active or failed patch cycle detected.")
-
-            # ── 4. EBS app-tier process check ─────────────────────────────────
-            stdout, stderr, exit_code, _ = run_os_command(
-                ["sh", "-c",
-                 "ps aux | grep -E '(FNDLIBR|FNDSM|OAFM|oacore|forms|f60webmx)' | grep -v grep"],
-                timeout=10)
-            procs = [l for l in stdout.strip().splitlines() if l.strip()]
-            if not procs:
-                _finding("ebs_processes", "No EBS App Tier Processes Found", "critical",
-                         "No EBS application processes detected (FNDLIBR, FNDSM, OAFM, oacore, forms). "
-                         "EBS may not be running.")
-            else:
-                has_fnd    = any("FNDLIBR" in l or "FNDSM" in l for l in procs)
-                has_oacore = any("oacore" in l or "OAFM" in l for l in procs)
-                has_forms  = any("forms" in l or "f60webmx" in l for l in procs)
-                missing = []
-                if not has_fnd:    missing.append("Concurrent Manager (FNDLIBR/FNDSM)")
-                if not has_oacore: missing.append("OACore/OAFM")
-                if not has_forms:  missing.append("Forms Server")
-                if missing:
-                    _finding("ebs_processes", "Some EBS Processes Missing", "warning",
-                             "Not all expected EBS app-tier processes found. Missing: %s"
-                             % ", ".join(missing),
-                             "\n".join(procs[:20]))
-                else:
-                    _ok("ebs_processes", "EBS App Tier Processes",
-                        "%d processes found covering CM, OACore, and Forms." % len(procs))
-
-            # ── 5. Disk usage ──────────────────────────────────────────────────
+            # ── 8. Disk usage ──────────────────────────────────────────────────
             stdout, stderr, exit_code, _ = run_os_command(["df", "-h"], timeout=10)
             if exit_code != 0:
                 _finding("disk_usage", "Disk Usage Check Failed", "warning",
@@ -5320,7 +5404,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 else:
                     _ok("disk_usage", "Disk Usage", "All filesystems below 85%% threshold.")
 
-            # ── 6. Memory ──────────────────────────────────────────────────────
+            # ── 9. Memory ──────────────────────────────────────────────────────
             stdout, stderr, exit_code, _ = run_os_command(["free", "-m"], timeout=10)
             if exit_code != 0:
                 _finding("memory_usage", "Memory Check Failed", "warning",
