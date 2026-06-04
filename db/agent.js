@@ -312,14 +312,17 @@ async function updateConnectionSid(connectionId, serviceName) {
   );
 }
 
-async function updateConnectionInstallerInfo(connectionId, { serverType, ebsService }) {
+async function updateConnectionInstallerInfo(connectionId, { serverType, ebsService, ebsInstanceName }) {
+  const isEbs = serverType === 'apps' || serverType === 'both' ? true : null;
   await pool.query(
     `UPDATE oracle_connections SET
-      server_type = COALESCE($1, server_type),
-      ebs_service = COALESCE($2, ebs_service),
-      updated_at = NOW()
-     WHERE id = $3`,
-    [serverType || null, ebsService || null, connectionId]
+      server_type      = COALESCE($1, server_type),
+      ebs_service      = COALESCE($2, ebs_service),
+      is_ebs           = CASE WHEN $3 IS NOT NULL THEN $3 ELSE is_ebs END,
+      ebs_instance_name = COALESCE($4, ebs_instance_name),
+      updated_at       = NOW()
+     WHERE id = $5`,
+    [serverType || null, ebsService || null, isEbs, ebsInstanceName || null, connectionId]
   );
 }
 async function clearConnectionProxy(connectionId) {

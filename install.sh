@@ -332,6 +332,7 @@ APPS_BASE=
 APPS_ENV_FILE=
 APPS_PWD=
 WEBLOGIC_PWD=
+INSTANCE_NAME=
 ENVEOF
 chmod 600 "$ENV_FILE"
 ok "Config written to $ENV_FILE"
@@ -574,6 +575,19 @@ sed -i "s|^APPS_BASE=.*|APPS_BASE=${APPS_BASE}|" "$ENV_FILE" 2>/dev/null || true
 sed -i "s|^APPS_ENV_FILE=.*|APPS_ENV_FILE=${APPS_ENV_FILE}|" "$ENV_FILE" 2>/dev/null || true
 sed -i "s|^APPS_PWD=.*|APPS_PWD=${APPS_PWD}|" "$ENV_FILE" 2>/dev/null || true
 sed -i "s|^WEBLOGIC_PWD=.*|WEBLOGIC_PWD=${WEBLOGIC_PWD}|" "$ENV_FILE" 2>/dev/null || true
+# ── EBS instance name: explicit env var, auto-derived from DB host, or blank ──
+INSTANCE_NAME="${TUNEVAULT_EBS_INSTANCE_NAME:-}"
+if [ -z "$INSTANCE_NAME" ] && [ -n "$EBS_DB_HOST" ]; then
+  # Auto-derive: strip -db/-app/-apps suffix and optional env tag → uppercase
+  # e.g. ebs12212-db-dev.example.com → EBS12212
+  _raw_host=$(echo "$EBS_DB_HOST" | cut -d. -f1 | tr '[:upper:]' '[:lower:]')
+  _derived=$(echo "$_raw_host" | sed 's/-\(db\|app\|apps\|both\)\(-.*\)*$//')
+  if [ -n "$_derived" ] && [ "$_derived" != "$_raw_host" ]; then
+    INSTANCE_NAME=$(echo "$_derived" | tr '[:lower:]' '[:upper:]')
+    ok "EBS instance name (auto-derived): $INSTANCE_NAME"
+  fi
+fi
+sed -i "s|^INSTANCE_NAME=.*|INSTANCE_NAME=${INSTANCE_NAME}|" "$ENV_FILE" 2>/dev/null || true
 
 # ── Install Oracle driver (DB/both/unknown only — app servers skip) ───────────
 if [ "$SERVER_TYPE" != "apps" ]; then
@@ -693,7 +707,7 @@ SVCEOF
   CONFIRM=$(curl -fsSL -X POST \
     -H "Content-Type: application/json" \
     -H "X-TuneVault-Key: ${API_KEY}" \
-    -d "{\"connection_id\":${CONNECTION_ID},\"oracle_sids\":${SIDS_JSON},\"machine_hostname\":\"${_HOST}\",\"installer_version\":\"8.0.0\",\"python_version\":\"${_PY_VER}\",\"oracle_driver\":\"oracledb-${_DRV_VER}\",\"server_type\":\"${SERVER_TYPE}\",\"ebs_context_file\":\"${EBS_CONTEXT_FILE}\",\"ebs_db_host\":\"${EBS_DB_HOST}\",\"ebs_service\":\"${EBS_SERVICE_NAME}\"}" \
+    -d "{\"connection_id\":${CONNECTION_ID},\"oracle_sids\":${SIDS_JSON},\"machine_hostname\":\"${_HOST}\",\"installer_version\":\"8.0.0\",\"python_version\":\"${_PY_VER}\",\"oracle_driver\":\"oracledb-${_DRV_VER}\",\"server_type\":\"${SERVER_TYPE}\",\"ebs_context_file\":\"${EBS_CONTEXT_FILE}\",\"ebs_db_host\":\"${EBS_DB_HOST}\",\"ebs_service\":\"${EBS_SERVICE_NAME}\",\"ebs_instance_name\":\"${INSTANCE_NAME}\"}" \
     "${API}/api/agent/confirm" 2>/dev/null) || CONFIRM="{}"
 
   echo "$CONFIRM" | grep -q '"ok":true' \

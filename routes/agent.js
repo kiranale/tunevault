@@ -308,6 +308,8 @@ router.post('/confirm', async (req, res) => {
     pdb_services,
     // v8: server type and EBS context info from installer
     server_type, ebs_service, ebs_db_host, ebs_context_file,
+    // v8.1+: explicit instance name (or auto-derived from db host)
+    ebs_instance_name,
   } = req.body;
   if (!connection_id) return res.status(400).json({ error: 'connection_id required' });
   const parsedConnId = parseInt(connection_id, 10);
@@ -335,11 +337,20 @@ router.post('/confirm', async (req, res) => {
 
     // proxy_url is not used — all communication goes through the outbound agent channel.
     await agentDb.touchConnectionKeyUsage(parsedConnId);
-    // Save server_type and ebs_service detected by installer
-    if (server_type || ebs_service) {
+    // Save server_type, ebs_service, and ebs_instance_name detected by installer.
+    // Auto-derive instance name from DB hostname when not explicitly set:
+    //   ebs12212-db-dev.example.com → EBS12212
+    let resolvedInstanceName = ebs_instance_name || null;
+    if (!resolvedInstanceName && ebs_db_host) {
+      const raw = ebs_db_host.split('.')[0].toLowerCase();
+      const stripped = raw.replace(/-(db|app|apps|both)([-_].*)?$/, '');
+      if (stripped && stripped !== raw) resolvedInstanceName = stripped.toUpperCase();
+    }
+    if (server_type || ebs_service || resolvedInstanceName) {
       await agentDb.updateConnectionInstallerInfo(parsedConnId, {
-        serverType: server_type || null,
-        ebsService: ebs_service || null,
+        serverType:       server_type       || null,
+        ebsService:       ebs_service       || null,
+        ebsInstanceName:  resolvedInstanceName,
       });
     }
 

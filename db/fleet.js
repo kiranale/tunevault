@@ -40,10 +40,12 @@ async function getFleetOverview(userId) {
 
   const connResult = await pool.query(
     `SELECT
-       oc.id           AS connection_id,
+       oc.id                AS connection_id,
        oc.name,
-       oc.oracle_version AS db_version,
-       oc.is_ebs       AS ebs_detected,
+       oc.oracle_version    AS db_version,
+       oc.is_ebs            AS ebs_detected,
+       oc.server_type,
+       oc.ebs_instance_name,
        oc.user_id
      FROM oracle_connections oc
      ${connWhere}
@@ -216,20 +218,23 @@ async function getFleetOverview(userId) {
     }
 
     return {
-      connection_id: conn.connection_id,
-      name: conn.name || 'Unnamed',
-      env_tag: deriveEnvTag(conn.name),
-      db_version: conn.db_version || null,
-      ebs_detected: conn.ebs_detected || false,
-      last_check_at: latest ? latest.last_check_at : null,
+      connection_id:       conn.connection_id,
+      name:                conn.name || 'Unnamed',
+      env_tag:             deriveEnvTag(conn.name),
+      db_version:          conn.db_version || null,
+      ebs_detected:        conn.ebs_detected || false,
+      server_type:         conn.server_type  || null,
+      ebs_instance_name:   conn.ebs_instance_name || null,
+      last_check_at:       latest ? latest.last_check_at : null,
+      overall_score:       latest ? (latest.overall_score || 0) : null,
       status,
-      red_count: sev ? sev.red_count : 0,
-      amber_count: sev ? sev.amber_count : 0,
-      top_finding_title: top ? top.title : null,
-      top_finding_severity: top ? top.severity : null,
+      red_count:           sev ? sev.red_count   : 0,
+      amber_count:         sev ? sev.amber_count : 0,
+      top_finding_title:   top ? top.title    : null,
+      top_finding_severity:top ? top.severity : null,
       drift_since_last_run: drift,
-      autonomous_enabled: sched.autonomous_enabled,
-      next_run_at: sched.next_run_at
+      autonomous_enabled:  sched.autonomous_enabled,
+      next_run_at:         sched.next_run_at
     };
   });
 }

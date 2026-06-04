@@ -2818,6 +2818,85 @@ app.post('/api/health-checks/:id/cancel', requireAuth, async (req, res) => {
   }
 });
 
+// ── POST /api/instance-healthcheck ───────────────────────────────────────────
+// Runs health checks on all connections belonging to an EBS instance in parallel.
+// Accepts { instance_name } — looks up all member connection IDs, queues each HC,
+// returns per-member HC IDs immediately so the UI can poll each one independently.
+app.post('/api/instance-healthcheck', requireAuth, requireRole('junior_dba'), async (req, res) => {
+  const { instance_name } = req.body;
+  if (!instance_name) return res.status(400).json({ error: 'instance_name required' });
+
+  try {
+    const connResult = await pool.query(
+      `SELECT id, name, server_type
+         FROM oracle_connections
+        WHERE ebs_instance_name = $1
+          AND (user_id = $2 OR user_id IS NULL)
+        ORDER BY server_type`,   // db first, then apps
+      [instance_name, req.user.id]
+    );
+
+    if (connResult.rows.length === 0) {
+      return res.status(404).json({ error: `No connections found for instance '${instance_name}'` });
+    }
+
+    // Fire one HC per member in parallel — same flow as POST /api/health-checks
+    const members = connResult.rows;
+    const hcPromises = members.map(async (conn) => {
+      try {
+        const hcRes = await pool.query(
+          `INSERT INTO health_checks (connection_name, connection_id, status, username, user_id, is_demo)
+           VALUES ($1, $2, 'pending', $3, $4, false)
+           RETURNING id`,
+          [conn.name, conn.id, req.user.email, req.user.id]
+        );
+        const hcId = hcRes.rows[0].id;
+
+        // Fetch full connection row for the HC runner
+        const fullConn = await pool.query(
+          `SELECT id, name, host, port, service_name, username, encrypted_password,
+                  connection_type, proxy_url, proxy_api_key_enc, server_type,
+                  apps_pwd_enc, weblogic_pwd_enc
+             FROM oracle_connections WHERE id = $1`,
+          [conn.id]
+        );
+        const c = fullConn.rows[0];
+        if (!c) return { connection_id: conn.id, name: conn.name, hc_id: hcId, queued: false, error: 'Connection not found' };
+
+        const appsPwd     = c.apps_pwd_enc     ? decrypt(c.apps_pwd_enc)     : null;
+        const weblogicPwd = c.weblogic_pwd_enc ? decrypt(c.weblogic_pwd_enc) : null;
+        const password    = c.encrypted_password ? decrypt(c.encrypted_password) : null;
+        const proxyApiKey = c.proxy_api_key_enc  ? decrypt(c.proxy_api_key_enc)  : null;
+
+        // Fire-and-forget HC (same as the normal POST /api/health-checks path)
+        runProxyHealthCheck(hcId, {
+          connectionId:  c.id,
+          proxyUrl:      c.proxy_url,
+          proxyApiKey,
+          serviceName:   c.service_name,
+          username:      c.username,
+          password,
+          host:          c.host,
+          port:          c.port || 1521,
+          serverType:    c.server_type,
+          appsPwd,
+          weblogicPwd,
+        }).catch(err => console.error(`[instance-hc] member ${conn.id} failed:`, err.message));
+
+        return { connection_id: conn.id, name: conn.name, server_type: conn.server_type, hc_id: hcId, queued: true };
+      } catch (err) {
+        return { connection_id: conn.id, name: conn.name, server_type: conn.server_type, hc_id: null, queued: false, error: err.message };
+      }
+    });
+
+    const results = await Promise.all(hcPromises);
+    res.json({ ok: true, instance_name, members: results });
+  } catch (err) {
+    console.error('[instance-hc] error:', err.message);
+    res.status(500).json({ error: 'Failed to start instance health check' });
+  }
+});
+
 // SQL Tuning Recommendations — on-demand endpoint
 // POST /api/health-checks/:id/sql-tuning
 // Body: { sql_ids: string[] }   (subset of top_sql sql_ids from the health check)
@@ -7519,6 +7598,14 @@ async function ensureColumns() {
       ADD COLUMN IF NOT EXISTS apps_pwd_enc      TEXT,
       ADD COLUMN IF NOT EXISTS weblogic_pwd_enc  TEXT,
       ADD COLUMN IF NOT EXISTS ebs_instance_name VARCHAR(64)
+  `);
+
+  // Backfill is_ebs for any connections we know are EBS by server_type or instance membership.
+  await pool.query(`
+    UPDATE oracle_connections
+       SET is_ebs = true
+     WHERE is_ebs IS NOT TRUE
+       AND (server_type IN ('apps','both') OR ebs_instance_name IS NOT NULL)
   `);
 
   // Reset auto-upgrade suppression for connections that have ≥2 failures in the
