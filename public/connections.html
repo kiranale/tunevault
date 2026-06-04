@@ -757,7 +757,7 @@ async function openSlideout(connId) {
             <span class="icon">✏</span>
             <div>
               <div>Edit Connection</div>
-              <div class="sub">Change name or Oracle credentials</div>
+              <div class="sub">Change name, credentials, or EBS passwords</div>
             </div>
           </button>
           <hr class="so-divider"/>
@@ -1050,23 +1050,27 @@ async function openEditPanel(connId) {
                  value="${esc(c.username || '')}" placeholder="e.g. APPS" maxlength="128"/>
         </div>
         <div class="field-group">
-          <label class="field-label" for="edit-password">Oracle Password</label>
+          <label class="field-label" for="edit-password">TuneVault Reader Password</label>
           <input class="field-input" id="edit-password" data-testid="edit-password" type="password"
                  placeholder="Leave blank to keep current password" maxlength="1024"/>
-          <div class="field-sub">Enter a new password only if you want to change it.</div>
+          <div class="field-sub">Password for the Oracle DB reader account (e.g. APPS or tunevault_reader). Leave blank to keep existing.</div>
         </div>
         ${(c.server_type === 'apps' || c.server_type === 'both') ? `
         <div class="field-group">
-          <label class="field-label" for="edit-apps-pwd">APPS Password <span style="font-weight:400;color:var(--text-dim)">(optional)</span></label>
+          <label class="field-label" for="edit-apps-pwd">APPS Password
+            ${c.has_apps_pwd ? '<span style="font-size:11px;color:var(--green);font-weight:400;margin-left:6px">&#10003; set</span>' : '<span style="font-size:11px;color:var(--yellow);font-weight:400;margin-left:6px">not set</span>'}
+          </label>
           <input class="field-input" id="edit-apps-pwd" type="password"
-                 placeholder="Leave blank to keep current / skip CM check" maxlength="512"/>
-          <div class="field-sub">Used for Concurrent Manager status check.</div>
+                 placeholder="${c.has_apps_pwd ? 'Enter new password to update' : 'Required for Concurrent Manager checks'}" maxlength="512"/>
+          <div class="field-sub">${c.has_apps_pwd ? 'Update the APPS password used for Concurrent Manager checks.' : 'Set to enable Concurrent Manager (CM) status checks.'}</div>
         </div>
         <div class="field-group">
-          <label class="field-label" for="edit-weblogic-pwd">WebLogic Admin Password <span style="font-weight:400;color:var(--text-dim)">(optional)</span></label>
+          <label class="field-label" for="edit-weblogic-pwd">WebLogic Admin Password
+            ${c.has_weblogic_pwd ? '<span style="font-size:11px;color:var(--green);font-weight:400;margin-left:6px">&#10003; set</span>' : '<span style="font-size:11px;color:var(--yellow);font-weight:400;margin-left:6px">not set</span>'}
+          </label>
           <input class="field-input" id="edit-weblogic-pwd" type="password"
-                 placeholder="Leave blank to keep current / skip WLS checks" maxlength="512"/>
-          <div class="field-sub">Used for WebLogic Admin Server and managed server checks.</div>
+                 placeholder="${c.has_weblogic_pwd ? 'Enter new password to update' : 'Required for OACore/Forms/OAFM/Admin checks'}" maxlength="512"/>
+          <div class="field-sub">${c.has_weblogic_pwd ? 'Update the WebLogic Admin password used for WLS managed server state checks.' : 'Set to enable OACore, Forms, OAFM, and Admin Server state checks via WLST.'}</div>
         </div>` : ''}
         <div class="field-group">
           <label class="field-label" for="edit-ebs-instance">EBS Instance Name <span style="font-weight:400;color:var(--text-dim)">(optional)</span></label>

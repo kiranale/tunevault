@@ -3454,7 +3454,7 @@ async function runRealHealthCheckInner(healthCheckId, oracleConfig, t0) {
 }
 
 // Current canonical proxy version — bump this when oracle-proxy.py/oracle-proxy.js VERSION changes
-const LATEST_PROXY_VERSION = '3.18.4';
+const LATEST_PROXY_VERSION = '3.19.0';
 
 // ============================================================
 // Proxy Health Check Flow

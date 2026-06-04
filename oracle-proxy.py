@@ -227,6 +227,20 @@ for _p in ("/etc/tunevault/agent.env", "/etc/tunevault/proxy.env"):
     except Exception:
         pass
 
+# Read WEBLOGIC_PWD from agent.env — WebLogic Admin password for WLS server checks (optional).
+_WEBLOGIC_PWD = ""
+for _p in ("/etc/tunevault/agent.env", "/etc/tunevault/proxy.env"):
+    try:
+        with open(_p) as _f:
+            for _line in _f:
+                if _line.strip().startswith("WEBLOGIC_PWD="):
+                    _WEBLOGIC_PWD = _line.strip().split("=", 1)[1].strip()
+                    break
+        if _WEBLOGIC_PWD:
+            break
+    except Exception:
+        pass
+
 
 def _resolve_db_host(params):
     """Return the Oracle DB host for a request.
@@ -295,7 +309,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.18.4"  # OACore/Forms/AdminServer use WLST for real WLS state; ps fallback when no password or WLST absent
+VERSION = "3.19.0"  # OAFM check added; _WEBLOGIC_PWD agent.env fallback; [HC] password-present debug log
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5215,9 +5229,12 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 _params = json.loads(_body) if _body else {}
             except Exception:
                 _params = {}
-            # Fall back to agent.env _APPS_PWD for backward compat with old server versions.
+            # Fall back to agent.env values for backward compat / installs where passwords
+            # were set during install.sh prompts rather than via the Edit Connection form.
             req_apps_pwd     = _params.get("apps_pwd", "") or _APPS_PWD
-            req_weblogic_pwd = _params.get("weblogic_pwd", "")
+            req_weblogic_pwd = _params.get("weblogic_pwd", "") or _WEBLOGIC_PWD
+            print("[HC] weblogic_pwd present: %s, apps_pwd present: %s"
+                  % (bool(req_weblogic_pwd), bool(req_apps_pwd)))
 
             timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
             print("[%s] EBS app-tier health check" % timestamp)
@@ -5443,7 +5460,60 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     _ok("forms_servers", "Forms Managed Servers",
                         "All Forms servers running (ps check).", out)
 
-            # ── 5b. Node Manager ──────────────────────────────────────────────
+            # ── 5b. OAFM managed servers ──────────────────────────────────────
+            if not env_file:
+                _finding("oafm_servers", "OAFM Managed Servers", "warning", no_env_msg)
+            elif _wlst_ok:
+                _ctx_out, _, _, _ = _run(_src_cmd(
+                    "grep -i 'oafm_server' \"$CONTEXT_FILE\" 2>/dev/null "
+                    "| sed -n 's/.*>\\(oafm_server[0-9]*\\)<.*/\\1/p' | sort -u"
+                ))
+                _names = [s.strip() for s in _ctx_out.strip().splitlines() if s.strip()]
+                if not _names:
+                    _ok("oafm_servers", "OAFM Managed Servers",
+                        "No OAFM server entries in CONTEXT_FILE — component not deployed on this instance.")
+                else:
+                    _down = ["%s: %s" % (_wlst_states[n.lower()][0], _wlst_states[n.lower()][1])
+                             for n in _names if n.lower() in _wlst_states
+                             and _wlst_states[n.lower()][1].upper() not in ("RUNNING", "STARTING")]
+                    _missing = [n for n in _names if n.lower() not in _wlst_states]
+                    if _down or _missing:
+                        _finding("oafm_servers", "OAFM Server Down", "critical",
+                                 "Not RUNNING: %s" % "; ".join(
+                                     _down + ["%s: not in domain" % n for n in _missing]),
+                                 _wlst_raw[:1000])
+                    else:
+                        _ok("oafm_servers", "OAFM Managed Servers",
+                            "; ".join("%s: %s" % (_wlst_states[n.lower()][0],
+                                                   _wlst_states[n.lower()][1])
+                                      for n in _names if n.lower() in _wlst_states),
+                            _wlst_raw[:500])
+            else:
+                _ps_note = ("no WebLogic password" if not req_weblogic_pwd
+                            else (_wlst_err or "WLST unavailable"))
+                cmd = _src_cmd(
+                    "SERVERS=$(grep -i 'oafm_server' \"$CONTEXT_FILE\" 2>/dev/null "
+                    "| sed -n 's/.*>\\(oafm_server[0-9]*\\)<.*/\\1/p' | sort -u); "
+                    "if [ -z \"$SERVERS\" ]; then echo 'no_oafm'; exit 0; fi; "
+                    "for s in $SERVERS; do "
+                    "echo \"=== $s ===\"; "
+                    "echo 'NOTE: ps fallback (%s)'; "
+                    "ps aux | grep \"weblogic.Name=$s\" | grep -v grep | head -2; "
+                    "done" % _ps_note
+                )
+                stdout, stderr, _, _ = _run(cmd)
+                out = stdout + stderr
+                if not out.strip() or "no_oafm" in out:
+                    _ok("oafm_servers", "OAFM Managed Servers",
+                        "No OAFM server entries in CONTEXT_FILE — component not deployed on this instance.")
+                elif any(kw in out for kw in ("FAILED", "failed", "not running", "stopped")):
+                    _finding("oafm_servers", "OAFM Server Down", "critical",
+                             "One or more OAFM servers are not running.", out)
+                else:
+                    _ok("oafm_servers", "OAFM Managed Servers",
+                        "All OAFM servers running (ps check).", out)
+
+            # ── 5c. Node Manager ──────────────────────────────────────────────
             if not env_file:
                 _finding("node_manager", "Node Manager", "warning", no_env_msg)
             else:

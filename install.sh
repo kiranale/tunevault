@@ -330,6 +330,8 @@ SERVER_TYPE=unknown
 EBS_DB_HOST=
 APPS_BASE=
 APPS_ENV_FILE=
+APPS_PWD=
+WEBLOGIC_PWD=
 ENVEOF
 chmod 600 "$ENV_FILE"
 ok "Config written to $ENV_FILE"
@@ -520,6 +522,30 @@ if [ "$SERVER_TYPE" = "apps" ] && [ -z "$EBS_CONTEXT_FILE" ] && [ -t 0 ]; then
     info "Context file not found at '$_ctx_input' — skipping"
   fi
 fi
+# ── EBS APPS password: env var or interactive prompt (app servers only) ─────────────────────
+APPS_PWD="${TUNEVAULT_APPS_PWD:-}"
+if [ "$SERVER_TYPE" = "apps" ] && [ -z "$APPS_PWD" ] && [ -t 0 ]; then
+  echo ""
+  printf "  Enter EBS APPS password (required for Concurrent Manager checks, press Enter to skip): "
+  stty -echo 2>/dev/null || true
+  read _apps_pwd_input
+  stty echo 2>/dev/null || true
+  echo ""
+  APPS_PWD="${_apps_pwd_input:-}"
+  [ -n "$APPS_PWD" ] && ok "APPS password: set" || info "APPS password: not set (CM check will be skipped)"
+fi
+# ── EBS WebLogic password: env var or interactive prompt (app servers only) ─────────────────
+WEBLOGIC_PWD="${TUNEVAULT_WEBLOGIC_PWD:-}"
+if [ "$SERVER_TYPE" = "apps" ] && [ -z "$WEBLOGIC_PWD" ] && [ -t 0 ]; then
+  echo ""
+  printf "  Enter WebLogic Admin password (required for WLS managed server state checks, press Enter to skip): "
+  stty -echo 2>/dev/null || true
+  read _wl_pwd_input
+  stty echo 2>/dev/null || true
+  echo ""
+  WEBLOGIC_PWD="${_wl_pwd_input:-}"
+  [ -n "$WEBLOGIC_PWD" ] && ok "WebLogic password: set" || info "WebLogic password: not set (WLS checks will use ps fallback)"
+fi
 APPS_BASE=""
 APPS_ENV_FILE=""
 if [ -n "$EBS_CONTEXT_FILE" ] && [ -f "$EBS_CONTEXT_FILE" ]; then
@@ -546,6 +572,8 @@ fi
 sed -i "s|^EBS_DB_HOST=.*|EBS_DB_HOST=${EBS_DB_HOST}|" "$ENV_FILE" 2>/dev/null || true
 sed -i "s|^APPS_BASE=.*|APPS_BASE=${APPS_BASE}|" "$ENV_FILE" 2>/dev/null || true
 sed -i "s|^APPS_ENV_FILE=.*|APPS_ENV_FILE=${APPS_ENV_FILE}|" "$ENV_FILE" 2>/dev/null || true
+sed -i "s|^APPS_PWD=.*|APPS_PWD=${APPS_PWD}|" "$ENV_FILE" 2>/dev/null || true
+sed -i "s|^WEBLOGIC_PWD=.*|WEBLOGIC_PWD=${WEBLOGIC_PWD}|" "$ENV_FILE" 2>/dev/null || true
 
 # ── Install Oracle driver (DB/both/unknown only — app servers skip) ───────────
 if [ "$SERVER_TYPE" != "apps" ]; then

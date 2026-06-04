@@ -47,7 +47,7 @@ const MIN_AGENT_VERSION = '3.5.5';
 
 // Latest proxy installer version (legacy v3/v4/v5 python-with-oracle-client agents).
 // Connections running older versions show a yellow "Upgrade available" badge.
-const LATEST_PROXY_VERSION = '4.5';
+const LATEST_PROXY_VERSION = '3.19.0';
 
 // Latest agent version (v7 series). Bump alongside install.sh VERSION on each release.
 // Used to compute agent_upgrade_available for the /connections Version column.
@@ -118,7 +118,9 @@ router.get('/connections', requireAuth, async (req, res) => {
               EXISTS (
                 SELECT 1 FROM ssh_targets st
                 WHERE st.connection_id = oc.id
-              ) AS has_ssh
+              ) AS has_ssh,
+              (oc.apps_pwd_enc IS NOT NULL)     AS has_apps_pwd,
+              (oc.weblogic_pwd_enc IS NOT NULL) AS has_weblogic_pwd
        FROM oracle_connections oc
        LEFT JOIN agent_tunnels at ON at.connection_id = oc.id
        WHERE oc.user_id = $1 OR oc.user_id IS NULL
@@ -714,6 +716,10 @@ router.put('/connections/:id', requireAuth, validateBody(updateConnectionSchema)
     if (body.username    !== undefined) addField('username',        body.username.trim());
     if (body.password    !== undefined) addField('encrypted_password', encrypt(body.password));
     if (body.privilege_model !== undefined) addField('privilege_model', body.privilege_model);
+    // EBS app-tier passwords — stored encrypted; sent to agent on each health check
+    if (body.apps_pwd     !== undefined) addField('apps_pwd_enc',     body.apps_pwd     ? encrypt(body.apps_pwd)     : null);
+    if (body.weblogic_pwd !== undefined) addField('weblogic_pwd_enc', body.weblogic_pwd ? encrypt(body.weblogic_pwd) : null);
+    if ('ebs_instance_name' in body)     addField('ebs_instance_name', body.ebs_instance_name || null);
     addField('updated_at', new Date());
 
     if (updates.length <= 1) {
