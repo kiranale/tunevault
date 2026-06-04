@@ -19,7 +19,8 @@
     "test:delete-connection": "node tests/api-delete-connection.js",
     "test:health": "node test/health.test.js",
     "test:health-smoke": "node test/health-smoke.js",
-    "smoke:installer": "bash scripts/smoke-test-installer.sh"
+    "smoke:installer": "bash scripts/smoke-test-installer.sh",
+    "seed-blog": "node scripts/seed-blog.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.44.0"
