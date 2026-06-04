@@ -7509,19 +7509,39 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: message, code: err.code || 'INTERNAL_ERROR' });
 });
 
-app.listen(port, () => {
-  console.log(`TuneVault running on port ${port}`);
-  // Check if oracledb is available
-  const oracle = getOracleClient();
-  if (oracle) {
-    console.log('Oracle thin client loaded — live connections enabled');
-  } else {
-    console.log('Oracle thin client not available — demo mode only');
-  }
-  // Start the scheduled health check runner
-  startScheduler();
-  // Start the trial activation drip sequence
-  startDripCron();
-  // Start the agent health sweeper (fleet-health column data)
-  startHealthSweeper();
-});
+// Idempotent column guard — runs before accepting requests so that
+// health checks never see "column does not exist" if migrate.js was
+// skipped or run against a different DB instance.
+async function ensureColumns() {
+  await pool.query(`
+    ALTER TABLE oracle_connections
+      ADD COLUMN IF NOT EXISTS apps_pwd_enc     TEXT,
+      ADD COLUMN IF NOT EXISTS weblogic_pwd_enc TEXT
+  `);
+}
+
+ensureColumns()
+  .then(() => {
+    app.listen(port, () => {
+      console.log(`TuneVault running on port ${port}`);
+      const oracle = getOracleClient();
+      if (oracle) {
+        console.log('Oracle thin client loaded — live connections enabled');
+      } else {
+        console.log('Oracle thin client not available — demo mode only');
+      }
+      startScheduler();
+      startDripCron();
+      startHealthSweeper();
+    });
+  })
+  .catch(err => {
+    console.error('Startup column check failed:', err.message);
+    // Start anyway — columns may already exist or DB may be temporarily unavailable
+    app.listen(port, () => {
+      console.log(`TuneVault running on port ${port} (column check failed — continuing)`);
+      startScheduler();
+      startDripCron();
+      startHealthSweeper();
+    });
+  });
