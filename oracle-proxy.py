@@ -295,7 +295,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.18.0"  # rewrite ebs-app-healthcheck: source EBSapps.env, use EBS admin scripts (adapcctl/adopmnctl/adalnctl/admanagedsrvctl/adadminsrvctl/adcmctl)
+VERSION = "3.18.1"  # admin-server check: ps process check instead of adadminsrvctl.sh (avoids interactive password prompt)
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5223,9 +5223,10 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     "raw_output": raw[:2000] if raw else "",
                 })
 
-            def _ok(check_id, title, details):
+            def _ok(check_id, title, details, raw=""):
                 checks_ok.append({"check_id": check_id, "title": title,
-                                   "status": "ok", "details": details})
+                                   "status": "ok", "details": details,
+                                   "raw_output": raw[:2000] if raw else ""})
 
             env_file = _APPS_ENV_FILE
             env_src  = "source %s run" % env_file if env_file else ""
@@ -5304,7 +5305,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     _finding("oacore_servers", "OACore Server Down", "critical",
                              "One or more OACore managed servers are not running.", out)
                 else:
-                    _ok("oacore_servers", "OACore Managed Servers", "All OACore servers running.")
+                    _ok("oacore_servers", "OACore Managed Servers", "All OACore servers running.", out)
 
             # ── 5. Forms managed servers ──────────────────────────────────────
             if not env_file:
@@ -5327,31 +5328,40 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     _finding("forms_servers", "Forms Server Down", "critical",
                              "One or more Forms managed servers are not running.", out)
                 else:
-                    _ok("forms_servers", "Forms Managed Servers", "All Forms servers running.")
+                    _ok("forms_servers", "Forms Managed Servers", "All Forms servers running.", out)
 
-            # ── 6. WebLogic Admin Server (only if this host is the admin host) ─
+            # ── 6. WebLogic Admin Server ──────────────────────────────────────
+            # adadminsrvctl.sh requires interactive password input; use a ps
+            # process check instead. Still skip on non-admin hosts.
             if not env_file:
                 _finding("admin_server", "WebLogic Admin Server", "warning", no_env_msg)
             else:
-                cmd = _src_cmd(
+                host_cmd = _src_cmd(
                     "HOST=$(hostname -s); "
                     "ADMIN_HOST=$(grep -i '<wls_admin_host' \"$CONTEXT_FILE\" 2>/dev/null "
                     "| sed -E 's/.*>(.*)<.*/\\1/' | xargs 2>/dev/null); "
-                    "if [ \"$HOST\" = \"$ADMIN_HOST\" ]; then "
-                    "$ADMIN_SCRIPTS_HOME/adadminsrvctl.sh status; "
-                    "else echo \"skip: admin host is $ADMIN_HOST, this host is $HOST\"; "
-                    "fi"
+                    "if [ -n \"$ADMIN_HOST\" ] && [ \"$HOST\" != \"$ADMIN_HOST\" ]; then "
+                    "echo \"skip: admin host is $ADMIN_HOST, this host is $HOST\"; "
+                    "else echo is_admin; fi"
                 )
-                stdout, stderr, exit_code, _ = _run(cmd)
-                out = stdout + stderr
-                if out.strip().startswith("skip:"):
+                host_out, _, _, _ = _run(host_cmd)
+                if host_out.strip().startswith("skip:"):
                     _ok("admin_server", "WebLogic Admin Server",
-                        "Admin Server runs on a different host (%s) — skipped." % out.strip())
-                elif exit_code != 0 or any(kw in out.lower() for kw in ("not running", "stopped", "failed")):
-                    _finding("admin_server", "WebLogic Admin Server Not Running", "critical",
-                             "adadminsrvctl.sh status reports Admin Server is not running.", out)
+                        "Admin Server runs on a different host (%s) — skipped." % host_out.strip())
                 else:
-                    _ok("admin_server", "WebLogic Admin Server", "Admin Server is running.")
+                    ps_out, _, _, _ = _run(
+                        'ps aux | grep -E '
+                        '"(weblogic.Name=AdminServer|Dweblogic.Name=AdminServer)" | grep -v grep'
+                    )
+                    ps_lines = ps_out.strip().splitlines()
+                    if ps_lines:
+                        pid_parts = ps_lines[0].split()
+                        pid = pid_parts[1] if len(pid_parts) > 1 else "?"
+                        _ok("admin_server", "WebLogic Admin Server",
+                            "AdminServer process running (PID %s)." % pid, ps_out)
+                    else:
+                        _finding("admin_server", "WebLogic Admin Server Not Running", "critical",
+                                 "AdminServer process not running.", ps_out)
 
             # ── 7. Concurrent Manager status ──────────────────────────────────
             if not env_file:

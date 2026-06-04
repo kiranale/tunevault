@@ -1924,37 +1924,109 @@
         const circumference = 2 * Math.PI * 38;
         const offset = circumference - (score / 100) * circumference;
 
-        function sevColor(sev) {
-            return sev === 'critical' ? 'var(--red)' : sev === 'warning' ? 'var(--yellow)' : 'var(--green)';
-        }
-        function sevBg(sev) {
-            return sev === 'critical' ? '248,113,113' : '251,191,36';
-        }
-        function sevIcon(sev) {
-            return sev === 'critical' ? '✕' : '▲';
+        // Ordered check sequence for the main panel
+        const MAIN_ORDER   = ['apache_status','opmn_status','admin_server','oacore_servers','forms_servers','oafm_servers','apps_listener','cm_status','opp_status'];
+        const SYSRES_ORDER = ['disk_usage','memory_usage'];
+        // Checks whose raw output contains === server_name === blocks
+        const MULTI_SERVER = new Set(['oacore_servers','forms_servers','oafm_servers']);
+
+        // Build unified map: check_id → {isOk, title, details, severity?, raw_output?}
+        const checkMap = {};
+        for (const f of findings) checkMap[f.check_id] = { ...f, isOk: false };
+        for (const c of checksOk)  checkMap[c.check_id] = { ...c, isOk: true  };
+
+        function sevColor(sev) { return sev === 'critical' ? 'var(--red)' : sev === 'warning' ? 'var(--yellow)' : 'var(--green)'; }
+        function sevBg(sev)    { return sev === 'critical' ? '248,113,113' : '251,191,36'; }
+        function sevIcon(sev)  { return sev === 'critical' ? '✕' : '▲'; }
+
+        // Parse "=== server_name ===" blocks from raw output
+        function parseServerBlocks(raw) {
+            if (!raw) return [];
+            const blocks = [];
+            let cur = null;
+            for (const line of raw.split('\n')) {
+                const bm = line.match(/^===\s+(.+?)\s+===\s*$/);
+                if (bm) {
+                    if (cur) blocks.push(cur);
+                    cur = { name: bm[1], lines: [] };
+                } else if (cur) {
+                    cur.lines.push(line);
+                }
+            }
+            if (cur) blocks.push(cur);
+            return blocks;
         }
 
-        const findingCards = findings.map(f => `
-            <div style="display:flex;align-items:flex-start;gap:14px;padding:16px 18px;
-                        background:rgba(${sevBg(f.severity)},0.06);
-                        border:1px solid rgba(${sevBg(f.severity)},0.22);
-                        border-radius:10px;border-left:4px solid ${sevColor(f.severity)}">
-                <div style="font-size:14px;font-weight:700;color:${sevColor(f.severity)};flex-shrink:0;margin-top:1px;width:18px;text-align:center">${sevIcon(f.severity)}</div>
-                <div style="flex:1;min-width:0">
-                    <div style="font-size:14px;font-weight:600;margin-bottom:4px;color:var(--text)">${esc(f.title)}</div>
-                    <div style="font-size:13px;color:var(--text-dim);line-height:1.5">${esc(f.details)}</div>
-                    ${f.raw_output ? `<pre style="margin-top:10px;padding:8px 12px;background:rgba(0,0,0,0.3);border-radius:6px;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text-dim);white-space:pre-wrap;word-break:break-all;max-height:120px;overflow-y:auto">${esc(f.raw_output)}</pre>` : ''}
-                </div>
-            </div>`).join('');
+        function serverStatus(lines) {
+            const txt = lines.join(' ');
+            if (/running|alive|started/i.test(txt))          return 'running';
+            if (/stopped|failed|down|not running/i.test(txt)) return 'stopped';
+            return 'unknown';
+        }
 
-        const okRows = checksOk.map(c => `
-            <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 18px;border-bottom:1px solid rgba(42,42,48,0.5)">
-                <div style="color:var(--green);font-weight:700;font-size:14px;flex-shrink:0;margin-top:1px">✓</div>
-                <div>
-                    <div style="font-size:13px;font-weight:500;color:var(--text)">${esc(c.title)}</div>
-                    <div style="font-size:12px;color:var(--text-dim);margin-top:2px">${esc(c.details)}</div>
-                </div>
-            </div>`).join('');
+        function renderServerSubRows(raw) {
+            const blocks = parseServerBlocks(raw);
+            if (!blocks.length) return '';
+            return `<div style="margin-top:8px;display:flex;flex-direction:column;gap:3px">` +
+                blocks.map(b => {
+                    const st = serverStatus(b.lines);
+                    const col = st === 'running' ? 'var(--green)' : st === 'stopped' ? 'var(--red)' : 'var(--text-dim)';
+                    return `<div style="display:flex;gap:8px;align-items:center;font-size:12px;color:var(--text-dim)">` +
+                        `<span style="color:${col}">●</span>` +
+                        `<span>${esc(b.name)}: <span style="color:${col};font-weight:500">${st}</span></span>` +
+                        `</div>`;
+                }).join('') +
+                `</div>`;
+        }
+
+        function renderRaw(raw) {
+            if (!raw || !raw.trim()) return '';
+            return `<details style="margin-top:8px">` +
+                `<summary style="font-size:11px;color:var(--text-dim);cursor:pointer;user-select:none;list-style:none">` +
+                `<span style="text-decoration:underline;text-underline-offset:2px">Raw output</span></summary>` +
+                `<pre style="margin-top:6px;padding:8px 12px;background:rgba(0,0,0,0.3);border-radius:6px;` +
+                `font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text-dim);` +
+                `white-space:pre-wrap;word-break:break-all;max-height:200px;overflow-y:auto">${esc(raw)}</pre>` +
+                `</details>`;
+        }
+
+        function renderRow(ch) {
+            if (!ch) return '';
+            const raw     = ch.raw_output || '';
+            const subRows = MULTI_SERVER.has(ch.check_id) ? renderServerSubRows(raw) : '';
+            const rawHtml = renderRaw(raw);
+
+            if (ch.isOk) {
+                return `<div style="display:flex;align-items:flex-start;gap:14px;padding:13px 18px;` +
+                    `border-bottom:1px solid rgba(42,42,48,0.5)">` +
+                    `<div style="color:var(--green);font-weight:700;font-size:14px;flex-shrink:0;margin-top:1px;width:18px;text-align:center">✓</div>` +
+                    `<div style="flex:1;min-width:0">` +
+                    `<div style="font-size:13px;font-weight:500;color:var(--text)">${esc(ch.title)}</div>` +
+                    `<div style="font-size:12px;color:var(--text-dim);margin-top:2px">${esc(ch.details)}</div>` +
+                    subRows + rawHtml +
+                    `</div></div>`;
+            }
+            const sev = ch.severity || 'warning';
+            return `<div style="display:flex;align-items:flex-start;gap:14px;padding:13px 18px;` +
+                `background:rgba(${sevBg(sev)},0.05);` +
+                `border-bottom:1px solid rgba(42,42,48,0.5);` +
+                `border-left:3px solid ${sevColor(sev)}">` +
+                `<div style="font-size:14px;font-weight:700;color:${sevColor(sev)};flex-shrink:0;margin-top:1px;width:18px;text-align:center">${sevIcon(sev)}</div>` +
+                `<div style="flex:1;min-width:0">` +
+                `<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">${esc(ch.title)}</div>` +
+                `<div style="font-size:12px;color:var(--text-dim);line-height:1.5">${esc(ch.details)}</div>` +
+                subRows + rawHtml +
+                `</div></div>`;
+        }
+
+        function renderPanel(label, ids) {
+            const rows = ids.map(id => renderRow(checkMap[id])).filter(Boolean);
+            if (!rows.length) return '';
+            return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px">` +
+                `<div style="padding:11px 18px;border-bottom:1px solid var(--border)">` +
+                `<span style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.12em">${label}</span>` +
+                `</div>` + rows.join('') + `</div>`;
+        }
 
         const metricCards = [
             { label: 'Critical Findings', value: critCount, color: critCount > 0 ? 'var(--red)'    : 'var(--green)' },
@@ -1994,24 +2066,8 @@
                 ${metricCards}
             </div>
 
-            ${findings.length > 0 ? `
-            <div style="margin-bottom:24px">
-                <div style="font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px">
-                    Findings (${findings.length})
-                </div>
-                <div style="display:flex;flex-direction:column;gap:10px">
-                    ${findingCards}
-                </div>
-            </div>` : ''}
-
-            ${checksOk.length > 0 ? `
-            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
-                <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
-                    <span style="font-size:13px;font-weight:600">Checks Passed</span>
-                    <span style="font-size:12px;color:var(--text-dim)">${checksOk.length} of ${m.checks_total || findings.length + checksOk.length}</span>
-                </div>
-                ${okRows}
-            </div>` : ''}
+            ${renderPanel('EBS App Tier Checks', MAIN_ORDER)}
+            ${renderPanel('System Resources', SYSRES_ORDER)}
 
             ${findings.length === 0 && checksOk.length === 0 ? `
             <div style="text-align:center;padding:60px 20px;color:var(--text-dim)">
