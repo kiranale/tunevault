@@ -18,8 +18,8 @@ async function listPosts() {
     `SELECT id, title, slug, excerpt, author, published_at, read_time_minutes,
             COALESCE(coming_soon, false) AS coming_soon
      FROM blog_posts
-     WHERE seo_noindex = false
-     ORDER BY coming_soon ASC, published_at DESC`
+     WHERE COALESCE(seo_noindex, false) = false
+     ORDER BY COALESCE(coming_soon, false) ASC, published_at DESC`
   );
   return result.rows;
 }
@@ -64,7 +64,7 @@ async function createPost({ title, slug, excerpt, content, author, published_at,
  */
 async function listSlugs() {
   const result = await pool.query(
-    `SELECT slug, updated_at FROM blog_posts WHERE seo_noindex = false ORDER BY published_at DESC`
+    `SELECT slug, updated_at FROM blog_posts WHERE COALESCE(seo_noindex, false) = false ORDER BY published_at DESC`
   );
   return result.rows;
 }
