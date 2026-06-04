@@ -309,7 +309,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.19.1"  # WLST: multi-path wlst.sh discovery + full debug logging; except as e syntax
+VERSION = "3.20.0"  # Replace WLST with admanagedsrvctl.sh/adadminsrvctl.sh; CM sqlplus detail; WF mailer; invalid objects
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5269,6 +5269,15 @@ class ProxyHandler(BaseHTTPRequestHandler):
             no_env_msg = ("APPS_ENV_FILE not configured — reinstall agent with context file path "
                           "so EBSapps.env can be sourced for this check.")
 
+            # Pre-extract EBS DB service name once; reused by CM detail and invalid-objects queries.
+            _ebs_svc = ""
+            if env_file and _EBS_DB_HOST:
+                _sv_out, _, _, _ = _run(_src_cmd(
+                    "grep 'oa_var=\"s_dbSid\">' \"$CONTEXT_FILE\" 2>/dev/null "
+                    "| sed 's/.*>\\([^<]*\\)<.*/\\1/' | grep -v '^[[:space:]]*$' | head -1"
+                ))
+                _ebs_svc = _sv_out.strip()
+
             # ── 1. Apache / OHS status ────────────────────────────────────────
             if not env_file:
                 _finding("apache_status", "Apache/OHS Status", "warning", no_env_msg)
@@ -5312,228 +5321,55 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 else:
                     _ok("apps_listener", "Apps Listener Status", "Apps Listener is running.")
 
-            # ── WLST server-state pre-fetch (shared by checks 4, 5, 6) ─────────
-            # One WLST connection when weblogic_pwd is available; all three WLS
-            # checks read from _wlst_states instead of spawning separate commands.
-            # Falls back to ps-based checks when wlst.sh absent, password missing,
-            # or Admin Server is on a different host (connect to localhost:7001 fails).
-            _wlst_states = {}   # name_lower → (orig_name, state)
-            _wlst_raw    = ""
-            _wlst_ok     = False
-            _wlst_err    = ""
-            if env_file and req_weblogic_pwd:
-                _pwd_sh = req_weblogic_pwd.replace("'", "'\\''")
-                # Try FMW_HOME, MW_HOME, EBS_ORACLE_HOME in order; fall back to
-                # a find scan of common mount points so wlst.sh is found even when
-                # the sourced EBSapps.env does not export a standard MW home variable.
-                _wlst_cmd = _src_cmd(
-                    "_WLS_PWD='%(pwd)s'; "
-                    "_WLST=''; "
-                    "for _d in \"$FMW_HOME\" \"$MW_HOME\" \"$EBS_ORACLE_HOME\" \"$ORACLE_HOME\"; do "
-                    "  if [ -n \"$_d\" ] && [ -f \"$_d/oracle_common/common/bin/wlst.sh\" ]; then "
-                    "    _WLST=\"$_d/oracle_common/common/bin/wlst.sh\"; break; "
-                    "  fi; "
-                    "done; "
-                    "if [ -z \"$_WLST\" ]; then "
-                    "  _WLST=$(find /u01 /u02 /oracle /app -maxdepth 8 "
-                    "    -name wlst.sh -path '*/oracle_common/common/bin/*' 2>/dev/null | head -1); "
-                    "fi; "
-                    "if [ -z \"$_WLST\" ]; then echo WLST_NOT_FOUND; exit 0; fi; "
-                    "echo \"WLST_PATH:$_WLST\"; "
-                    "\"$_WLST\" << WLST_END\n"
-                    "try:\n"
-                    "    connect(\"weblogic\",\"$_WLS_PWD\",\"t3://localhost:7001\")\n"
-                    "    for s in domainRuntimeService.getServerRuntimes():\n"
-                    "        print(\"SRVSTATE:\" + s.getName() + \":\" + s.getState())\n"
-                    "    disconnect()\n"
-                    "except Exception as e:\n"
-                    "    print(\"WLST_ERROR:\" + str(e))\n"
-                    "WLST_END\n"
-                ) % {"pwd": _pwd_sh}
-                # Log command with password redacted
-                _wlst_cmd_log = _wlst_cmd.replace(_pwd_sh, "***")
-                print("[HC] WLST command: %s" % _wlst_cmd_log[:600])
-                _wlst_stdout, _wlst_stderr, _wlst_exit, _ = _run(_wlst_cmd, timeout=60)
-                _wlst_raw = _wlst_stdout + _wlst_stderr
-                if "WLST_NOT_FOUND" in _wlst_raw:
-                    _wlst_err = "wlst.sh not found (tried FMW_HOME/MW_HOME/EBS_ORACLE_HOME/ORACLE_HOME + find)"
-                elif "WLST_ERROR:" in _wlst_raw:
-                    _el = next((l for l in _wlst_raw.splitlines()
-                                if l.startswith("WLST_ERROR:")), "")
-                    _wlst_err = _el.replace("WLST_ERROR:", "").strip() or "WLST connect failed"
-                elif "SRVSTATE:" in _wlst_raw:
-                    _wlst_ok = True
-                    for _ln in _wlst_stdout.splitlines():
-                        if _ln.startswith("SRVSTATE:"):
-                            _pts = _ln.split(":", 2)
-                            if len(_pts) == 3:
-                                _sn, _ss = _pts[1].strip(), _pts[2].strip()
-                                _wlst_states[_sn.lower()] = (_sn, _ss)
-                else:
-                    _wlst_err = ("WLST produced no SRVSTATE output (exit %d). "
-                                 "Likely non-admin host or AdminServer not reachable on localhost:7001."
-                                 % _wlst_exit)
-            print("[HC] _wlst_ok: %s, _wlst_states keys: %s"
-                  % (_wlst_ok, list(_wlst_states.keys())))
-            if not _wlst_ok and env_file and req_weblogic_pwd:
-                print("[HC] WLST error: %s" % (_wlst_err or "unknown"))
-
-            # ── 4. OACore managed servers ─────────────────────────────────────
+            # ── 4. OACore managed servers (via admanagedsrvctl.sh) ────────────
             if not env_file:
                 _finding("oacore_servers", "OACore Managed Servers", "warning", no_env_msg)
-            elif _wlst_ok:
-                _ctx_out, _, _, _ = _run(_src_cmd(
-                    "grep -i 'oacore_server' \"$CONTEXT_FILE\" 2>/dev/null "
-                    "| sed -n 's/.*>\\(oacore_server[0-9]*\\)<.*/\\1/p' | sort -u"
-                ))
-                _names = [s.strip() for s in _ctx_out.strip().splitlines() if s.strip()]
-                if not _names:
-                    _finding("oacore_servers", "OACore Servers Not Found", "warning",
-                             "No OACore server entries found in CONTEXT_FILE.", "")
-                else:
-                    _down = ["%s: %s" % (_wlst_states[n.lower()][0], _wlst_states[n.lower()][1])
-                             for n in _names if n.lower() in _wlst_states
-                             and _wlst_states[n.lower()][1].upper() not in ("RUNNING", "STARTING")]
-                    _missing = [n for n in _names if n.lower() not in _wlst_states]
-                    if _down or _missing:
-                        _finding("oacore_servers", "OACore Server Down", "critical",
-                                 "Not RUNNING: %s" % "; ".join(
-                                     _down + ["%s: not in domain" % n for n in _missing]),
-                                 _wlst_raw[:1000])
-                    else:
-                        _ok("oacore_servers", "OACore Managed Servers",
-                            "; ".join("%s: %s" % (_wlst_states[n.lower()][0],
-                                                   _wlst_states[n.lower()][1])
-                                      for n in _names if n.lower() in _wlst_states),
-                            _wlst_raw[:500])
             else:
-                _ps_note = ("no WebLogic password" if not req_weblogic_pwd
-                            else (_wlst_err or "WLST unavailable"))
-                cmd = _src_cmd(
-                    "SERVERS=$(grep -i 'oacore_server' \"$CONTEXT_FILE\" 2>/dev/null "
-                    "| sed -n 's/.*>\\(oacore_server[0-9]*\\)<.*/\\1/p' | sort -u); "
-                    "for s in $SERVERS; do "
-                    "echo \"=== $s ===\"; "
-                    "echo 'NOTE: ps fallback (%s)'; "
-                    "ps aux | grep \"weblogic.Name=$s\" | grep -v grep | head -2; "
-                    "done" % _ps_note
-                )
-                stdout, stderr, _, _ = _run(cmd)
+                cmd = _src_cmd("$ADMIN_SCRIPTS_HOME/admanagedsrvctl.sh status oacore")
+                stdout, stderr, exit_code, _ = _run(cmd, timeout=30)
                 out = stdout + stderr
-                if not out.strip() or "oacore_server" not in out.lower():
-                    _finding("oacore_servers", "OACore Servers Not Found", "warning",
-                             "No OACore server entries found in CONTEXT_FILE.", out)
-                elif any(kw in out for kw in ("FAILED", "failed", "not running", "stopped")):
-                    _finding("oacore_servers", "OACore Server Down", "critical",
-                             "One or more OACore servers are not running.", out)
+                if exit_code != 0 or any(kw in out.lower() for kw in ("not running", "stopped", "failed", "down")):
+                    _finding("oacore_servers", "OACore Server Not Running", "critical",
+                             "admanagedsrvctl.sh status oacore reports one or more OACore servers "
+                             "are not running (exit code %d)." % exit_code, out)
                 else:
                     _ok("oacore_servers", "OACore Managed Servers",
-                        "All OACore servers running (ps check).", out)
+                        "All OACore managed servers are running.", out)
 
-            # ── 5. Forms managed servers ──────────────────────────────────────
+            # ── 5. Forms managed servers (via admanagedsrvctl.sh) ─────────────
             if not env_file:
                 _finding("forms_servers", "Forms Managed Servers", "warning", no_env_msg)
-            elif _wlst_ok:
-                _ctx_out, _, _, _ = _run(_src_cmd(
-                    "grep -i 'forms_server' \"$CONTEXT_FILE\" 2>/dev/null "
-                    "| sed -n 's/.*>\\(forms_server[0-9]*\\)<.*/\\1/p' | sort -u"
-                ))
-                _names = [s.strip() for s in _ctx_out.strip().splitlines() if s.strip()]
-                if not _names:
-                    _finding("forms_servers", "Forms Servers Not Found", "warning",
-                             "No Forms server entries found in CONTEXT_FILE.", "")
-                else:
-                    _down = ["%s: %s" % (_wlst_states[n.lower()][0], _wlst_states[n.lower()][1])
-                             for n in _names if n.lower() in _wlst_states
-                             and _wlst_states[n.lower()][1].upper() not in ("RUNNING", "STARTING")]
-                    _missing = [n for n in _names if n.lower() not in _wlst_states]
-                    if _down or _missing:
-                        _finding("forms_servers", "Forms Server Down", "critical",
-                                 "Not RUNNING: %s" % "; ".join(
-                                     _down + ["%s: not in domain" % n for n in _missing]),
-                                 _wlst_raw[:1000])
-                    else:
-                        _ok("forms_servers", "Forms Managed Servers",
-                            "; ".join("%s: %s" % (_wlst_states[n.lower()][0],
-                                                   _wlst_states[n.lower()][1])
-                                      for n in _names if n.lower() in _wlst_states),
-                            _wlst_raw[:500])
             else:
-                _ps_note = ("no WebLogic password" if not req_weblogic_pwd
-                            else (_wlst_err or "WLST unavailable"))
-                cmd = _src_cmd(
-                    "SERVERS=$(grep -i 'forms_server' \"$CONTEXT_FILE\" 2>/dev/null "
-                    "| sed -n 's/.*>\\(forms_server[0-9]*\\)<.*/\\1/p' | sort -u); "
-                    "for s in $SERVERS; do "
-                    "echo \"=== $s ===\"; "
-                    "echo 'NOTE: ps fallback (%s)'; "
-                    "ps aux | grep \"weblogic.Name=$s\" | grep -v grep | head -2; "
-                    "done" % _ps_note
-                )
-                stdout, stderr, _, _ = _run(cmd)
+                cmd = _src_cmd("$ADMIN_SCRIPTS_HOME/admanagedsrvctl.sh status forms")
+                stdout, stderr, exit_code, _ = _run(cmd, timeout=30)
                 out = stdout + stderr
-                if not out.strip() or "forms_server" not in out.lower():
-                    _finding("forms_servers", "Forms Servers Not Found", "warning",
-                             "No Forms server entries found in CONTEXT_FILE.", out)
-                elif any(kw in out for kw in ("FAILED", "failed", "not running", "stopped")):
-                    _finding("forms_servers", "Forms Server Down", "critical",
-                             "One or more Forms servers are not running.", out)
+                if exit_code != 0 or any(kw in out.lower() for kw in ("not running", "stopped", "failed", "down")):
+                    _finding("forms_servers", "Forms Server Not Running", "critical",
+                             "admanagedsrvctl.sh status forms reports one or more Forms servers "
+                             "are not running (exit code %d)." % exit_code, out)
                 else:
                     _ok("forms_servers", "Forms Managed Servers",
-                        "All Forms servers running (ps check).", out)
+                        "All Forms managed servers are running.", out)
 
-            # ── 5b. OAFM managed servers ──────────────────────────────────────
+            # ── 5b. OAFM managed servers (via admanagedsrvctl.sh) ─────────────
             if not env_file:
                 _finding("oafm_servers", "OAFM Managed Servers", "warning", no_env_msg)
-            elif _wlst_ok:
-                _ctx_out, _, _, _ = _run(_src_cmd(
-                    "grep -i 'oafm_server' \"$CONTEXT_FILE\" 2>/dev/null "
-                    "| sed -n 's/.*>\\(oafm_server[0-9]*\\)<.*/\\1/p' | sort -u"
-                ))
-                _names = [s.strip() for s in _ctx_out.strip().splitlines() if s.strip()]
-                if not _names:
-                    _ok("oafm_servers", "OAFM Managed Servers",
-                        "No OAFM server entries in CONTEXT_FILE — component not deployed on this instance.")
-                else:
-                    _down = ["%s: %s" % (_wlst_states[n.lower()][0], _wlst_states[n.lower()][1])
-                             for n in _names if n.lower() in _wlst_states
-                             and _wlst_states[n.lower()][1].upper() not in ("RUNNING", "STARTING")]
-                    _missing = [n for n in _names if n.lower() not in _wlst_states]
-                    if _down or _missing:
-                        _finding("oafm_servers", "OAFM Server Down", "critical",
-                                 "Not RUNNING: %s" % "; ".join(
-                                     _down + ["%s: not in domain" % n for n in _missing]),
-                                 _wlst_raw[:1000])
-                    else:
-                        _ok("oafm_servers", "OAFM Managed Servers",
-                            "; ".join("%s: %s" % (_wlst_states[n.lower()][0],
-                                                   _wlst_states[n.lower()][1])
-                                      for n in _names if n.lower() in _wlst_states),
-                            _wlst_raw[:500])
             else:
-                _ps_note = ("no WebLogic password" if not req_weblogic_pwd
-                            else (_wlst_err or "WLST unavailable"))
-                cmd = _src_cmd(
-                    "SERVERS=$(grep -i 'oafm_server' \"$CONTEXT_FILE\" 2>/dev/null "
-                    "| sed -n 's/.*>\\(oafm_server[0-9]*\\)<.*/\\1/p' | sort -u); "
-                    "if [ -z \"$SERVERS\" ]; then echo 'no_oafm'; exit 0; fi; "
-                    "for s in $SERVERS; do "
-                    "echo \"=== $s ===\"; "
-                    "echo 'NOTE: ps fallback (%s)'; "
-                    "ps aux | grep \"weblogic.Name=$s\" | grep -v grep | head -2; "
-                    "done" % _ps_note
-                )
-                stdout, stderr, _, _ = _run(cmd)
+                cmd = _src_cmd("$ADMIN_SCRIPTS_HOME/admanagedsrvctl.sh status oafm")
+                stdout, stderr, exit_code, _ = _run(cmd, timeout=30)
                 out = stdout + stderr
-                if not out.strip() or "no_oafm" in out:
+                _oafm_down = any(kw in out.lower() for kw in ("not running", "stopped", "failed", "down"))
+                if exit_code == 0 and not _oafm_down:
                     _ok("oafm_servers", "OAFM Managed Servers",
-                        "No OAFM server entries in CONTEXT_FILE — component not deployed on this instance.")
-                elif any(kw in out for kw in ("FAILED", "failed", "not running", "stopped")):
-                    _finding("oafm_servers", "OAFM Server Down", "critical",
-                             "One or more OAFM servers are not running.", out)
+                        "All OAFM managed servers are running.", out)
+                elif exit_code != 0 and not _oafm_down:
+                    # Script exited non-zero without explicit failure keywords — likely not deployed
+                    _ok("oafm_servers", "OAFM Managed Servers",
+                        "OAFM component not deployed or no OAFM servers configured on this node.", out)
                 else:
-                    _ok("oafm_servers", "OAFM Managed Servers",
-                        "All OAFM servers running (ps check).", out)
+                    _finding("oafm_servers", "OAFM Server Not Running", "critical",
+                             "admanagedsrvctl.sh status oafm reports one or more OAFM servers "
+                             "are not running (exit code %d)." % exit_code, out)
 
             # ── 5c. Node Manager ──────────────────────────────────────────────
             if not env_file:
@@ -5549,53 +5385,36 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 else:
                     _ok("node_manager", "Node Manager", "Node Manager is running.")
 
-            # ── 6. WebLogic Admin Server ──────────────────────────────────────
+            # ── 6. WebLogic Admin Server (via adadminsrvctl.sh) ───────────────
+            # Only check on the WLS admin host — skip silently on managed-server-only hosts.
             if not env_file:
                 _finding("admin_server", "WebLogic Admin Server", "warning", no_env_msg)
-            elif _wlst_ok:
-                # WLST connected to localhost:7001 → we are on the admin host
-                _adm = _wlst_states.get("adminserver")
-                if _adm and _adm[1].upper() == "RUNNING":
-                    _ok("admin_server", "WebLogic Admin Server",
-                        "AdminServer: %s (via WLST)." % _adm[1], _wlst_raw[:500])
-                elif _adm:
-                    _finding("admin_server", "WebLogic Admin Server Not Running", "critical",
-                             "AdminServer state: %s." % _adm[1], _wlst_raw[:500])
-                else:
-                    # Connected but AdminServer not listed — treat as running
-                    _ok("admin_server", "WebLogic Admin Server",
-                        "Connected to WLS domain on localhost:7001.")
             else:
-                # No WLST — host check + ps fallback; truncate JVM classpath to 2 lines
-                host_cmd = _src_cmd(
+                _host_cmd = _src_cmd(
                     "HOST=$(hostname -s); "
                     "ADMIN_HOST=$(grep -i '<wls_admin_host' \"$CONTEXT_FILE\" 2>/dev/null "
                     "| sed -E 's/.*>(.*)<.*/\\1/' | xargs 2>/dev/null); "
                     "if [ -n \"$ADMIN_HOST\" ] && [ \"$HOST\" != \"$ADMIN_HOST\" ]; then "
-                    "echo \"skip: admin host is $ADMIN_HOST, this host is $HOST\"; "
-                    "else echo is_admin; fi"
+                    "echo \"skip:$ADMIN_HOST\"; else echo is_admin; fi"
                 )
-                host_out, _, _, _ = _run(host_cmd)
-                if host_out.strip().startswith("skip:"):
+                _host_out, _, _, _ = _run(_host_cmd)
+                if _host_out.strip().startswith("skip:"):
+                    _adm_host = _host_out.strip()[len("skip:"):].strip()
                     _ok("admin_server", "WebLogic Admin Server",
-                        "Admin Server runs on a different host (%s) — skipped." % host_out.strip())
+                        "Admin Server runs on host '%s' — not checked from this managed-server node." % _adm_host)
                 else:
-                    ps_out, _, _, _ = _run(
-                        'ps aux | grep -E '
-                        '"(weblogic.Name=AdminServer|Dweblogic.Name=AdminServer)" | grep -v grep'
-                    )
-                    ps_lines = ps_out.strip().splitlines()
-                    ps_display = "\n".join(ps_lines[:2])  # first 2 lines — skip JVM classpath
-                    if ps_lines:
-                        pid_parts = ps_lines[0].split()
-                        pid = pid_parts[1] if len(pid_parts) > 1 else "?"
-                        _ok("admin_server", "WebLogic Admin Server",
-                            "AdminServer process running (PID %s)." % pid, ps_display)
-                    else:
+                    cmd = _src_cmd("$ADMIN_SCRIPTS_HOME/adadminsrvctl.sh status")
+                    stdout, stderr, exit_code, _ = _run(cmd, timeout=30)
+                    out = stdout + stderr
+                    if exit_code != 0 or any(kw in out.lower() for kw in ("not running", "stopped", "failed", "down")):
                         _finding("admin_server", "WebLogic Admin Server Not Running", "critical",
-                                 "AdminServer process not running.", ps_display)
+                                 "adadminsrvctl.sh status reports Admin Server is not running "
+                                 "(exit code %d)." % exit_code, out)
+                    else:
+                        _ok("admin_server", "WebLogic Admin Server",
+                            "Admin Server is running.", out)
 
-            # ── 7. Concurrent Manager status ──────────────────────────────────
+            # ── 7. Concurrent Manager — adcmctl.sh + per-manager sqlplus detail
             if not env_file:
                 _finding("cm_status", "Concurrent Manager Status", "warning", no_env_msg)
             elif not req_apps_pwd:
@@ -5603,16 +5422,144 @@ class ProxyHandler(BaseHTTPRequestHandler):
                          "CM check skipped — APPS password not provided. "
                          "Set it in the connection Edit form in TuneVault to enable this check.")
             else:
-                cmd = _src_cmd(
+                _cm_cmd = _src_cmd(
                     "$ADMIN_SCRIPTS_HOME/adcmctl.sh status apps/%s" % req_apps_pwd
                 )
-                stdout, stderr, exit_code, _ = _run(cmd)
-                out = stdout + stderr
-                if exit_code != 0 or any(kw in out.lower() for kw in ("not running", "down", "inactive", "stopped")):
+                _cm_out, _cm_err, _cm_exit, _ = _run(_cm_cmd, timeout=20)
+                _cm_full = _cm_out + _cm_err
+                if _cm_exit != 0 or any(kw in _cm_full.lower() for kw in ("not running", "down", "inactive", "stopped")):
                     _finding("cm_status", "Concurrent Manager Not Running", "critical",
-                             "adcmctl.sh status reports CM is not running (exit code %d)." % exit_code, out)
+                             "adcmctl.sh status reports CM is not running (exit code %d)." % _cm_exit, _cm_full)
+                elif _ebs_svc and _EBS_DB_HOST:
+                    # Deep per-manager breakdown via sqlplus
+                    _pw = req_apps_pwd.replace("'", "'\\''")
+                    _sv = _ebs_svc.replace("'", "'\\''")
+                    _db = _EBS_DB_HOST.replace("'", "'\\''")
+                    _sql_cmd = _src_cmd(
+                        "sqlplus -S 'apps/%(pw)s@%(db)s:1521/%(sv)s' << CMSQLEND\n"
+                        "SET PAGESIZE 0 FEEDBACK OFF VERIFY OFF HEADING OFF ECHO OFF TRIMSPOOL ON\n"
+                        "WHENEVER SQLERROR EXIT 1\n"
+                        "SELECT q.USER_CONCURRENT_QUEUE_NAME||'|'||NVL(q.MIN_PROCESSES,0)||'|'||\n"
+                        "  (SELECT COUNT(*) FROM FND_CONCURRENT_PROCESSES p\n"
+                        "   WHERE p.QUEUE_APPLICATION_ID=q.APPLICATION_ID\n"
+                        "     AND p.CONCURRENT_QUEUE_ID=q.CONCURRENT_QUEUE_ID\n"
+                        "     AND p.PROCESS_STATUS_CODE='A')\n"
+                        "FROM FND_CONCURRENT_QUEUES q\n"
+                        "WHERE q.ENABLED_FLAG='Y' AND q.MAX_PROCESSES>0\n"
+                        "ORDER BY q.USER_CONCURRENT_QUEUE_NAME;\n"
+                        "EXIT;\n"
+                        "CMSQLEND\n"
+                    ) % {"pw": _pw, "db": _db, "sv": _sv}
+                    _sq_out, _sq_err, _sq_exit, _ = _run(_sql_cmd, timeout=25)
+                    _sq_full = _sq_out + _sq_err
+                    _mgrs, _problems = [], []
+                    for _ln in _sq_out.splitlines():
+                        _pts = _ln.strip().split("|")
+                        if len(_pts) == 3:
+                            try:
+                                _mn  = _pts[0].strip()
+                                _tgt = int(_pts[1].strip())
+                                _rc  = int(_pts[2].strip())
+                                _mgrs.append((_mn, _tgt, _rc))
+                                if _rc < _tgt:
+                                    _problems.append("%s: running=%d target=%d" % (_mn, _rc, _tgt))
+                            except ValueError:
+                                pass
+                    if _problems:
+                        _finding("cm_status", "Concurrent Manager Under-Staffed", "warning",
+                                 "%d manager(s) running fewer processes than target: %s"
+                                 % (len(_problems), "; ".join(_problems[:5])), _sq_full)
+                    elif _mgrs:
+                        _ok("cm_status", "Concurrent Manager Status",
+                            "All %d managers at target. %s"
+                            % (len(_mgrs),
+                               "; ".join("%s %d/%d" % (n, rc, t) for n, t, rc in _mgrs[:5])),
+                            _sq_full)
+                    else:
+                        _ok("cm_status", "Concurrent Manager Status",
+                            "CM processes running normally.", _cm_full)
                 else:
-                    _ok("cm_status", "Concurrent Manager Status", "CM processes running normally.")
+                    _ok("cm_status", "Concurrent Manager Status",
+                        "CM processes running normally. "
+                        "(Per-manager detail requires EBS_DB_HOST in agent.env.)", _cm_full)
+
+            # ── 8. Workflow Mailer (via adworkflowmailer.sh) ──────────────────
+            if not env_file:
+                _finding("wf_mailer", "Workflow Mailer", "warning", no_env_msg)
+            elif not req_apps_pwd:
+                _finding("wf_mailer", "Workflow Mailer", "warning",
+                         "Workflow Mailer check skipped — APPS password not provided. "
+                         "Set it in the connection Edit form in TuneVault to enable this check.")
+            else:
+                cmd = _src_cmd(
+                    "$ADMIN_SCRIPTS_HOME/adworkflowmailer.sh status apps/%s" % req_apps_pwd
+                )
+                stdout, stderr, exit_code, _ = _run(cmd, timeout=20)
+                out = stdout + stderr
+                _down_kws = ("stopped", "deactivated", "error", "not running", "inactive")
+                _comp_kws = ("inbound", "outbound", "summary", "mailer")
+                _down_comps = [ln.strip() for ln in out.splitlines()
+                               if any(kw in ln.lower() for kw in _down_kws)
+                               and any(ck in ln.lower() for ck in _comp_kws)]
+                if exit_code != 0 or _down_comps or any(kw in out.lower() for kw in ("not running", "stopped")):
+                    _finding("wf_mailer", "Workflow Mailer Not Running", "critical",
+                             "adworkflowmailer.sh reports Workflow Mailer is not running"
+                             + (": " + "; ".join(_down_comps) if _down_comps else "")
+                             + " (exit code %d)." % exit_code, out)
+                else:
+                    _ok("wf_mailer", "Workflow Mailer", "Workflow Mailer is running.", out)
+
+            # ── 9. Invalid objects (sqlplus via EBS DB) ───────────────────────
+            # Requires APPS password + EBS_DB_HOST in agent.env + service in CONTEXT_FILE.
+            if env_file and req_apps_pwd and _EBS_DB_HOST and _ebs_svc:
+                _pw  = req_apps_pwd.replace("'", "'\\''")
+                _sv  = _ebs_svc.replace("'", "'\\''")
+                _db  = _EBS_DB_HOST.replace("'", "'\\''")
+                _inv_cmd = _src_cmd(
+                    "sqlplus -S 'apps/%(pw)s@%(db)s:1521/%(sv)s' << INVSQLEND\n"
+                    "SET PAGESIZE 0 FEEDBACK OFF VERIFY OFF HEADING OFF ECHO OFF TRIMSPOOL ON\n"
+                    "WHENEVER SQLERROR EXIT 1\n"
+                    "SELECT owner||'|'||COUNT(*) FROM dba_objects\n"
+                    "WHERE status='INVALID' GROUP BY owner ORDER BY 2 DESC;\n"
+                    "EXIT;\n"
+                    "INVSQLEND\n"
+                ) % {"pw": _pw, "db": _db, "sv": _sv}
+                _inv_out, _inv_err, _inv_exit, _ = _run(_inv_cmd, timeout=25)
+                _inv_full = _inv_out + _inv_err
+                _inv_rows = []
+                for _ln in _inv_out.splitlines():
+                    _pts = _ln.strip().split("|")
+                    if len(_pts) == 2:
+                        try:
+                            _owner = _pts[0].strip()
+                            _cnt   = int(_pts[1].strip())
+                            if _cnt > 0:
+                                _inv_rows.append((_owner, _cnt))
+                        except ValueError:
+                            pass
+                if _inv_exit != 0 and not _inv_rows:
+                    _finding("invalid_objects", "Invalid Objects Check Failed", "warning",
+                             "sqlplus query for invalid objects failed (exit %d). "
+                             "Check APPS credentials and DB connectivity." % _inv_exit, _inv_full)
+                elif _inv_rows:
+                    _apps_inv   = next((c for o, c in _inv_rows if o.upper() == "APPS"), 0)
+                    _other_crit = [(o, c) for o, c in _inv_rows if o.upper() != "APPS" and c > 10]
+                    _top5       = "; ".join("%s: %d" % (o, c) for o, c in _inv_rows[:5])
+                    if _apps_inv > 0:
+                        _finding("invalid_objects", "APPS Schema Has Invalid Objects", "critical",
+                                 "APPS schema has %d invalid object(s). "
+                                 "Run utlrp.sql or adrelink to resolve. Top owners: %s"
+                                 % (_apps_inv, _top5), _inv_full)
+                    elif _other_crit:
+                        _finding("invalid_objects", "Invalid Objects Detected", "warning",
+                                 "%d schema(s) have >10 invalid objects. Top owners: %s"
+                                 % (len(_other_crit), _top5), _inv_full)
+                    else:
+                        _ok("invalid_objects", "Invalid Objects",
+                            "No critical invalid objects. Minor counts: %s" % _top5, _inv_full)
+                else:
+                    _ok("invalid_objects", "Invalid Objects",
+                        "No invalid objects found in the database.", _inv_full)
 
             # ── 8. Disk usage ──────────────────────────────────────────────────
             stdout, stderr, exit_code, _ = run_os_command(["df", "-h"], timeout=10)
