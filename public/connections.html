@@ -1055,7 +1055,7 @@ async function openEditPanel(connId) {
                  placeholder="Leave blank to keep current password" maxlength="1024"/>
           <div class="field-sub">Enter a new password only if you want to change it.</div>
         </div>
-        ${c.server_type === 'apps' ? `
+        ${(c.server_type === 'apps' || c.server_type === 'both') ? `
         <div class="field-group">
           <label class="field-label" for="edit-apps-pwd">APPS Password <span style="font-weight:400;color:var(--text-dim)">(optional)</span></label>
           <input class="field-input" id="edit-apps-pwd" type="password"
@@ -1066,8 +1066,14 @@ async function openEditPanel(connId) {
           <label class="field-label" for="edit-weblogic-pwd">WebLogic Admin Password <span style="font-weight:400;color:var(--text-dim)">(optional)</span></label>
           <input class="field-input" id="edit-weblogic-pwd" type="password"
                  placeholder="Leave blank to keep current / skip WLS checks" maxlength="512"/>
-          <div class="field-sub">Used for WebLogic Admin Server checks.</div>
+          <div class="field-sub">Used for WebLogic Admin Server and managed server checks.</div>
         </div>` : ''}
+        <div class="field-group">
+          <label class="field-label" for="edit-ebs-instance">EBS Instance Name <span style="font-weight:400;color:var(--text-dim)">(optional)</span></label>
+          <input class="field-input" id="edit-ebs-instance" type="text"
+                 value="${esc(c.ebs_instance_name || '')}" placeholder="e.g. EBSDEV, EBSPROD" maxlength="64"/>
+          <div class="field-sub">Groups DB and app servers belonging to the same EBS instance.</div>
+        </div>
       </div>
       <div id="edit-verify-result" style="margin-top:12px;display:none;font-size:13px"></div>
       <div class="edit-actions">
@@ -1102,6 +1108,8 @@ async function submitEdit(connId) {
   const weblogicPwdEl = document.getElementById('edit-weblogic-pwd');
   if (appsPwdEl     && appsPwdEl.value)     payload.apps_pwd     = appsPwdEl.value;
   if (weblogicPwdEl && weblogicPwdEl.value) payload.weblogic_pwd = weblogicPwdEl.value;
+  const ebsInstanceEl = document.getElementById('edit-ebs-instance');
+  if (ebsInstanceEl) payload.ebs_instance_name = ebsInstanceEl.value.trim() || null;
 
   if (Object.keys(payload).length === 0) {
     showToast('No changes to save', 'warn');

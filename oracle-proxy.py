@@ -295,7 +295,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.18.2"  # apps_pwd/weblogic_pwd read from request body (not agent.env) so server sends them per health check
+VERSION = "3.18.3"  # OACore/Forms use weblogic_pwd via stdin to admanagedsrvctl.sh; ps fallback; Node Manager check added
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5299,12 +5299,23 @@ class ProxyHandler(BaseHTTPRequestHandler):
             if not env_file:
                 _finding("oacore_servers", "OACore Managed Servers", "warning", no_env_msg)
             else:
+                _wlpwd_q = req_weblogic_pwd.replace("'", "'\\''") if req_weblogic_pwd else ""
+                if _wlpwd_q:
+                    _srv_status_cmd = (
+                        "printf '%%s\\n' '%s' | "
+                        "$ADMIN_SCRIPTS_HOME/admanagedsrvctl.sh status \"$s\"" % _wlpwd_q
+                    )
+                else:
+                    _srv_status_cmd = (
+                        "echo 'NOTE: WebLogic password not set; using process check'; "
+                        "ps aux | grep \"weblogic.Name=$s\" | grep -v grep"
+                    )
                 cmd = _src_cmd(
                     "SERVERS=$(grep -i 'oacore_server' \"$CONTEXT_FILE\" 2>/dev/null "
                     "| sed -n 's/.*>\\(oacore_server[0-9]*\\)<.*/\\1/p' | sort -u); "
                     "for s in $SERVERS; do "
                     "echo \"=== $s ===\"; "
-                    "$ADMIN_SCRIPTS_HOME/admanagedsrvctl.sh status \"$s\"; "
+                    + _srv_status_cmd + "; "
                     "done"
                 )
                 stdout, stderr, exit_code, _ = _run(cmd)
@@ -5322,12 +5333,22 @@ class ProxyHandler(BaseHTTPRequestHandler):
             if not env_file:
                 _finding("forms_servers", "Forms Managed Servers", "warning", no_env_msg)
             else:
+                if _wlpwd_q:
+                    _forms_status_cmd = (
+                        "printf '%%s\\n' '%s' | "
+                        "$ADMIN_SCRIPTS_HOME/admanagedsrvctl.sh status \"$s\"" % _wlpwd_q
+                    )
+                else:
+                    _forms_status_cmd = (
+                        "echo 'NOTE: WebLogic password not set; using process check'; "
+                        "ps aux | grep \"weblogic.Name=$s\" | grep -v grep"
+                    )
                 cmd = _src_cmd(
                     "SERVERS=$(grep -i 'forms_server' \"$CONTEXT_FILE\" 2>/dev/null "
                     "| sed -n 's/.*>\\(forms_server[0-9]*\\)<.*/\\1/p' | sort -u); "
                     "for s in $SERVERS; do "
                     "echo \"=== $s ===\"; "
-                    "$ADMIN_SCRIPTS_HOME/admanagedsrvctl.sh status \"$s\"; "
+                    + _forms_status_cmd + "; "
                     "done"
                 )
                 stdout, stderr, exit_code, _ = _run(cmd)
@@ -5340,6 +5361,20 @@ class ProxyHandler(BaseHTTPRequestHandler):
                              "One or more Forms managed servers are not running.", out)
                 else:
                     _ok("forms_servers", "Forms Managed Servers", "All Forms servers running.", out)
+
+            # ── 5b. Node Manager ──────────────────────────────────────────────
+            if not env_file:
+                _finding("node_manager", "Node Manager", "warning", no_env_msg)
+            else:
+                cmd = _src_cmd("$ADMIN_SCRIPTS_HOME/adnodemgrctl.sh status")
+                stdout, stderr, exit_code, _ = _run(cmd)
+                out = stdout + stderr
+                if exit_code != 0 or any(kw in out.lower() for kw in ("not running", "stopped", "failed", "dead")):
+                    _finding("node_manager", "Node Manager Not Running", "critical",
+                             "adnodemgrctl.sh status reports Node Manager is not running "
+                             "(exit code %d)." % exit_code, out)
+                else:
+                    _ok("node_manager", "Node Manager", "Node Manager is running.")
 
             # ── 6. WebLogic Admin Server ──────────────────────────────────────
             # adadminsrvctl.sh requires interactive password input; use a ps

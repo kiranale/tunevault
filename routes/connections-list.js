@@ -93,7 +93,7 @@ router.get('/connections', requireAuth, async (req, res) => {
               oc.is_ebs, oc.ebs_opt_in, oc.ebs_checks_enabled,
               oc.schedule_enabled, oc.schedule_cron, oc.last_scheduled_run_at, oc.next_scheduled_run_at,
               oc.gi_os_user, oc.gi_oracle_home, oc.asm_sid,
-              oc.ebs_login_url, oc.weblogic_console_url,
+              oc.ebs_login_url, oc.weblogic_console_url, oc.ebs_instance_name,
               oc.proxy_key_last_used_at, oc.proxy_key_created_at,
               oc.privilege_model,
               oc.installed_at, oc.last_upgrade_at,

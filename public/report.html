@@ -1925,7 +1925,7 @@
         const offset = circumference - (score / 100) * circumference;
 
         // Ordered check sequence for the main panel
-        const MAIN_ORDER   = ['apache_status','opmn_status','admin_server','oacore_servers','forms_servers','oafm_servers','apps_listener','cm_status','opp_status'];
+        const MAIN_ORDER   = ['apache_status','opmn_status','admin_server','oacore_servers','forms_servers','node_manager','oafm_servers','apps_listener','cm_status','opp_status'];
         const SYSRES_ORDER = ['disk_usage','memory_usage'];
         // Checks whose raw output contains === server_name === blocks
         const MULTI_SERVER = new Set(['oacore_servers','forms_servers','oafm_servers']);

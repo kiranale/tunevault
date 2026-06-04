@@ -155,8 +155,9 @@ const updateConnectionSchema = z.object({
   proxy_url: z.string().url('proxy_url must be a valid URL').max(512).optional().nullable(),
   proxy_api_key: z.string().max(512).optional().nullable(),
   privilege_model: z.enum(['reader', 'sysdba']).optional(),
-  apps_pwd:        z.string().max(512).optional().nullable(),
-  weblogic_pwd:    z.string().max(512).optional().nullable(),
+  apps_pwd:          z.string().max(512).optional().nullable(),
+  weblogic_pwd:      z.string().max(512).optional().nullable(),
+  ebs_instance_name: z.string().max(64).optional().nullable(),
 });
 
 // PATCH /api/connections/:id — edit name + Oracle credentials only (host/port/service locked)

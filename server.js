@@ -1596,7 +1596,7 @@ app.put('/api/connections/:id', requireAuth, requireRole('senior_dba'), requireC
     const values = [];
     let idx = 1;
 
-    const { proxy_url, proxy_api_key, ebs_checks_enabled, gi_os_user, gi_oracle_home, asm_sid, privilege_model, apps_pwd, weblogic_pwd } = req.body;
+    const { proxy_url, proxy_api_key, ebs_checks_enabled, gi_os_user, gi_oracle_home, asm_sid, privilege_model, apps_pwd, weblogic_pwd, ebs_instance_name } = req.body;
     if (name) { updates.push(`name = $${idx++}`); values.push(name); }
     if (host) { updates.push(`host = $${idx++}`); values.push(host); }
     if (dbPort) { updates.push(`port = $${idx++}`); values.push(dbPort); }
@@ -1622,6 +1622,8 @@ app.put('/api/connections/:id', requireAuth, requireRole('senior_dba'), requireC
     // EBS app-tier passwords — stored encrypted, sent to agent on each health check
     if (apps_pwd !== undefined) { updates.push(`apps_pwd_enc = $${idx++}`); values.push(apps_pwd ? encrypt(apps_pwd) : null); }
     if (weblogic_pwd !== undefined) { updates.push(`weblogic_pwd_enc = $${idx++}`); values.push(weblogic_pwd ? encrypt(weblogic_pwd) : null); }
+    // EBS instance name — groups connections by instance (e.g. EBSDEV, EBSPROD)
+    if ('ebs_instance_name' in req.body) { updates.push(`ebs_instance_name = $${idx++}`); values.push(ebs_instance_name || null); }
     updates.push(`updated_at = NOW()`);
 
     if (updates.length === 1) {
@@ -7514,8 +7516,9 @@ app.use((err, req, res, next) => {
 async function ensureColumns() {
   await pool.query(`
     ALTER TABLE oracle_connections
-      ADD COLUMN IF NOT EXISTS apps_pwd_enc     TEXT,
-      ADD COLUMN IF NOT EXISTS weblogic_pwd_enc TEXT
+      ADD COLUMN IF NOT EXISTS apps_pwd_enc      TEXT,
+      ADD COLUMN IF NOT EXISTS weblogic_pwd_enc  TEXT,
+      ADD COLUMN IF NOT EXISTS ebs_instance_name VARCHAR(64)
   `);
 
   // Reset auto-upgrade suppression for connections that have ≥2 failures in the
