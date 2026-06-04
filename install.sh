@@ -531,9 +531,9 @@ if [ -n "$EBS_CONTEXT_FILE" ] && [ -f "$EBS_CONTEXT_FILE" ]; then
     | sed 's/.*oa_var="s_dbSid"[^>]*>//;s/<.*//' \
     | sed 's/.*>\([^<]*\)<.*/\1/' \
     | grep -v '^$' | grep -v '^<' | head -1 || true)
-  APPS_BASE=$(grep 's_base' "$EBS_CONTEXT_FILE" 2>/dev/null \
+  APPS_BASE=$(grep 'oa_var="s_base">' "$EBS_CONTEXT_FILE" 2>/dev/null \
     | sed 's/.*oa_var="s_base"[^>]*>//;s/<.*//' \
-    | grep -v '^$' | head -1 || true)
+    | grep -v '^[[:space:]]*$' | head -1 || true)
   [ -n "$EBS_DB_HOST" ]     && ok "EBS DB host: $EBS_DB_HOST"
   [ -n "$EBS_SERVICE_NAME" ] && ok "EBS service: $EBS_SERVICE_NAME"
   if [ -n "$APPS_BASE" ]; then
