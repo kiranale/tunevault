@@ -295,7 +295,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.18.1"  # admin-server check: ps process check instead of adadminsrvctl.sh (avoids interactive password prompt)
+VERSION = "3.18.2"  # apps_pwd/weblogic_pwd read from request body (not agent.env) so server sends them per health check
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5208,6 +5208,17 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 })
                 return
 
+            # Read passwords from request body — server sends them per HC so they
+            # don't need to live in agent.env on disk.
+            try:
+                _body = self.read_body()
+                _params = json.loads(_body) if _body else {}
+            except Exception:
+                _params = {}
+            # Fall back to agent.env _APPS_PWD for backward compat with old server versions.
+            req_apps_pwd     = _params.get("apps_pwd", "") or _APPS_PWD
+            req_weblogic_pwd = _params.get("weblogic_pwd", "")
+
             timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
             print("[%s] EBS app-tier health check" % timestamp)
 
@@ -5366,13 +5377,13 @@ class ProxyHandler(BaseHTTPRequestHandler):
             # ── 7. Concurrent Manager status ──────────────────────────────────
             if not env_file:
                 _finding("cm_status", "Concurrent Manager Status", "warning", no_env_msg)
-            elif not _APPS_PWD:
+            elif not req_apps_pwd:
                 _finding("cm_status", "Concurrent Manager Status", "warning",
-                         "CM check skipped — apps password not configured. "
-                         "Add APPS_PWD=<password> to /etc/tunevault/agent.env to enable this check.")
+                         "CM check skipped — APPS password not provided. "
+                         "Set it in the connection Edit form in TuneVault to enable this check.")
             else:
                 cmd = _src_cmd(
-                    "$ADMIN_SCRIPTS_HOME/adcmctl.sh status apps/%s" % _APPS_PWD
+                    "$ADMIN_SCRIPTS_HOME/adcmctl.sh status apps/%s" % req_apps_pwd
                 )
                 stdout, stderr, exit_code, _ = _run(cmd)
                 out = stdout + stderr

@@ -1055,6 +1055,19 @@ async function openEditPanel(connId) {
                  placeholder="Leave blank to keep current password" maxlength="1024"/>
           <div class="field-sub">Enter a new password only if you want to change it.</div>
         </div>
+        ${c.server_type === 'apps' ? `
+        <div class="field-group">
+          <label class="field-label" for="edit-apps-pwd">APPS Password <span style="font-weight:400;color:var(--text-dim)">(optional)</span></label>
+          <input class="field-input" id="edit-apps-pwd" type="password"
+                 placeholder="Leave blank to keep current / skip CM check" maxlength="512"/>
+          <div class="field-sub">Used for Concurrent Manager status check.</div>
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="edit-weblogic-pwd">WebLogic Admin Password <span style="font-weight:400;color:var(--text-dim)">(optional)</span></label>
+          <input class="field-input" id="edit-weblogic-pwd" type="password"
+                 placeholder="Leave blank to keep current / skip WLS checks" maxlength="512"/>
+          <div class="field-sub">Used for WebLogic Admin Server checks.</div>
+        </div>` : ''}
       </div>
       <div id="edit-verify-result" style="margin-top:12px;display:none;font-size:13px"></div>
       <div class="edit-actions">
@@ -1085,6 +1098,10 @@ async function submitEdit(connId) {
   const host = document.getElementById('edit-host') ? document.getElementById('edit-host').value.trim() : '';
   if (host && host !== (c.host || '')) payload.host = host;
   if (password)                                  payload.password = password;
+  const appsPwdEl     = document.getElementById('edit-apps-pwd');
+  const weblogicPwdEl = document.getElementById('edit-weblogic-pwd');
+  if (appsPwdEl     && appsPwdEl.value)     payload.apps_pwd     = appsPwdEl.value;
+  if (weblogicPwdEl && weblogicPwdEl.value) payload.weblogic_pwd = weblogicPwdEl.value;
 
   if (Object.keys(payload).length === 0) {
     showToast('No changes to save', 'warn');

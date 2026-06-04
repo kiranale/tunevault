@@ -1596,7 +1596,7 @@ app.put('/api/connections/:id', requireAuth, requireRole('senior_dba'), requireC
     const values = [];
     let idx = 1;
 
-    const { proxy_url, proxy_api_key, ebs_checks_enabled, gi_os_user, gi_oracle_home, asm_sid, privilege_model } = req.body;
+    const { proxy_url, proxy_api_key, ebs_checks_enabled, gi_os_user, gi_oracle_home, asm_sid, privilege_model, apps_pwd, weblogic_pwd } = req.body;
     if (name) { updates.push(`name = $${idx++}`); values.push(name); }
     if (host) { updates.push(`host = $${idx++}`); values.push(host); }
     if (dbPort) { updates.push(`port = $${idx++}`); values.push(dbPort); }
@@ -1619,6 +1619,9 @@ app.put('/api/connections/:id', requireAuth, requireRole('senior_dba'), requireC
     if ('asm_sid' in req.body) { updates.push(`asm_sid = $${idx++}`); values.push(asm_sid || null); }
     // privilege_model: 'reader' | 'sysdba' — controls which Oracle checks are available
     if (privilege_model) { updates.push(`privilege_model = $${idx++}`); values.push(privilege_model); }
+    // EBS app-tier passwords — stored encrypted, sent to agent on each health check
+    if (apps_pwd !== undefined) { updates.push(`apps_pwd_enc = $${idx++}`); values.push(apps_pwd ? encrypt(apps_pwd) : null); }
+    if (weblogic_pwd !== undefined) { updates.push(`weblogic_pwd_enc = $${idx++}`); values.push(weblogic_pwd ? encrypt(weblogic_pwd) : null); }
     updates.push(`updated_at = NOW()`);
 
     if (updates.length === 1) {
@@ -2459,6 +2462,8 @@ app.post('/api/health-checks', requireAuth, requireRole('junior_dba'), enforceHe
     let connProxyUrl = null;
     let connProxyApiKey = null;
     let connServerType = null;
+    let connAppsPwd = null;
+    let connWeblogicPwd = null;
     let isAgentConnection = false; // agent-installed: proxy on Oracle box, may lack credentials
 
     // Support inline proxy mode (no saved connection)
@@ -2471,7 +2476,7 @@ app.post('/api/health-checks', requireAuth, requireRole('junior_dba'), enforceHe
 
     if (connection_id) {
       const connResult = await pool.query(
-        'SELECT id, name, host, port, service_name, username, encrypted_password, connection_type, proxy_url, proxy_api_key_enc, server_type FROM oracle_connections WHERE id = $1 AND user_id = $2',
+        'SELECT id, name, host, port, service_name, username, encrypted_password, connection_type, proxy_url, proxy_api_key_enc, server_type, apps_pwd_enc, weblogic_pwd_enc FROM oracle_connections WHERE id = $1 AND user_id = $2',
         [connection_id, req.user.id]
       );
       if (connResult.rows.length === 0) {
@@ -2490,6 +2495,8 @@ app.post('/api/health-checks', requireAuth, requireRole('junior_dba'), enforceHe
       connProxyUrl = conn.proxy_url;
       connProxyApiKey = conn.proxy_api_key_enc ? decrypt(conn.proxy_api_key_enc) : null;
       connServerType = conn.server_type || null;
+      connAppsPwd     = conn.apps_pwd_enc     ? decrypt(conn.apps_pwd_enc)     : null;
+      connWeblogicPwd = conn.weblogic_pwd_enc ? decrypt(conn.weblogic_pwd_enc) : null;
 
       // Detect agent connection: proxy type with missing Oracle credentials
       // Agent-installed connections have the proxy running locally on the Oracle box;
@@ -2652,7 +2659,9 @@ app.post('/api/health-checks', requireAuth, requireRole('junior_dba'), enforceHe
         osAuth: isAgentConnection,
         host: connHost,
         port: connPort,
-        serverType: connServerType
+        serverType: connServerType,
+        appsPwd: connAppsPwd,
+        weblogicPwd: connWeblogicPwd,
       }).catch(err => {
         console.error('Proxy health check error:', err.message);
       });
@@ -3443,13 +3452,13 @@ async function runRealHealthCheckInner(healthCheckId, oracleConfig, t0) {
 }
 
 // Current canonical proxy version — bump this when oracle-proxy.py/oracle-proxy.js VERSION changes
-const LATEST_PROXY_VERSION = '3.18.0';
+const LATEST_PROXY_VERSION = '3.18.2';
 
 // ============================================================
 // Proxy Health Check Flow
 // ============================================================
 
-async function runProxyHealthCheck(healthCheckId, { connectionId, proxyUrl, proxyApiKey, serviceName, username, password, osAuth, host, port, serverType = null }) {
+async function runProxyHealthCheck(healthCheckId, { connectionId, proxyUrl, proxyApiKey, serviceName, username, password, osAuth, host, port, serverType = null, appsPwd = null, weblogicPwd = null }) {
   const t0 = Date.now(); // t0: collection started
 
   // Hard 3-minute deadline — protects against hung proxy connections where
@@ -3465,7 +3474,7 @@ async function runProxyHealthCheck(healthCheckId, { connectionId, proxyUrl, prox
 
   try {
     await Promise.race([
-      runProxyHealthCheckInner(healthCheckId, { connectionId, proxyUrl, proxyApiKey, serviceName, username, password, osAuth, host, port, serverType }, t0),
+      runProxyHealthCheckInner(healthCheckId, { connectionId, proxyUrl, proxyApiKey, serviceName, username, password, osAuth, host, port, serverType, appsPwd, weblogicPwd }, t0),
       proxyTimeoutPromise
     ]);
   } catch (err) {
@@ -3502,11 +3511,11 @@ async function runProxyHealthCheck(healthCheckId, { connectionId, proxyUrl, prox
 // Inner function extracted so Promise.race can wrap it with a hard timeout
 // proxyUrl/proxyApiKey are retained in the signature for backward compat but no longer used —
 // all traffic goes through the outbound agent channel (see fetchMetricsFromProxy).
-async function runProxyHealthCheckInner(healthCheckId, { connectionId, serviceName, username, password, osAuth, host, port, serverType }, t0) {
+async function runProxyHealthCheckInner(healthCheckId, { connectionId, serviceName, username, password, osAuth, host, port, serverType, appsPwd = null, weblogicPwd = null }, t0) {
   try {
     await pool.query(`UPDATE health_checks SET status = 'collecting', analysis_stage = 'collecting' WHERE id = $1`, [healthCheckId]);
 
-    const metrics = await fetchMetricsFromProxy({ connectionId, serviceName, username, password, osAuth, host, port, serverType });
+    const metrics = await fetchMetricsFromProxy({ connectionId, serviceName, username, password, osAuth, host, port, serverType, appsPwd, weblogicPwd });
 
     // ── EBS app-tier path: findings stored directly, no AI analysis ───────────
     if (metrics.server_type === 'apps') {
@@ -3605,7 +3614,7 @@ async function runProxyHealthCheckInner(healthCheckId, { connectionId, serviceNa
   }
 }
 
-async function fetchMetricsFromProxy({ connectionId, serviceName, username, password, osAuth, host, port, serverType }) {
+async function fetchMetricsFromProxy({ connectionId, serviceName, username, password, osAuth, host, port, serverType, appsPwd = null, weblogicPwd = null }) {
   // All proxy health checks MUST go through the outbound agent channel.
   // Direct inbound hits to proxy_url are retired — agents expose no inbound ports.
   // Check agent_tunnels for active status (oracle-proxy.py uses HTTP polling not WS channel)
@@ -3625,10 +3634,13 @@ async function fetchMetricsFromProxy({ connectionId, serviceName, username, pass
 
   // ── EBS app-tier: call /api/ebs-app-healthcheck instead of /api/healthcheck ─
   if (serverType === 'apps') {
+    const appBody = {};
+    if (appsPwd)     appBody.apps_pwd     = appsPwd;
+    if (weblogicPwd) appBody.weblogic_pwd = weblogicPwd;
     const resp = await agentChannel.sendToAgent(connectionId, {
       method: 'POST',
       path: '/api/ebs-app-healthcheck',
-      body: {},
+      body: appBody,
     }, 120000);
     const parsed = resp.body || {};
     if (resp.statusCode !== 200 || !parsed.success) {
@@ -7097,8 +7109,10 @@ async function runScheduledHealthCheck(conn) {
 
   try {
     // Resolve credentials — agent connections may have NULL encrypted_password
-    const password = conn.encrypted_password ? decrypt(conn.encrypted_password) : null;
-    const proxyApiKey = conn.proxy_api_key_enc ? decrypt(conn.proxy_api_key_enc) : null;
+    const password      = conn.encrypted_password ? decrypt(conn.encrypted_password) : null;
+    const proxyApiKey   = conn.proxy_api_key_enc  ? decrypt(conn.proxy_api_key_enc)  : null;
+    const appsPwd       = conn.apps_pwd_enc       ? decrypt(conn.apps_pwd_enc)       : null;
+    const weblogicPwd   = conn.weblogic_pwd_enc   ? decrypt(conn.weblogic_pwd_enc)   : null;
     const isProxy = conn.connection_type === 'proxy';
     const isAgent = isProxy && !conn.username && !conn.encrypted_password;
 
@@ -7152,7 +7166,9 @@ async function runScheduledHealthCheck(conn) {
         username: conn.username,
         password,
         osAuth: isAgent,
-        serverType: conn.server_type || null
+        serverType:   conn.server_type || null,
+        appsPwd,
+        weblogicPwd,
       }).catch(err => {
         console.error(`[scheduler] Proxy HC error for conn ${connId}:`, err.message);
       });
@@ -7195,7 +7211,8 @@ function startScheduler() {
       const result = await pool.query(
         `SELECT oc.id, oc.name, oc.host, oc.port, oc.service_name, oc.username,
                 oc.encrypted_password, oc.connection_type, oc.proxy_url, oc.proxy_api_key_enc,
-                oc.schedule_cron, oc.user_id
+                oc.schedule_cron, oc.user_id, oc.server_type,
+                oc.apps_pwd_enc, oc.weblogic_pwd_enc
          FROM oracle_connections oc
          WHERE oc.schedule_enabled = true
            AND oc.next_scheduled_run_at <= NOW()`

@@ -41,7 +41,7 @@ async function getConnectionForFirstRun(connectionId, userId) {
   const { rows } = await pool.query(
     `SELECT id, name, host, port, service_name, username, encrypted_password,
             connection_type, proxy_url, proxy_api_key_enc, user_id,
-            first_run_completed_at
+            first_run_completed_at, server_type, apps_pwd_enc, weblogic_pwd_enc
      FROM oracle_connections
      WHERE id = $1 AND (user_id = $2 OR user_id IS NULL)`,
     [connectionId, userId]
