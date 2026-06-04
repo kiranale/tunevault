@@ -154,6 +154,27 @@ async function expireTimedOutUpgrades() {
   return result.rows.length;
 }
 
+// ── Manual reset ─────────────────────────────────────────────────────────────
+
+/**
+ * Push recent failed rows for a connection outside the 24h suppression window
+ * by back-dating their triggered_at to 25h ago. Preserves audit history;
+ * only removes the time-window suppression so auto-upgrade can retry.
+ * Returns the number of rows affected.
+ */
+async function resetRecentFailures(connectionId) {
+  const result = await pool.query(
+    `UPDATE agent_upgrade_audit
+     SET triggered_at = NOW() - INTERVAL '25 hours'
+     WHERE connection_id = $1
+       AND status = 'failed'
+       AND triggered_at > NOW() - INTERVAL '24 hours'
+     RETURNING id`,
+    [connectionId]
+  );
+  return result.rows.length;
+}
+
 // ── Audit list queries ────────────────────────────────────────────────────────
 
 /**
@@ -201,6 +222,7 @@ module.exports = {
   getUpgradePolicy,
   setAutoUpgradeEnabled,
   recentFailureCount,
+  resetRecentFailures,
   getActiveUpgrade,
   insertUpgradeAudit,
   markUpgradeInProgress,

@@ -7509,15 +7509,26 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: message, code: err.code || 'INTERNAL_ERROR' });
 });
 
-// Idempotent column guard — runs before accepting requests so that
-// health checks never see "column does not exist" if migrate.js was
-// skipped or run against a different DB instance.
+// Idempotent startup fixes — column guards + one-time data patches.
+// Runs before app.listen() so requests never see missing columns.
 async function ensureColumns() {
   await pool.query(`
     ALTER TABLE oracle_connections
       ADD COLUMN IF NOT EXISTS apps_pwd_enc     TEXT,
       ADD COLUMN IF NOT EXISTS weblogic_pwd_enc TEXT
   `);
+
+  // Reset auto-upgrade suppression for connections that have ≥2 failures in the
+  // last 24h despite being valid working connections (97, 114, 123).
+  // Back-dates their triggered_at outside the 24h window so the next heartbeat
+  // re-evaluates. Idempotent — no-op once they've successfully upgraded.
+  await pool.query(`
+    UPDATE agent_upgrade_audit
+    SET triggered_at = NOW() - INTERVAL '25 hours'
+    WHERE connection_id = ANY($1::int[])
+      AND status = 'failed'
+      AND triggered_at > NOW() - INTERVAL '24 hours'
+  `, [[97, 114, 123]]);
 }
 
 ensureColumns()

@@ -96,6 +96,24 @@ router.get('/:id/auto-upgrade-status', requireAuth, async (req, res) => {
   }
 });
 
+// ── POST /api/admin/agent-upgrades/:id/reset-failures ────────────────────────
+// Back-dates recent failed rows outside the 24h suppression window so the next
+// heartbeat can trigger a fresh auto-upgrade attempt. Admin-only.
+
+router.post('/:id/reset-failures', requireAuth, requireAdmin, async (req, res) => {
+  const connectionId = parseInt(req.params.id, 10);
+  if (isNaN(connectionId)) return res.status(400).json({ error: 'Invalid connection id' });
+
+  try {
+    const affected = await upgradeAuditDb.resetRecentFailures(connectionId);
+    console.log(`[agent-upgrades] reset-failures conn ${connectionId}: ${affected} row(s) back-dated`);
+    res.json({ ok: true, rows_reset: affected });
+  } catch (err) {
+    console.error('[agent-upgrades] reset-failures error:', err.message);
+    res.status(500).json({ error: 'Failed to reset upgrade failures' });
+  }
+});
+
 // ── PATCH /api/connections/:id/auto-upgrade ───────────────────────────────────
 // Toggle auto_upgrade_enabled for a connection. Body: { enabled: true|false }
 
