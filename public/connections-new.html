@@ -333,24 +333,42 @@
     <!-- Credentials form -->
     <div id="credentials-form" style="display:none">
       <div class="card">
-        <div class="card-title">🔑 Oracle credentials</div>
-        <div class="card-sub">Provide a read-only Oracle user so TuneVault can collect health data. You can skip and configure later via Edit on the Servers page.</div>
-        <div class="cred-info">
+        <div class="card-title" id="cred-card-title">🔑 Oracle credentials</div>
+        <div class="card-sub" id="cred-card-sub">Provide a read-only Oracle user so TuneVault can collect health data. You can skip and configure later via Edit on the Servers page.</div>
+        <div class="cred-info" id="cred-oracle-info">
           <span>ℹ️</span>
           <span>Create a <strong>tunevault_reader</strong> user with <code>SELECT_CATALOG_ROLE</code> on your Oracle server, then enter the credentials below.</span>
         </div>
-        <div class="field">
-          <label>SID / Service Name</label>
-          <input type="text" id="cred-service" placeholder="e.g. EBSDEV or FREEPDB1" autocomplete="off"/>
-          <div style="font-size:11px;color:var(--muted);margin-top:4px;">Auto-detected — update if incorrect.</div>
+        <div id="cred-oracle-fields">
+          <div class="field">
+            <label>SID / Service Name</label>
+            <input type="text" id="cred-service" placeholder="e.g. EBSDEV or FREEPDB1" autocomplete="off"/>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;">Auto-detected — update if incorrect.</div>
+          </div>
+          <div class="field">
+            <label>Oracle Username</label>
+            <input type="text" id="cred-username" placeholder="e.g. tunevault_reader" autocomplete="off"/>
+          </div>
+          <div class="field">
+            <label>Oracle Password</label>
+            <input type="password" id="cred-password" placeholder="Enter password" autocomplete="off"/>
+          </div>
         </div>
-        <div class="field">
-          <label>Oracle Username</label>
-          <input type="text" id="cred-username" placeholder="e.g. tunevault_reader" autocomplete="off"/>
-        </div>
-        <div class="field">
-          <label>Oracle Password</label>
-          <input type="password" id="cred-password" placeholder="Enter password" autocomplete="off"/>
+        <!-- EBS app-tier passwords — shown for server_type=apps or both -->
+        <div id="ebs-pwd-section" style="display:none">
+          <div style="border-top:1px solid var(--border);margin:20px 0 16px;padding-top:16px;">
+            <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px;">EBS App Tier Passwords</div>
+            <div class="field">
+              <label>APPS Password</label>
+              <input type="password" id="cred-apps-pwd" placeholder="Required for Concurrent Manager checks" autocomplete="off"/>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px;">Used for Concurrent Manager (CM) status checks.</div>
+            </div>
+            <div class="field">
+              <label>WebLogic Admin Password</label>
+              <input type="password" id="cred-weblogic-pwd" placeholder="Required for OACore, Forms, OAFM server state checks" autocomplete="off"/>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px;">Used for OACore, Forms, OAFM, and Admin Server state checks via WLST.</div>
+            </div>
+          </div>
         </div>
         <div id="cred-error" style="display:none;margin-top:8px;font-size:13px;color:var(--red);"></div>
         <div style="display:flex;gap:12px;margin-top:24px;align-items:center;">
@@ -603,6 +621,17 @@ function showCredentialsForm(data) {
   if (svcField && (!svcField.value) && data && data.ebs_service) {
     svcField.value = data.ebs_service;
   }
+  // Adapt card for EBS app servers
+  const isApps = data && (data.server_type === 'apps' || data.server_type === 'both');
+  const isPureApps = data && data.server_type === 'apps';
+  document.getElementById('ebs-pwd-section').style.display = isApps ? '' : 'none';
+  if (isPureApps) {
+    document.getElementById('cred-card-title').textContent = '🔑 EBS App Tier Setup';
+    document.getElementById('cred-card-sub').textContent =
+      'Set EBS passwords so TuneVault can check Concurrent Manager, OACore, Forms, and OAFM status. Oracle DB credentials are not required for app-tier checks.';
+    document.getElementById('cred-oracle-info').style.display = 'none';
+    document.getElementById('cred-oracle-fields').style.display = 'none';
+  }
   document.getElementById('credentials-form').style.display = '';
 }
 
@@ -613,29 +642,46 @@ function showSuccessBanner() {
 }
 
 async function saveCredentials() {
-  const username = document.getElementById('cred-username').value.trim();
-  const password = document.getElementById('cred-password').value;
-  const errEl = document.getElementById('cred-error');
+  const username  = (document.getElementById('cred-username')?.value || '').trim();
+  const password  = document.getElementById('cred-password')?.value || '';
+  const appsPwd   = document.getElementById('cred-apps-pwd')?.value || '';
+  const wlPwd     = document.getElementById('cred-weblogic-pwd')?.value || '';
+  const errEl     = document.getElementById('cred-error');
   errEl.style.display = 'none';
-  if (!username && !password) { showSuccessBanner(); return; }
+
+  const hasOracle = username || password;
+  const hasEbs    = appsPwd || wlPwd;
+
+  // Nothing at all — skip (same as "Skip for now")
+  if (!hasOracle && !hasEbs) { showSuccessBanner(); return; }
+
+  // Partial Oracle creds — enforce both fields together
   if (username && !password) {
-    errEl.textContent = 'Please enter a password for this user.';
+    errEl.textContent = 'Please enter a password for this Oracle user.';
     errEl.style.display = '';
     return;
   }
   if (!username && password) {
-    errEl.textContent = 'Please enter a username.';
+    errEl.textContent = 'Please enter a username for this Oracle user.';
     errEl.style.display = '';
     return;
   }
+
   const btn = document.getElementById('btn-save-creds');
   btn.disabled = true; btn.textContent = 'Saving…';
+
+  const payload = { service_name: document.getElementById('cred-service')?.value.trim() || '' };
+  if (username) payload.username = username;
+  if (password) payload.password = password;
+  if (appsPwd)  payload.apps_pwd     = appsPwd;
+  if (wlPwd)    payload.weblogic_pwd = wlPwd;
+
   try {
     const res = await fetch('/api/connections/' + _draftId, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ username: username, password: password, service_name: document.getElementById('cred-service')?.value.trim() || '' }),
+      body: JSON.stringify(payload),
     });
     if (!res.ok) {
       const d = await res.json().catch(function() { return {}; });

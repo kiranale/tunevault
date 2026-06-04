@@ -309,7 +309,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.19.0"  # OAFM check added; _WEBLOGIC_PWD agent.env fallback; [HC] password-present debug log
+VERSION = "3.19.1"  # WLST: multi-path wlst.sh discovery + full debug logging; except as e syntax
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5323,24 +5323,40 @@ class ProxyHandler(BaseHTTPRequestHandler):
             _wlst_err    = ""
             if env_file and req_weblogic_pwd:
                 _pwd_sh = req_weblogic_pwd.replace("'", "'\\''")
+                # Try FMW_HOME, MW_HOME, EBS_ORACLE_HOME in order; fall back to
+                # a find scan of common mount points so wlst.sh is found even when
+                # the sourced EBSapps.env does not export a standard MW home variable.
                 _wlst_cmd = _src_cmd(
                     "_WLS_PWD='%(pwd)s'; "
-                    "_WLST=$FMW_HOME/oracle_common/common/bin/wlst.sh; "
-                    "if [ ! -f \"$_WLST\" ]; then echo WLST_NOT_FOUND; exit 0; fi; "
+                    "_WLST=''; "
+                    "for _d in \"$FMW_HOME\" \"$MW_HOME\" \"$EBS_ORACLE_HOME\" \"$ORACLE_HOME\"; do "
+                    "  if [ -n \"$_d\" ] && [ -f \"$_d/oracle_common/common/bin/wlst.sh\" ]; then "
+                    "    _WLST=\"$_d/oracle_common/common/bin/wlst.sh\"; break; "
+                    "  fi; "
+                    "done; "
+                    "if [ -z \"$_WLST\" ]; then "
+                    "  _WLST=$(find /u01 /u02 /oracle /app -maxdepth 8 "
+                    "    -name wlst.sh -path '*/oracle_common/common/bin/*' 2>/dev/null | head -1); "
+                    "fi; "
+                    "if [ -z \"$_WLST\" ]; then echo WLST_NOT_FOUND; exit 0; fi; "
+                    "echo \"WLST_PATH:$_WLST\"; "
                     "\"$_WLST\" << WLST_END\n"
                     "try:\n"
                     "    connect(\"weblogic\",\"$_WLS_PWD\",\"t3://localhost:7001\")\n"
                     "    for s in domainRuntimeService.getServerRuntimes():\n"
                     "        print(\"SRVSTATE:\" + s.getName() + \":\" + s.getState())\n"
                     "    disconnect()\n"
-                    "except Exception, e:\n"
+                    "except Exception as e:\n"
                     "    print(\"WLST_ERROR:\" + str(e))\n"
                     "WLST_END\n"
                 ) % {"pwd": _pwd_sh}
-                _wlst_stdout, _, _, _ = _run(_wlst_cmd, timeout=30)
-                _wlst_raw = _wlst_stdout
+                # Log command with password redacted
+                _wlst_cmd_log = _wlst_cmd.replace(_pwd_sh, "***")
+                print("[HC] WLST command: %s" % _wlst_cmd_log[:600])
+                _wlst_stdout, _wlst_stderr, _wlst_exit, _ = _run(_wlst_cmd, timeout=60)
+                _wlst_raw = _wlst_stdout + _wlst_stderr
                 if "WLST_NOT_FOUND" in _wlst_raw:
-                    _wlst_err = "wlst.sh not found at $FMW_HOME/oracle_common/common/bin/"
+                    _wlst_err = "wlst.sh not found (tried FMW_HOME/MW_HOME/EBS_ORACLE_HOME/ORACLE_HOME + find)"
                 elif "WLST_ERROR:" in _wlst_raw:
                     _el = next((l for l in _wlst_raw.splitlines()
                                 if l.startswith("WLST_ERROR:")), "")
@@ -5354,7 +5370,13 @@ class ProxyHandler(BaseHTTPRequestHandler):
                                 _sn, _ss = _pts[1].strip(), _pts[2].strip()
                                 _wlst_states[_sn.lower()] = (_sn, _ss)
                 else:
-                    _wlst_err = "WLST produced no SRVSTATE output (may not be admin host)"
+                    _wlst_err = ("WLST produced no SRVSTATE output (exit %d). "
+                                 "Likely non-admin host or AdminServer not reachable on localhost:7001."
+                                 % _wlst_exit)
+            print("[HC] _wlst_ok: %s, _wlst_states keys: %s"
+                  % (_wlst_ok, list(_wlst_states.keys())))
+            if not _wlst_ok and env_file and req_weblogic_pwd:
+                print("[HC] WLST error: %s" % (_wlst_err or "unknown"))
 
             # ── 4. OACore managed servers ─────────────────────────────────────
             if not env_file:
