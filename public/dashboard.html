@@ -131,6 +131,7 @@
     }
     .badge-ebs  { background: rgba(167,139,250,0.12); color: var(--purple); border: 1px solid rgba(167,139,250,0.22); }
     .badge-db   { background: rgba(96,165,250,0.1);  color: var(--blue);   border: 1px solid rgba(96,165,250,0.2); }
+    .badge-apps { background: rgba(240,168,48,0.1);  color: var(--accent); border: 1px solid rgba(240,168,48,0.25); }
     .badge-prod { background: rgba(248,113,113,0.1); color: var(--red);    border: 1px solid rgba(248,113,113,0.2); }
     .badge-uat  { background: rgba(251,191,36,0.1);  color: var(--yellow); border: 1px solid rgba(251,191,36,0.2); }
     .badge-dev  { background: rgba(52,211,153,0.08); color: #6ee7b7;       border: 1px solid rgba(52,211,153,0.15); }
@@ -585,9 +586,12 @@
           nameHtml = '<a href="/connections">' + nameHtml + '</a>';
         }
 
-        var typeBadge = f.ebs_detected
-          ? '<span class="badge badge-ebs">EBS</span>'
-          : '<span class="badge badge-db">DB</span>';
+        var _stype = f.server_type || (c && c.server_type) || '';
+        var typeBadge = (_stype === 'apps' || _stype === 'both')
+          ? '<span class="badge badge-apps">APP</span>'
+          : f.ebs_detected
+            ? '<span class="badge badge-ebs">EBS</span>'
+            : '<span class="badge badge-db">DB</span>';
 
         var scoreTd;
         if (isApp) {

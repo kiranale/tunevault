@@ -568,13 +568,14 @@
       // KPI filter
       if (kpiFilter === 'red'   && c.status !== 'red') return false;
       if (kpiFilter === 'stale' && c.status !== 'stale' && c.status !== 'never_run') return false;
-      if (kpiFilter === 'ebs'   && !c.ebs_detected) return false;
+      var _isEbs = c.ebs_detected || c.server_type === 'apps' || c.server_type === 'both' || !!c.ebs_instance_name;
+      if (kpiFilter === 'ebs'   && !_isEbs) return false;
 
       // Env filter
       if (envFilter !== 'all' && c.env_tag !== envFilter) return false;
 
       // Toggle filters
-      if (filterEbs  && !c.ebs_detected) return false;
+      if (filterEbs  && !_isEbs) return false;
       if (filterAuto && !c.autonomous_enabled) return false;
 
       // Search
@@ -602,7 +603,7 @@
     switch (sortField) {
       case 'name':               return (c.name || '').toLowerCase();
       case 'db_version':         return c.db_version || '';
-      case 'ebs':                return c.ebs_detected ? 0 : 1;
+      case 'ebs':                return (c.ebs_detected || c.server_type === 'apps' || c.server_type === 'both' || !!c.ebs_instance_name) ? 0 : 1;
       case 'last_check_at':      return c.last_check_at || '';
       case 'status':             return statusRank[c.status] !== undefined ? statusRank[c.status] : 5;
       case 'red_count':          return -(c.red_count || 0);
@@ -700,7 +701,7 @@
         htmlParts.push('<tr>' +
           '<td>' + renderName(c) + '</td>' +
           '<td><span style="font-family:\'JetBrains Mono\',monospace;font-size:11px;color:var(--text-dim);">' + esc(c.db_version || '—') + '</span></td>' +
-          '<td>' + (c.ebs_detected ? '<span class="ebs-yes">EBS</span>' : '<span class="ebs-no">—</span>') + '</td>' +
+          '<td>' + ebsTypeBadge(c) + '</td>' +
           '<td>' + renderTime(c) + '</td>' +
           '<td>' + renderStatus(c) + '</td>' +
           '<td>' + renderCount(c.red_count, 'red') + '</td>' +
@@ -779,7 +780,7 @@
           return '<tr>' +
             '<td>' + renderName(c) + '</td>' +
             '<td><span style="font-family:\'JetBrains Mono\',monospace;font-size:11px;color:var(--text-dim);">' + esc(c.db_version || '—') + '</span></td>' +
-            '<td>' + (c.ebs_detected ? '<span class="ebs-yes">EBS</span>' : '<span class="ebs-no">—</span>') + '</td>' +
+            '<td>' + ebsTypeBadge(c) + '</td>' +
             '<td>' + renderTime(c) + '</td>' +
             '<td>' + renderStatus(c) + '</td>' +
             '<td>' + renderCount(c.red_count, 'red') + '</td>' +
@@ -845,6 +846,12 @@
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
+  function ebsTypeBadge(c) {
+    if (c.server_type === 'apps' || c.server_type === 'both') return '<span class="ebs-yes">APP</span>';
+    if (c.ebs_detected || c.ebs_instance_name) return '<span class="ebs-yes">EBS</span>';
+    return '<span class="ebs-no">—</span>';
+  }
+
   function renderName(c) {
     var html = '<span style="font-weight:600;">' + esc(c.name) + '</span>';
     if (c.env_tag) html += ' <span class="env-badge env-' + c.env_tag + '">' + c.env_tag + '</span>';
