@@ -809,7 +809,7 @@ WHERE t.tablespace_name = 'USERS';
             </div>
             <div class="section-body">
                 <p style="font-size:13px;color:var(--text-dim);margin-bottom:12px">SQL <code style="font-family:JetBrains Mono,monospace;font-size:12px;background:var(--surface-2);padding:2px 6px;border-radius:4px">bq9vzn5r1kf22</code> performs a full table scan on <strong>OE_ORDER_LINES_ALL</strong> (42.3 million rows) because no index covers the join predicate on <code style="font-family:JetBrains Mono,monospace;font-size:12px;background:var(--surface-2);padding:2px 6px;border-radius:4px">(CUSTOMER_ID, ORDER_DATE)</code>. This accounts for 94% of its buffer gets. The index below eliminates the scan and reduces expected gets/exec from 18.2M to approximately 340.</p>
-                <p style="font-size:11.5px;color:#9898a8;margin-bottom:12px;">📚 Related deep-dive: <a href="https://linuxappsdba.blogspot.com/2024/04/oracle-database-performance-crisis.html" target="_blank" rel="author external noopener" style="color:#9898a8;text-decoration:underline;transition:color 0.15s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='#9898a8'">Oracle Database Performance Crisis: Analysis &amp; Recommendations ↗</a></p>
+                <p style="font-size:11.5px;color:#9898a8;margin-bottom:12px;">📚 Related deep-dive: <a href="/blog/oracle-database-performance-crisis" style="color:#9898a8;text-decoration:underline;transition:color 0.15s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='#9898a8'">Oracle Database Performance Crisis: Analysis &amp; Recommendations →</a></p>
                 <div class="sql-block">
 -- Create index (runs online — no downtime required):
 CREATE INDEX OE_ORDER_LINES_CUST_DATE_IDX
