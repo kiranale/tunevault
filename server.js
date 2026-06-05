@@ -7628,15 +7628,25 @@ async function ensureColumns() {
        AND (server_type IN ('apps','both') OR ebs_instance_name IS NOT NULL)
   `);
 
-  // Infer server_type='apps' for connections that have ebs_instance_name set but no server_type.
-  // Guard: host IS NULL — app-tier wizard connections have no Oracle DB host, DB-tier connections do.
+  // Infer server_type='apps' for connections that have no Oracle DB host (app-tier only)
+  // and either: ebs_instance_name set, OR an agent_tunnels row with no oracle_sids
+  // (app servers have no Oracle SIDs because they don't run the DB).
+  // Guard: host IS NULL — DB-tier connections always have host set after confirming service_name.
   await pool.query(`
     UPDATE oracle_connections
        SET server_type = 'apps',
            is_ebs      = TRUE
      WHERE server_type IS NULL
-       AND ebs_instance_name IS NOT NULL
        AND (host IS NULL OR host = '')
+       AND (
+         ebs_instance_name IS NOT NULL
+         OR EXISTS (
+           SELECT 1 FROM agent_tunnels at
+           WHERE at.connection_id = oracle_connections.id
+             AND (at.oracle_sids IS NULL OR array_length(at.oracle_sids, 1) IS NULL)
+             AND at.status <> 'uninstalled'
+         )
+       )
   `);
 
   // Reset auto-upgrade suppression for connections that have ≥2 failures in the
@@ -7649,7 +7659,7 @@ async function ensureColumns() {
     WHERE connection_id = ANY($1::int[])
       AND status = 'failed'
       AND triggered_at > NOW() - INTERVAL '24 hours'
-  `, [[97, 114, 123]]);
+  `, [[97, 114, 123, 134, 137]]);
 }
 
 ensureColumns()

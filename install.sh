@@ -433,11 +433,36 @@ if [ "$SERVER_TYPE" = "unknown" ]; then
   fi
 fi
 
-# Step 2: EBS context file — env var override or interactive prompt (app servers only)
-# Set TUNEVAULT_EBS_CONTEXT_FILE for non-interactive installs; interactive prompt runs below
-# after server type is finalised. Find-based auto-detection removed (too slow, wrong matches
-# on multi-home servers).
+# Step 2: EBS context file — infer server type WITHOUT relying on env vars surviving sudo.
+# sudo with env_reset drops inline VAR=val assignments on hardened systems.
+# Detection order (highest wins):
+#   1. TUNEVAULT_SERVER_TYPE explicit override (below, after auto-detection)
+#   2. Context file readable (TUNEVAULT_EBS_CONTEXT_FILE or APPS_BASE scan)
+#   3. EBSapps.env in standard locations
+#   4. Oracle PMON / binary (already ran above)
 EBS_CONTEXT_FILE="${TUNEVAULT_EBS_CONTEXT_FILE:-}"
+
+# If a context file path is set and readable, infer server type from it
+if [ -n "$EBS_CONTEXT_FILE" ] && [ -f "$EBS_CONTEXT_FILE" ]; then
+  if [ "$SERVER_TYPE" = "db" ]; then
+    SERVER_TYPE="both"
+    ok "Server type: DB + EBS app (Oracle detected + EBS context file readable)"
+  elif [ "$SERVER_TYPE" = "unknown" ]; then
+    SERVER_TYPE="apps"
+    ok "Server type: EBS app server (context file: $EBS_CONTEXT_FILE)"
+  fi
+fi
+
+# Quick scan for EBSapps.env in standard locations — no find, no env vars needed
+if [ "$SERVER_TYPE" = "unknown" ]; then
+  for _ebsbase in /u01/install/APPS /u01/APPS /EBSapps /oracle/APPS /opt/APPS /appl; do
+    if [ -f "${_ebsbase}/EBSapps.env" ]; then
+      SERVER_TYPE="apps"
+      ok "EBS app server auto-detected (${_ebsbase}/EBSapps.env)"
+      break
+    fi
+  done
+fi
 
 # ── Detect ORACLE_HOME for thick-mode bootstrap ───────────────────────────────
 # The agent's bootstrap.py needs ORACLE_HOME to find libclntsh.so on DB servers

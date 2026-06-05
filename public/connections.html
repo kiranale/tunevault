@@ -1055,7 +1055,7 @@ async function openEditPanel(connId) {
                  placeholder="Leave blank to keep current password" maxlength="1024"/>
           <div class="field-sub">Password for the Oracle DB reader account (e.g. APPS or tunevault_reader). Leave blank to keep existing.</div>
         </div>
-        ${(c.server_type === 'apps' || c.server_type === 'both' || (c.ebs_instance_name && c.server_type !== 'db')) ? `
+        ${(c.server_type === 'apps' || c.server_type === 'both' || (c.ebs_instance_name && c.server_type !== 'db') || (c.is_ebs && !c.server_type)) ? `
         <div class="field-group">
           <label class="field-label" for="edit-apps-pwd">APPS Password
             ${c.has_apps_pwd ? '<span style="font-size:11px;color:var(--green);font-weight:400;margin-left:6px">&#10003; set</span>' : '<span style="font-size:11px;color:var(--yellow);font-weight:400;margin-left:6px">not set</span>'}

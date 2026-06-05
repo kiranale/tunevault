@@ -314,13 +314,15 @@ async function updateConnectionSid(connectionId, serviceName) {
 
 async function updateConnectionInstallerInfo(connectionId, { serverType, ebsService, ebsInstanceName }) {
   const isEbs = serverType === 'apps' || serverType === 'both' ? true : null;
+  // Explicit casts on nullable params prevent "could not determine data type of parameter $N"
+  // when pg driver sends JS null without a type hint.
   await pool.query(
     `UPDATE oracle_connections SET
-      server_type      = COALESCE($1, server_type),
-      ebs_service      = COALESCE($2, ebs_service),
-      is_ebs           = CASE WHEN $3 IS NOT NULL THEN $3 ELSE is_ebs END,
-      ebs_instance_name = COALESCE($4, ebs_instance_name),
-      updated_at       = NOW()
+      server_type       = COALESCE($1::text,    server_type),
+      ebs_service       = COALESCE($2::text,    ebs_service),
+      is_ebs            = CASE WHEN $3::boolean IS NOT NULL THEN $3::boolean ELSE is_ebs END,
+      ebs_instance_name = COALESCE($4::text,    ebs_instance_name),
+      updated_at        = NOW()
      WHERE id = $5`,
     [serverType || null, ebsService || null, isEbs, ebsInstanceName || null, connectionId]
   );

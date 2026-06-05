@@ -621,9 +621,9 @@ function showCredentialsForm(data) {
   if (svcField && (!svcField.value) && data && data.ebs_service) {
     svcField.value = data.ebs_service;
   }
-  // Adapt card for EBS app servers
-  const isApps = data && (data.server_type === 'apps' || data.server_type === 'both');
-  const isPureApps = data && data.server_type === 'apps';
+  // Adapt card for EBS app servers (fallback: is_ebs=true without server_type also shows fields)
+  const isApps = data && (data.server_type === 'apps' || data.server_type === 'both' || (data.is_ebs && !data.server_type));
+  const isPureApps = data && (data.server_type === 'apps' || (data.is_ebs && !data.server_type));
   document.getElementById('ebs-pwd-section').style.display = isApps ? '' : 'none';
   if (isPureApps) {
     document.getElementById('cred-card-title').textContent = '🔑 EBS App Tier Setup';
