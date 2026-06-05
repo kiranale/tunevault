@@ -126,28 +126,44 @@ Node.js + Express, PostgreSQL (Neon), Render deployment. Vanilla JS frontend (no
 - **Datadog** — structured logging (via `console.log` in server)
 
 ## Add Connection route rule
+
 All Add Connection links in the app MUST point to `/connections/new` — the single canonical v6 wizard (routes/ssh-install.js). `/setup/fresh` is a 301 permanent redirect to it as of 2026-05-22. Adding a new entry point? Verify it points to `/connections/new`, not `/setup/fresh`.
 
+## Known Issues (as of 2026-06-05)
+
+🔴 Critical:
+- Blog /blog page loads but shows "Loading articles…" — blog_posts.coming_soon column missing in Neon DB. Fix: run `npm run seed-blog` in Render shell.
+- Dashboard shows "Failed to load — retrying in 30s" — root cause not identified; likely /api/health-checks 500ing or authFetch failure. Needs browser console error investigation.
+
+🟡 High:
+- ebs12212-app-dev (conn 128): APPS password and WebLogic password not set — CM/WF Mailer/admin script checks will skip. Fix: open Edit Connection in UI and set both passwords.
+- ebs_instance_name not set on any connection — Fleet shows flat list, EBS Instances = 0. Fix: set ebs_instance_name = EBS12212 on ebs12212-db-dev and ebs12212-app-dev via Edit Connection.
+- oracle-proxy.py 3.20.1 not tested yet on live HC — needs HC run on ebs12212-app-dev with passwords set to verify OACore/Forms/OAFM show real status.
+- apex-lab (192.168.56.101, OEL 8.10, Oracle 23ai) — agent never installed.
+- Export PDF button broken — not fixed in any session.
+- is_ebs flag not being set reliably — backfill migration may not have run on Neon.
+
+🟢 Low:
+- ~20 debug/fix/verify scripts in repo root (fix-all.js, check-emdash.js, debug-nav.js etc.) — move to scripts/debug/ or delete.
+- README.md CI badge URLs point to Polsia-Inc/tunevault — should be kiranale/tunevault.
+- lib/polsia-ai.js still referenced in CLAUDE.md directory map — update to actual AI client.
+- OAFM check and adop_status check added but not verified on live server.
+- OPP check not yet added to EBS app tier checks.
+
 ## Recent changes
-- 2026-06-04: FEAT — blog.html rewritten as dynamic page (fetches /api/blog/posts, renders full-article cards + greyed Coming Soon stubs). Migration 1749042300000 seeds 3 full articles (ZDM, performance crisis, EBS clone) + 8 coming-soon stubs. db/blog.js listPosts() adds coming_soon field + orders full before stubs. index.html: 3 field-notes cards + founder Blog link → internal /blog/* URLs. sample-report.html: performance crisis link → /blog/oracle-database-performance-crisis.
-- 2026-06-04: FEAT — oracle-proxy.py 3.18.4: OACore/Forms/AdminServer checks use single WLST connection (wlst.sh << heredoc) when weblogic_pwd set; stores {name_lower: (name, state)} in _wlst_states; per-server state from CONTEXT_FILE; "Not RUNNING" → critical. Falls back to ps checks when weblogic_pwd absent/WLST_ERROR. LATEST_PROXY_VERSION → 3.18.4.
-- 2026-06-04: FIX — install.sh APPS_BASE extraction: grep 's_base' matched s_base_dir/s_base_pref lines first (substring match), leaving only whitespace after sed stripped the tag; [ -n " " ] was true so APPS_ENV_FILE="/EBSapps.env" (missing APPS_BASE). Fix: grep 'oa_var="s_base">' (closing > anchors to exact attribute value); grep -v '^[[:space:]]*$' filters whitespace-only lines.
-- 2026-06-04: FEAT — oracle-proxy.py 3.18.3: OACore/Forms managed server checks pipe weblogic_pwd via printf to admanagedsrvctl.sh status (printf '%s\n' '<pwd>' | admanagedsrvctl.sh status <server>); fall back to ps check with NOTE if weblogic_pwd empty. New Node Manager check (5b): adnodemgrctl.sh status; not running → critical. report.html MAIN_ORDER gains 'node_manager' between forms_servers and oafm_servers. LATEST_PROXY_VERSION → 3.18.3.
-- 2026-06-04: FEAT — ebs_instance_name field (VARCHAR 64) on oracle_connections. Migration 1749042060000. ensureColumns() ADD COLUMN IF NOT EXISTS. connections-list.js SELECT includes it. connections.html Edit form shows it for all server types. PUT /api/connections/:id handles it (clear with null). updateConnectionSchema allows it (max 64, optional nullable). Groups DB + app servers by EBS instance (e.g. EBSDEV, EBSPROD).
-- 2026-06-04: FIX — connections.html edit form: APPS Password + WebLogic Password fields now shown for server_type 'apps' OR 'both' (was 'apps' only).
-- 2026-06-04: FIX — auto-upgrade failure reset: ensureColumns() back-dates failed agent_upgrade_audit rows to NOW()-25h for affected connections so auto-upgrade retries. Added db/agent-upgrade-audit.js resetRecentFailures() + POST /api/admin/agent-upgrades/:id/reset-failures.
-- 2026-06-04: FIX — server.js startup: ensureColumns() runs ALTER TABLE oracle_connections ADD COLUMN IF NOT EXISTS apps_pwd_enc/weblogic_pwd_enc before app.listen(). Prevents "Failed to create health check" 500 when migration hasn't run on the live DB yet. Falls back gracefully if DB is temporarily unavailable at startup.
-- 2026-06-04: FEAT — apps_pwd + weblogic_pwd for EBS app server connections. oracle_connections gains apps_pwd_enc + weblogic_pwd_enc (migration 1749042000000). connections.html: apps/both server_type shows APPS Password + WebLogic Password fields. server.js PUT encrypts/stores both; HC path passes them to /api/ebs-app-healthcheck. oracle-proxy.py 3.18.2 reads from request body (falls back to agent.env). LATEST_PROXY_VERSION → 3.18.2.
-- 2026-06-04: FIX — oracle-proxy.py 3.18.1: AdminServer check switched to ps grep (adadminsrvctl.sh hangs requiring interactive password). _ok() gains raw="" param for collapsible display. LATEST_PROXY_VERSION → 3.18.1.
-- 2026-06-04: FIX — report.html renderAppTierReport: unified ordered check list (Apache→OPMN→AdminServer→OACore→Forms→OAFM→Apps Listener→CM→OPP); System Resources panel at bottom; per-server status from raw_output blocks; raw output in collapsible <details>.
-- 2026-06-02: FEAT — oracle-proxy.py 3.18.0: /api/ebs-app-healthcheck sources EBSapps.env (APPS_ENV_FILE in agent.env); 9 checks via real EBS admin scripts (adapcctl, adopmnctl, adalnctl, admanagedsrvctl per CONTEXT_FILE server lists, adadminsrvctl, adcmctl, disk, memory). Graceful fallback if APPS_ENV_FILE unset. LATEST_PROXY_VERSION → 3.18.0.
-- 2026-06-02: FEAT — install.sh: extract s_base from EBS context XML; derive APPS_ENV_FILE="${APPS_BASE}/EBSapps.env"; patch into agent.env alongside EBS_DB_HOST.
-- 2026-06-02: FIX — oracle-proxy.py 3.17.1: cap each /api/ebs-app-healthcheck subprocess at 10s (adcmctl was 30s, opmnctl 20s, adop 30s). LATEST_PROXY_VERSION → 3.17.1.
-- 2026-06-02: FIX — report.html app tier: export buttons show only PDF+CSV (not DB PDF/XLSX). nav-component.js: "New Check" → /connections; "All Reports" → /reports.
-- 2026-06-02: FEAT — new /reports page (public/reports.html + GET /reports). Lists all health check runs with score pill, status, timestamp, View link.
-- 2026-06-01: FEAT — EBS app-tier health check end-to-end. oracle-proxy.py 3.17.0 adds POST /api/ebs-app-healthcheck (6 OS checks, returns server_type:'apps', score, findings). server.js runProxyHealthCheckInner detects apps tier and returns early (skips AI analysis). report.html renderAppTierReport: vitals bar + score ring + finding cards. LATEST_PROXY_VERSION → 3.17.0.
-- 2026-06-01: FEAT — /dashboard redesigned as fleet overview (~740 lines). Metric strip, fleet status table, active alerts panel, recent HCs, top findings. Auto-refreshes 5 min. /reports page added (health check history list).
-- 2026-06-01: FEAT — Free tier card added to landing page and /pricing. Per-connection pricing model on landing ($49/conn/mo Individual, $39/conn/mo Team, $29/conn/mo Business).
 
-
-
+- 2026-06-05: FEAT — oracle-proxy.py 3.20.1: heredoc stdin for all EBS admin scripts; permissive _ebs_svc grep; [HC] debug logs. LATEST_PROXY_VERSION → 3.20.1.
+- 2026-06-05: FEAT — oracle-proxy.py 3.20.0: WLST removed; admanagedsrvctl.sh/adadminsrvctl.sh with heredoc passwords for OACore/Forms/OAFM/AdminServer; CM via FND_CONCURRENT_QUEUES_VL sqlplus; WF Mailer via FND_SVC_COMPONENTS + stuck notifications; ADOP status check; invalid objects via DBA_OBJECTS. LATEST_PROXY_VERSION → 3.20.0.
+- 2026-06-05: FEAT — oracle-proxy.py 3.19.1: WLST multi-path wlst.sh discovery + debug logging. LATEST_PROXY_VERSION → 3.19.1.
+- 2026-06-05: FEAT — oracle-proxy.py 3.19.0: OAFM check added; _WEBLOGIC_PWD agent.env fallback. LATEST_PROXY_VERSION → 3.19.0.
+- 2026-06-05: FEAT — Fleet instance grouping: ebs_instance_name groups DB+app connections into named instance cards with DB/APP chips, aggregated score, Run HC button. POST /api/instance-healthcheck endpoint. is_ebs backfill migration. EBS Instances KPI counts distinct instance names.
+- 2026-06-05: FIX — Dashboard + fleet badge fixes: server_type=apps/both → APP badge. ebsTypeBadge() helper. Standalone servers section.
+- 2026-06-05: FIX — connections.html Edit Connection: APPS/WebLogic Password fields shown for server_type=apps/both or ebs_instance_name set. has_apps_pwd/has_weblogic_pwd set/not-set badges.
+- 2026-06-05: FEAT — Blog: migration 1749042300000 seeds 3 full articles + 8 coming-soon stubs. blog.html dynamic page fetches /api/blog/posts. db/blog.js COALESCE fixes. scripts/seed-blog.js standalone seeder. All linuxappsdba.blogspot.com links → internal /blog/* URLs.
+- 2026-06-04: FEAT — apps_pwd + weblogic_pwd for EBS app servers. oracle_connections gains apps_pwd_enc + weblogic_pwd_enc (migration 1749042000000). connections.html shows fields for apps/both. server.js PUT encrypts/stores both. LATEST_PROXY_VERSION → 3.18.2.
+- 2026-06-04: FEAT — ebs_instance_name VARCHAR(64) on oracle_connections (migration 1749042060000). Edit form shows field for all server types.
+- 2026-06-04: FIX — install.sh APPS_BASE extraction: anchored grep prevents substring match on s_base_dir/s_base_pref.
+- 2026-06-04: FEAT — oracle-proxy.py 3.18.4: WLST single-connection pre-fetch for OACore/Forms/AdminServer. LATEST_PROXY_VERSION → 3.18.4.
+- 2026-06-02: FEAT — oracle-proxy.py 3.18.0: /api/ebs-app-healthcheck sources EBSapps.env; 9 checks via real EBS admin scripts. LATEST_PROXY_VERSION → 3.18.0.
+- 2026-06-02: FEAT — install.sh: extract s_base from EBS context XML; derive APPS_ENV_FILE. New /reports page added.
+- 2026-06-01: FEAT — EBS app-tier HC end-to-end. oracle-proxy.py 3.17.0. report.html renderAppTierReport. /dashboard redesigned as fleet overview. Free tier pricing added.
