@@ -7600,6 +7600,11 @@ async function ensureColumns() {
       ADD COLUMN IF NOT EXISTS ebs_instance_name VARCHAR(64)
   `);
 
+  await pool.query(`
+    ALTER TABLE blog_posts
+      ADD COLUMN IF NOT EXISTS coming_soon BOOLEAN DEFAULT FALSE
+  `);
+
   // Backfill is_ebs for any connections we know are EBS by server_type or instance membership.
   await pool.query(`
     UPDATE oracle_connections
