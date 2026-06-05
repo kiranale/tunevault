@@ -309,7 +309,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.1"  # Heredoc passwords for admin scripts; FND_CONCURRENT_QUEUES_VL CM; FND_SVC_COMPONENTS WF; ADOP status
+VERSION = "3.20.2"  # Dynamic managed-server discovery; local sqlplus (no @host) for CM/WF/invalid-objects
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5328,89 +5328,70 @@ class ProxyHandler(BaseHTTPRequestHandler):
             def _sh(pwd):
                 return (pwd or "").replace("'", "'\\''")
 
-            # ── 4. OACore managed servers ─────────────────────────────────────
-            if not env_file:
-                _finding("oacore_servers", "OACore Managed Servers", "warning", no_env_msg)
-            elif not req_weblogic_pwd:
-                _ok("oacore_servers", "OACore Managed Servers",
-                    "Set WebLogic password in Edit Connection to enable OACore status check.")
-            else:
-                cmd = _src_cmd(
-                    "timeout 45 bash -c 'admanagedsrvctl.sh status oacore <<EOF\n"
-                    "%(wls)s\nEOF\n'"
-                ) % {"wls": _sh(req_weblogic_pwd)}
-                stdout, stderr, exit_code, _ = _run(cmd, timeout=50)
-                out = stdout + stderr
-                import subprocess as _sp
-                _running = _sp.run(["grep", "-qi", "is running"], input=out.encode(),
-                                   capture_output=True).returncode == 0
-                if exit_code == 124:
-                    _finding("oacore_servers", "OACore Check Timed Out", "warning",
-                             "admanagedsrvctl.sh status oacore timed out after 45s.", out)
-                elif _running:
-                    _ok("oacore_servers", "OACore Managed Servers",
-                        "OACore managed servers are running.", out)
-                else:
-                    _finding("oacore_servers", "OACore Server Not Running", "critical",
-                             "admanagedsrvctl.sh status oacore reports servers not running "
-                             "(exit code %d)." % exit_code, out)
+            import subprocess as _sp
 
-            # ── 5. Forms managed servers ──────────────────────────────────────
+            # ── 4. Managed servers (dynamic discovery from CONTEXT_FILE) ─────
             if not env_file:
-                _finding("forms_servers", "Forms Managed Servers", "warning", no_env_msg)
+                _finding("managed_servers", "Managed Servers", "warning", no_env_msg)
             elif not req_weblogic_pwd:
-                _ok("forms_servers", "Forms Managed Servers",
-                    "Set WebLogic password in Edit Connection to enable Forms status check.")
-            else:
-                cmd = _src_cmd(
-                    "timeout 45 bash -c 'admanagedsrvctl.sh status forms <<EOF\n"
-                    "%(wls)s\nEOF\n'"
-                ) % {"wls": _sh(req_weblogic_pwd)}
-                stdout, stderr, exit_code, _ = _run(cmd, timeout=50)
-                out = stdout + stderr
-                _running = _sp.run(["grep", "-qi", "is running"], input=out.encode(),
-                                   capture_output=True).returncode == 0
-                if exit_code == 124:
-                    _finding("forms_servers", "Forms Check Timed Out", "warning",
-                             "admanagedsrvctl.sh status forms timed out after 45s.", out)
-                elif _running:
-                    _ok("forms_servers", "Forms Managed Servers",
-                        "Forms managed servers are running.", out)
+                # No WebLogic password — list server names from CONTEXT_FILE as informational
+                _srv_out, _, _, _ = _run(_src_cmd(
+                    "grep 'oa_service_name' \"$CONTEXT_FILE\" 2>/dev/null "
+                    "| grep 'managed_server' "
+                    "| sed -n 's/.*>\\(.*\\)<.*/\\1/p' | sort -u"
+                ), timeout=10)
+                _srv_names = [s.strip() for s in _srv_out.splitlines() if s.strip()]
+                if _srv_names:
+                    _ok("managed_servers", "Managed Servers",
+                        "Set WebLogic password in Edit Connection for per-server status. "
+                        "Servers in CONTEXT_FILE: %s" % ", ".join(_srv_names))
                 else:
-                    _finding("forms_servers", "Forms Server Not Running", "critical",
-                             "admanagedsrvctl.sh status forms reports servers not running "
-                             "(exit code %d)." % exit_code, out)
-
-            # ── 5b. OAFM managed servers ──────────────────────────────────────
-            if not env_file:
-                _finding("oafm_servers", "OAFM Managed Servers", "warning", no_env_msg)
-            elif not req_weblogic_pwd:
-                _ok("oafm_servers", "OAFM Managed Servers",
-                    "Set WebLogic password in Edit Connection to enable OAFM status check.")
+                    _ok("managed_servers", "Managed Servers",
+                        "Set WebLogic password in Edit Connection to enable managed server status check.")
             else:
-                cmd = _src_cmd(
-                    "timeout 45 bash -c 'admanagedsrvctl.sh status oafm <<EOF\n"
-                    "%(wls)s\nEOF\n'"
-                ) % {"wls": _sh(req_weblogic_pwd)}
-                stdout, stderr, exit_code, _ = _run(cmd, timeout=50)
-                out = stdout + stderr
-                _running = _sp.run(["grep", "-qi", "is running"], input=out.encode(),
-                                   capture_output=True).returncode == 0
-                _not_deployed = (exit_code != 0 and not _running and
-                                 not any(kw in out.lower() for kw in ("stopped", "failed", "down")))
-                if exit_code == 124:
-                    _finding("oafm_servers", "OAFM Check Timed Out", "warning",
-                             "admanagedsrvctl.sh status oafm timed out after 45s.", out)
-                elif _not_deployed:
-                    _ok("oafm_servers", "OAFM Managed Servers",
-                        "OAFM component not deployed or no OAFM servers on this node.", out)
-                elif _running:
-                    _ok("oafm_servers", "OAFM Managed Servers",
-                        "OAFM managed servers are running.", out)
+                _srv_out, _, _, _ = _run(_src_cmd(
+                    "grep 'oa_service_name' \"$CONTEXT_FILE\" 2>/dev/null "
+                    "| grep 'managed_server' "
+                    "| sed -n 's/.*>\\(.*\\)<.*/\\1/p' | sort -u"
+                ), timeout=10)
+                _srv_names = [s.strip() for s in _srv_out.splitlines() if s.strip()]
+                if not _srv_names:
+                    _finding("managed_servers", "Managed Servers — No Servers Found", "warning",
+                             "No managed_server entries found in CONTEXT_FILE. "
+                             "Verify CONTEXT_FILE is set correctly via EBSapps.env.")
                 else:
-                    _finding("oafm_servers", "OAFM Server Not Running", "critical",
-                             "admanagedsrvctl.sh status oafm reports servers not running "
-                             "(exit code %d)." % exit_code, out)
+                    _srv_states = []
+                    _wls_esc = _sh(req_weblogic_pwd)
+                    for _s in _srv_names:
+                        _s_cmd = _src_cmd(
+                            "timeout 45s admanagedsrvctl.sh status %(sv)s <<EOF\n"
+                            "%(wls)s\nEOF\n"
+                        ) % {"sv": _sh(_s), "wls": _wls_esc}
+                        _s_out, _s_err, _s_exit, _ = _run(_s_cmd, timeout=50)
+                        _s_raw = _s_out + _s_err
+                        if _s_exit == 124:
+                            _srv_states.append((_s, "TIMEOUT", _s_raw))
+                        elif _sp.run(["grep", "-qi", "is running"],
+                                     input=_s_raw.encode(),
+                                     capture_output=True).returncode == 0:
+                            _srv_states.append((_s, "RUNNING", _s_raw))
+                        else:
+                            _srv_states.append((_s, "DOWN", _s_raw))
+                    _down = [n for n, st, _ in _srv_states if st in ("DOWN", "TIMEOUT")]
+                    _combined_raw = "\n".join(
+                        "=== %s ===\nStatus: %s\n%s" % (n, st, raw[:500])
+                        for n, st, raw in _srv_states
+                    )
+                    if _down:
+                        _finding("managed_servers", "Managed Servers Down", "critical",
+                                 "Servers not running: %s" % ", ".join(_down),
+                                 _combined_raw)
+                    else:
+                        _ok("managed_servers", "Managed Servers",
+                            "All %d managed server(s) running: %s" % (
+                                len(_srv_states),
+                                ", ".join(n for n, _, _ in _srv_states)),
+                            _combined_raw)
 
             # ── 5c. Node Manager ──────────────────────────────────────────────
             if not env_file:
@@ -5477,25 +5458,19 @@ class ProxyHandler(BaseHTTPRequestHandler):
             elif not req_apps_pwd:
                 _ok("cm_status", "Concurrent Manager Status",
                     "Set APPS password in Edit Connection to enable Concurrent Manager checks.")
-            elif not (_ebs_svc and _EBS_DB_HOST):
-                _ok("cm_status", "Concurrent Manager Status",
-                    "EBS_DB_HOST or service name not available — set in agent.env and reinstall.")
             else:
                 _pw = _sh(req_apps_pwd)
-                _sv = _sh(_ebs_svc)
-                _db = _sh(_EBS_DB_HOST)
                 _sql_cmd = _src_cmd(
-                    "sqlplus -s 'apps/%(pw)s@%(db)s:1521/%(sv)s' << CMSQLEND\n"
-                    "SET PAGESIZE 0 FEEDBACK OFF VERIFY OFF HEADING OFF ECHO OFF TRIMSPOOL ON\n"
-                    "WHENEVER SQLERROR EXIT 1\n"
+                    "sqlplus -s 'apps/%(pw)s' << CMSQLEND\n"
+                    "set pages 0 feedback off heading off echo off verify off\n"
                     "SELECT user_concurrent_queue_name||'|'||max_processes||'|'"
-                    "||running_processes||'|'||NVL(control_code,'A')\n"
+                    "||running_processes||'|'||nvl(control_code,'A')\n"
                     "FROM apps.fnd_concurrent_queues_vl\n"
                     "WHERE enabled_flag='Y'\n"
                     "ORDER BY user_concurrent_queue_name;\n"
-                    "EXIT;\n"
+                    "exit;\n"
                     "CMSQLEND\n"
-                ) % {"pw": _pw, "db": _db, "sv": _sv}
+                ) % {"pw": _pw}
                 _sq_out, _sq_err, _sq_exit, _ = _run(_sql_cmd, timeout=30)
                 _sq_full = _sq_out + _sq_err
                 print("[HC] CM sqlplus exit: %d" % _sq_exit)
@@ -5547,37 +5522,30 @@ class ProxyHandler(BaseHTTPRequestHandler):
             elif not req_apps_pwd:
                 _ok("wf_mailer", "Workflow Mailer",
                     "Set APPS password in Edit Connection to enable Workflow Mailer checks.")
-            elif not (_ebs_svc and _EBS_DB_HOST):
-                _ok("wf_mailer", "Workflow Mailer",
-                    "EBS_DB_HOST or service name not available for Workflow Mailer check.")
             else:
                 _pw = _sh(req_apps_pwd)
-                _sv = _sh(_ebs_svc)
-                _db = _sh(_EBS_DB_HOST)
                 # Query 1: service component states
                 _wf_cmd = _src_cmd(
-                    "sqlplus -s 'apps/%(pw)s@%(db)s:1521/%(sv)s' << WFSQLEND\n"
-                    "SET PAGESIZE 0 FEEDBACK OFF VERIFY OFF HEADING OFF ECHO OFF TRIMSPOOL ON\n"
-                    "WHENEVER SQLERROR EXIT 1\n"
-                    "SELECT component_name||'|'||component_status\n"
-                    "FROM apps.fnd_svc_components\n"
-                    "ORDER BY component_name;\n"
-                    "EXIT;\n"
+                    "sqlplus -s 'apps/%(pw)s' << WFSQLEND\n"
+                    "set pages 0 feedback off heading off echo off verify off\n"
+                    "select component_name||'|'||component_status\n"
+                    "from apps.fnd_svc_components\n"
+                    "order by component_name;\n"
+                    "exit;\n"
                     "WFSQLEND\n"
-                ) % {"pw": _pw, "db": _db, "sv": _sv}
+                ) % {"pw": _pw}
                 _wf_out, _wf_err, _wf_exit, _ = _run(_wf_cmd, timeout=25)
                 _wf_full = _wf_out + _wf_err
                 # Query 2: stuck outbound notifications (>2h)
                 _stuck_cmd = _src_cmd(
-                    "sqlplus -s 'apps/%(pw)s@%(db)s:1521/%(sv)s' << STUCKSQLEND\n"
-                    "SET PAGESIZE 0 FEEDBACK OFF VERIFY OFF HEADING OFF ECHO OFF TRIMSPOOL ON\n"
-                    "WHENEVER SQLERROR EXIT 1\n"
-                    "SELECT COUNT(*) FROM applsys.wf_notifications\n"
-                    "WHERE mail_status='MAIL' AND status='OPEN'\n"
-                    "AND begin_date < sysdate - 2/24;\n"
-                    "EXIT;\n"
+                    "sqlplus -s 'apps/%(pw)s' << STUCKSQLEND\n"
+                    "set pages 0 feedback off heading off echo off verify off\n"
+                    "select count(*) from applsys.wf_notifications\n"
+                    "where mail_status='MAIL' and status='OPEN'\n"
+                    "and begin_date < sysdate - 2/24;\n"
+                    "exit;\n"
                     "STUCKSQLEND\n"
-                ) % {"pw": _pw, "db": _db, "sv": _sv}
+                ) % {"pw": _pw}
                 _st_out, _st_err, _st_exit, _ = _run(_stuck_cmd, timeout=20)
                 _stuck_count = 0
                 try:
@@ -5656,21 +5624,18 @@ class ProxyHandler(BaseHTTPRequestHandler):
                              "adop -status -detail returned unexpected output "
                              "(exit %d). Review raw output." % _adop_exit, _adop_full)
 
-            # ── 9. Invalid objects (sqlplus via EBS DB) ───────────────────────
-            # Requires APPS password + EBS_DB_HOST in agent.env + service in CONTEXT_FILE.
-            if env_file and req_apps_pwd and _EBS_DB_HOST and _ebs_svc:
-                _pw  = req_apps_pwd.replace("'", "'\\''")
-                _sv  = _ebs_svc.replace("'", "'\\''")
-                _db  = _EBS_DB_HOST.replace("'", "'\\''")
+            # ── 9. Invalid objects (local sqlplus via EBSapps.env) ───────────
+            # TWO_TASK/ORACLE_SID set by EBSapps.env — no @host needed.
+            if env_file and req_apps_pwd:
+                _pw = _sh(req_apps_pwd)
                 _inv_cmd = _src_cmd(
-                    "sqlplus -S 'apps/%(pw)s@%(db)s:1521/%(sv)s' << INVSQLEND\n"
-                    "SET PAGESIZE 0 FEEDBACK OFF VERIFY OFF HEADING OFF ECHO OFF TRIMSPOOL ON\n"
-                    "WHENEVER SQLERROR EXIT 1\n"
+                    "sqlplus -S 'apps/%(pw)s' << INVSQLEND\n"
+                    "set pages 0 feedback off heading off echo off verify off\n"
                     "SELECT owner||'|'||COUNT(*) FROM dba_objects\n"
                     "WHERE status='INVALID' GROUP BY owner ORDER BY 2 DESC;\n"
-                    "EXIT;\n"
+                    "exit;\n"
                     "INVSQLEND\n"
-                ) % {"pw": _pw, "db": _db, "sv": _sv}
+                ) % {"pw": _pw}
                 _inv_out, _inv_err, _inv_exit, _ = _run(_inv_cmd, timeout=25)
                 _inv_full = _inv_out + _inv_err
                 _inv_rows = []
