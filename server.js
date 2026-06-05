@@ -6959,6 +6959,21 @@ app.post('/api/admin/send-reply', requireAdminMW, async (req, res) => {
   }
 });
 
+// Run blog seed on demand — idempotent upsert of all articles (admin-only)
+app.post('/api/admin/seed-blog', requireAdminMW, (req, res) => {
+  const { execFile } = require('child_process');
+  const path = require('path');
+  const script = path.join(__dirname, 'scripts', 'seed-blog.js');
+  execFile(process.execPath, [script], { env: process.env, timeout: 60000 }, (err, stdout, stderr) => {
+    if (err) {
+      console.error('[seed-blog] admin endpoint failed:', err.message, stderr);
+      return res.status(500).json({ ok: false, error: err.message, stderr });
+    }
+    console.log('[seed-blog] completed via admin endpoint');
+    res.json({ ok: true, output: stdout });
+  });
+});
+
 // List all users with health check stats (admin — auth required)
 app.get('/api/admin/users', requireAdminMW, async (req, res) => {
   try {
