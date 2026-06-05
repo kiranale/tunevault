@@ -86,14 +86,15 @@ async function getBatchRestartCounts(connIds) {
 // Uninstalled connections are returned separately in `removed` array (30-day window, then hidden).
 router.get('/connections', requireAuth, async (req, res) => {
   try {
-    const result = await pool.query(
+    const _connQuery = async (withNewCols) => pool.query(
       `SELECT oc.id, oc.name, oc.host, oc.port, oc.service_name, oc.username, oc.oracle_version,
               oc.last_tested_at, oc.last_test_success, oc.last_test_message, oc.created_at,
               oc.connection_type, oc.proxy_url, oc.proxy_version, oc.server_type,
               oc.is_ebs, oc.ebs_opt_in, oc.ebs_checks_enabled,
               oc.schedule_enabled, oc.schedule_cron, oc.last_scheduled_run_at, oc.next_scheduled_run_at,
               oc.gi_os_user, oc.gi_oracle_home, oc.asm_sid,
-              oc.ebs_login_url, oc.weblogic_console_url, oc.ebs_instance_name,
+              oc.ebs_login_url, oc.weblogic_console_url,
+              ${withNewCols ? 'oc.ebs_instance_name' : 'NULL::text AS ebs_instance_name'},
               oc.proxy_key_last_used_at, oc.proxy_key_created_at,
               oc.privilege_model,
               oc.installed_at, oc.last_upgrade_at,
@@ -119,14 +120,26 @@ router.get('/connections', requireAuth, async (req, res) => {
                 SELECT 1 FROM ssh_targets st
                 WHERE st.connection_id = oc.id
               ) AS has_ssh,
-              (oc.apps_pwd_enc IS NOT NULL)     AS has_apps_pwd,
-              (oc.weblogic_pwd_enc IS NOT NULL) AS has_weblogic_pwd
+              ${withNewCols
+                ? '(oc.apps_pwd_enc IS NOT NULL) AS has_apps_pwd, (oc.weblogic_pwd_enc IS NOT NULL) AS has_weblogic_pwd'
+                : 'false AS has_apps_pwd, false AS has_weblogic_pwd'}
        FROM oracle_connections oc
        LEFT JOIN agent_tunnels at ON at.connection_id = oc.id
        WHERE oc.user_id = $1 OR oc.user_id IS NULL
        ORDER BY oc.created_at DESC`,
       [req.user.id]
     );
+
+    let result;
+    try {
+      result = await _connQuery(true);
+    } catch (qErr) {
+      if (qErr.code === '42703' || /column/.test(qErr.message)) {
+        result = await _connQuery(false);
+      } else {
+        throw qErr;
+      }
+    }
 
     // Attach latest health run and latest diagnose run to each connection (single batch queries)
     const latestRunsMap = await healthDb.getLatestRunsForUser(req.user.id);

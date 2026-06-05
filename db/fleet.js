@@ -38,20 +38,43 @@ async function getFleetOverview(userId) {
     : '';
   if (userId !== null) connParams.push(userId);
 
-  const connResult = await pool.query(
-    `SELECT
-       oc.id                AS connection_id,
-       oc.name,
-       oc.oracle_version    AS db_version,
-       oc.is_ebs            AS ebs_detected,
-       oc.server_type,
-       oc.ebs_instance_name,
-       oc.user_id
-     FROM oracle_connections oc
-     ${connWhere}
-     ORDER BY oc.created_at DESC`,
-    connParams
-  );
+  let connResult;
+  try {
+    connResult = await pool.query(
+      `SELECT
+         oc.id                AS connection_id,
+         oc.name,
+         oc.oracle_version    AS db_version,
+         oc.is_ebs            AS ebs_detected,
+         oc.server_type,
+         oc.ebs_instance_name,
+         oc.user_id
+       FROM oracle_connections oc
+       ${connWhere}
+       ORDER BY oc.created_at DESC`,
+      connParams
+    );
+  } catch (err) {
+    if (err.code === '42703' || /column/.test(err.message)) {
+      // Newer columns (server_type, ebs_instance_name, is_ebs) not yet in DB — fall back
+      connResult = await pool.query(
+        `SELECT
+           oc.id                AS connection_id,
+           oc.name,
+           oc.oracle_version    AS db_version,
+           NULL::boolean        AS ebs_detected,
+           NULL::text           AS server_type,
+           NULL::text           AS ebs_instance_name,
+           oc.user_id
+         FROM oracle_connections oc
+         ${connWhere}
+         ORDER BY oc.created_at DESC`,
+        connParams
+      );
+    } else {
+      throw err;
+    }
+  }
 
   if (connResult.rows.length === 0) return [];
 

@@ -419,32 +419,52 @@
 
     // ── Load ──────────────────────────────────────────────────────────────────
 
+    async function safeJson(r) {
+      if (!r) return null;
+      try { return await r.json(); } catch (_) { return null; }
+    }
+
     async function loadDashboard() {
-      try {
-        const [fr, cr, hr] = await Promise.all([
-          authFetch('/api/fleet/overview'),
-          authFetch('/api/connections'),
-          authFetch('/api/health-checks'),
-        ]);
+      const settled = await Promise.allSettled([
+        authFetch('/api/fleet/overview'),
+        authFetch('/api/connections'),
+        authFetch('/api/health-checks'),
+      ]);
+      const labels = ['fleet', 'conns', 'hcs'];
 
-        const [fj, cj, hj] = await Promise.all([fr.json(), cr.json(), hr.json()]);
+      const jsons = await Promise.all(settled.map(async function (s, i) {
+        if (s.status === 'rejected') {
+          console.error('Dashboard API error [' + labels[i] + '] fetch failed:', s.reason);
+          return null;
+        }
+        const j = await safeJson(s.value);
+        if (j === null) {
+          console.error('Dashboard API error [' + labels[i] + ']: non-JSON response (status ' + s.value.status + ')');
+        } else if (j && j.error) {
+          console.error('Dashboard API error [' + labels[i] + ']:', j.error);
+        }
+        return j;
+      }));
 
-        _fleet = (fj && fj.connections) ? fj.connections.filter(function (c) { return !c.is_demo; }) : [];
-        _conns = Array.isArray(cj) ? cj.filter(function (c) { return !c.removed_connection; }) : [];
-        _hcs   = Array.isArray(hj) ? hj : [];
+      const fj = jsons[0], cj = jsons[1], hj = jsons[2];
 
-        render();
-
-        var total = _conns.length;
-        document.getElementById('topbar-sub').textContent =
-          total + ' server' + (total !== 1 ? 's' : '') +
-          ' · Refreshed ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-      } catch (err) {
-        console.error('Dashboard load error:', err);
+      if (fj === null && cj === null && hj === null) {
+        console.error('Dashboard load error — all three APIs failed: fleet=', settled[0].reason || 'non-JSON', 'conns=', settled[1].reason || 'non-JSON', 'hcs=', settled[2].reason || 'non-JSON');
         document.getElementById('topbar-sub').textContent = 'Failed to load — retrying in 30s…';
         setTimeout(loadDashboard, 30000);
+        return;
       }
+
+      _fleet = (fj && fj.connections) ? fj.connections.filter(function (c) { return !c.is_demo; }) : [];
+      _conns = Array.isArray(cj) ? cj.filter(function (c) { return !c.removed_connection; }) : [];
+      _hcs   = Array.isArray(hj) ? hj : [];
+
+      render();
+
+      var total = _conns.length;
+      document.getElementById('topbar-sub').textContent =
+        total + ' server' + (total !== 1 ? 's' : '') +
+        ' · Refreshed ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
     // ── Render all ────────────────────────────────────────────────────────────
@@ -582,7 +602,7 @@
         var reportId = latestHcById[f.connection_id];
         if (reportId) {
           nameHtml = '<a href="/report/' + esc(reportId) + '">' + nameHtml + '</a>';
-        } else if (isApp) {
+        } else {
           nameHtml = '<a href="/connections">' + nameHtml + '</a>';
         }
 
