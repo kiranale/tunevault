@@ -133,7 +133,6 @@ All Add Connection links in the app MUST point to `/connections/new` — the sin
 
 🔴 Critical:
 - Blog /blog page loads but shows "Loading articles…" — blog_posts.coming_soon column missing in Neon DB. Fix: run `npm run seed-blog` in Render shell.
-- Dashboard shows "Failed to load — retrying in 30s" — root cause not identified; likely /api/health-checks 500ing or authFetch failure. Needs browser console error investigation.
 
 🟡 High:
 - ebs12212-app-dev (conn 128): APPS password and WebLogic password not set — CM/WF Mailer/admin script checks will skip. Fix: open Edit Connection in UI and set both passwords.

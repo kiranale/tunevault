@@ -487,8 +487,15 @@
         }
       });
 
-      // Latest completed HC id per connection (used by fleet table + alert links)
+      // Latest completed HC id per connection (used by fleet table + alert links).
+      // Primary source: fleet data (no pagination limit, covers stale servers with old HCs).
+      // Fallback: /api/health-checks history fills any gaps.
       var latestHcById = {};
+      fleet.forEach(function (f) {
+        if (f.connection_id && f.latest_hc_id) {
+          latestHcById[f.connection_id] = f.latest_hc_id;
+        }
+      });
       hcs.forEach(function (hc) {
         if (hc.connection_id && hc.status === 'completed' && !hc.is_demo &&
             !latestHcById[hc.connection_id]) {
@@ -546,7 +553,7 @@
       serverEl.className = 'metric-value';
       var sub = '';
       if (appCount > 0) {
-        sub = dbCount + ' DB · ' + appCount + ' App';
+        sub = 'Oracle DB + EBS App connections';
       } else if (ebsCount > 0) {
         sub = ebsCount + ' with EBS detected';
       } else {

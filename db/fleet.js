@@ -84,6 +84,7 @@ async function getFleetOverview(userId) {
   const latestChecks = await pool.query(
     `SELECT DISTINCT ON (connection_id)
        connection_id,
+       id   AS hc_id,
        id   AS run_id,
        overall_score,
        completed_at AS last_check_at
@@ -250,6 +251,7 @@ async function getFleetOverview(userId) {
       ebs_instance_name:   conn.ebs_instance_name || null,
       last_check_at:       latest ? latest.last_check_at : null,
       overall_score:       latest ? (latest.overall_score || 0) : null,
+      latest_hc_id:        latest ? (latest.hc_id || null) : null,
       status,
       red_count:           sev ? sev.red_count   : 0,
       amber_count:         sev ? sev.amber_count : 0,
