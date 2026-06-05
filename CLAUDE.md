@@ -136,12 +136,12 @@ All Add Connection links in the app MUST point to `/connections/new` — the sin
 - Blog articles still need seeding — run `npm run seed-blog` in Render shell, or POST /api/admin/seed-blog (admin-only, idempotent).
 
 🟡 High:
-- ebs12212-app-dev (conn 128): APPS password and WebLogic password not set — CM/WF Mailer/admin script checks will skip. Fix: open Edit Connection in UI and set both passwords.
+- ebs12212-app-dev (latest conn after reinstall): server_type likely NULL or 'unknown' in DB → shows NODE badge + no APPS/WebLogic fields in Edit panel. Root causes fixed (badge now uses server_type; confirm handler rejects 'unknown'). Immediate fix: re-run install.sh with TUNEVAULT_SERVER_TYPE=apps, or set server_type='apps' directly in Neon for this conn.
+- ebs12212-app-dev: APPS password and WebLogic password not set — CM/WF Mailer/admin script checks will skip. Fix: open Edit Connection (APPS/WebLogic fields show once server_type='apps') and set both passwords.
 - ebs_instance_name not set on any connection — Fleet shows flat list, EBS Instances = 0. Fix: set ebs_instance_name = EBS12212 on ebs12212-db-dev and ebs12212-app-dev via Edit Connection.
 - oracle-proxy.py 3.20.1 not tested yet on live HC — needs HC run on ebs12212-app-dev with passwords set to verify OACore/Forms/OAFM show real status.
 - apex-lab (192.168.56.101, OEL 8.10, Oracle 23ai) — agent never installed.
 - Export PDF button broken — not fixed in any session.
-- is_ebs flag not being set reliably — backfill migration may not have run on Neon.
 
 🟢 Low:
 - ~20 debug/fix/verify scripts in repo root (fix-all.js, check-emdash.js, debug-nav.js etc.) — move to scripts/debug/ or delete.
@@ -152,6 +152,7 @@ All Add Connection links in the app MUST point to `/connections/new` — the sin
 
 ## Recent changes
 
+- 2026-06-05: FIX — server_type not saved correctly on new connections: (1) confirm handler now rejects 'unknown' (sudo env-drop fallback) — only stores 'db'/'apps'/'both'; (2) ensureColumns() startup backfill: ebs_instance_name set + host NULL + server_type NULL → 'apps'; (3) connections.html badge uses server_type instead of is_apps_tier/is_db_tier (never in API response) — DB servers now show DB, app servers show APP, EBS-without-type shows EBS.
 - 2026-06-05: FEAT — oracle-proxy.py 3.20.1: heredoc stdin for all EBS admin scripts; permissive _ebs_svc grep; [HC] debug logs. LATEST_PROXY_VERSION → 3.20.1.
 - 2026-06-05: FEAT — oracle-proxy.py 3.20.0: WLST removed; admanagedsrvctl.sh/adadminsrvctl.sh with heredoc passwords for OACore/Forms/OAFM/AdminServer; CM via FND_CONCURRENT_QUEUES_VL sqlplus; WF Mailer via FND_SVC_COMPONENTS + stuck notifications; ADOP status check; invalid objects via DBA_OBJECTS. LATEST_PROXY_VERSION → 3.20.0.
 - 2026-06-05: FEAT — oracle-proxy.py 3.19.1: WLST multi-path wlst.sh discovery + debug logging. LATEST_PROXY_VERSION → 3.19.1.

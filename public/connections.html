@@ -534,13 +534,13 @@ function renderCard(c, isRemoved) {
                     : 'Offline';
   const statusCls = status;
 
-  // Node type badge (auto-detected)
-  const typeLabel = c.is_ebs ? 'Apps'
-                  : c.is_apps_tier ? 'Apps'
-                  : c.is_db_tier ? 'DB'
+  // Node type badge — use server_type from API (is_apps_tier/is_db_tier never returned)
+  const typeLabel = (c.server_type === 'apps' || c.server_type === 'both') ? 'APP'
+                  : c.server_type === 'db' ? 'DB'
+                  : c.is_ebs ? 'EBS'
                   : 'Node';
-  const typeCls = c.is_ebs || c.is_apps_tier ? 'apps'
-                : c.is_db_tier ? 'db' : '';
+  const typeCls = (c.server_type === 'apps' || c.server_type === 'both') ? 'apps'
+                : (c.server_type === 'db' || c.is_ebs) ? 'db' : '';
 
   // Last seen
   let lastSeen = '';

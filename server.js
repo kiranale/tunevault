@@ -7628,6 +7628,17 @@ async function ensureColumns() {
        AND (server_type IN ('apps','both') OR ebs_instance_name IS NOT NULL)
   `);
 
+  // Infer server_type='apps' for connections that have ebs_instance_name set but no server_type.
+  // Guard: host IS NULL — app-tier wizard connections have no Oracle DB host, DB-tier connections do.
+  await pool.query(`
+    UPDATE oracle_connections
+       SET server_type = 'apps',
+           is_ebs      = TRUE
+     WHERE server_type IS NULL
+       AND ebs_instance_name IS NOT NULL
+       AND (host IS NULL OR host = '')
+  `);
+
   // Reset auto-upgrade suppression for connections that have ≥2 failures in the
   // last 24h despite being valid working connections (97, 114, 123).
   // Back-dates their triggered_at outside the 24h window so the next heartbeat

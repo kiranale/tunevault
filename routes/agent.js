@@ -346,9 +346,14 @@ router.post('/confirm', async (req, res) => {
       const stripped = raw.replace(/-(db|app|apps|both)([-_].*)?$/, '');
       if (stripped && stripped !== raw) resolvedInstanceName = stripped.toUpperCase();
     }
-    if (server_type || ebs_service || resolvedInstanceName) {
+    // Only store recognised server_type values; install.sh falls back to 'unknown'
+    // when TUNEVAULT_SERVER_TYPE env var is dropped by sudo — storing 'unknown' would
+    // break badge rendering and hide APPS/WebLogic password fields in the UI.
+    const VALID_SERVER_TYPES = new Set(['db', 'apps', 'both']);
+    const cleanServerType = VALID_SERVER_TYPES.has(server_type) ? server_type : null;
+    if (cleanServerType || ebs_service || resolvedInstanceName) {
       await agentDb.updateConnectionInstallerInfo(parsedConnId, {
-        serverType:       server_type       || null,
+        serverType:       cleanServerType,
         ebsService:       ebs_service       || null,
         ebsInstanceName:  resolvedInstanceName,
       });
