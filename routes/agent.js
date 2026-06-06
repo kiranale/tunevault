@@ -474,6 +474,16 @@ async function evaluateAutoUpgrade(connectionId, agentVersion, inActiveRunbook) 
 
   const connId = parseInt(connectionId, 10);
 
+  // Path gate: the install.sh agent (v6/v7) reports versions in the 6.x/7.x range.
+  // oracle-proxy.py reports its own VERSION (currently 3.x). Agent-style upgrades
+  // (/api/self-upgrade work items, install.sh) don't apply to oracle-proxy.py
+  // connections — they self-update independently via auto_update_loop. Skip entirely
+  // when the reported version is not a v6+ agent. This covers both app servers
+  // (server_type='apps') AND DB-tier connections still running oracle-proxy.py
+  // (where server_type may be null but agent_version is '3.x').
+  const agentMajor = parseInt((agentVersion || '0').split('.')[0], 10);
+  if (agentMajor < 6) return;
+
   // Close out any in-flight upgrades for this connection if version now matches target
   if (!versionLessThan(agentVersion, AUTO_UPGRADE_TARGET)) {
     await upgradeAuditDb.completeUpgradeOnHeartbeat(connId, AUTO_UPGRADE_TARGET);
@@ -485,9 +495,7 @@ async function evaluateAutoUpgrade(connectionId, agentVersion, inActiveRunbook) 
   if (!policy) return;
   if (!policy.auto_upgrade_enabled) return; // Operator opted out for this connection
 
-  // App servers run oracle-proxy.py (VERSION ~3.x) which self-updates via its own
-  // auto_update_loop thread — they don't run the install.sh agent and cannot respond
-  // to /api/self-upgrade work items. Skip the install-agent upgrade path entirely.
+  // Additional guard: skip for app/both server types even if they somehow report a v6+ version.
   if (policy.server_type === 'apps' || policy.server_type === 'both') return;
 
   // Safety rail: skip if a runbook is actively running (don't yank the rug)

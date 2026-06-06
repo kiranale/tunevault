@@ -623,6 +623,9 @@ async function expirePendingDrafts() {
     `DELETE FROM oracle_connections
      WHERE status = 'pending_registration'
        AND created_at < NOW() - INTERVAL '24 hours'
+       AND NOT EXISTS (
+         SELECT 1 FROM health_checks WHERE connection_id = oracle_connections.id
+       )
      RETURNING id`
   );
   return result.rows.map(r => r.id);
