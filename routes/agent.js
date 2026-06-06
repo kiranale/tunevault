@@ -745,6 +745,8 @@ router.post('/poll', async (req, res) => {
     agent_status, last_oracle_error, oracle_retry_count, uptime_seconds,
     // thick-mode fallback fields (v6.2+, Task #1728054)
     oracle_mode, instant_client_path, verifier_workaround_active,
+    // EBS fleet grouping — sent when INSTANCE_NAME is set in agent.env
+    ebs_instance_name,
   } = req.body;
   if (!connection_id) return res.status(400).json({ error: 'connection_id required' });
   const parsedConnectionId = parseInt(connection_id, 10);
@@ -776,6 +778,13 @@ router.post('/poll', async (req, res) => {
 
     // Evaluate auto-upgrade policy on every poll (fire-and-forget)
     setImmediate(() => evaluateAutoUpgrade(parsedConnectionId, agent_version, false).catch(() => {}));
+
+    // Sync ebs_instance_name from agent.env → DB when agent sends it (fire-and-forget)
+    if (ebs_instance_name) {
+      setImmediate(() => agentDb.updateConnectionInstallerInfo(parsedConnectionId, {
+        serverType: null, ebsService: null, ebsInstanceName: ebs_instance_name,
+      }).catch(() => {}));
+    }
 
     // Wait for work (holds connection up to 25s)
     const work = await channel.waitForWork(parsedConnectionId, 25);

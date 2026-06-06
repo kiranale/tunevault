@@ -241,6 +241,21 @@ for _p in ("/etc/tunevault/agent.env", "/etc/tunevault/proxy.env"):
     except Exception:
         pass
 
+# Read INSTANCE_NAME from agent.env — EBS instance name (e.g. EBS12212) for fleet grouping.
+# Sent in every poll so the cloud DB stays in sync even after manual agent.env edits.
+_INSTANCE_NAME = ""
+for _p in ("/etc/tunevault/agent.env", "/etc/tunevault/proxy.env"):
+    try:
+        with open(_p) as _f:
+            for _line in _f:
+                if _line.strip().startswith("INSTANCE_NAME="):
+                    _INSTANCE_NAME = _line.strip().split("=", 1)[1].strip()
+                    break
+        if _INSTANCE_NAME:
+            break
+    except Exception:
+        pass
+
 
 def _resolve_db_host(params):
     """Return the Oracle DB host for a request.
@@ -6394,6 +6409,8 @@ def _cloud_poll_loop():
                 poll_payload["installed_at"] = _INSTALLED_AT
             if _LAST_UPGRADE_AT:
                 poll_payload["last_upgrade_at"] = _LAST_UPGRADE_AT
+            if _INSTANCE_NAME:
+                poll_payload["ebs_instance_name"] = _INSTANCE_NAME
             poll_body = json.dumps(poll_payload).encode("utf-8")
             poll_req = Request(
                 "%s/api/agent/poll" % api_url,

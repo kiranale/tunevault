@@ -1256,6 +1256,11 @@ app.get('/api-docs', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'api-docs.html'));
 });
 
+// Convenience URL for manual agent upgrades: curl -fsSL .../oracle-proxy.py -o /opt/tunevault/oracle-proxy.py
+app.get('/oracle-proxy.py', (req, res) => {
+  res.sendFile(path.join(__dirname, 'oracle-proxy.py'));
+});
+
 // Proxy downloads — serve proxy scripts for installation
 app.get('/downloads/oracle-proxy.py', (req, res) => {
   const filePath = path.join(__dirname, 'oracle-proxy.py');
