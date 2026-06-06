@@ -309,7 +309,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.4"  # Suppress EBSapps.env source output from check raw; local-source _src_cmd
+VERSION = "3.20.5"  # NOT_DEPLOYED state for invalid managed servers; stderr suppression for admin scripts
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5368,19 +5368,23 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     _wls_esc = _sh(req_weblogic_pwd)
                     for _s in _srv_names:
                         _s_cmd = _src_cmd(
-                            "timeout 45s admanagedsrvctl.sh status %(sv)s <<EOF\n"
+                            "timeout 45s admanagedsrvctl.sh status %(sv)s <<EOF 2>/dev/null\n"
                             "%(wls)s\nEOF\n"
                         ) % {"sv": _sh(_s), "wls": _wls_esc}
                         _s_out, _s_err, _s_exit, _ = _run(_s_cmd, timeout=50)
                         _s_raw = _s_out + _s_err
                         if _s_exit == 124:
                             _srv_states.append((_s, "TIMEOUT", _s_raw))
+                        elif "invalid server name" in _s_raw.lower() or "invalid managed server" in _s_raw.lower():
+                            _srv_states.append((_s, "NOT_DEPLOYED", _s_raw))
                         elif _sp.run(["grep", "-qi", "is running"],
                                      input=_s_raw.encode(),
                                      capture_output=True).returncode == 0:
                             _srv_states.append((_s, "RUNNING", _s_raw))
-                        else:
+                        elif any(kw in _s_raw.lower() for kw in ("is shutdown", "is not running", "not running")):
                             _srv_states.append((_s, "DOWN", _s_raw))
+                        else:
+                            _srv_states.append((_s, "UNKNOWN", _s_raw))
                     _down = [n for n, st, _ in _srv_states if st in ("DOWN", "TIMEOUT")]
                     _combined_raw = "\n".join(
                         "=== %s ===\nStatus: %s\n%s" % (n, st, raw[:500])
@@ -5391,17 +5395,22 @@ class ProxyHandler(BaseHTTPRequestHandler):
                                  "Servers not running: %s" % ", ".join(_down),
                                  _combined_raw)
                     else:
+                        _running_count = sum(1 for _, st, _ in _srv_states if st == "RUNNING")
+                        _nd_count = sum(1 for _, st, _ in _srv_states if st == "NOT_DEPLOYED")
+                        _unk_count = sum(1 for _, st, _ in _srv_states if st == "UNKNOWN")
+                        _parts = []
+                        if _running_count: _parts.append("%d running" % _running_count)
+                        if _nd_count: _parts.append("%d not deployed on this node" % _nd_count)
+                        if _unk_count: _parts.append("%d unknown" % _unk_count)
                         _ok("managed_servers", "Managed Servers",
-                            "All %d managed server(s) running: %s" % (
-                                len(_srv_states),
-                                ", ".join(n for n, _, _ in _srv_states)),
+                            "Managed servers: %s" % ", ".join(_parts),
                             _combined_raw)
 
             # ── 5c. Node Manager ──────────────────────────────────────────────
             if not env_file:
                 _finding("node_manager", "Node Manager", "warning", no_env_msg)
             else:
-                cmd = _src_cmd("$ADMIN_SCRIPTS_HOME/adnodemgrctl.sh status")
+                cmd = _src_cmd("$ADMIN_SCRIPTS_HOME/adnodemgrctl.sh status 2>/dev/null")
                 stdout, stderr, exit_code, _ = _run(cmd)
                 out = stdout + stderr
                 if exit_code != 0 or any(kw in out.lower() for kw in ("not running", "stopped", "failed", "dead")):
@@ -5433,7 +5442,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         "Admin Server runs on host '%s' — skipped on this managed-server node." % _adm_host)
                 else:
                     cmd = _src_cmd(
-                        "timeout 60 bash -c 'adadminsrvctl.sh status <<EOF\n"
+                        "timeout 60 bash -c 'adadminsrvctl.sh status <<EOF 2>/dev/null\n"
                         "%(wls)s\n%(apps)s\nEOF\n'"
                     ) % {"wls": _sh(req_weblogic_pwd), "apps": _sh(req_apps_pwd)}
                     stdout, stderr, exit_code, _ = _run(cmd, timeout=65)
