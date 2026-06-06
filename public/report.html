@@ -274,6 +274,10 @@
         .data-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); }
         .data-table tr:last-child td { border-bottom: none; }
         .data-table .mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+        .raw-table { width: 100%; border-collapse: collapse; font-size: 11px; font-family: 'JetBrains Mono', monospace; margin-top: 4px; }
+        .raw-table th { text-align: left; padding: 5px 10px; color: var(--text-dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid var(--border); font-size: 10px; }
+        .raw-table td { padding: 5px 10px; border-bottom: 1px solid rgba(42,42,48,0.5); color: var(--text-dim); }
+        .raw-table tr:last-child td { border-bottom: none; }
 
         .bar-cell { min-width: 100px; }
         .bar-track { width: 100%; height: 5px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
@@ -1930,6 +1934,8 @@
         const EBSDB_ORDER  = ['invalid_objects'];
         // Checks whose raw output contains === server_name === blocks
         const MULTI_SERVER = new Set(['managed_servers']);
+        // Checks whose raw output is pipe-delimited table (rendered as <table> instead of <pre>)
+        const TABLE_CHECKS = new Set(['cm_status', 'wf_mailer', 'invalid_objects']);
 
         // Build unified map: check_id → {isOk, title, details, severity?, raw_output?}
         const checkMap = {};
@@ -1991,11 +1997,29 @@
                 `</details>`;
         }
 
+        function renderRawAsTable(raw) {
+            if (!raw || !raw.trim()) return '';
+            const lines = raw.trim().split('\n').filter(l => l.includes('|'));
+            if (lines.length < 2) return renderRaw(raw);
+            const [header, ...rows] = lines;
+            const cols = header.split('|').map(c => c.trim());
+            const tableHtml = '<table class="raw-table"><thead><tr>' +
+                cols.map(c => '<th>' + esc(c) + '</th>').join('') +
+                '</tr></thead><tbody>' +
+                rows.map(r => '<tr>' + r.split('|').map(c => '<td>' + esc(c.trim()) + '</td>').join('') + '</tr>').join('') +
+                '</tbody></table>';
+            return `<details style="margin-top:8px">` +
+                `<summary style="font-size:11px;color:var(--text-dim);cursor:pointer;user-select:none;list-style:none">` +
+                `<span style="text-decoration:underline;text-underline-offset:2px">View table</span></summary>` +
+                `<div style="margin-top:6px;overflow-x:auto">${tableHtml}</div>` +
+                `</details>`;
+        }
+
         function renderRow(ch) {
             if (!ch) return '';
             const raw     = ch.raw_output || '';
             const subRows = MULTI_SERVER.has(ch.check_id) ? renderServerSubRows(raw) : '';
-            const rawHtml = renderRaw(raw);
+            const rawHtml = TABLE_CHECKS.has(ch.check_id) ? renderRawAsTable(raw) : renderRaw(raw);
 
             if (ch.isOk) {
                 return `<div style="display:flex;align-items:flex-start;gap:14px;padding:13px 18px;` +

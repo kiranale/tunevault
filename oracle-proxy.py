@@ -309,7 +309,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.2"  # Dynamic managed-server discovery; local sqlplus (no @host) for CM/WF/invalid-objects
+VERSION = "3.20.3"  # Strict managed-server grep; ORA-01785 fix; pipe-table raw output for CM/WF/invalid-objects
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5338,7 +5338,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 _srv_out, _, _, _ = _run(_src_cmd(
                     "grep 'oa_service_name' \"$CONTEXT_FILE\" 2>/dev/null "
                     "| grep 'managed_server' "
-                    "| sed -n 's/.*>\\(.*\\)<.*/\\1/p' | sort -u"
+                    "| sed -n 's/.*>\\([a-zA-Z0-9_-]*\\)<.*/\\1/p' "
+                    "| grep -v '^$' | sort -u"
                 ), timeout=10)
                 _srv_names = [s.strip() for s in _srv_out.splitlines() if s.strip()]
                 if _srv_names:
@@ -5352,7 +5353,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 _srv_out, _, _, _ = _run(_src_cmd(
                     "grep 'oa_service_name' \"$CONTEXT_FILE\" 2>/dev/null "
                     "| grep 'managed_server' "
-                    "| sed -n 's/.*>\\(.*\\)<.*/\\1/p' | sort -u"
+                    "| sed -n 's/.*>\\([a-zA-Z0-9_-]*\\)<.*/\\1/p' "
+                    "| grep -v '^$' | sort -u"
                 ), timeout=10)
                 _srv_names = [s.strip() for s in _srv_out.splitlines() if s.strip()]
                 if not _srv_names:
@@ -5510,8 +5512,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 elif _mgrs:
                     _ok("cm_status", "Concurrent Manager Status",
                         "All %d active managers running at target." % len(_mgrs),
-                        "Name | Target | Running\n" +
-                        "\n".join("%s | %d | %d" % (n, t, r) for n, t, r in _mgrs))
+                        "Manager Name|Target|Running\n" +
+                        "\n".join("%s|%d|%d" % (n, t, r) for n, t, r in _mgrs))
                 else:
                     _ok("cm_status", "Concurrent Manager Status",
                         "No active managers found (all deactivated or max_processes=0).", _sq_full)
@@ -5561,7 +5563,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         _comps.append((_pts[0], _pts[1]))
                         if "workflow notification mailer" in _pts[0].lower():
                             _mailer_row = (_pts[0], _pts[1])
-                _comp_table = "Component | Status\n" + "\n".join("%s | %s" % c for c in _comps[:20])
+                _comp_table = "Component|Status\n" + "\n".join("%s|%s" % c for c in _comps[:20])
                 if not _comps and _wf_exit != 0:
                     _finding("wf_mailer", "WF Mailer Query Failed", "warning",
                              "No service component data returned — check APPS credentials "
@@ -5632,7 +5634,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     "sqlplus -S 'apps/%(pw)s' << INVSQLEND\n"
                     "set pages 0 feedback off heading off echo off verify off\n"
                     "SELECT owner||'|'||COUNT(*) FROM dba_objects\n"
-                    "WHERE status='INVALID' GROUP BY owner ORDER BY 2 DESC;\n"
+                    "WHERE status='INVALID' GROUP BY owner ORDER BY COUNT(*) DESC;\n"
                     "exit;\n"
                     "INVSQLEND\n"
                 ) % {"pw": _pw}
@@ -5649,6 +5651,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
                                 _inv_rows.append((_owner, _cnt))
                         except ValueError:
                             pass
+                _inv_table = ("Owner|Invalid Objects\n" +
+                             "\n".join("%s|%d" % (o, c) for o, c in _inv_rows)) if _inv_rows else ""
                 if _inv_exit != 0 and not _inv_rows:
                     _finding("invalid_objects", "Invalid Objects Check Failed", "warning",
                              "sqlplus query for invalid objects failed (exit %d). "
@@ -5661,17 +5665,17 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         _finding("invalid_objects", "APPS Schema Has Invalid Objects", "critical",
                                  "APPS schema has %d invalid object(s). "
                                  "Run utlrp.sql or adrelink to resolve. Top owners: %s"
-                                 % (_apps_inv, _top5), _inv_full)
+                                 % (_apps_inv, _top5), _inv_table)
                     elif _other_crit:
                         _finding("invalid_objects", "Invalid Objects Detected", "warning",
                                  "%d schema(s) have >10 invalid objects. Top owners: %s"
-                                 % (len(_other_crit), _top5), _inv_full)
+                                 % (len(_other_crit), _top5), _inv_table)
                     else:
                         _ok("invalid_objects", "Invalid Objects",
-                            "No critical invalid objects. Minor counts: %s" % _top5, _inv_full)
+                            "No critical invalid objects. Minor counts: %s" % _top5, _inv_table)
                 else:
                     _ok("invalid_objects", "Invalid Objects",
-                        "No invalid objects found in the database.", _inv_full)
+                        "No invalid objects found in the database.", "")
 
             # ── 8. Disk usage ──────────────────────────────────────────────────
             stdout, stderr, exit_code, _ = run_os_command(["df", "-h"], timeout=10)
