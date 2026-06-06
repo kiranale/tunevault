@@ -592,6 +592,28 @@ app.use('/admin', require('./routes/agent-upgrades'));
 app.use('/api/admin', require('./routes/agent-upgrades'));
 app.use('/api/connections', require('./routes/agent-upgrades'));
 
+// POST /api/admin/reset-upgrade/:id — back-date failed upgrade audit rows so the next
+// heartbeat can re-attempt. Alias for routes/agent-upgrades POST /:id/reset-failures.
+app.post('/api/admin/reset-upgrade/:id', requireAdminMW, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: 'Invalid connection id' });
+  try {
+    const result = await pool.query(
+      `UPDATE agent_upgrade_audit
+         SET triggered_at = NOW() - INTERVAL '25 hours'
+       WHERE connection_id = $1
+         AND status = 'failed'
+         AND triggered_at > NOW() - INTERVAL '24 hours'
+       RETURNING id`,
+      [id]
+    );
+    res.json({ ok: true, connection_id: id, rows_reset: result.rows.length });
+  } catch (err) {
+    console.error('[reset-upgrade] error:', err.message);
+    res.status(500).json({ error: 'Failed to reset upgrade suppression' });
+  }
+});
+
 // Agent install failures — real-time view of failed install.sh runs.
 // GET /admin/agent-installs     — HTML table (admin-only, legacy)
 // GET /api/admin/agent-installs — JSON list (admin-only, legacy)

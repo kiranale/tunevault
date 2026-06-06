@@ -55,6 +55,9 @@ const router = express.Router();
 // Agents below this version are automatically upgraded when auto_upgrade_enabled=true.
 // Keep in sync with LATEST_AGENT_VERSION below and the version string in install.sh.
 const AUTO_UPGRADE_TARGET = '7.5.0';
+// Current canonical oracle-proxy.py version — used to signal proxy_upgrade_available in poll response.
+// Keep in sync with server.js LATEST_PROXY_VERSION and routes/connections-list.js.
+const LATEST_PROXY_VERSION = '3.20.5';
 // Number of recent failures (24h) that suppress further auto-upgrade attempts.
 const AUTO_UPGRADE_MAX_FAILURES = 2;
 
@@ -482,6 +485,11 @@ async function evaluateAutoUpgrade(connectionId, agentVersion, inActiveRunbook) 
   if (!policy) return;
   if (!policy.auto_upgrade_enabled) return; // Operator opted out for this connection
 
+  // App servers run oracle-proxy.py (VERSION ~3.x) which self-updates via its own
+  // auto_update_loop thread — they don't run the install.sh agent and cannot respond
+  // to /api/self-upgrade work items. Skip the install-agent upgrade path entirely.
+  if (policy.server_type === 'apps' || policy.server_type === 'both') return;
+
   // Safety rail: skip if a runbook is actively running (don't yank the rug)
   if (inActiveRunbook) {
     console.log(`[auto-upgrade] conn ${connId}: skipped — in_active_runbook=true`);
@@ -789,11 +797,18 @@ router.post('/poll', async (req, res) => {
     // Wait for work (holds connection up to 25s)
     const work = await channel.waitForWork(parsedConnectionId, 25);
 
-    if (work) {
-      res.json({ work });
-    } else {
-      res.json({ work: null });
+    // Tell the proxy when a newer oracle-proxy.py is available so it can update
+    // immediately instead of waiting for its 6h auto_update_loop interval.
+    const proxyUpgradeAvailable = proxy_version
+      ? versionLessThan(proxy_version, LATEST_PROXY_VERSION)
+      : false;
+
+    const pollResp = { work: work || null };
+    if (proxyUpgradeAvailable) {
+      pollResp.proxy_upgrade_available = true;
+      pollResp.latest_proxy_version = LATEST_PROXY_VERSION;
     }
+    res.json(pollResp);
   } catch (err) {
     console.error('[agent] poll error:', err.message);
     res.status(500).json({ error: 'Poll failed' });

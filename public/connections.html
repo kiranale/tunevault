@@ -232,6 +232,13 @@
     .agent-version-row .version { font-family: 'JetBrains Mono', monospace; color: var(--text); }
     .agent-version-row .latest { color: var(--green); font-size: 12px; }
     .agent-version-row .stale  { color: var(--yellow); font-size: 12px; }
+    .btn-reset-upgrade {
+      background: none; border: 1px solid rgba(240,168,48,.4); color: var(--yellow);
+      border-radius: 5px; padding: 2px 8px; font-size: 11px; cursor: pointer;
+      font-family: inherit; transition: background .15s;
+    }
+    .btn-reset-upgrade:hover { background: rgba(240,168,48,.1); }
+    .btn-reset-upgrade:disabled { opacity: .5; cursor: default; }
 
     /* Quick actions in slideout */
     .so-actions { display: flex; flex-direction: column; gap: 8px; }
@@ -436,6 +443,7 @@ let allConnections = [];
 let pendingConnId = null;
 let _slideoutConn = null;
 let _deleteTarget = null;
+let currentUserIsAdmin = false;
 
 // ── Auth fetch ──────────────────────────────────────────────────────────────
 async function api(url, opts = {}) {
@@ -456,6 +464,7 @@ async function refreshNavUser() {
     if (res && res.ok) {
       const d = await res.json();
       document.getElementById('nav-user').textContent = d.email || '';
+      currentUserIsAdmin = !!(d.user && d.user.is_admin);
     }
   } catch (_) {}
 }
@@ -653,7 +662,8 @@ async function openSlideout(connId) {
     ? `<div class="agent-version-row">
          <span class="version">Agent ${c.agent_version}</span>
          ${c.agent_upgrade_available
-           ? `<span class="stale">↑ Upgrade available</span>`
+           ? `<span class="stale">↑ Upgrade available</span>
+              ${currentUserIsAdmin ? `<button class="btn-reset-upgrade" onclick="resetUpgrade(${c.id},event)" title="Back-date suppressed failures so next heartbeat retries the upgrade">Reset &amp; retry</button>` : ''}`
            : `<span class="latest">✓ Up to date</span>`}
        </div>`
     : '';
@@ -862,6 +872,27 @@ async function runHealthCheck(connId) {
     alert('Network error: ' + err.message);
   }
   if (btn) { btn.disabled = false; btn.textContent = '▶ Health Check'; }
+}
+
+// ── Reset upgrade suppression (admin only) ────────────────────────────────────
+async function resetUpgrade(connId, evt) {
+  if (evt) evt.stopPropagation();
+  const btn = evt && evt.target;
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    const res = await api(`/api/admin/reset-upgrade/${connId}`, { method: 'POST' });
+    if (res && res.ok) {
+      const d = await res.json();
+      if (btn) { btn.textContent = '✓ Reset'; }
+      setTimeout(() => loadConnections(), 1500);
+    } else {
+      if (btn) { btn.disabled = false; btn.textContent = 'Reset & retry'; }
+      alert('Reset failed');
+    }
+  } catch (err) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Reset & retry'; }
+    alert('Error: ' + err.message);
+  }
 }
 
 // ── Restore server ───────────────────────────────────────────────────────────

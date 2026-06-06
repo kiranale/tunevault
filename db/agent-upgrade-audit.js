@@ -17,7 +17,7 @@ const pool = require('./index');
  */
 async function getUpgradePolicy(connectionId) {
   const result = await pool.query(
-    `SELECT id, auto_upgrade_enabled, connection_type
+    `SELECT id, auto_upgrade_enabled, connection_type, server_type, proxy_version
      FROM oracle_connections WHERE id = $1`,
     [connectionId]
   );

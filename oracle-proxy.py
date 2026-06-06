@@ -722,6 +722,7 @@ _POLL_BACKOFF_MAX_S  = int(os.environ.get("AGENT_POLL_BACKOFF_MAX_S",  "30"))
 _first_heartbeat_event = threading.Event()
 _last_poll_ok_time     = None          # float (time.time()) or None
 _poll_stage            = "init"        # string label
+_last_poll_upgrade_trigger = 0.0       # rate-limit poll-triggered proxy updates (1h)
 
 # Lock protecting _last_poll_ok_time and _poll_stage
 _poll_state_lock = threading.Lock()
@@ -6463,6 +6464,25 @@ def _cloud_poll_loop():
                 _first_heartbeat_event.set()
             consecutive_ok += 1
             backoff = 1
+
+            # Cloud signals a newer oracle-proxy.py is available — trigger immediate
+            # update in a background thread (rate-limited: once per hour) rather than
+            # waiting for the 6h auto_update_loop interval.
+            if poll_result.get("proxy_upgrade_available"):
+                global _last_poll_upgrade_trigger
+                _now = time.time()
+                if _now - _last_poll_upgrade_trigger > 3600:
+                    _last_poll_upgrade_trigger = _now
+                    _latest_ver = poll_result.get("latest_proxy_version", "?")
+                    logger.info("poll — proxy upgrade signalled (latest %s) — triggering immediate update", _latest_ver)
+                    def _do_poll_upgrade():
+                        try:
+                            _nu, _rv, _du, _ck = check_for_update()
+                            if _nu:
+                                perform_update(_rv, _du, _ck)
+                        except Exception as _ue:
+                            logger.warning("poll-triggered update failed: %s", _ue)
+                    threading.Thread(target=_do_poll_upgrade, daemon=True, name="poll-upgrade").start()
 
             work = poll_result.get("work")
             if work is None:
