@@ -518,7 +518,7 @@ async function ackKeyRotation(connectionId) {
 async function getConnectionKeyState(connectionId) {
   const result = await pool.query(
     `SELECT id, user_id, proxy_api_key_enc, proxy_api_key_enc_previous,
-            key_rotated_at, key_rotation_status, key_rotation_actor
+            key_rotated_at, key_rotation_status, key_rotation_actor, server_type
      FROM oracle_connections WHERE id = $1`,
     [connectionId]
   );

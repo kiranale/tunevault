@@ -47,7 +47,7 @@ const MIN_AGENT_VERSION = '3.5.5';
 
 // Latest proxy installer version (legacy v3/v4/v5 python-with-oracle-client agents).
 // Connections running older versions show a yellow "Upgrade available" badge.
-const LATEST_PROXY_VERSION = '3.20.3';
+const LATEST_PROXY_VERSION = '3.20.4';
 
 // Latest agent version (v7 series). Bump alongside install.sh VERSION on each release.
 // Used to compute agent_upgrade_available for the /connections Version column.
@@ -1075,7 +1075,7 @@ router.post('/connections/:id/reissue-install-token', requireAuth, async (req, r
   try {
     // Fetch connection to verify ownership and type
     const connRes = await pool.query(
-      `SELECT id, name, user_id, connection_type, proxy_api_key_enc
+      `SELECT id, name, user_id, connection_type, proxy_api_key_enc, server_type
          FROM oracle_connections WHERE id = $1`,
       [connectionId]
     );
@@ -1101,7 +1101,18 @@ router.post('/connections/:id/reissue-install-token', requireAuth, async (req, r
     const newToken = crypto.randomBytes(32).toString('hex');
     await agentDb.createRegToken({ token: newToken, connectionId, userId: req.user.id });
 
-    const installCmd = `curl -fsSL ${APP_URL}/install.sh | sudo TUNEVAULT_TOKEN=${newToken} bash`;
+    // Build install command — always include TUNEVAULT_API; include SERVER_TYPE for EBS app servers
+    const isAppsServer = conn.server_type === 'apps' || conn.server_type === 'both';
+    let installCmd;
+    if (isAppsServer) {
+      installCmd = `curl -fsSL ${APP_URL}/install.sh | sudo \\\n` +
+        `  TUNEVAULT_TOKEN=${newToken} \\\n` +
+        `  TUNEVAULT_API=${APP_URL} \\\n` +
+        `  TUNEVAULT_SERVER_TYPE=${conn.server_type} \\\n` +
+        `  bash`;
+    } else {
+      installCmd = `curl -fsSL ${APP_URL}/install.sh | sudo TUNEVAULT_TOKEN=${newToken} TUNEVAULT_API=${APP_URL} bash`;
+    }
     res.json({ ok: true, token: newToken, install_cmd: installCmd });
   } catch (err) {
     console.error('[connections-list] reissue-install-token error:', err.message);

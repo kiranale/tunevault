@@ -387,6 +387,8 @@ window.tvNav = (function() {
         if (navRoot) {
           navRoot.innerHTML = buildNav(type, user, isAdmin, hasEbs);
           revealNav(navRoot);
+          // Dynamically inject per-connection quick-links into the Connections dropdown
+          if (user) { loadNavConnections(); }
         }
 
         // Show Manager link for users with manager/sdm/admin role
@@ -542,6 +544,58 @@ window.tvNav = (function() {
     // Re-run RBAC gating — call this after dynamically adding [data-rbac-require] elements
     refreshRbac: function() { applyRbacGating(); },
   };
+
+  // ── Dynamic connection list in Connections dropdown ─────────────────────────
+  // Fetches /api/connections and injects per-connection items into the dropdown.
+  // No server_type filtering — all active connections are shown.
+  function loadNavConnections() {
+    fetch('/api/connections', { credentials: 'include' })
+      .then(function(r) { return r.ok ? r.json() : []; })
+      .then(function(rows) {
+        var active = rows.filter(function(c) { return !c.removed_connection; });
+        if (!active.length) return;
+
+        // Find the Connections dropdown menu by locating the /connections/new link
+        var connMenu = null;
+        document.querySelectorAll('.tv-dropdown-menu').forEach(function(menu) {
+          menu.querySelectorAll('a').forEach(function(a) {
+            if (a.getAttribute('href') === '/connections/new') connMenu = menu;
+          });
+        });
+        if (!connMenu) return;
+
+        // Build connection items — link to /connections (user can open slideout from there)
+        var typeLabel = function(c) {
+          if (c.server_type === 'apps' || c.server_type === 'both') return 'APP';
+          if (c.server_type === 'db') return 'DB';
+          if (c.is_ebs) return 'EBS';
+          return 'DB';
+        };
+        var divider = document.createElement('div');
+        divider.style.cssText = 'border-top:1px solid rgba(255,255,255,0.08);margin:4px 0;';
+        connMenu.insertBefore(divider, connMenu.firstChild);
+
+        // Insert connections in reverse order so first connection ends up at top
+        for (var i = active.length - 1; i >= 0; i--) {
+          var c = active[i];
+          var a = document.createElement('a');
+          a.href = '/connections';
+          a.style.cssText = 'display:block;padding:8px 16px;text-decoration:none;color:#e8e8ed;transition:background 0.15s;';
+          a.onmouseover = function() { this.style.background = 'rgba(240,168,48,0.08)'; };
+          a.onmouseout  = function() { this.style.background = 'transparent'; };
+          a.innerHTML =
+            '<div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;">' +
+              (c.name || 'Connection #' + c.id) +
+              '<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(255,255,255,0.08);color:#9898a8;font-family:monospace;flex-shrink:0">' +
+                typeLabel(c) +
+              '</span>' +
+            '</div>';
+          connMenu.insertBefore(a, connMenu.firstChild);
+        }
+      })
+      .catch(function() {}); // silent fail — nav still works without dynamic connections
+  }
+
 })();
 
 // ── Global helpers (outside the module so onclick attributes work) ──────────

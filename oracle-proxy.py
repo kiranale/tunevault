@@ -309,7 +309,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.3"  # Strict managed-server grep; ORA-01785 fix; pipe-table raw output for CM/WF/invalid-objects
+VERSION = "3.20.4"  # Suppress EBSapps.env source output from check raw; local-source _src_cmd
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5257,11 +5257,13 @@ class ProxyHandler(BaseHTTPRequestHandler):
                                    "raw_output": raw[:2000] if raw else ""})
 
             env_file = _APPS_ENV_FILE
-            env_src  = "source %s run" % env_file if env_file else ""
 
             def _src_cmd(cmd):
-                """Prefix cmd with EBSapps.env source if available."""
-                return "%s && %s" % (env_src, cmd) if env_src else cmd
+                """Source EBSapps.env (stdout+stderr suppressed) then run cmd."""
+                if not env_file:
+                    return cmd
+                _ef = env_file.replace("'", "'\\''")
+                return "source '%s' run >/dev/null 2>&1; %s" % (_ef, cmd)
 
             def _run(cmd, timeout=15):
                 return run_os_command(["bash", "-c", cmd], timeout=timeout)

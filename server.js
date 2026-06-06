@@ -3533,7 +3533,7 @@ async function runRealHealthCheckInner(healthCheckId, oracleConfig, t0) {
 }
 
 // Current canonical proxy version — bump this when oracle-proxy.py/oracle-proxy.js VERSION changes
-const LATEST_PROXY_VERSION = '3.20.3';
+const LATEST_PROXY_VERSION = '3.20.4';
 
 // ============================================================
 // Proxy Health Check Flow
@@ -7659,7 +7659,7 @@ async function ensureColumns() {
     WHERE connection_id = ANY($1::int[])
       AND status = 'failed'
       AND triggered_at > NOW() - INTERVAL '24 hours'
-  `, [[97, 114, 123, 134, 137]]);
+  `, [[97, 114, 123, 134, 137, 139]]);
 }
 
 ensureColumns()

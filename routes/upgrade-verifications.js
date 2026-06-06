@@ -90,7 +90,10 @@ router.post('/upgrade-verifications', async (req, res) => {
   }
 
   // Derive overall pass/fail
-  const checksOk    = checks_total > 0 && checks_passed >= 54;
+  // App servers run ~10 EBS checks — not 54 Oracle DB checks. Lower threshold accordingly.
+  const isAppsServer = conn.server_type === 'apps' || conn.server_type === 'both';
+  const minChecks    = isAppsServer ? 7 : 54;
+  const checksOk    = checks_total > 0 && checks_passed >= minChecks;
   const apiTestOk   = api_test_status === 410;
   const probe7Ok    = probe_7 === 'pass';
   const probe8Ok    = probe_8 === 'pass';
