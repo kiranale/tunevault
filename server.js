@@ -3560,7 +3560,7 @@ async function runRealHealthCheckInner(healthCheckId, oracleConfig, t0) {
 }
 
 // Current canonical proxy version — bump this when oracle-proxy.py/oracle-proxy.js VERSION changes
-const LATEST_PROXY_VERSION = '3.20.7';
+const LATEST_PROXY_VERSION = '3.20.8';
 
 // ============================================================
 // Proxy Health Check Flow
@@ -3635,6 +3635,7 @@ async function runProxyHealthCheckInner(healthCheckId, { connectionId, serviceNa
         `UPDATE health_checks SET metrics = $1, overall_score = $2, status = 'analyzing', analysis_stage = 'ai_pending' WHERE id = $3`,
         [JSON.stringify(metrics), appScore, healthCheckId]
       );
+      console.log(`[ai] running analysis for app tier conn ${connectionId} report ${healthCheckId} score ${appScore} findings ${(metrics.findings || []).length}`);
       await runAIAnalysis(healthCheckId, metrics, { overall: appScore }, connectionId, t0, t1);
       return;
     }

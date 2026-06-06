@@ -324,7 +324,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.7"  # auto_update_loop 30m interval + logging; _clean_raw() strips admin script noise
+VERSION = "3.20.8"  # NOT_DEPLOYED detection on original output; cooldown reset on already-at-latest
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5416,16 +5416,19 @@ class ProxyHandler(BaseHTTPRequestHandler):
                             "%(wls)s\nEOF\n"
                         ) % {"sv": _sh(_s), "wls": _wls_esc}
                         _s_out, _s_err, _s_exit, _ = _run(_s_cmd, timeout=50)
-                        _s_raw = _clean_raw(_s_out + _s_err)
+                        _s_raw_orig = _s_out + _s_err
+                        _s_raw = _clean_raw(_s_raw_orig)
+                        # State detection on original output — _clean_raw strips the
+                        # "Invalid server name" line which is the NOT_DEPLOYED signal.
                         if _s_exit == 124:
                             _srv_states.append((_s, "TIMEOUT", _s_raw))
-                        elif "invalid server name" in _s_raw.lower() or "invalid managed server" in _s_raw.lower():
+                        elif "invalid server name" in _s_raw_orig.lower() or "invalid managed server" in _s_raw_orig.lower():
                             _srv_states.append((_s, "NOT_DEPLOYED", _s_raw))
                         elif _sp.run(["grep", "-qi", "is running"],
-                                     input=_s_raw.encode(),
+                                     input=_s_raw_orig.encode(),
                                      capture_output=True).returncode == 0:
                             _srv_states.append((_s, "RUNNING", _s_raw))
-                        elif any(kw in _s_raw.lower() for kw in ("is shutdown", "is not running", "not running")):
+                        elif any(kw in _s_raw_orig.lower() for kw in ("is shutdown", "is not running", "not running")):
                             _srv_states.append((_s, "DOWN", _s_raw))
                         else:
                             _srv_states.append((_s, "UNKNOWN", _s_raw))
@@ -6504,13 +6507,17 @@ def _cloud_poll_loop():
                     print("%s [upgrade] proxy_upgrade_available in poll response — latest %s — triggering background update" % (_ts(), _latest_ver))
                     logger.info("poll — proxy upgrade signalled (latest %s) — triggering immediate update", _latest_ver)
                     def _do_poll_upgrade():
+                        global _last_poll_upgrade_trigger
                         try:
                             _nu, _rv, _du, _ck = check_for_update()
                             if _nu:
                                 print("%s [upgrade] poll-triggered: downloading %s..." % (_ts(), _rv))
                                 perform_update(_rv, _du, _ck)
                             else:
-                                print("%s [upgrade] poll-triggered: already at latest (%s)" % (_ts(), VERSION))
+                                # Render may not have deployed yet — reset cooldown so we
+                                # retry on the next poll rather than waiting a full hour.
+                                print("%s [upgrade] poll-triggered: already at latest (%s) — resetting cooldown for retry" % (_ts(), VERSION))
+                                _last_poll_upgrade_trigger = 0.0
                         except Exception as _ue:
                             logger.warning("poll-triggered update failed: %s", _ue)
                     threading.Thread(target=_do_poll_upgrade, daemon=True, name="poll-upgrade").start()
@@ -6535,13 +6542,17 @@ def _cloud_poll_loop():
                 _dl_url = body.get("latest_proxy_url") or (api_url + "/oracle-proxy.py")
                 print("%s [upgrade] proxy self-upgrade work item — target %s — initiating..." % (_ts(), _target_ver))
                 def _do_witem_upgrade(_url=_dl_url, _ver=_target_ver):
+                    global _last_poll_upgrade_trigger
                     try:
                         _nu, _rv, _du, _ck = check_for_update()
                         if _nu:
                             print("%s [upgrade] work item: downloading %s..." % (_ts(), _rv))
                             perform_update(_rv, _du, _ck)
                         else:
-                            print("%s [upgrade] work item: already at latest (%s)" % (_ts(), VERSION))
+                            # Render may not have deployed yet — reset cooldown so the
+                            # next work item or poll response retries without waiting.
+                            print("%s [upgrade] work item: already at latest (%s) — resetting cooldown for retry" % (_ts(), VERSION))
+                            _last_poll_upgrade_trigger = 0.0
                     except Exception as _we:
                         print("%s [upgrade] work item error: %s" % (_ts(), _we))
                 threading.Thread(target=_do_witem_upgrade, daemon=True, name="work-item-upgrade").start()
