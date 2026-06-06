@@ -324,7 +324,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.6"  # proxy self-upgrade via work item channel; enhanced upgrade logging
+VERSION = "3.20.7"  # auto_update_loop 30m interval + logging; _clean_raw() strips admin script noise
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -856,23 +856,32 @@ def perform_update(remote_version, download_url, expected_checksum):
     return True
 
 
-def auto_update_loop(interval_seconds=21600):
+# Configurable update check interval — default 30 min; override via env for testing.
+UPDATE_CHECK_INTERVAL = int(os.environ.get("PROXY_UPDATE_INTERVAL", "1800"))
+
+
+def auto_update_loop(interval_seconds=None):
     """
-    Background thread: check for updates at startup, then every `interval_seconds` (default 6h).
+    Background thread: check for updates at startup, then every UPDATE_CHECK_INTERVAL seconds.
     Runs as daemon so it doesn't block clean shutdown.
     """
+    if interval_seconds is None:
+        interval_seconds = UPDATE_CHECK_INTERVAL
     # Initial check after 30 seconds (let server fully start first)
     time.sleep(30)
     while True:
         try:
+            print("%s [auto_update] checking for updates — current %s" % (_ts(), VERSION))
             needs_update, remote_version, download_url, expected_checksum = check_for_update()
+            print("%s [auto_update] latest version: %s, current: %s, needs_update: %s" % (
+                _ts(), remote_version, VERSION, needs_update))
             if needs_update:
                 perform_update(remote_version, download_url, expected_checksum)
                 # If we get here, update failed (execv would have replaced us)
             else:
-                print("%s [auto-update] v%s is current." % (_ts(), VERSION))
+                print("%s [auto_update] v%s is current — next check in %ds" % (_ts(), VERSION, interval_seconds))
         except Exception as e:
-            print("%s [auto-update] WARN: Version check failed: %s" % (_ts(), e))
+            print("%s [auto_update] WARN: Version check failed: %s" % (_ts(), e))
         time.sleep(interval_seconds)
 
 # ============================================================
@@ -5346,6 +5355,25 @@ class ProxyHandler(BaseHTTPRequestHandler):
             def _sh(pwd):
                 return (pwd or "").replace("'", "'\\''")
 
+            # Noise lines emitted by EBS admin scripts — strip before storing raw output.
+            _MANAGED_NOISE = [
+                "you are running admanagedsrvctl",
+                "enter the weblogic admin password",
+                "server specific logs are located",
+                "admanagedsrvctl.sh: exiting with status",
+                "admanagedsrvctl.sh: check the logfile",
+                "you are running adadminsrvctl",
+                "enter the apps schema password",
+                "adadminsrvctl.sh: exiting with status",
+                "adadminsrvctl.sh: check the logfile",
+            ]
+
+            def _clean_raw(raw):
+                lines = [l for l in raw.splitlines()
+                         if not any(n in l.lower() for n in _MANAGED_NOISE)
+                         and l.strip()]
+                return "\n".join(lines)
+
             import subprocess as _sp
 
             # ── 4. Managed servers (dynamic discovery from CONTEXT_FILE) ─────
@@ -5388,7 +5416,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                             "%(wls)s\nEOF\n"
                         ) % {"sv": _sh(_s), "wls": _wls_esc}
                         _s_out, _s_err, _s_exit, _ = _run(_s_cmd, timeout=50)
-                        _s_raw = _s_out + _s_err
+                        _s_raw = _clean_raw(_s_out + _s_err)
                         if _s_exit == 124:
                             _srv_states.append((_s, "TIMEOUT", _s_raw))
                         elif "invalid server name" in _s_raw.lower() or "invalid managed server" in _s_raw.lower():
@@ -5462,7 +5490,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         "%(wls)s\n%(apps)s\nEOF\n'"
                     ) % {"wls": _sh(req_weblogic_pwd), "apps": _sh(req_apps_pwd)}
                     stdout, stderr, exit_code, _ = _run(cmd, timeout=65)
-                    out = stdout + stderr
+                    out = _clean_raw(stdout + stderr)
                     _running = _sp.run(["grep", "-qi", "is running"], input=out.encode(),
                                        capture_output=True).returncode == 0
                     if exit_code == 124:
@@ -6745,7 +6773,7 @@ def main():
         try:
             updater = threading.Thread(target=auto_update_loop, daemon=True)
             updater.start()
-            logger.info("auto-update enabled — checks every 6 hours; use --no-auto-update to disable")
+            logger.info("auto-update enabled — checks every %ds (PROXY_UPDATE_INTERVAL); use --no-auto-update to disable", UPDATE_CHECK_INTERVAL)
         except Exception:
             logger.exception("auto-update thread start FAILED — continuing without auto-update")
     else:

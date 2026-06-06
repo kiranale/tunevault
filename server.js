@@ -3560,7 +3560,7 @@ async function runRealHealthCheckInner(healthCheckId, oracleConfig, t0) {
 }
 
 // Current canonical proxy version — bump this when oracle-proxy.py/oracle-proxy.js VERSION changes
-const LATEST_PROXY_VERSION = '3.20.6';
+const LATEST_PROXY_VERSION = '3.20.7';
 
 // ============================================================
 // Proxy Health Check Flow
@@ -3625,16 +3625,17 @@ async function runProxyHealthCheckInner(healthCheckId, { connectionId, serviceNa
 
     const metrics = await fetchMetricsFromProxy({ connectionId, serviceName, username, password, osAuth, host, port, serverType, appsPwd, weblogicPwd });
 
-    // ── EBS app-tier path: findings stored directly, no AI analysis ───────────
+    // ── EBS app-tier path: store findings then run AI analysis ───────────────
     if (metrics.server_type === 'apps') {
       const appScore = metrics._app_score || 0;
       delete metrics._app_score;
       const t1 = Date.now();
-      console.log(`[pipeline] report=${healthCheckId} stage=app_tier_complete score=${appScore} dur_ms=${t1 - t0}`);
+      console.log(`[pipeline] report=${healthCheckId} stage=app_tier_collecting score=${appScore} dur_ms=${t1 - t0}`);
       await pool.query(
-        `UPDATE health_checks SET metrics = $1, overall_score = $2, status = 'completed', completed_at = NOW(), analysis_stage = 'done' WHERE id = $3`,
+        `UPDATE health_checks SET metrics = $1, overall_score = $2, status = 'analyzing', analysis_stage = 'ai_pending' WHERE id = $3`,
         [JSON.stringify(metrics), appScore, healthCheckId]
       );
+      await runAIAnalysis(healthCheckId, metrics, { overall: appScore }, connectionId, t0, t1);
       return;
     }
 
