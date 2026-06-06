@@ -324,7 +324,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.5"  # NOT_DEPLOYED state for invalid managed servers; stderr suppression for admin scripts
+VERSION = "3.20.6"  # proxy self-upgrade via work item channel; enhanced upgrade logging
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -6465,21 +6465,24 @@ def _cloud_poll_loop():
             consecutive_ok += 1
             backoff = 1
 
-            # Cloud signals a newer oracle-proxy.py is available — trigger immediate
-            # update in a background thread (rate-limited: once per hour) rather than
-            # waiting for the 6h auto_update_loop interval.
+            # Cloud signals a newer oracle-proxy.py is available via poll response field.
+            # Backup path for 3.20.6+ proxies — the primary path is the work item below.
             if poll_result.get("proxy_upgrade_available"):
                 global _last_poll_upgrade_trigger
                 _now = time.time()
                 if _now - _last_poll_upgrade_trigger > 3600:
                     _last_poll_upgrade_trigger = _now
                     _latest_ver = poll_result.get("latest_proxy_version", "?")
+                    print("%s [upgrade] proxy_upgrade_available in poll response — latest %s — triggering background update" % (_ts(), _latest_ver))
                     logger.info("poll — proxy upgrade signalled (latest %s) — triggering immediate update", _latest_ver)
                     def _do_poll_upgrade():
                         try:
                             _nu, _rv, _du, _ck = check_for_update()
                             if _nu:
+                                print("%s [upgrade] poll-triggered: downloading %s..." % (_ts(), _rv))
                                 perform_update(_rv, _du, _ck)
+                            else:
+                                print("%s [upgrade] poll-triggered: already at latest (%s)" % (_ts(), VERSION))
                         except Exception as _ue:
                             logger.warning("poll-triggered update failed: %s", _ue)
                     threading.Thread(target=_do_poll_upgrade, daemon=True, name="poll-upgrade").start()
@@ -6497,11 +6500,30 @@ def _cloud_poll_loop():
 
             print("%s [cloud] Received work: %s %s (req=%s)" % (_ts(), method, path, request_id[:8]))
 
-            try:
-                local_result = _execute_local_request(method, path, body, api_key)
-            except Exception as exec_err:
-                print("%s [cloud] Local execution error: %s" % (_ts(), exec_err))
-                local_result = {"status_code": 500, "body": {"error": str(exec_err)}}
+            # Intercept proxy self-upgrade work item before dispatching locally.
+            # Server enqueues this when proxy_version < LATEST_PROXY_VERSION.
+            if path == "/api/self-upgrade" and body.get("proxy_upgrade"):
+                _target_ver = body.get("target_version", "?")
+                _dl_url = body.get("latest_proxy_url") or (api_url + "/oracle-proxy.py")
+                print("%s [upgrade] proxy self-upgrade work item — target %s — initiating..." % (_ts(), _target_ver))
+                def _do_witem_upgrade(_url=_dl_url, _ver=_target_ver):
+                    try:
+                        _nu, _rv, _du, _ck = check_for_update()
+                        if _nu:
+                            print("%s [upgrade] work item: downloading %s..." % (_ts(), _rv))
+                            perform_update(_rv, _du, _ck)
+                        else:
+                            print("%s [upgrade] work item: already at latest (%s)" % (_ts(), VERSION))
+                    except Exception as _we:
+                        print("%s [upgrade] work item error: %s" % (_ts(), _we))
+                threading.Thread(target=_do_witem_upgrade, daemon=True, name="work-item-upgrade").start()
+                local_result = {"status_code": 200, "body": {"ok": True, "message": "proxy upgrade initiated", "current_version": VERSION}}
+            else:
+                try:
+                    local_result = _execute_local_request(method, path, body, api_key)
+                except Exception as exec_err:
+                    print("%s [cloud] Local execution error: %s" % (_ts(), exec_err))
+                    local_result = {"status_code": 500, "body": {"error": str(exec_err)}}
 
             # ── Submit result ──
             try:
