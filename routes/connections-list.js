@@ -1101,11 +1101,17 @@ router.post('/connections/:id/reissue-install-token', requireAuth, async (req, r
     const newToken = crypto.randomBytes(32).toString('hex');
     await agentDb.createRegToken({ token: newToken, connectionId, userId: req.user.id });
 
-    // Build install command — always include TUNEVAULT_API; include SERVER_TYPE for EBS app servers
+    // Build install command — always include TUNEVAULT_API; include SERVER_TYPE for EBS app servers.
+    // For app servers, also note the CONTEXT_FILE variable — install.sh auto-detects it from
+    // the EBS context XML, but if auto-detection fails the user can set it explicitly.
     const isAppsServer = conn.server_type === 'apps' || conn.server_type === 'both';
     let installCmd;
     if (isAppsServer) {
-      installCmd = `curl -fsSL ${APP_URL}/install.sh | sudo \\\n` +
+      installCmd =
+        `# For EBS app servers, install.sh auto-detects CONTEXT_FILE from the EBS context XML.\n` +
+        `# If managed-server checks show warnings, set it explicitly:\n` +
+        `#   TUNEVAULT_EBS_CONTEXT_FILE=/u01/install/APPS/fs1/inst/apps/<CTX_NAME>/<CTX_NAME>.xml\n` +
+        `curl -fsSL ${APP_URL}/install.sh | sudo \\\n` +
         `  TUNEVAULT_TOKEN=${newToken} \\\n` +
         `  TUNEVAULT_API=${APP_URL} \\\n` +
         `  TUNEVAULT_SERVER_TYPE=${conn.server_type} \\\n` +

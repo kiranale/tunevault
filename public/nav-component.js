@@ -79,7 +79,7 @@ window.tvNav = (function() {
         'onmouseout="this.style.color=\'' + (isActive ? 'var(--accent)' : 'var(--text)') + '\'">' +
         'Connections &#9662;' +
       '</button>' +
-      '<div class="tv-dropdown-menu" role="menu" style="' + dropdownMenuStyle + '">' +
+      '<div id="nav-connections-menu" class="tv-dropdown-menu" role="menu" style="' + dropdownMenuStyle + '">' +
         buildDropdownItem('/connections', '🗄️ DB Connections', 'All connected Oracle databases with health status') +
         buildDropdownItem('/connections/new', '＋ Add Connection', 'Connect a new Oracle database via agent or direct') +
       '</div>' +
@@ -552,19 +552,19 @@ window.tvNav = (function() {
     fetch('/api/connections', { credentials: 'include' })
       .then(function(r) { return r.ok ? r.json() : []; })
       .then(function(rows) {
-        var active = rows.filter(function(c) { return !c.removed_connection; });
+        if (!Array.isArray(rows)) return;
+        var active = rows.filter(function(c) {
+          return !c.removed_connection && c.name;
+        });
         if (!active.length) return;
 
-        // Find the Connections dropdown menu by locating the /connections/new link
-        var connMenu = null;
-        document.querySelectorAll('.tv-dropdown-menu').forEach(function(menu) {
-          menu.querySelectorAll('a').forEach(function(a) {
-            if (a.getAttribute('href') === '/connections/new') connMenu = menu;
-          });
-        });
-        if (!connMenu) return;
+        // Use the stable ID added to the Connections dropdown menu.
+        var connMenu = document.getElementById('nav-connections-menu');
+        if (!connMenu) return; // not an authenticated page
 
-        // Build connection items — link to /connections (user can open slideout from there)
+        // Guard against double-injection if loadNavConnections is called more than once
+        if (connMenu.querySelector('[data-nav-conn]')) return;
+
         var typeLabel = function(c) {
           if (c.server_type === 'apps' || c.server_type === 'both') return 'APP';
           if (c.server_type === 'db') return 'DB';
@@ -573,6 +573,7 @@ window.tvNav = (function() {
         };
         var divider = document.createElement('div');
         divider.style.cssText = 'border-top:1px solid rgba(255,255,255,0.08);margin:4px 0;';
+        divider.setAttribute('data-nav-conn', '1');
         connMenu.insertBefore(divider, connMenu.firstChild);
 
         // Insert connections in reverse order so first connection ends up at top
@@ -580,6 +581,7 @@ window.tvNav = (function() {
           var c = active[i];
           var a = document.createElement('a');
           a.href = '/connections';
+          a.setAttribute('data-nav-conn', '1');
           a.style.cssText = 'display:block;padding:8px 16px;text-decoration:none;color:#e8e8ed;transition:background 0.15s;';
           a.onmouseover = function() { this.style.background = 'rgba(240,168,48,0.08)'; };
           a.onmouseout  = function() { this.style.background = 'transparent'; };
