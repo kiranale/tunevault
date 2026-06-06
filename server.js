@@ -7641,7 +7641,8 @@ async function ensureColumns() {
     ALTER TABLE oracle_connections
       ADD COLUMN IF NOT EXISTS apps_pwd_enc      TEXT,
       ADD COLUMN IF NOT EXISTS weblogic_pwd_enc  TEXT,
-      ADD COLUMN IF NOT EXISTS ebs_instance_name VARCHAR(64)
+      ADD COLUMN IF NOT EXISTS ebs_instance_name VARCHAR(64),
+      ADD COLUMN IF NOT EXISTS ebs_context_file  TEXT
   `);
 
   await pool.query(`

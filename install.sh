@@ -333,6 +333,7 @@ APPS_ENV_FILE=
 APPS_PWD=
 WEBLOGIC_PWD=
 INSTANCE_NAME=
+CONTEXT_FILE=
 ENVEOF
 chmod 600 "$ENV_FILE"
 ok "Config written to $ENV_FILE"
@@ -600,6 +601,7 @@ sed -i "s|^APPS_BASE=.*|APPS_BASE=${APPS_BASE}|" "$ENV_FILE" 2>/dev/null || true
 sed -i "s|^APPS_ENV_FILE=.*|APPS_ENV_FILE=${APPS_ENV_FILE}|" "$ENV_FILE" 2>/dev/null || true
 sed -i "s|^APPS_PWD=.*|APPS_PWD=${APPS_PWD}|" "$ENV_FILE" 2>/dev/null || true
 sed -i "s|^WEBLOGIC_PWD=.*|WEBLOGIC_PWD=${WEBLOGIC_PWD}|" "$ENV_FILE" 2>/dev/null || true
+sed -i "s|^CONTEXT_FILE=.*|CONTEXT_FILE=${EBS_CONTEXT_FILE}|" "$ENV_FILE" 2>/dev/null || true
 # ── EBS instance name: explicit env var, auto-derived from DB host, or blank ──
 INSTANCE_NAME="${TUNEVAULT_EBS_INSTANCE_NAME:-}"
 if [ -z "$INSTANCE_NAME" ] && [ -n "$EBS_DB_HOST" ]; then
@@ -738,6 +740,26 @@ SVCEOF
   echo "$CONFIRM" | grep -q '"ok":true' \
     && ok "Agent registered — visible in TuneVault dashboard" \
     || info "Registration deferred — agent will appear within 60s"
+
+  # If server returned a stored ebs_context_file (e.g. reinstall without TUNEVAULT_EBS_CONTEXT_FILE),
+  # backfill CONTEXT_FILE and re-derive APPS_ENV_FILE so oracle-proxy.py can source EBSapps.env.
+  _CONF_CTX=$(echo "$CONFIRM" | sed -n 's/.*"ebs_context_file":"\([^"]*\)".*/\1/p' | head -1 || true)
+  if [ -n "$_CONF_CTX" ]; then
+    _CUR_CTX=$(grep '^CONTEXT_FILE=' "$ENV_FILE" 2>/dev/null | cut -d= -f2-)
+    if [ -z "$_CUR_CTX" ] && [ -f "$_CONF_CTX" ]; then
+      EBS_CONTEXT_FILE="$_CONF_CTX"
+      sed -i "s|^CONTEXT_FILE=.*|CONTEXT_FILE=${EBS_CONTEXT_FILE}|" "$ENV_FILE" 2>/dev/null || true
+      ok "Context file restored from server: $EBS_CONTEXT_FILE"
+      _REC_BASE=$(grep 'oa_var="s_base">' "$EBS_CONTEXT_FILE" 2>/dev/null \
+        | sed 's/.*oa_var="s_base"[^>]*>//;s/<.*//' \
+        | grep -v '^[[:space:]]*$' | head -1 || true)
+      if [ -n "$_REC_BASE" ]; then
+        sed -i "s|^APPS_BASE=.*|APPS_BASE=${_REC_BASE}|" "$ENV_FILE" 2>/dev/null || true
+        sed -i "s|^APPS_ENV_FILE=.*|APPS_ENV_FILE=${_REC_BASE}/EBSapps.env|" "$ENV_FILE" 2>/dev/null || true
+        ok "APPS_ENV_FILE restored: ${_REC_BASE}/EBSapps.env"
+      fi
+    fi
+  fi
 
   if [ "$CONNECTION_ID" != "0" ]; then
     info "Waiting for heartbeat confirmation (60s max)..."

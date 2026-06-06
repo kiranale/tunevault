@@ -358,11 +358,12 @@ router.post('/confirm', async (req, res) => {
     // break badge rendering and hide APPS/WebLogic password fields in the UI.
     const VALID_SERVER_TYPES = new Set(['db', 'apps', 'both']);
     const cleanServerType = VALID_SERVER_TYPES.has(server_type) ? server_type : null;
-    if (cleanServerType || ebs_service || resolvedInstanceName) {
+    if (cleanServerType || ebs_service || resolvedInstanceName || ebs_context_file) {
       await agentDb.updateConnectionInstallerInfo(parsedConnId, {
         serverType:       cleanServerType,
         ebsService:       ebs_service       || null,
         ebsInstanceName:  resolvedInstanceName,
+        ebsContextFile:   ebs_context_file  || null,
       });
     }
 
@@ -374,7 +375,10 @@ router.post('/confirm', async (req, res) => {
       await agentDb.clearInstallTokenHash(parsedConnId);
     }
 
-    res.json({ ok: true, status: 'confirmed' });
+    // Return stored ebs_context_file so install.sh can backfill agent.env on reinstall
+    // when TUNEVAULT_EBS_CONTEXT_FILE wasn't passed explicitly in the command.
+    const storedCtxFile = ebs_context_file || await agentDb.getConnectionContextFile(parsedConnId);
+    res.json({ ok: true, status: 'confirmed', ...(storedCtxFile ? { ebs_context_file: storedCtxFile } : {}) });
   } catch (err) {
     console.error('[agent] confirm error:', err.message);
     res.status(500).json({ error: 'Confirm failed' });

@@ -1075,7 +1075,7 @@ router.post('/connections/:id/reissue-install-token', requireAuth, async (req, r
   try {
     // Fetch connection to verify ownership and type
     const connRes = await pool.query(
-      `SELECT id, name, user_id, connection_type, proxy_api_key_enc, server_type
+      `SELECT id, name, user_id, connection_type, proxy_api_key_enc, server_type, ebs_context_file
          FROM oracle_connections WHERE id = $1`,
       [connectionId]
     );
@@ -1101,23 +1101,32 @@ router.post('/connections/:id/reissue-install-token', requireAuth, async (req, r
     const newToken = crypto.randomBytes(32).toString('hex');
     await agentDb.createRegToken({ token: newToken, connectionId, userId: req.user.id });
 
-    // Build install command — always include TUNEVAULT_API; include SERVER_TYPE for EBS app servers.
-    // For app servers, also note the CONTEXT_FILE variable — install.sh auto-detects it from
-    // the EBS context XML, but if auto-detection fails the user can set it explicitly.
+    // Build install command — always include TUNEVAULT_API + TUNEVAULT_CONNECTION_ID (belt-and-suspenders:
+    // the token already maps to this connection ID via agent_reg_tokens, but being explicit avoids
+    // any ambiguity and preserves apps_pwd/weblogic_pwd on the existing row).
     const isAppsServer = conn.server_type === 'apps' || conn.server_type === 'both';
     let installCmd;
     if (isAppsServer) {
+      const ctxLine = conn.ebs_context_file
+        ? `  TUNEVAULT_EBS_CONTEXT_FILE=${conn.ebs_context_file} \\\n`
+        : `  # TUNEVAULT_EBS_CONTEXT_FILE=/u01/.../fs1/inst/apps/<CTX_NAME>/<CTX_NAME>.xml \\\n`;
       installCmd =
-        `# For EBS app servers, install.sh auto-detects CONTEXT_FILE from the EBS context XML.\n` +
-        `# If managed-server checks show warnings, set it explicitly:\n` +
-        `#   TUNEVAULT_EBS_CONTEXT_FILE=/u01/install/APPS/fs1/inst/apps/<CTX_NAME>/<CTX_NAME>.xml\n` +
+        `# Reinstall — reuses connection #${connectionId} (APPS/WebLogic passwords preserved)\n` +
         `curl -fsSL ${APP_URL}/install.sh | sudo \\\n` +
         `  TUNEVAULT_TOKEN=${newToken} \\\n` +
         `  TUNEVAULT_API=${APP_URL} \\\n` +
+        `  TUNEVAULT_CONNECTION_ID=${connectionId} \\\n` +
         `  TUNEVAULT_SERVER_TYPE=${conn.server_type} \\\n` +
+        ctxLine +
         `  bash`;
     } else {
-      installCmd = `curl -fsSL ${APP_URL}/install.sh | sudo TUNEVAULT_TOKEN=${newToken} TUNEVAULT_API=${APP_URL} bash`;
+      installCmd =
+        `# Reinstall — reuses connection #${connectionId}\n` +
+        `curl -fsSL ${APP_URL}/install.sh | sudo \\\n` +
+        `  TUNEVAULT_TOKEN=${newToken} \\\n` +
+        `  TUNEVAULT_API=${APP_URL} \\\n` +
+        `  TUNEVAULT_CONNECTION_ID=${connectionId} \\\n` +
+        `  bash`;
     }
     res.json({ ok: true, token: newToken, install_cmd: installCmd });
   } catch (err) {

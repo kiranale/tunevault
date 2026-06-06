@@ -312,7 +312,7 @@ async function updateConnectionSid(connectionId, serviceName) {
   );
 }
 
-async function updateConnectionInstallerInfo(connectionId, { serverType, ebsService, ebsInstanceName }) {
+async function updateConnectionInstallerInfo(connectionId, { serverType, ebsService, ebsInstanceName, ebsContextFile }) {
   const isEbs = serverType === 'apps' || serverType === 'both' ? true : null;
   // Explicit casts on nullable params prevent "could not determine data type of parameter $N"
   // when pg driver sends JS null without a type hint.
@@ -322,10 +322,19 @@ async function updateConnectionInstallerInfo(connectionId, { serverType, ebsServ
       ebs_service       = COALESCE($2::text,    ebs_service),
       is_ebs            = CASE WHEN $3::boolean IS NOT NULL THEN $3::boolean ELSE is_ebs END,
       ebs_instance_name = COALESCE($4::text,    ebs_instance_name),
+      ebs_context_file  = COALESCE($5::text,    ebs_context_file),
       updated_at        = NOW()
-     WHERE id = $5`,
-    [serverType || null, ebsService || null, isEbs, ebsInstanceName || null, connectionId]
+     WHERE id = $6`,
+    [serverType || null, ebsService || null, isEbs, ebsInstanceName || null, ebsContextFile || null, connectionId]
   );
+}
+
+async function getConnectionContextFile(connectionId) {
+  const r = await pool.query(
+    `SELECT ebs_context_file FROM oracle_connections WHERE id = $1`,
+    [connectionId]
+  );
+  return r.rows[0]?.ebs_context_file || null;
 }
 async function clearConnectionProxy(connectionId) {
   await pool.query(
@@ -648,6 +657,7 @@ module.exports = {
   updateConnectionProxyUrl,
   updateConnectionSid,
   updateConnectionInstallerInfo,
+  getConnectionContextFile,
   touchConnectionKeyUsage,
   clearConnectionProxy,
   getAgentStatus,
