@@ -6599,7 +6599,8 @@ app.get('/api/proxy/version', (req, res) => {
     const checksum = 'sha256:' + crypto.createHash('sha256').update(content).digest('hex');
     // Extract VERSION = "x.y.z" from the file itself as source of truth
     const match = content.toString().match(/^VERSION\s*=\s*["']([^"']+)["']/m);
-    const version = match ? match[1] : '3.1.1';
+    const version = match ? match[1].trim() : '3.1.1';
+    console.log('[proxy/version] parsed version:', match ? match[1].trim() : 'NO MATCH', '| file bytes:', content.length);
     res.json({ version, checksum, download_url: '/downloads/oracle-proxy.py' });
   } catch (err) {
     res.status(500).json({ error: 'Could not compute proxy version' });
