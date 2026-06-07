@@ -906,7 +906,7 @@
     // equivalent which we compute after the element is in the DOM (see normalizeFabPos below).
     var fabBaseStyle = [
       'position:fixed',
-      'z-index:9990',
+      'z-index:9000',
       'display:flex',
       'flex-direction:column',
       'align-items:center',
@@ -986,7 +986,7 @@
     var isMobile = window.innerWidth < 768;
     var panelStyles = [
       'position:fixed',
-      'z-index:9991',
+      'z-index:9000',
       'background:rgba(14,14,20,0.96)',
       'border:1px solid rgba(255,255,255,0.08)',
       'display:flex',
@@ -1031,7 +1031,7 @@
     var backdrop = document.createElement('div');
     backdrop.id = 'tunebot-backdrop';
     backdrop.style.cssText = [
-      'position:fixed', 'inset:0', 'z-index:9989',
+      'position:fixed', 'inset:0', 'z-index:8999',
       'background:rgba(0,0,0,0.5)', 'opacity:0', 'pointer-events:none',
       'transition:opacity 0.3s ease',
     ].join(';');
@@ -1686,7 +1686,7 @@
       var popup = document.createElement('div');
       popup.id = 'tb-conn-popup';
       var rect = sel.getBoundingClientRect();
-      popup.style.cssText = 'position:fixed;z-index:99999;background:#1a1a1f;border:1px solid rgba(240,168,48,0.4);border-radius:8px;padding:4px 0;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,0.6);';
+      popup.style.cssText = 'position:fixed;z-index:9002;background:#1a1a1f;border:1px solid rgba(240,168,48,0.4);border-radius:8px;padding:4px 0;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,0.6);';
       popup.style.top = (rect.bottom + 4) + 'px';
       popup.style.left = rect.left + 'px';
       conns.forEach(function(c) {
@@ -2360,7 +2360,7 @@
     var toast = document.createElement('div');
     toast.id = 'tb-voice-toast';
     toast.style.cssText = [
-      'position:fixed', 'bottom:100px', 'right:24px', 'z-index:9995',
+      'position:fixed', 'bottom:100px', 'right:24px', 'z-index:9001',
       'background:rgba(30,30,40,0.95)', 'border:1px solid rgba(255,255,255,0.1)',
       'color:#d0d0e8', 'font-size:12px', 'font-family:"Space Grotesk",-apple-system,sans-serif',
       'border-radius:10px', 'padding:9px 14px', 'max-width:280px', 'line-height:1.5',
@@ -2522,7 +2522,7 @@
     tip.id = 'tb-voice-tip';
     tip.style.cssText = [
       'position:fixed',
-      'z-index:9999',
+      'z-index:9001',
       'background:rgba(20,20,32,0.97)',
       'border:1px solid rgba(240,168,48,0.45)',
       'border-radius:10px',
