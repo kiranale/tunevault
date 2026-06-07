@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.27"  # apps-listener exit-code-only; adop heredoc; nodemgr noise; inv-objects DB pre-check
+VERSION = "3.20.28"  # adop/apps-listener noise; io_wait sar fix; admin server detection; _MANAGED_NOISE comprehensive
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5329,27 +5329,60 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 return (pwd or "").replace("'", "'\\''")
 
             _MANAGED_NOISE = [
+                # Script header/footer boilerplate emitted by all adXXXctl.sh scripts
+                "you are running adapcctl",
+                "you are running adopmnctl",
                 "you are running admanagedsrvctl",
-                "enter the weblogic admin password",
+                "you are running adadminsrvctl",
+                "you are running adnodemgrctl",
                 "server specific logs are located",
                 "admanagedsrvctl.sh: exiting with status",
                 "admanagedsrvctl.sh: check the logfile",
-                "you are running adnodemgrctl",
-                "adnodemgrctl.sh: exiting with status",
-                "adnodemgrctl.sh: check the logfile",
-                "nodemanager log is located",
-                "you are running adadminsrvctl",
-                "enter the apps schema password",
                 "adadminsrvctl.sh: exiting with status",
                 "adadminsrvctl.sh: check the logfile",
+                "adnodemgrctl.sh: exiting with status",
+                "adnodemgrctl.sh: check the logfile",
+                "adapcctl.sh: exiting with status",
+                "adapcctl.sh: check the logfile",
+                "adopmnctl.sh: exiting with status",
+                "adopmnctl.sh: check the logfile",
+                "adalnctl.sh: exiting with status",
+                "adalnctl.sh: check the logfile",
+                # Terminal / TTY noise
                 "stty: standard input",
                 "stty:",
+                # Password prompts (heredoc passes value but prompt still prints)
+                "enter the weblogic admin password",
+                "enter the apps schema password",
+                "enter the apps password",
+                "enter the apps username",
+                "nodemanager log is located",
+                # TNS listener noise in apps-listener check (exit code is authoritative)
+                "tns-12541",
+                "tns-12560",
+                "tns-00511",
+                "linux error:",
+            ]
+
+            # Lines containing any of these keywords are ALWAYS preserved even if they
+            # also contain a noise phrase — they carry diagnostic status information.
+            _STATUS_KEYWORDS = [
+                "is running", "is shutdown", "is not running", "not running",
+                "failed", "error", "not up", "starting", "stopped",
             ]
 
             def _clean_raw(raw):
-                lines = [l for l in raw.splitlines()
-                         if not any(n in l.lower() for n in _MANAGED_NOISE)
-                         and l.strip()]
+                lines = []
+                for l in raw.splitlines():
+                    if not l.strip():
+                        continue
+                    l_lower = l.lower()
+                    # Preserve status lines regardless of noise match
+                    if any(kw in l_lower for kw in _STATUS_KEYWORDS):
+                        lines.append(l)
+                        continue
+                    if not any(n in l_lower for n in _MANAGED_NOISE):
+                        lines.append(l)
                 return "\n".join(lines)
 
             no_env_msg = ("APPS_ENV_FILE not configured — reinstall agent with context file path "
@@ -5662,11 +5695,12 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 # ── 3. Apps Listener ──────────────────────────────────────────
                 # adalnctl.sh exit code is authoritative — no content parsing needed.
                 _out, _exit = _secs.get("apps_listener", ("", 1))
+                _aln_clean = _clean_raw(_out)
                 if _exit != 0:
                     _finding("apps_listener", "Apps Listener Not Running", "warning",
-                             "adalnctl.sh exited with code %d." % _exit, _out)
+                             "adalnctl.sh exited with code %d." % _exit, _aln_clean)
                 else:
-                    _ok("apps_listener", "Apps Listener Status", "Apps Listener is running.", _out)
+                    _ok("apps_listener", "Apps Listener Status", "Apps Listener is running.", _aln_clean)
 
                 # ── 4. Node Manager ───────────────────────────────────────────
                 _out, _exit = _secs.get("node_manager", ("", 1))
@@ -5760,7 +5794,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     if _exit == 124:
                         _finding("admin_server", "Admin Server Check Timed Out", "warning",
                                  "adadminsrvctl.sh status timed out after 60s.", _adm_clean)
-                    elif "is running" in _adm_clean.lower():
+                    elif "is running" in _out.lower():
                         _ok("admin_server", "WebLogic Admin Server",
                             "Admin Server is running.", _adm_clean)
                     else:
@@ -5869,19 +5903,20 @@ class ProxyHandler(BaseHTTPRequestHandler):
 
                 # ── 8b. ADOP status ───────────────────────────────────────────
                 _adop_out, _adop_exit = _secs.get("adop_status", ("", 1))
+                _adop_clean = _clean_raw(_adop_out)
                 if "NO_APPS_PWD" in _adop_out:
                     _ok("adop_status", "ADOP Status",
                         "Set APPS password in Edit Connection to enable ADOP status check.")
                 elif _adop_exit == 124:
                     _finding("adop_status", "ADOP Command Timed Out", "critical",
-                             "adop -status timed out after 40s.", _adop_out)
+                             "adop -status timed out after 40s.", _adop_clean)
                 elif "FAILED" in _adop_out.upper():
                     _session_line = next(
                         (l.strip() for l in _adop_out.splitlines()
                          if "session" in l.lower() or "phase" in l.lower()), "")
                     _finding("adop_status", "ADOP Session in FAILED State", "critical",
                              "ADOP reports a FAILED session. Investigate with: adop -status. "
-                             + _session_line, _adop_out)
+                             + _session_line, _adop_clean)
                 elif "exiting with status = 0" in _adop_out.lower() or "no active session" in _adop_out.lower():
                     _summary = "; ".join(
                         l.strip() for l in _adop_out.splitlines()
@@ -5890,11 +5925,11 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     )[:200]
                     _ok("adop_status", "ADOP Status",
                         "ADOP completed successfully. " + (_summary or "No active patch session."),
-                        _adop_out)
+                        _adop_clean)
                 else:
                     _finding("adop_status", "ADOP Unexpected Output", "warning",
                              "adop -status returned unexpected output "
-                             "(exit %d). Review raw output." % _adop_exit, _adop_out)
+                             "(exit %d). Review raw output." % _adop_exit, _adop_clean)
 
                 # ── 9. Invalid objects ─────────────────────────────────────────
                 _inv_out, _inv_exit = _secs.get("invalid_objects", ("", 1))
@@ -6110,11 +6145,11 @@ class ProxyHandler(BaseHTTPRequestHandler):
             # ── IO wait ────────────────────────────────────────────────────────
             # Sentinel threshold: warn >15%, critical >30%. Skipped if sar missing.
             stdout, stderr, exit_code, _ = run_os_command(
-                ["bash", "-c", "sar -u 1 1 2>/dev/null | awk '/^Average/{print $(NF-3)}'"],
+                ["bash", "-c", "sar -u 1 1 2>/dev/null | grep '^Average' | awk 'NR==1{print $5}'"],
                 timeout=15)
             if exit_code == 0 and stdout.strip():
                 try:
-                    _iowait = float(stdout.strip())
+                    _iowait = float(stdout.splitlines()[0].strip())
                     _io_table = "Metric|Value\nIO Wait %|%.2f%%" % _iowait
                     if _iowait > 30:
                         _finding("io_wait", "IO Wait Critical", "critical",
