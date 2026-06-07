@@ -818,9 +818,9 @@ async function openReinstallPanel(connId) {
   if (actionsSection) {
     actionsSection.innerHTML = `
       <div style="margin-bottom:12px;font-size:13px;color:var(--muted)">Run this on your server:</div>
-      <div class="install-cmd" style="margin-bottom:16px">
-        <pre id="reinstall-cmd-text" style="font-size:11px">${esc(d.install_cmd)}</pre>
-        <button class="copy-btn-sm" onclick="copyCmd(this, 'reinstall-cmd-text')">Copy</button>
+      <div class="install-cmd" style="margin-bottom:16px;align-items:flex-start">
+        <pre id="reinstall-cmd-text" style="font-size:11px;white-space:pre-wrap;word-break:break-all;overflow:visible">${esc(d.install_cmd)}</pre>
+        <button class="copy-btn-sm" style="margin-top:2px" onclick="copyCmd(this, 'reinstall-cmd-text')">Copy</button>
       </div>
       <p style="font-size:12px;color:var(--muted)">Token refreshed. Old tokens are invalidated.</p>
       <button class="btn btn-secondary" style="margin-top:16px" onclick="openSlideout(${connId})">← Back to details</button>

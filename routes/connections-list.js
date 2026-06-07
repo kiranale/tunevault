@@ -1101,32 +1101,18 @@ router.post('/connections/:id/reissue-install-token', requireAuth, async (req, r
     const newToken = crypto.randomBytes(32).toString('hex');
     await agentDb.createRegToken({ token: newToken, connectionId, userId: req.user.id });
 
-    // Build install command — always include TUNEVAULT_API + TUNEVAULT_CONNECTION_ID (belt-and-suspenders:
-    // the token already maps to this connection ID via agent_reg_tokens, but being explicit avoids
-    // any ambiguity and preserves apps_pwd/weblogic_pwd on the existing row).
     const isAppsServer = conn.server_type === 'apps' || conn.server_type === 'both';
+    const ctxFile = conn.ebs_context_file || '';
     let installCmd;
     if (isAppsServer) {
-      const ctxLine = conn.ebs_context_file
-        ? `  TUNEVAULT_EBS_CONTEXT_FILE=${conn.ebs_context_file} \\\n`
-        : `  # TUNEVAULT_EBS_CONTEXT_FILE=/u01/.../fs1/inst/apps/<CTX_NAME>/<CTX_NAME>.xml \\\n`;
-      installCmd =
-        `# Reinstall — reuses connection #${connectionId} (APPS/WebLogic passwords preserved)\n` +
-        `curl -fsSL ${APP_URL}/install.sh | sudo \\\n` +
-        `  TUNEVAULT_TOKEN=${newToken} \\\n` +
-        `  TUNEVAULT_API=${APP_URL} \\\n` +
-        `  TUNEVAULT_CONNECTION_ID=${connectionId} \\\n` +
-        `  TUNEVAULT_SERVER_TYPE=${conn.server_type} \\\n` +
-        ctxLine +
-        `  bash`;
+      installCmd = `curl -fsSL ${APP_URL}/install.sh | sudo` +
+        ` TUNEVAULT_TOKEN=${newToken}` +
+        ` TUNEVAULT_API=${APP_URL}` +
+        ` TUNEVAULT_SERVER_TYPE=${conn.server_type}` +
+        (ctxFile ? ` TUNEVAULT_EBS_CONTEXT_FILE=${ctxFile}` : '') +
+        ` bash`;
     } else {
-      installCmd =
-        `# Reinstall — reuses connection #${connectionId}\n` +
-        `curl -fsSL ${APP_URL}/install.sh | sudo \\\n` +
-        `  TUNEVAULT_TOKEN=${newToken} \\\n` +
-        `  TUNEVAULT_API=${APP_URL} \\\n` +
-        `  TUNEVAULT_CONNECTION_ID=${connectionId} \\\n` +
-        `  bash`;
+      installCmd = `curl -fsSL ${APP_URL}/install.sh | sudo TUNEVAULT_TOKEN=${newToken} TUNEVAULT_API=${APP_URL} bash`;
     }
     res.json({ ok: true, token: newToken, install_cmd: installCmd });
   } catch (err) {
