@@ -142,8 +142,12 @@ All Add Connection links in the app MUST point to `/connections/new` — the sin
 - README.md CI badge URLs point to Polsia-Inc/tunevault — should be kiranale/tunevault.
 - OPP check not yet added to EBS app tier checks.
 
+✅ Resolved:
+- Auto-upgrade fully working as of 3.20.17/3.20.18 — verified 3.20.17→3.20.18 with zero manual steps.
+
 ## Recent changes
 
+- 2026-06-07: FIX — Auto-upgrade fully working as of 3.20.17/3.20.18. Root causes: (1) TUNEVAULT_URL defaulted to tunevault.app instead of TUNEVAULT_API_URL from agent.env — fixed 3.20.13; (2) downloaded VERSION verification read only 2000 bytes causing None — removed in 3.20.17, checksum sufficient. Verified: 3.20.17→3.20.18 auto-upgraded with zero manual steps. LATEST_PROXY_VERSION → 3.20.18.
 - 2026-06-07: FIX — oracle-proxy.py 3.20.11: check_for_update() comparison fixed — was using > (semver), which silently returned needs_update=False when server's VERSION regex fell back to '3.1.1' default (older than running version); replaced with remote_version != VERSION so any mismatch triggers update. Added debug logging: [upgrade] downloaded N bytes / remote=X current=Y needs_update=Z printed on every check. LATEST_PROXY_VERSION → 3.20.11.
 - 2026-06-07: FIX — oracle-proxy.py 3.20.10: stale-upgrade backoff — when check_for_update() returns needs_update=False (Render not yet deployed), _stale_upgrade_count increments and _backoff = min(60*count, 600) seconds (1min→2min→…→10min); thread sleeps then resets _last_poll_upgrade_trigger=0.0; count resets to 0 on successful download. Applied to both _do_poll_upgrade and _do_witem_upgrade. Cache-Control: no-cache added to /oracle-proxy.py, /downloads/oracle-proxy.py, /api/proxy/version routes. LATEST_PROXY_VERSION → 3.20.10.
 - 2026-06-07: FEAT — oracle-proxy.py 3.20.9: raw output added to apache_status, opmn_status, apps_listener, node_manager ok results — expandable details now show adapcctl/adopmnctl/adalnctl/adnodemgrctl stdout+stderr in report UI. LATEST_PROXY_VERSION → 3.20.9.
