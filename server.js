@@ -5338,7 +5338,18 @@ async function generateExecutiveSummary(healthCheckId, metrics, scores) {
 RULES:
 1. CORE_DB_SUMMARY: 3-5 sentences. Name specific components by their exact names (e.g. "forms-c4ws_server1 is shutdown"). Include exact counts (X critical, Y warnings). State the business impact concretely — which users/functionality is broken. Write for an EBS DBA, not a manager.
 2. TOP_DB_ACTION: 1-2 sentences. The single most urgent fix with the exact EBS command. Example: "Start forms-c4ws_server1 — run as applmgr: admanagedsrvctl.sh start forms-c4ws_server1"
-3. Never use phrases like "requires immediate attention", "service disruption", or "your team has the details below".`
+3. Never use phrases like "requires immediate attention", "service disruption", or "your team has the details below".
+
+CRITICAL RULES FOR EBS APP TIER COMMANDS:
+- Managed server down → ALWAYS use: admanagedsrvctl.sh start <server_name> (run as applmgr user)
+- NEVER use stopall.sh, startall.sh, or any Oracle DB home scripts for EBS app tier fixes
+- Workflow Mailer → Navigate: EBS System Administrator → Oracle Applications Manager → Service Components → Find Workflow Notification Mailer → Activate
+- Invalid objects → Run on DB SERVER (not app server): sqlplus / as sysdba then @$ORACLE_HOME/rdbms/admin/utlrp.sql
+- Apache/OHS → adapcctl.sh restart (as applmgr)
+- Admin Server → adadminsrvctl.sh start (as applmgr)
+- OPMN → adopmnctl.sh start (as applmgr)
+- Concurrent Manager → adcmctl.sh start apps/<password> (as applmgr)
+- All commands run as applmgr OS user on the EBS app server EXCEPT invalid objects which runs on the DB server`
           },
           {
             role: 'user',
@@ -5677,8 +5688,11 @@ function buildInlineAction(findings) {
   if (!topFinding) return 'Continue monitoring on the current schedule.';
   if (topFinding.category === 'EBS App') {
     const t = topFinding.metric.toLowerCase();
-    if (t.includes('forms') || t.includes('oacore') || t.includes('managed server'))
-      return `Start the managed server — run as applmgr: admanagedsrvctl.sh start <server_name>`;
+    if (t.includes('forms') || t.includes('oacore') || t.includes('managed server')) {
+      const match = (topFinding.value || topFinding.details || '').match(/:\s*(\S*server\S*)/i);
+      const serverName = match ? match[1].replace(/\.$/, '') : '<server_name>';
+      return `Start ${serverName} — run as applmgr: admanagedsrvctl.sh start ${serverName}`;
+    }
     if (t.includes('concurrent') || t.includes('adcmctl'))
       return `Start Concurrent Manager — run as applmgr: adcmctl.sh start apps/<apps_pwd>`;
     if (t.includes('workflow') || t.includes('mailer'))
@@ -6124,12 +6138,6 @@ FORMAT YOUR RESPONSE EXACTLY AS FOLLOWS:
 ## Health Overview
 Two or three sentences summarising the overall EBS app-tier health. Reference the score and the most impactful finding.
 
-## Critical Issues
-List every CRITICAL finding with:
-- What is wrong (one line)
-- Exact remediation command or admin script invocation in a \`\`\`bash code block
-If none: write "No critical issues detected."
-
 ## EBS Component Status
 Brief status of WebLogic managed servers, OPMN, Concurrent Manager, Workflow Mailer, and Node Manager based on the findings above. Flag anything not running.
 
@@ -6140,7 +6148,7 @@ Summarise the invalid objects and tablespace usage findings. Recommend adop phas
 Comment on disk, memory, CPU load, and IO wait findings and their impact on EBS middleware performance.
 
 ## Recommended Actions
-Numbered list (most urgent first). Each action: one sentence + the specific command or admin script.
+Numbered list (most urgent first). Each action: one sentence + the exact EBS admin script command (as applmgr). Use admanagedsrvctl.sh for managed servers, adapcctl.sh for Apache, adcmctl.sh for CM, adadminsrvctl.sh for Admin Server. For invalid objects: run utlrp.sql on the DB server, not the app server. Never use stopall.sh or startall.sh.
 
 ## Executive Summary
 EXACTLY one sentence. No more. Start with: "Overall, this EBS application server..."`;
