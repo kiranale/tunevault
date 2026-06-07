@@ -324,7 +324,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.15"  # perform_update: line-by-line VERSION scan replaces 2000-byte read
+VERSION = "3.20.16"  # auto-upgrade e2e verification
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.

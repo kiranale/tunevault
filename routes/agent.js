@@ -57,7 +57,7 @@ const router = express.Router();
 const AUTO_UPGRADE_TARGET = '7.5.0';
 // Current canonical oracle-proxy.py version — used to signal proxy_upgrade_available in poll response.
 // Keep in sync with server.js LATEST_PROXY_VERSION and routes/connections-list.js.
-const LATEST_PROXY_VERSION = '3.20.15';
+const LATEST_PROXY_VERSION = '3.20.16';
 // Number of recent failures (24h) that suppress further auto-upgrade attempts.
 const AUTO_UPGRADE_MAX_FAILURES = 2;
 
