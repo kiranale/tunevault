@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.28"  # adop/apps-listener noise; io_wait sar fix; admin server detection; _MANAGED_NOISE comprehensive
+VERSION = "3.20.29"  # raw output unfiltered in all _finding()/_ok() calls; _clean_raw() for detection only
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5695,22 +5695,20 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 # ── 3. Apps Listener ──────────────────────────────────────────
                 # adalnctl.sh exit code is authoritative — no content parsing needed.
                 _out, _exit = _secs.get("apps_listener", ("", 1))
-                _aln_clean = _clean_raw(_out)
                 if _exit != 0:
                     _finding("apps_listener", "Apps Listener Not Running", "warning",
-                             "adalnctl.sh exited with code %d." % _exit, _aln_clean)
+                             "adalnctl.sh exited with code %d." % _exit, _out)
                 else:
-                    _ok("apps_listener", "Apps Listener Status", "Apps Listener is running.", _aln_clean)
+                    _ok("apps_listener", "Apps Listener Status", "Apps Listener is running.", _out)
 
                 # ── 4. Node Manager ───────────────────────────────────────────
                 _out, _exit = _secs.get("node_manager", ("", 1))
-                _nm_clean = _clean_raw(_out)
                 if "the node manager is running" in _out.lower():
-                    _ok("node_manager", "Node Manager", "Node Manager is running.", _nm_clean)
+                    _ok("node_manager", "Node Manager", "Node Manager is running.", _out)
                 else:
                     _finding("node_manager", "Node Manager Not Running", "critical",
                              "adnodemgrctl.sh reports Node Manager is not running "
-                             "(exit code %d)." % _exit, _nm_clean)
+                             "(exit code %d)." % _exit, _out)
 
                 # ── 5. Managed servers ─────────────────────────────────────────
                 _ms_out, _ = _secs.get("managed_servers", ("NO_SERVERS_FOUND", 0))
@@ -5741,17 +5739,16 @@ class ProxyHandler(BaseHTTPRequestHandler):
                                 _sv_exit = 0
                             if _cur_sv is not None:
                                 _s_raw_orig = "\n".join(_sv_lines)
-                                _s_raw = _clean_raw(_s_raw_orig)
                                 if _sv_exit == 124:
-                                    _srv_states.append((_cur_sv, "TIMEOUT", _s_raw))
+                                    _srv_states.append((_cur_sv, "TIMEOUT", _s_raw_orig))
                                 elif "invalid server name" in _s_raw_orig.lower() or "invalid managed server" in _s_raw_orig.lower():
-                                    _srv_states.append((_cur_sv, "NOT_DEPLOYED", _s_raw))
+                                    _srv_states.append((_cur_sv, "NOT_DEPLOYED", _s_raw_orig))
                                 elif "is running" in _s_raw_orig.lower():
-                                    _srv_states.append((_cur_sv, "RUNNING", _s_raw))
+                                    _srv_states.append((_cur_sv, "RUNNING", _s_raw_orig))
                                 elif any(kw in _s_raw_orig.lower() for kw in ("is shutdown", "is not running", "not running")):
-                                    _srv_states.append((_cur_sv, "DOWN", _s_raw))
+                                    _srv_states.append((_cur_sv, "DOWN", _s_raw_orig))
                                 else:
-                                    _srv_states.append((_cur_sv, "UNKNOWN", _s_raw))
+                                    _srv_states.append((_cur_sv, "UNKNOWN", _s_raw_orig))
                                 _cur_sv = None
                         elif _cur_sv is not None:
                             _sv_lines.append(_ml)
@@ -5790,17 +5787,16 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     _ok("admin_server", "WebLogic Admin Server",
                         "Admin Server runs on host '%s' — skipped on this managed-server node." % _adm_host)
                 else:
-                    _adm_clean = _clean_raw(_out)
                     if _exit == 124:
                         _finding("admin_server", "Admin Server Check Timed Out", "warning",
-                                 "adadminsrvctl.sh status timed out after 60s.", _adm_clean)
+                                 "adadminsrvctl.sh status timed out after 60s.", _out)
                     elif "is running" in _out.lower():
                         _ok("admin_server", "WebLogic Admin Server",
-                            "Admin Server is running.", _adm_clean)
+                            "Admin Server is running.", _out)
                     else:
                         _finding("admin_server", "WebLogic Admin Server Not Running", "critical",
                                  "adadminsrvctl.sh status reports Admin Server is not running "
-                                 "(exit code %d)." % _exit, _adm_clean)
+                                 "(exit code %d)." % _exit, _out)
 
                 # ── 7. CM status ──────────────────────────────────────────────
                 _MANDATORY_MGR = {
@@ -5903,20 +5899,19 @@ class ProxyHandler(BaseHTTPRequestHandler):
 
                 # ── 8b. ADOP status ───────────────────────────────────────────
                 _adop_out, _adop_exit = _secs.get("adop_status", ("", 1))
-                _adop_clean = _clean_raw(_adop_out)
                 if "NO_APPS_PWD" in _adop_out:
                     _ok("adop_status", "ADOP Status",
                         "Set APPS password in Edit Connection to enable ADOP status check.")
                 elif _adop_exit == 124:
                     _finding("adop_status", "ADOP Command Timed Out", "critical",
-                             "adop -status timed out after 40s.", _adop_clean)
+                             "adop -status timed out after 40s.", _adop_out)
                 elif "FAILED" in _adop_out.upper():
                     _session_line = next(
                         (l.strip() for l in _adop_out.splitlines()
                          if "session" in l.lower() or "phase" in l.lower()), "")
                     _finding("adop_status", "ADOP Session in FAILED State", "critical",
                              "ADOP reports a FAILED session. Investigate with: adop -status. "
-                             + _session_line, _adop_clean)
+                             + _session_line, _adop_out)
                 elif "exiting with status = 0" in _adop_out.lower() or "no active session" in _adop_out.lower():
                     _summary = "; ".join(
                         l.strip() for l in _adop_out.splitlines()
@@ -5925,11 +5920,11 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     )[:200]
                     _ok("adop_status", "ADOP Status",
                         "ADOP completed successfully. " + (_summary or "No active patch session."),
-                        _adop_clean)
+                        _adop_out)
                 else:
                     _finding("adop_status", "ADOP Unexpected Output", "warning",
                              "adop -status returned unexpected output "
-                             "(exit %d). Review raw output." % _adop_exit, _adop_clean)
+                             "(exit %d). Review raw output." % _adop_exit, _adop_out)
 
                 # ── 9. Invalid objects ─────────────────────────────────────────
                 _inv_out, _inv_exit = _secs.get("invalid_objects", ("", 1))
