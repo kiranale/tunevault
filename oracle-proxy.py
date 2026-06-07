@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.25"  # node-mgr heredoc; apps-listener TNS detection; stty noise filter; no raw truncation
+VERSION = "3.20.26"  # Sentinel patterns: ts_usage + cpu_load + io_wait + df -hP + swap check
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5363,6 +5363,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     ("wf_mailer",       "Workflow Mailer"),
                     ("adop_status",     "ADOP Status"),
                     ("invalid_objects", "Invalid Objects"),
+                    ("ts_usage",        "Tablespace Usage"),
                 ]:
                     _finding(_cid, _ctitle, "warning", no_env_msg)
             else:
@@ -5545,6 +5546,24 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     '    echo "TV_EXIT $?"',
                     'fi',
                     "echo TV_END invalid_objects",
+                    "",
+                    # 10. Tablespace usage — dba_tablespace_usage_metrics via apps user
+                    # TWO_TASK set by EBSapps.env routes to the EBS PDB service.
+                    "echo TV_START ts_usage",
+                    'if [ -z "$APPS_PWD" ]; then',
+                    '    echo NO_APPS_PWD',
+                    '    echo "TV_EXIT 0"',
+                    'else',
+                    "    sqlplus -s 'apps/'\"$APPS_PWD\" <<TSSQLEND 2>&1",
+                    "set pages 0 feedback off heading off echo off verify off",
+                    "SELECT tablespace_name||'|'||round(used_space*8192/1048576)||'|'||round(tablespace_size*8192/1048576)||'|'||round(used_percent,1)",
+                    "FROM dba_tablespace_usage_metrics",
+                    "ORDER BY used_percent DESC;",
+                    "exit;",
+                    "TSSQLEND",
+                    '    echo "TV_EXIT $?"',
+                    'fi',
+                    "echo TV_END ts_usage",
                 ]
                 _hc_script = "\n".join(_script_lines) + "\n"
 
@@ -5902,68 +5921,192 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         _ok("invalid_objects", "Invalid Objects",
                             "No invalid objects found in the database.", "")
 
-            # ── 8. Disk usage ──────────────────────────────────────────────────
-            stdout, stderr, exit_code, _ = run_os_command(["df", "-h"], timeout=10)
+                # ── 10. Tablespace usage ───────────────────────────────────────────
+                _ts_out, _ts_exit = _secs.get("ts_usage", ("", 1))
+                if "NO_APPS_PWD" in _ts_out:
+                    _ok("ts_usage", "Tablespace Usage",
+                        "Set APPS password in Edit Connection to enable tablespace checks.")
+                else:
+                    _ts_rows = []
+                    for _ln in _ts_out.splitlines():
+                        _pts = [p.strip() for p in _ln.strip().split("|")]
+                        if len(_pts) == 4:
+                            try:
+                                _ts_rows.append((_pts[0], int(_pts[1]), int(_pts[2]), float(_pts[3])))
+                            except (ValueError, IndexError):
+                                pass
+                    _ts_table = ("Tablespace|Used MB|Total MB|Used %\n" +
+                                 "\n".join("%s|%d|%d|%.1f%%" % (n, u, t, p) for n, u, t, p in _ts_rows)) if _ts_rows else ""
+                    _crit_ts = [(n, p) for n, u, t, p in _ts_rows if p >= 90]
+                    _warn_ts = [(n, p) for n, u, t, p in _ts_rows if 80 <= p < 90]
+                    if _ts_exit != 0 and not _ts_rows:
+                        _finding("ts_usage", "Tablespace Query Failed", "warning",
+                                 "sqlplus query to dba_tablespace_usage_metrics failed "
+                                 "(exit %d). Check APPS credentials and DB connectivity." % _ts_exit, _ts_out)
+                    elif _crit_ts:
+                        _finding("ts_usage", "Critical Tablespace Usage", "critical",
+                                 "%d tablespace(s) above 90%%: %s"
+                                 % (len(_crit_ts),
+                                    "; ".join("%s (%.1f%%)" % (n, p) for n, p in _crit_ts[:3])),
+                                 _ts_table)
+                    elif _warn_ts:
+                        _finding("ts_usage", "High Tablespace Usage", "warning",
+                                 "%d tablespace(s) above 80%%: %s"
+                                 % (len(_warn_ts),
+                                    "; ".join("%s (%.1f%%)" % (n, p) for n, p in _warn_ts[:3])),
+                                 _ts_table)
+                    elif _ts_rows:
+                        _top = _ts_rows[0]
+                        _ok("ts_usage", "Tablespace Usage",
+                            "All tablespaces within limits. Highest: %s at %.1f%% (%dMB of %dMB used)."
+                            % (_top[0], _top[3], _top[1], _top[2]), _ts_table)
+                    else:
+                        _ok("ts_usage", "Tablespace Usage",
+                            "No tablespace data returned (dba_tablespace_usage_metrics empty).", "")
+
+            # ── Disk usage ─────────────────────────────────────────────────────
+            # df -hP: POSIX portable output — one line per filesystem, fixed columns,
+            # no line-wrapping even for long device names.
+            stdout, stderr, exit_code, _ = run_os_command(["df", "-hP"], timeout=10)
             if exit_code != 0:
                 _finding("disk_usage", "Disk Usage Check Failed", "warning",
-                         "df -h returned exit code %d." % exit_code, stderr)
+                         "df -hP returned exit code %d." % exit_code, stderr)
             else:
-                crit_fs = []
-                warn_fs = []
+                crit_fs, warn_fs, _disk_rows = [], [], []
                 for line in stdout.splitlines()[1:]:
                     parts = line.split()
-                    if len(parts) >= 5:
+                    if len(parts) >= 6:
                         pct_str = parts[4].rstrip("%")
                         try:
                             pct   = int(pct_str)
-                            mount = parts[5] if len(parts) >= 6 else parts[-1]
+                            mount = parts[5]
+                            _disk_rows.append("%s|%s|%s|%s|%d%%" % (mount, parts[1], parts[2], parts[3], pct))
                             if pct >= 95:
                                 crit_fs.append("%s at %d%%" % (mount, pct))
                             elif pct >= 85:
                                 warn_fs.append("%s at %d%%" % (mount, pct))
                         except ValueError:
                             pass
+                _disk_table = "Mount|Size|Used|Avail|Use%\n" + "\n".join(_disk_rows)
                 if crit_fs:
                     _finding("disk_usage", "Critical Disk Usage", "critical",
-                             "Filesystems at or above 95%%: %s" % ", ".join(crit_fs),
-                             stdout[:1000])
+                             "Filesystems at or above 95%%: %s" % ", ".join(crit_fs), _disk_table)
                 elif warn_fs:
                     _finding("disk_usage", "High Disk Usage", "warning",
-                             "Filesystems at or above 85%%: %s" % ", ".join(warn_fs),
-                             stdout[:1000])
+                             "Filesystems at or above 85%%: %s" % ", ".join(warn_fs), _disk_table)
                 else:
-                    _ok("disk_usage", "Disk Usage", "All filesystems below 85%% threshold.")
+                    _ok("disk_usage", "Disk Usage",
+                        "All filesystems below 85%% threshold.", _disk_table)
 
-            # ── 9. Memory ──────────────────────────────────────────────────────
+            # ── Memory ─────────────────────────────────────────────────────────
+            # Parses both old (6-col) and new (7-col, adds 'available') free -m output.
+            # Swap check: warn >20%, critical >50% (Sentinel thresholds).
             stdout, stderr, exit_code, _ = run_os_command(["free", "-m"], timeout=10)
             if exit_code != 0:
                 _finding("memory_usage", "Memory Check Failed", "warning",
                          "free -m returned exit code %d." % exit_code, stderr)
             else:
-                available_mb = None
-                for line in stdout.splitlines():
-                    if line.startswith("Mem:"):
-                        parts = line.split()
-                        if len(parts) >= 7:
-                            try:
-                                available_mb = int(parts[6])
-                            except ValueError:
-                                pass
-                        break
-                if available_mb is None:
+                _mem_total = _mem_used = _mem_free = _mem_avail = 0
+                _swp_total = _swp_used = 0
+                for _ml in stdout.splitlines():
+                    _mp = _ml.split()
+                    if _mp and _mp[0] == "Mem:" and len(_mp) >= 4:
+                        try:
+                            _mem_total = int(_mp[1])
+                            _mem_used  = int(_mp[2])
+                            _mem_free  = int(_mp[3])
+                            # col 6 = 'available' (procps >= 3.3.10); fall back to free
+                            _mem_avail = int(_mp[6]) if len(_mp) >= 7 else _mem_free
+                        except (ValueError, IndexError):
+                            pass
+                    elif _mp and _mp[0] == "Swap:" and len(_mp) >= 3:
+                        try:
+                            _swp_total = int(_mp[1])
+                            _swp_used  = int(_mp[2])
+                        except (ValueError, IndexError):
+                            pass
+                _swp_pct = int(_swp_used * 100 / _swp_total) if _swp_total > 0 else 0
+                _mem_table = ("Metric|Value\n"
+                              "Total RAM (MB)|%d\n"
+                              "Used RAM (MB)|%d\n"
+                              "Free RAM (MB)|%d\n"
+                              "Available (MB)|%d\n"
+                              "Swap Total (MB)|%d\n"
+                              "Swap Used (MB)|%d\n"
+                              "Swap Used %%|%d%%" % (_mem_total, _mem_used, _mem_free,
+                                                     _mem_avail, _swp_total, _swp_used, _swp_pct))
+                if _mem_total == 0:
                     _finding("memory_usage", "Memory Parse Failed", "warning",
-                             "Could not parse available memory from free -m output.", stdout[:300])
-                elif available_mb < 256:
+                             "Could not parse memory from free -m output.", stdout)
+                elif _swp_pct > 50:
+                    _finding("memory_usage", "Critical Swap Usage", "critical",
+                             "Swap used %d%% (%dMB of %dMB). Severe memory pressure."
+                             % (_swp_pct, _swp_used, _swp_total), _mem_table)
+                elif _mem_avail < 256:
                     _finding("memory_usage", "Critical Memory Pressure", "critical",
-                             "Available memory: %dMB (below 256MB critical threshold)." % available_mb,
-                             stdout[:300])
-                elif available_mb < 512:
+                             "Available RAM %dMB below 256MB threshold." % _mem_avail, _mem_table)
+                elif _swp_pct > 20:
+                    _finding("memory_usage", "High Swap Usage", "warning",
+                             "Swap used %d%% (%dMB of %dMB). Available RAM: %dMB."
+                             % (_swp_pct, _swp_used, _swp_total, _mem_avail), _mem_table)
+                elif _mem_avail < 512:
                     _finding("memory_usage", "Low Available Memory", "warning",
-                             "Available memory: %dMB (below 512MB warning threshold)." % available_mb,
-                             stdout[:300])
+                             "Available RAM %dMB below 512MB threshold." % _mem_avail, _mem_table)
                 else:
                     _ok("memory_usage", "Memory Usage",
-                        "Available memory: %dMB." % available_mb)
+                        "Available RAM: %dMB. Swap: %d%% used (%dMB/%dMB)."
+                        % (_mem_avail, _swp_pct, _swp_used, _swp_total), _mem_table)
+
+            # ── CPU load ───────────────────────────────────────────────────────
+            # Sentinel threshold: warn >5.0, critical >10.0 (standard Linux DBA practice)
+            stdout, stderr, exit_code, _ = run_os_command(
+                ["bash", "-c", "uptime | awk -F'load average:' '{print $2}'"], timeout=5)
+            if exit_code == 0 and stdout.strip():
+                try:
+                    _l_parts = [p.strip().rstrip(",") for p in stdout.strip().split(",")]
+                    _l1  = float(_l_parts[0])
+                    _l5  = float(_l_parts[1]) if len(_l_parts) > 1 else 0.0
+                    _l15 = float(_l_parts[2]) if len(_l_parts) > 2 else 0.0
+                    _load_table = "Load 1m|Load 5m|Load 15m\n%.2f|%.2f|%.2f" % (_l1, _l5, _l15)
+                    if _l1 > 10:
+                        _finding("cpu_load", "CPU Load Critical", "critical",
+                                 "1-min load average %.2f exceeds 10.0 threshold." % _l1, _load_table)
+                    elif _l1 > 5:
+                        _finding("cpu_load", "CPU Load Elevated", "warning",
+                                 "1-min load average %.2f exceeds 5.0 threshold." % _l1, _load_table)
+                    else:
+                        _ok("cpu_load", "CPU Load Average",
+                            "Load averages normal: 1m=%.2f 5m=%.2f 15m=%.2f" % (_l1, _l5, _l15),
+                            _load_table)
+                except (ValueError, IndexError):
+                    _ok("cpu_load", "CPU Load Average",
+                        "Could not parse load average.", stdout.strip())
+            else:
+                _ok("cpu_load", "CPU Load Average", "uptime not available.")
+
+            # ── IO wait ────────────────────────────────────────────────────────
+            # Sentinel threshold: warn >15%, critical >30%. Skipped if sar missing.
+            stdout, stderr, exit_code, _ = run_os_command(
+                ["bash", "-c", "sar -u 1 1 2>/dev/null | awk '/^Average/{print $(NF-3)}'"],
+                timeout=15)
+            if exit_code == 0 and stdout.strip():
+                try:
+                    _iowait = float(stdout.strip())
+                    _io_table = "Metric|Value\nIO Wait %|%.2f%%" % _iowait
+                    if _iowait > 30:
+                        _finding("io_wait", "IO Wait Critical", "critical",
+                                 "IO wait %.1f%% exceeds 30%% critical threshold." % _iowait, _io_table)
+                    elif _iowait > 15:
+                        _finding("io_wait", "IO Wait Elevated", "warning",
+                                 "IO wait %.1f%% exceeds 15%% warning threshold." % _iowait, _io_table)
+                    else:
+                        _ok("io_wait", "IO Wait",
+                            "IO wait %.1f%% — within normal range." % _iowait, _io_table)
+                except ValueError:
+                    _ok("io_wait", "IO Wait", "Could not parse sar output.", stdout.strip())
+            else:
+                _ok("io_wait", "IO Wait",
+                    "sar not available (install sysstat package to enable IO wait monitoring).")
 
             # ── Score ──────────────────────────────────────────────────────────
             score = 100
