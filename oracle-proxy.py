@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.26"  # Sentinel patterns: ts_usage + cpu_load + io_wait + df -hP + swap check
+VERSION = "3.20.27"  # apps-listener exit-code-only; adop heredoc; nodemgr noise; inv-objects DB pre-check
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5334,6 +5334,10 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 "server specific logs are located",
                 "admanagedsrvctl.sh: exiting with status",
                 "admanagedsrvctl.sh: check the logfile",
+                "you are running adnodemgrctl",
+                "adnodemgrctl.sh: exiting with status",
+                "adnodemgrctl.sh: check the logfile",
+                "nodemanager log is located",
                 "you are running adadminsrvctl",
                 "enter the apps schema password",
                 "adadminsrvctl.sh: exiting with status",
@@ -5520,30 +5524,39 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     'fi',
                     "echo TV_END wf_stuck",
                     "",
-                    # 8c. ADOP — reads APPS_PWD from environment, no stdin heredoc needed
+                    # 8c. ADOP — pass APPS_PWD via heredoc (Sentinel pattern; adop reads stdin for password)
                     "echo TV_START adop_status",
                     'if [ -z "$APPS_PWD" ]; then',
                     '    echo NO_APPS_PWD',
                     '    echo "TV_EXIT 0"',
                     'else',
-                    '    timeout 40 env COLUMNS=300 adop -status 2>&1',
+                    '    timeout 40 env COLUMNS=300 adop -status 2>&1 <<ADOPEOF',
+                    '$APPS_PWD',
+                    'ADOPEOF',
                     '    echo "TV_EXIT $?"',
                     'fi',
                     "echo TV_END adop_status",
                     "",
-                    # 9. Invalid objects
+                    # 9. Invalid objects — quick connect test gates the full query
                     "echo TV_START invalid_objects",
                     'if [ -z "$APPS_PWD" ]; then',
                     '    echo NO_APPS_PWD',
                     '    echo "TV_EXIT 0"',
                     'else',
-                    "    sqlplus -S 'apps/'\"$APPS_PWD\" <<INVSQLEND 2>&1",
+                    '    _CONN=$(echo "exit;" | sqlplus -s \'apps/\'"$APPS_PWD" 2>&1 | head -5)',
+                    '    if echo "$_CONN" | grep -qiE "ORA-|TNS-|SP2-"; then',
+                    '        echo "DB_CONNECT_FAILED"',
+                    '        echo "$_CONN"',
+                    '        echo "TV_EXIT 1"',
+                    '    else',
+                    "        sqlplus -S 'apps/'\"$APPS_PWD\" <<INVSQLEND 2>&1",
                     "set pages 0 feedback off heading off echo off verify off",
                     "SELECT owner||'|'||COUNT(*) FROM dba_objects",
                     "WHERE status='INVALID' GROUP BY owner ORDER BY COUNT(*) DESC;",
                     "exit;",
                     "INVSQLEND",
-                    '    echo "TV_EXIT $?"',
+                    '        echo "TV_EXIT $?"',
+                    '    fi',
                     'fi',
                     "echo TV_END invalid_objects",
                     "",
@@ -5647,24 +5660,23 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     _ok("opmn_status", "OPMN Status", "All OPMN components are Alive.", _out)
 
                 # ── 3. Apps Listener ──────────────────────────────────────────
+                # adalnctl.sh exit code is authoritative — no content parsing needed.
                 _out, _exit = _secs.get("apps_listener", ("", 1))
                 if _exit != 0:
                     _finding("apps_listener", "Apps Listener Not Running", "warning",
-                             "adalnctl.sh status returned exit code %d." % _exit, _out)
-                elif "tns-12541" in _out.lower() or "no listener" in _out.lower():
-                    _finding("apps_listener", "Apps Listener Not Responding", "warning",
-                             "adalnctl.sh reports the Apps Listener (FNDSM) is not responding.", _out)
+                             "adalnctl.sh exited with code %d." % _exit, _out)
                 else:
                     _ok("apps_listener", "Apps Listener Status", "Apps Listener is running.", _out)
 
                 # ── 4. Node Manager ───────────────────────────────────────────
                 _out, _exit = _secs.get("node_manager", ("", 1))
+                _nm_clean = _clean_raw(_out)
                 if "the node manager is running" in _out.lower():
-                    _ok("node_manager", "Node Manager", "Node Manager is running.", _out)
+                    _ok("node_manager", "Node Manager", "Node Manager is running.", _nm_clean)
                 else:
                     _finding("node_manager", "Node Manager Not Running", "critical",
                              "adnodemgrctl.sh reports Node Manager is not running "
-                             "(exit code %d)." % _exit, _out)
+                             "(exit code %d)." % _exit, _nm_clean)
 
                 # ── 5. Managed servers ─────────────────────────────────────────
                 _ms_out, _ = _secs.get("managed_servers", ("NO_SERVERS_FOUND", 0))
@@ -5886,7 +5898,18 @@ class ProxyHandler(BaseHTTPRequestHandler):
 
                 # ── 9. Invalid objects ─────────────────────────────────────────
                 _inv_out, _inv_exit = _secs.get("invalid_objects", ("", 1))
-                if "NO_APPS_PWD" not in _inv_out:
+                if "NO_APPS_PWD" in _inv_out:
+                    _ok("invalid_objects", "Invalid Objects",
+                        "Set APPS password in Edit Connection to enable invalid objects check.")
+                elif "DB_CONNECT_FAILED" in _inv_out:
+                    _db_err = " ".join(
+                        l.strip() for l in _inv_out.splitlines()
+                        if l.strip() and l.strip() != "DB_CONNECT_FAILED")
+                    _finding("invalid_objects", "DB Not Accessible from App Server", "warning",
+                             "sqlplus cannot reach the DB — verify the DB server is up and "
+                             "EBSapps.env TWO_TASK points to an accessible service."
+                             + (" Error: " + _db_err[:200] if _db_err else ""), "")
+                else:
                     _inv_rows = []
                     for _ln in _inv_out.splitlines():
                         _pts = _ln.strip().split("|")
