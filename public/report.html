@@ -2078,6 +2078,11 @@
                 <div style="font-size:28px;font-weight:700;letter-spacing:-1px;line-height:1;color:${c.color}">${c.value}</div>
             </div>`).join('');
 
+        const summaryBadge = critCount > 0
+            ? `<span class="tab-badge tab-badge-crit">${critCount}</span>`
+            : warnCount > 0 ? `<span class="tab-badge tab-badge-warn">${warnCount}</span>`
+            : `<span class="tab-badge tab-badge-ok">✓</span>`;
+
         document.getElementById('reportContent').innerHTML = `
             <div class="report-header">
                 <div class="report-title">
@@ -2106,15 +2111,28 @@
                 ${metricCards}
             </div>
 
-            ${renderPanel('EBS App Tier Checks', MAIN_ORDER)}
-            ${renderPanel('EBS DB Health', EBSDB_ORDER)}
-            ${renderPanel('System Resources', SYSRES_ORDER)}
+            <!-- TAB NAV -->
+            <div class="tabs-nav" id="tabsNav">
+                <button class="tab-btn active" onclick="switchTab('appsummary',this)">🧠 AI Summary ${summaryBadge}</button>
+                <button class="tab-btn" onclick="switchTab('appchecks',this)">🏭 EBS Checks</button>
+            </div>
 
-            ${findings.length === 0 && checksOk.length === 0 ? `
-            <div style="text-align:center;padding:60px 20px;color:var(--text-dim)">
-                <div style="font-size:32px;margin-bottom:12px;color:var(--green)">✓</div>
-                <div style="font-size:14px">All app tier checks passed.</div>
-            </div>` : ''}
+            <!-- TAB: AI SUMMARY -->
+            <div class="tab-panel active" id="tab-appsummary">
+                ${renderAISummaryTab(data, findings, critCount, warnCount, checksOk.length)}
+            </div>
+
+            <!-- TAB: EBS CHECKS -->
+            <div class="tab-panel" id="tab-appchecks">
+                ${renderPanel('EBS App Tier Checks', MAIN_ORDER)}
+                ${renderPanel('EBS DB Health', EBSDB_ORDER)}
+                ${renderPanel('System Resources', SYSRES_ORDER)}
+                ${findings.length === 0 && checksOk.length === 0 ? `
+                <div style="text-align:center;padding:60px 20px;color:var(--text-dim)">
+                    <div style="font-size:32px;margin-bottom:12px;color:var(--green)">✓</div>
+                    <div style="font-size:14px">All app tier checks passed.</div>
+                </div>` : ''}
+            </div>
         `;
     }
 

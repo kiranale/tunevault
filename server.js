@@ -6031,6 +6031,61 @@ function buildEvidenceContext(metrics, scores) {
 }
 
 function buildAnalysisPrompt(metrics, scores) {
+  // ── EBS app-tier: separate prompt focused on middleware + EBS components ──
+  if (metrics.server_type === 'apps') {
+    const findings  = metrics.findings  || [];
+    const checksOk  = metrics.checks_ok || [];
+    const critItems = findings.filter(f => f.severity === 'critical');
+    const warnItems = findings.filter(f => f.severity === 'warning');
+
+    const findingsText = findings.length > 0
+      ? findings.map(f => `- [${f.severity.toUpperCase()}] ${f.title}: ${f.details}`).join('\n')
+      : '- No findings (all checks passed)';
+    const okText = checksOk.length > 0
+      ? checksOk.map(c => `- [OK] ${c.title}: ${c.details}`).join('\n')
+      : '- No passing checks recorded';
+
+    return `You are a senior Oracle E-Business Suite administrator. Analyze this EBS application-tier health check and provide a concise, actionable report.
+
+## EBS Application Server Health — Score ${scores.overall}/100
+- Critical findings: ${critItems.length}
+- Warnings: ${warnItems.length}
+- Checks passed: ${checksOk.length}
+
+## All Findings
+${findingsText}
+
+## Passing Checks
+${okText}
+
+FORMAT YOUR RESPONSE EXACTLY AS FOLLOWS:
+
+## Health Overview
+Two or three sentences summarising the overall EBS app-tier health. Reference the score and the most impactful finding.
+
+## Critical Issues
+List every CRITICAL finding with:
+- What is wrong (one line)
+- Exact remediation command or admin script invocation in a \`\`\`bash code block
+If none: write "No critical issues detected."
+
+## EBS Component Status
+Brief status of WebLogic managed servers, OPMN, Concurrent Manager, Workflow Mailer, and Node Manager based on the findings above. Flag anything not running.
+
+## DB Health from App Tier
+Summarise the invalid objects and tablespace usage findings. Recommend adop phase=cleanup if invalid objects are elevated post-patch.
+
+## System Resources
+Comment on disk, memory, CPU load, and IO wait findings and their impact on EBS middleware performance.
+
+## Recommended Actions
+Numbered list (most urgent first). Each action: one sentence + the specific command or admin script.
+
+## Executive Summary
+EXACTLY one sentence. No more. Start with: "Overall, this EBS application server..."`;
+  }
+
+  // ── DB-tier prompt (original) ──────────────────────────────────────────────
   const tsSection = (metrics.tablespaces || []).length > 0
     ? metrics.tablespaces.map(t => `- ${t.name}: ${t.pct_used}% (${t.used_gb}GB/${t.total_gb}GB) autoextend=${t.autoextend}`).join('\n')
     : '- No tablespace data collected (insufficient privileges)';
