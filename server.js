@@ -7679,17 +7679,21 @@ async function ensureColumns() {
        )
   `);
 
-  // Reset auto-upgrade suppression for connections that have ≥2 failures in the
-  // last 24h despite being valid working connections (97, 114, 123).
-  // Back-dates their triggered_at outside the 24h window so the next heartbeat
-  // re-evaluates. Idempotent — no-op once they've successfully upgraded.
+  // Reset auto-upgrade suppression for any connection whose proxy is < 3.20.6.
+  // Pre-3.20.6 proxies can't handle self-upgrade work items so they accumulate
+  // failed audit rows that suppress further attempts. Back-dating unblocks the
+  // next heartbeat re-evaluation. Idempotent — no-op once successfully upgraded.
   await pool.query(`
     UPDATE agent_upgrade_audit
     SET triggered_at = NOW() - INTERVAL '25 hours'
-    WHERE connection_id = ANY($1::int[])
-      AND status = 'failed'
+    WHERE status = 'failed'
       AND triggered_at > NOW() - INTERVAL '24 hours'
-  `, [[97, 114, 123, 134, 137, 139]]);
+      AND connection_id IN (
+        SELECT id FROM oracle_connections
+        WHERE proxy_version < '3.20.6'
+           OR proxy_version IS NULL
+      )
+  `);
 }
 
 ensureColumns()

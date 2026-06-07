@@ -63,7 +63,8 @@ const AUTO_UPGRADE_MAX_FAILURES = 2;
 
 // In-memory rate limit for proxy upgrade work items: one per connection per hour.
 // Prevents flooding agent_command_queue on every 25s poll.
-const _proxyUpgradeSentAt = new Map(); // connId → Date.now() ms
+const _proxyUpgradeSentAt = new Map();   // connId → Date.now() ms of last send
+const _proxyUpgradeBackoff = new Map();  // connId → current backoff ms (doubles on failure, max 6h)
 
 // ── Config ─────────────────────────────────────────────────────────────────
 
@@ -571,8 +572,19 @@ async function evaluateProxyUpgrade(connectionId, proxyVersion) {
   if (!proxyVersion || !versionLessThan(proxyVersion, LATEST_PROXY_VERSION)) return;
 
   const connId = parseInt(connectionId, 10);
+
+  // Pre-3.20.6 proxies don't have the poll-loop work-item intercept — the work
+  // item would arrive as a local /api/self-upgrade 404 and fail immediately.
+  // Their auto_update_loop (30m cycle) will pick up proxy_upgrade_available from
+  // the poll response instead.
+  if (versionLessThan(proxyVersion, '3.20.6')) {
+    console.log(`[proxy-upgrade] conn ${connId}: proxy ${proxyVersion} < 3.20.6 — skipping work item, poll response only`);
+    return;
+  }
+
   const lastSent = _proxyUpgradeSentAt.get(connId) || 0;
-  if (Date.now() - lastSent < 60 * 60 * 1000) return; // 1h cooldown
+  const cooldown = _proxyUpgradeBackoff.get(connId) || 60 * 60 * 1000; // default 1h
+  if (Date.now() - lastSent < cooldown) return;
 
   _proxyUpgradeSentAt.set(connId, Date.now());
   console.log(`[proxy-upgrade] conn ${connId}: proxy ${proxyVersion} < ${LATEST_PROXY_VERSION} — enqueuing upgrade work item`);
@@ -590,13 +602,18 @@ async function evaluateProxyUpgrade(connectionId, proxyVersion) {
     const body = result?.body || {};
     if (body.ok) {
       console.log(`[proxy-upgrade] conn ${connId}: proxy acknowledged upgrade`);
+      _proxyUpgradeBackoff.delete(connId); // success — reset backoff
     } else {
       console.warn(`[proxy-upgrade] conn ${connId}: proxy returned failure: ${body.error || body.message || 'unknown'}`);
-      _proxyUpgradeSentAt.delete(connId); // allow retry sooner
+      const backoff = Math.min((_proxyUpgradeBackoff.get(connId) || 300000) * 2, 21600000);
+      _proxyUpgradeBackoff.set(connId, backoff);
+      _proxyUpgradeSentAt.set(connId, Date.now()); // cooldown = backoff from now
     }
   }).catch((err) => {
     console.warn(`[proxy-upgrade] conn ${connId}: channel error: ${err.message}`);
-    _proxyUpgradeSentAt.delete(connId);
+    const backoff = Math.min((_proxyUpgradeBackoff.get(connId) || 300000) * 2, 21600000);
+    _proxyUpgradeBackoff.set(connId, backoff);
+    _proxyUpgradeSentAt.set(connId, Date.now()); // cooldown = backoff from now
   });
 }
 
