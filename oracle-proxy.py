@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.20"  # fix _src_cmd: temp-script for heredoc + CONTEXT_FILE passthrough via su
+VERSION = "3.20.21"  # configurable proxy upgrade cooldown via PROXY_UPGRADE_COOLDOWN env var
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -756,7 +756,9 @@ _POLL_BACKOFF_MAX_S  = int(os.environ.get("AGENT_POLL_BACKOFF_MAX_S",  "30"))
 _first_heartbeat_event = threading.Event()
 _last_poll_ok_time     = None          # float (time.time()) or None
 _poll_stage            = "init"        # string label
-_last_poll_upgrade_trigger = 0.0       # rate-limit poll-triggered proxy updates (1h)
+_last_poll_upgrade_trigger = 0.0       # rate-limit poll-triggered proxy updates
+# Configurable via PROXY_UPGRADE_COOLDOWN env var (seconds). Default 5 min; set higher in prod.
+_PROXY_UPGRADE_COOLDOWN = int(os.environ.get("PROXY_UPGRADE_COOLDOWN", "300"))
 _stale_upgrade_count = 0               # consecutive "already at latest" responses — drives backoff
 
 # Lock protecting _last_poll_ok_time and _poll_stage
@@ -6569,7 +6571,7 @@ def _cloud_poll_loop():
             if poll_result.get("proxy_upgrade_available"):
                 global _last_poll_upgrade_trigger
                 _now = time.time()
-                if _now - _last_poll_upgrade_trigger > 3600:
+                if _now - _last_poll_upgrade_trigger > _PROXY_UPGRADE_COOLDOWN:
                     _last_poll_upgrade_trigger = _now
                     _latest_ver = poll_result.get("latest_proxy_version", "?")
                     print("%s [upgrade] proxy_upgrade_available in poll response — latest %s — triggering background update" % (_ts(), _latest_ver))

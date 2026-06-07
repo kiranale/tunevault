@@ -57,7 +57,9 @@ const router = express.Router();
 const AUTO_UPGRADE_TARGET = '7.5.0';
 // Current canonical oracle-proxy.py version — used to signal proxy_upgrade_available in poll response.
 // Keep in sync with server.js LATEST_PROXY_VERSION and routes/connections-list.js.
-const LATEST_PROXY_VERSION = '3.20.19';
+const LATEST_PROXY_VERSION = '3.20.21';
+// Configurable via PROXY_UPGRADE_COOLDOWN_MS env var. Default 5 min; set higher in prod (e.g. 3600000).
+const PROXY_UPGRADE_COOLDOWN_MS = parseInt(process.env.PROXY_UPGRADE_COOLDOWN_MS || '300000');
 // Number of recent failures (24h) that suppress further auto-upgrade attempts.
 const AUTO_UPGRADE_MAX_FAILURES = 2;
 
@@ -583,7 +585,7 @@ async function evaluateProxyUpgrade(connectionId, proxyVersion) {
   }
 
   const lastSent = _proxyUpgradeSentAt.get(connId) || 0;
-  const cooldown = _proxyUpgradeBackoff.get(connId) || 60 * 60 * 1000; // default 1h
+  const cooldown = _proxyUpgradeBackoff.get(connId) || PROXY_UPGRADE_COOLDOWN_MS;
   if (Date.now() - lastSent < cooldown) return;
 
   _proxyUpgradeSentAt.set(connId, Date.now());
