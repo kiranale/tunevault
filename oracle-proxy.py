@@ -213,6 +213,21 @@ for _p in ("/etc/tunevault/agent.env", "/etc/tunevault/proxy.env"):
     except Exception:
         pass
 
+# Read APPS_USER from agent.env — EBS apps OS user (e.g. applmgr, oracle, ebsapps).
+# Used to run EBS admin scripts via su when the proxy runs as root.
+_APPS_USER = ""
+for _p in ("/etc/tunevault/agent.env", "/etc/tunevault/proxy.env"):
+    try:
+        with open(_p) as _f:
+            for _line in _f:
+                if _line.strip().startswith("APPS_USER="):
+                    _APPS_USER = _line.strip().split("=", 1)[1].strip()
+                    break
+        if _APPS_USER:
+            break
+    except Exception:
+        pass
+
 # Read APPS_PWD from agent.env — Oracle APPS password for CM check (optional).
 _APPS_PWD = ""
 for _p in ("/etc/tunevault/agent.env", "/etc/tunevault/proxy.env"):
@@ -324,7 +339,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.18"  # auto-upgrade verification
+VERSION = "3.20.19"  # run EBS admin scripts as apps OS user; remove raw_output truncation
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5269,22 +5284,40 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     "title":    title,
                     "severity": severity,
                     "details":  details,
-                    "raw_output": raw[:2000] if raw else "",
+                    "raw_output": raw or "",
                 })
 
             def _ok(check_id, title, details, raw=""):
                 checks_ok.append({"check_id": check_id, "title": title,
                                    "status": "ok", "details": details,
-                                   "raw_output": raw[:2000] if raw else ""})
+                                   "raw_output": raw or ""})
 
             env_file = _APPS_ENV_FILE
 
+            # Detect apps OS user — prefer agent.env value, fall back to EBSapps.env file owner.
+            # EBS admin scripts must run as the apps user, not root.
+            import pwd as _pwd
+            _apps_user = _APPS_USER
+            if not _apps_user and env_file and os.path.exists(env_file):
+                try:
+                    _st = os.stat(env_file)
+                    _apps_user = _pwd.getpwuid(_st.st_uid).pw_name
+                    print("%s [HC] apps OS user detected from file owner: %s" % (_ts(), _apps_user))
+                except Exception:
+                    pass
+            if _apps_user:
+                print("%s [HC] apps OS user: %s" % (_ts(), _apps_user))
+
             def _src_cmd(cmd):
-                """Source EBSapps.env (stdout+stderr suppressed) then run cmd."""
+                """Source EBSapps.env then run cmd — as apps OS user when proxy runs as root."""
                 if not env_file:
                     return cmd
                 _ef = env_file.replace("'", "'\\''")
-                return "source '%s' run >/dev/null 2>&1; %s" % (_ef, cmd)
+                base = "source '%s' run >/dev/null 2>&1; %s" % (_ef, cmd)
+                if os.geteuid() == 0 and _apps_user and _apps_user != "root":
+                    _u = _apps_user.replace("'", "'\\''")
+                    return "su - '%s' -c 'source \"%s\" run >/dev/null 2>&1; %s'" % (_u, _ef, cmd)
+                return base
 
             def _run(cmd, timeout=15):
                 return run_os_command(["bash", "-c", cmd], timeout=timeout)

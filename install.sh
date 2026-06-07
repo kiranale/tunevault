@@ -330,6 +330,7 @@ SERVER_TYPE=unknown
 EBS_DB_HOST=
 APPS_BASE=
 APPS_ENV_FILE=
+APPS_USER=
 APPS_PWD=
 WEBLOGIC_PWD=
 INSTANCE_NAME=
@@ -595,10 +596,21 @@ if [ -n "$EBS_CONTEXT_FILE" ] && [ -f "$EBS_CONTEXT_FILE" ]; then
     ok "APPS_ENV_FILE: $APPS_ENV_FILE"
   fi
 fi
+# Detect EBS apps OS user from EBSapps.env file owner — needed for su wrapper in proxy
+APPS_USER=""
+if [ -n "$APPS_ENV_FILE" ] && [ -f "$APPS_ENV_FILE" ]; then
+  APPS_USER=$(stat -c '%U' "$APPS_ENV_FILE" 2>/dev/null || echo "")
+  if [ -n "$APPS_USER" ] && [ "$APPS_USER" != "root" ]; then
+    ok "EBS apps OS user: $APPS_USER"
+  else
+    APPS_USER=""
+  fi
+fi
 # Patch agent.env placeholders (written blank before detection ran)
 sed -i "s|^EBS_DB_HOST=.*|EBS_DB_HOST=${EBS_DB_HOST}|" "$ENV_FILE" 2>/dev/null || true
 sed -i "s|^APPS_BASE=.*|APPS_BASE=${APPS_BASE}|" "$ENV_FILE" 2>/dev/null || true
 sed -i "s|^APPS_ENV_FILE=.*|APPS_ENV_FILE=${APPS_ENV_FILE}|" "$ENV_FILE" 2>/dev/null || true
+sed -i "s|^APPS_USER=.*|APPS_USER=${APPS_USER}|" "$ENV_FILE" 2>/dev/null || true
 sed -i "s|^APPS_PWD=.*|APPS_PWD=${APPS_PWD}|" "$ENV_FILE" 2>/dev/null || true
 sed -i "s|^WEBLOGIC_PWD=.*|WEBLOGIC_PWD=${WEBLOGIC_PWD}|" "$ENV_FILE" 2>/dev/null || true
 sed -i "s|^CONTEXT_FILE=.*|CONTEXT_FILE=${EBS_CONTEXT_FILE}|" "$ENV_FILE" 2>/dev/null || true
