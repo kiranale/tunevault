@@ -3209,14 +3209,14 @@
                 <div class="finding-header-left">
                     <span class="sev-badge ${sevClass}">${emoji} ${f.severity.toUpperCase()}</span>
                     <div>
-                        <div class="finding-metric">${esc(f.metric)}</div>
-                        <div class="finding-value">${esc(f.value)}</div>
+                        <div class="finding-metric">${esc(f.metric || f.title)}</div>
+                        <div class="finding-value">${esc(f.value || f.details)}</div>
                     </div>
                 </div>
                 <span class="finding-toggle">&#9662;</span>
             </div>
             ${f.severity !== 'ok' ? `<div class="finding-body">
-                <p class="finding-rec">${esc(f.recommendation)}</p>
+                <p class="finding-rec">${esc(f.recommendation || f.details)}</p>
                 ${f.fix ? `<div style="position:relative">
                     <div class="fix-command">${esc(f.fix)}<button class="copy-btn" onclick="copyFix(this, ${JSON.stringify(f.fix)})">Copy</button></div>
                 </div>` : ''}
@@ -3257,7 +3257,6 @@
             const s = data.scores || {};
             const fbCrit = findings.filter(f => f.severity === 'critical').length;
             const fbWarn = findings.filter(f => f.severity === 'warning').length;
-            const isAppTier = data.metrics && data.metrics.server_type === 'apps';
             let fallbackSummary;
             if (isAppTier) {
                 fallbackSummary = fbCrit > 0
