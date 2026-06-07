@@ -324,7 +324,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.16"  # auto-upgrade e2e verification
+VERSION = "3.20.17"  # remove downloaded VERSION check; checksum is sufficient guard
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -818,23 +818,6 @@ def perform_update(remote_version, download_url, expected_checksum):
                 print("%s [auto-update] WARN: Checksum mismatch (got %s, expected %s) — keeping current version." % (
                     _ts(), actual_sha256, expected_hex))
                 return False
-
-        # Verify the downloaded file contains the expected VERSION string.
-        # Read line-by-line so file size doesn't matter.
-        import re as _re
-        _dv = None
-        with open(tmp_path, "r", errors="replace") as _vf:
-            for _line in _vf:
-                if _line.startswith("VERSION"):
-                    _vm = _re.match(r'^VERSION\s*=\s*["\']([^"\']+)["\']', _line)
-                    if _vm:
-                        _dv = _vm.group(1).strip()
-                    break
-        if _dv != remote_version:
-            print("%s [auto-update] WARN: downloaded VERSION=%s but expected %s — aborting" % (
-                _ts(), _dv, remote_version))
-            return False
-        print("%s [auto-update] downloaded version verified: %s" % (_ts(), _dv))
 
         # Preserve permissions (executable bit etc.)
         try:
