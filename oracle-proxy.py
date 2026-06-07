@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.32"  # fix %| crash in io_wait table: %% escapes literal % before pipe
+VERSION = "3.20.33"  # _strip_stty() in _finding()/_ok() removes stty noise from all HC raw output
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5295,19 +5295,27 @@ class ProxyHandler(BaseHTTPRequestHandler):
             findings  = []
             checks_ok = []
 
+            def _strip_stty(raw):
+                """Remove stty terminal-control error lines from raw output.
+                These appear when EBS admin scripts try to suppress echo but there is no TTY."""
+                if not raw:
+                    return raw
+                return '\n'.join(l for l in raw.splitlines()
+                                 if not l.strip().startswith('stty:'))
+
             def _finding(check_id, title, severity, details, raw=""):
                 findings.append({
                     "check_id": check_id,
                     "title":    title,
                     "severity": severity,
                     "details":  details,
-                    "raw_output": raw or "",
+                    "raw_output": _strip_stty(raw) if raw else "",
                 })
 
             def _ok(check_id, title, details, raw=""):
                 checks_ok.append({"check_id": check_id, "title": title,
                                    "status": "ok", "details": details,
-                                   "raw_output": raw or ""})
+                                   "raw_output": _strip_stty(raw) if raw else ""})
 
             try:
                 env_file = _APPS_ENV_FILE
