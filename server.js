@@ -5354,6 +5354,15 @@ async function generateExecutiveSummary(healthCheckId, metrics, scores) {
             : `- ${f.title}: ${f.details}`;
         }).join('\n');
 
+      // Server-side Recommended Actions — generated independently of GPT so commands are always correct.
+      const serverSideActions = appFindings
+        .filter(f => f.severity === 'critical' || f.severity === 'warning')
+        .map((f, i) => {
+          const cmdFn = commandMap[f.check_id];
+          const cmd = cmdFn ? cmdFn(f) : null;
+          return `${i + 1}. ${f.title}\n${cmd ? '   ```\n   ' + cmd + '\n   ```' : ''}`;
+        }).join('\n');
+
       const appRaceTimeout = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Executive summary generation timeout (30s)')), 30000)
       );
@@ -5365,29 +5374,33 @@ async function generateExecutiveSummary(healthCheckId, metrics, scores) {
             content: `You are a senior Oracle E-Business Suite administrator writing a terse technical brief for another EBS admin who needs to act right now.
 
 RULES:
-1. CORE_DB_SUMMARY: 3-5 sentences. Name specific components by their exact names (e.g. "forms-c4ws_server1 is shutdown"). Include exact counts (X critical, Y warnings). State the business impact concretely — which users/functionality is broken. Write for an EBS DBA, not a manager.
-2. TOP_DB_ACTION: 1-2 sentences. The single most urgent fix. Use ONLY the pre-computed COMMAND provided in the user message — copy it verbatim, do not modify or generate your own.
+1. CORE_DB_SUMMARY: 3-5 sentences. Name specific components by their exact names. Include exact counts (X critical, Y warnings). State the business impact concretely — which users/functionality is broken. Write for an EBS DBA, not a manager.
+2. TOP_DB_ACTION: Copy the COMMAND for the most critical finding verbatim from the user message. Do not paraphrase, do not generate your own command.
 3. Never use phrases like "requires immediate attention", "service disruption", or "your team has the details below".
-4. Use ONLY the pre-computed commands provided. Do not generate your own commands. Copy them verbatim.`
+4. Do NOT write a Recommended Actions section — it is generated separately.`
           },
           {
             role: 'user',
-            content: `EBS App Tier health check — score: ${scores.overall}/100\n${critItems.length} critical, ${warnItems.length} warnings\n\nPre-computed remediation commands (use EXACTLY these, do not modify):\n${actionsText}\n\nPassing checks (context):\n${appOkText}\n\nWrite:\nCORE_DB_SUMMARY: <3-5 sentences naming specific down components and business impact>\nTOP_DB_ACTION: <1-2 sentences with the most urgent fix, copying the COMMAND verbatim>`
+            content: `EBS App Tier health check — score: ${scores.overall}/100\n${critItems.length} critical, ${warnItems.length} warnings\n\nFindings with pre-computed commands:\n${actionsText}\n\nPassing checks (context):\n${appOkText}\n\nWrite ONLY these sections (do NOT write Recommended Actions — that is handled separately):\nCORE_DB_SUMMARY: <3-5 sentences>\nTOP_DB_ACTION: <copy the first COMMAND verbatim>\nEBS_COMPONENT_STATUS: <bullet list of each component and status>\nDB_HEALTH: <2 sentences on invalid objects and tablespace>\nSYSTEM_RESOURCES: <1-2 sentences>\nEXECUTIVE_SUMMARY: <one sentence starting with "Overall, this EBS application server...">`
           }
         ],
         temperature: 0.2,
-        max_tokens: 400
+        max_tokens: 600
       }), appRaceTimeout]);
 
       const appRaw = appCompletion.choices[0]?.message?.content || '';
-      const appSummaryMatch = appRaw.match(/CORE_DB_SUMMARY:\s*(.+?)(?=TOP_DB_ACTION:|$)/s);
-      const appActionMatch = appRaw.match(/TOP_DB_ACTION:\s*(.+)/s);
-      const appSummaryText = (appSummaryMatch ? appSummaryMatch[1] : appRaw).trim();
-      const appTopAction = appActionMatch ? appActionMatch[1].trim() : null;
+      const appSummaryMatch = appRaw.match(/CORE_DB_SUMMARY:\s*(.+?)(?=TOP_DB_ACTION:|EBS_COMPONENT_STATUS:|$)/s);
+      const appActionMatch  = appRaw.match(/TOP_DB_ACTION:\s*(.+?)(?=EBS_COMPONENT_STATUS:|DB_HEALTH:|SYSTEM_RESOURCES:|EXECUTIVE_SUMMARY:|$)/s);
+      const appSummaryText  = (appSummaryMatch ? appSummaryMatch[1] : appRaw).trim();
+      const appTopAction    = appActionMatch ? appActionMatch[1].trim() : null;
+
+      const fullSummary = serverSideActions.length
+        ? appSummaryText + '\n\n## Recommended Actions\n' + serverSideActions
+        : appSummaryText;
 
       await pool.query(
         `UPDATE health_checks SET summary_text = $1, top_action = $2 WHERE id = $3`,
-        [appSummaryText, appTopAction, healthCheckId]
+        [fullSummary, appTopAction, healthCheckId]
       );
       console.log(`[executive-summary] report=${healthCheckId} app_tier=true crit=${critItems.length} warn=${warnItems.length} latency_ms=${Date.now() - startMs}`);
       return;
