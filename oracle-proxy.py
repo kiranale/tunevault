@@ -324,7 +324,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.12"  # verify auto-upgrade end-to-end test
+VERSION = "3.20.13"  # fix TUNEVAULT_URL env var name + downloaded version verification
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -377,8 +377,12 @@ APPS_URL_WHITELIST = set(
     h.strip().lower() for h in _APPS_WHITELIST_RAW.split(",") if h.strip()
 )
 
-# TuneVault server URL for version checks and downloads
-TUNEVAULT_URL = os.environ.get("TUNEVAULT_URL", "https://tunevault.app").rstrip("/")
+# TuneVault server URL for version checks and downloads.
+# agent.env uses TUNEVAULT_API_URL; TUNEVAULT_URL is a legacy fallback.
+TUNEVAULT_URL = (
+    os.environ.get("TUNEVAULT_API_URL") or
+    os.environ.get("TUNEVAULT_URL", "https://tunevault.app")
+).rstrip("/")
 
 # ============================================================
 # OS Command Whitelist (for /api/os/exec endpoint)
@@ -744,6 +748,7 @@ def check_for_update():
     Returns (needs_update, remote_version, download_url, expected_checksum) or raises.
     """
     version_url = TUNEVAULT_URL + "/api/proxy/version"
+    print("%s [upgrade] version check URL: %s" % (_ts(), version_url))
     req = Request(version_url, headers={"User-Agent": "TuneVault-Proxy/%s" % VERSION})
     try:
         resp = urlopen(req, timeout=30)
@@ -813,6 +818,18 @@ def perform_update(remote_version, download_url, expected_checksum):
                 print("%s [auto-update] WARN: Checksum mismatch (got %s, expected %s) — keeping current version." % (
                     _ts(), actual_sha256, expected_hex))
                 return False
+
+        # Verify the downloaded file contains the expected VERSION string
+        import re as _re
+        with open(tmp_path, "r", errors="replace") as _vf:
+            _vc = _vf.read(2000)
+        _vm = _re.search(r'^VERSION\s*=\s*["\']([^"\']+)["\']', _vc, _re.MULTILINE)
+        _dv = _vm.group(1).strip() if _vm else None
+        if _dv != remote_version:
+            print("%s [auto-update] WARN: downloaded VERSION=%s but expected %s — aborting" % (
+                _ts(), _dv, remote_version))
+            return False
+        print("%s [auto-update] downloaded version verified: %s" % (_ts(), _dv))
 
         # Preserve permissions (executable bit etc.)
         try:
