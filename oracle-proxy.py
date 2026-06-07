@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.31"  # sar col-5 fix; HC try/except; specific is-running patterns; NOT_DEPLOYED ternary
+VERSION = "3.20.32"  # fix %| crash in io_wait table: %% escapes literal % before pipe
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -6155,7 +6155,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     except (ValueError, IndexError):
                         _iowait = None
                     if _iowait is not None:
-                        _io_table = "Metric|Value\nIO Wait %|%.2f%%" % _iowait
+                        _io_table = "Metric|Value\nIO Wait %%|%.2f%%" % _iowait
                         if _iowait > 30:
                             _finding("io_wait", "IO Wait Critical", "critical",
                                      "IO wait %.1f%% exceeds 30%% critical threshold." % _iowait, _io_table)
