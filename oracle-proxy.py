@@ -324,7 +324,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.10"  # stale-upgrade backoff: 1min/2min/.../10min instead of instant retry
+VERSION = "3.20.11"  # check_for_update: != comparison + debug logging; fix false-negative when regex fallback returns 3.1.1
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -747,7 +747,8 @@ def check_for_update():
     req = Request(version_url, headers={"User-Agent": "TuneVault-Proxy/%s" % VERSION})
     try:
         resp = urlopen(req, timeout=30)
-        data = json.loads(resp.read().decode("utf-8"))
+        content = resp.read()
+        data = json.loads(content.decode("utf-8"))
     except HTTPError as e:
         raise RuntimeError("Version check HTTP error: %s" % str(e))
     except URLError as e:
@@ -758,32 +759,21 @@ def check_for_update():
     download_path = data.get("download_url", "/downloads/oracle-proxy.py")
     download_url = TUNEVAULT_URL + download_path
 
+    print("%s [upgrade] downloaded %d bytes, remote VERSION line: %r" % (_ts(), len(content), remote_version))
+
     if not remote_version:
         raise RuntimeError("Version check returned empty version")
 
-    # Simple tuple comparison for semver (works for x.y.z)
-    def parse(v):
-        try:
-            return tuple(int(x) for x in v.split("."))
-        except Exception:
-            return (0,)
+    # Any version mismatch (remote != current) means we need to update.
+    # Previously used > comparison which silently returned False when the server's
+    # regex fell back to the '3.1.1' default (older than the running version).
+    needs_update = remote_version != VERSION
+    print("%s [upgrade] remote=%s current=%s needs_update=%s" % (_ts(), remote_version, VERSION, needs_update))
 
-    # Update if remote version is newer, OR same version but checksum differs
-    # (catches cases where VERSION was bumped before code was fully deployed)
-    version_newer = parse(remote_version) > parse(VERSION)
-    if version_newer:
-        needs_update = True
-    elif parse(remote_version) == parse(VERSION) and expected_checksum:
-        # Same version — compare checksums to detect code-only updates
-        try:
-            local_checksum = _compute_sha256(os.path.abspath(__file__))
-            remote_hex = expected_checksum.replace("sha256:", "")
-            needs_update = local_checksum != remote_hex
-        except Exception:
-            needs_update = False
+    if needs_update:
+        return True, remote_version, download_url, expected_checksum
     else:
-        needs_update = False
-    return needs_update, remote_version, download_url, expected_checksum
+        return False, VERSION, None, None
 
 
 def perform_update(remote_version, download_url, expected_checksum):
