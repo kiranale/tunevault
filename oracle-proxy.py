@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.30"  # io_wait sar header-based column detection + debug logging; NOT_DEPLOYED label in report
+VERSION = "3.20.31"  # sar col-5 fix; HC try/except; specific is-running patterns; NOT_DEPLOYED ternary
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5309,895 +5309,894 @@ class ProxyHandler(BaseHTTPRequestHandler):
                                    "status": "ok", "details": details,
                                    "raw_output": raw or ""})
 
-            env_file = _APPS_ENV_FILE
-
-            # Detect apps OS user — prefer agent.env value, fall back to EBSapps.env file owner.
-            import pwd as _pwd
-            _apps_user = _APPS_USER
-            if not _apps_user and env_file and os.path.exists(env_file):
-                try:
-                    _st = os.stat(env_file)
-                    _apps_user = _pwd.getpwuid(_st.st_uid).pw_name
-                    print("%s [HC] apps OS user detected from file owner: %s" % (_ts(), _apps_user))
-                except Exception:
-                    pass
-            if _apps_user:
-                print("%s [HC] apps OS user: %s" % (_ts(), _apps_user))
-
-            # Single-quote escape for bash 'export VAR=...' lines in the generated script.
-            def _sh(pwd):
-                return (pwd or "").replace("'", "'\\''")
-
-            _MANAGED_NOISE = [
-                # Script header/footer boilerplate emitted by all adXXXctl.sh scripts
-                "you are running adapcctl",
-                "you are running adopmnctl",
-                "you are running admanagedsrvctl",
-                "you are running adadminsrvctl",
-                "you are running adnodemgrctl",
-                "server specific logs are located",
-                "admanagedsrvctl.sh: exiting with status",
-                "admanagedsrvctl.sh: check the logfile",
-                "adadminsrvctl.sh: exiting with status",
-                "adadminsrvctl.sh: check the logfile",
-                "adnodemgrctl.sh: exiting with status",
-                "adnodemgrctl.sh: check the logfile",
-                "adapcctl.sh: exiting with status",
-                "adapcctl.sh: check the logfile",
-                "adopmnctl.sh: exiting with status",
-                "adopmnctl.sh: check the logfile",
-                "adalnctl.sh: exiting with status",
-                "adalnctl.sh: check the logfile",
-                # Terminal / TTY noise
-                "stty: standard input",
-                "stty:",
-                # Password prompts (heredoc passes value but prompt still prints)
-                "enter the weblogic admin password",
-                "enter the apps schema password",
-                "enter the apps password",
-                "enter the apps username",
-                "nodemanager log is located",
-                # TNS listener noise in apps-listener check (exit code is authoritative)
-                "tns-12541",
-                "tns-12560",
-                "tns-00511",
-                "linux error:",
-            ]
-
-            # Lines containing any of these keywords are ALWAYS preserved even if they
-            # also contain a noise phrase — they carry diagnostic status information.
-            _STATUS_KEYWORDS = [
-                "is running", "is shutdown", "is not running", "not running",
-                "failed", "error", "not up", "starting", "stopped",
-            ]
-
-            def _clean_raw(raw):
-                lines = []
-                for l in raw.splitlines():
-                    if not l.strip():
-                        continue
-                    l_lower = l.lower()
-                    # Preserve status lines regardless of noise match
-                    if any(kw in l_lower for kw in _STATUS_KEYWORDS):
-                        lines.append(l)
-                        continue
-                    if not any(n in l_lower for n in _MANAGED_NOISE):
-                        lines.append(l)
-                return "\n".join(lines)
-
-            no_env_msg = ("APPS_ENV_FILE not configured — reinstall agent with context file path "
-                          "so EBSapps.env can be sourced for this check.")
-
-            if not env_file:
-                for _cid, _ctitle in [
-                    ("apache_status",   "Apache/OHS Status"),
-                    ("opmn_status",     "OPMN Status"),
-                    ("apps_listener",   "Apps Listener Status"),
-                    ("managed_servers", "Managed Servers"),
-                    ("node_manager",    "Node Manager"),
-                    ("admin_server",    "WebLogic Admin Server"),
-                    ("cm_status",       "Concurrent Manager Status"),
-                    ("wf_mailer",       "Workflow Mailer"),
-                    ("adop_status",     "ADOP Status"),
-                    ("invalid_objects", "Invalid Objects"),
-                    ("ts_usage",        "Tablespace Usage"),
-                ]:
-                    _finding(_cid, _ctitle, "warning", no_env_msg)
-            else:
-                # Pre-discover managed server names as root — reads the XML file directly,
-                # no su or EBSapps.env needed.
-                _srv_names = []
-                if _CONTEXT_FILE:
-                    _ctx_esc = _CONTEXT_FILE.replace("'", "'\\''")
-                    _sd_out, _, _, _ = run_os_command(
-                        ["bash", "-c",
-                         "grep 'oa_service_name' '%s' 2>/dev/null "
-                         "| grep 'managed_server' "
-                         "| sed -n 's/.*>\\([a-zA-Z0-9_-]*\\)<.*/\\1/p' "
-                         "| sort -u" % _ctx_esc],
-                        timeout=10)
-                    _srv_names = [s.strip() for s in _sd_out.splitlines() if s.strip()]
-                print("[HC] managed_server names: %r" % _srv_names)
-
-                # Build one complete bash script for all EBS checks.
-                # Passwords are exported at the top of the script so every heredoc and
-                # env-reading command receives the literal value — no nested escaping layers.
-                _ctx  = (_CONTEXT_FILE or "").replace("'", "'\\''")
-                _ef   = env_file.replace("'", "'\\''")
-                _apwd = _sh(req_apps_pwd or "")
-                _wpwd = _sh(req_weblogic_pwd or "")
-                # Server names come through sed '[a-zA-Z0-9_-]*' so no quoting risk.
-                _srv_arr = " ".join('"%s"' % s for s in _srv_names)
-
-                _script_lines = [
-                    "#!/bin/bash",
-                    "export CONTEXT_FILE='%s'" % _ctx,
-                    "export APPS_PWD='%s'"     % _apwd,
-                    "export WLS_PWD='%s'"      % _wpwd,
-                    "source '%s' run >/dev/null 2>&1" % _ef,
-                    "",
-                    # 1. Apache/OHS
-                    "echo TV_START apache_status",
-                    '"$ADMIN_SCRIPTS_HOME/adapcctl.sh" status 2>&1',
-                    'echo "TV_EXIT $?"',
-                    "echo TV_END apache_status",
-                    "",
-                    # 2. OPMN
-                    "echo TV_START opmn_status",
-                    '"$ADMIN_SCRIPTS_HOME/adopmnctl.sh" status 2>&1',
-                    'echo "TV_EXIT $?"',
-                    "echo TV_END opmn_status",
-                    "",
-                    # 3. Apps Listener
-                    "echo TV_START apps_listener",
-                    '"$ADMIN_SCRIPTS_HOME/adalnctl.sh" status 2>&1',
-                    'echo "TV_EXIT $?"',
-                    "echo TV_END apps_listener",
-                    "",
-                    # 4. Node Manager — WLS password via heredoc (same as managed servers)
-                    "echo TV_START node_manager",
-                    '"$ADMIN_SCRIPTS_HOME/adnodemgrctl.sh" status 2>&1 <<NMEOF',
-                    '$WLS_PWD',
-                    'NMEOF',
-                    'echo "TV_EXIT $?"',
-                    "echo TV_END node_manager",
-                    "",
-                    # 5. Managed servers — WLS_PWD expanded by bash inside heredoc, no escaping needed
-                    "echo TV_START managed_servers",
-                    "SERVERS=( %s )" % _srv_arr,
-                    'if [ ${#SERVERS[@]} -eq 0 ]; then',
-                    '    echo NO_SERVERS_FOUND',
-                    '    echo "TV_EXIT 0"',
-                    'elif [ -z "$WLS_PWD" ]; then',
-                    '    echo NO_WLS_PWD',
-                    '    for _sv in "${SERVERS[@]}"; do echo "KNOWN_SERVER $_sv"; done',
-                    '    echo "TV_EXIT 0"',
-                    'else',
-                    '    for _sv in "${SERVERS[@]}"; do',
-                    '        echo "TV_SERVER_NAME $_sv"',
-                    '        timeout 45 "$ADMIN_SCRIPTS_HOME/admanagedsrvctl.sh" status "$_sv" 2>&1 <<WLSEOF',
-                    '$WLS_PWD',
-                    'WLSEOF',
-                    '        echo "TV_SERVER_EXIT $?"',
-                    '    done',
-                    '    echo "TV_EXIT 0"',
-                    'fi',
-                    "echo TV_END managed_servers",
-                    "",
-                    # 6. Admin Server — two-line heredoc (WLS_PWD then APPS_PWD), both expanded by bash
-                    "echo TV_START admin_server",
-                    'if [ -z "$WLS_PWD" ] || [ -z "$APPS_PWD" ]; then',
-                    '    echo NO_PASSWORDS',
-                    '    echo "TV_EXIT 0"',
-                    'else',
-                    '    _HOST=$(hostname -s)',
-                    '    _ADMIN_HOST=$(grep -i \'s_wls_admin_host\\|wls_admin_host\' "$CONTEXT_FILE" 2>/dev/null | sed -E \'s/.*>([^<]*)<.*/\\1/\' | grep -v \'^[[:space:]]*$\' | head -1 | xargs 2>/dev/null)',
-                    '    if [ -n "$_ADMIN_HOST" ] && [ "$_HOST" != "$_ADMIN_HOST" ]; then',
-                    '        echo "SKIP_ADMIN_HOST:$_ADMIN_HOST"',
-                    '        echo "TV_EXIT 0"',
-                    '    else',
-                    '        timeout 60 "$ADMIN_SCRIPTS_HOME/adadminsrvctl.sh" status 2>&1 <<ADMEOF',
-                    '$WLS_PWD',
-                    '$APPS_PWD',
-                    'ADMEOF',
-                    '        echo "TV_EXIT $?"',
-                    '    fi',
-                    'fi',
-                    "echo TV_END admin_server",
-                    "",
-                    # 7. CM — sqlplus password via env var in connection string
-                    "echo TV_START cm_status",
-                    'if [ -z "$APPS_PWD" ]; then',
-                    '    echo NO_APPS_PWD',
-                    '    echo "TV_EXIT 0"',
-                    'else',
-                    "    sqlplus -s 'apps/'\"$APPS_PWD\" <<CMSQLEND 2>&1",
-                    "set pages 0 feedback off heading off echo off verify off",
-                    "SELECT user_concurrent_queue_name||'|'||max_processes||'|'||running_processes||'|'||nvl(control_code,'A')",
-                    "FROM apps.fnd_concurrent_queues_vl",
-                    "WHERE enabled_flag='Y'",
-                    "ORDER BY user_concurrent_queue_name;",
-                    "exit;",
-                    "CMSQLEND",
-                    '    echo "TV_EXIT $?"',
-                    'fi',
-                    "echo TV_END cm_status",
-                    "",
-                    # 8a. WF mailer components
-                    "echo TV_START wf_mailer",
-                    'if [ -z "$APPS_PWD" ]; then',
-                    '    echo NO_APPS_PWD',
-                    '    echo "TV_EXIT 0"',
-                    'else',
-                    "    sqlplus -s 'apps/'\"$APPS_PWD\" <<WFSQLEND 2>&1",
-                    "set pages 0 feedback off heading off echo off verify off",
-                    "select component_name||'|'||component_status",
-                    "from apps.fnd_svc_components",
-                    "order by component_name;",
-                    "exit;",
-                    "WFSQLEND",
-                    '    echo "TV_EXIT $?"',
-                    'fi',
-                    "echo TV_END wf_mailer",
-                    "",
-                    # 8b. WF stuck outbound notifications
-                    "echo TV_START wf_stuck",
-                    'if [ -z "$APPS_PWD" ]; then',
-                    '    echo NO_APPS_PWD',
-                    '    echo "TV_EXIT 0"',
-                    'else',
-                    "    sqlplus -s 'apps/'\"$APPS_PWD\" <<STUCKSQLEND 2>&1",
-                    "set pages 0 feedback off heading off echo off verify off",
-                    "select count(*) from applsys.wf_notifications",
-                    "where mail_status='MAIL' and status='OPEN'",
-                    "and begin_date < sysdate - 2/24;",
-                    "exit;",
-                    "STUCKSQLEND",
-                    '    echo "TV_EXIT $?"',
-                    'fi',
-                    "echo TV_END wf_stuck",
-                    "",
-                    # 8c. ADOP — pass APPS_PWD via heredoc (Sentinel pattern; adop reads stdin for password)
-                    "echo TV_START adop_status",
-                    'if [ -z "$APPS_PWD" ]; then',
-                    '    echo NO_APPS_PWD',
-                    '    echo "TV_EXIT 0"',
-                    'else',
-                    '    timeout 40 env COLUMNS=300 adop -status 2>&1 <<ADOPEOF',
-                    '$APPS_PWD',
-                    'ADOPEOF',
-                    '    echo "TV_EXIT $?"',
-                    'fi',
-                    "echo TV_END adop_status",
-                    "",
-                    # 9. Invalid objects — quick connect test gates the full query
-                    "echo TV_START invalid_objects",
-                    'if [ -z "$APPS_PWD" ]; then',
-                    '    echo NO_APPS_PWD',
-                    '    echo "TV_EXIT 0"',
-                    'else',
-                    '    _CONN=$(echo "exit;" | sqlplus -s \'apps/\'"$APPS_PWD" 2>&1 | head -5)',
-                    '    if echo "$_CONN" | grep -qiE "ORA-|TNS-|SP2-"; then',
-                    '        echo "DB_CONNECT_FAILED"',
-                    '        echo "$_CONN"',
-                    '        echo "TV_EXIT 1"',
-                    '    else',
-                    "        sqlplus -S 'apps/'\"$APPS_PWD\" <<INVSQLEND 2>&1",
-                    "set pages 0 feedback off heading off echo off verify off",
-                    "SELECT owner||'|'||COUNT(*) FROM dba_objects",
-                    "WHERE status='INVALID' GROUP BY owner ORDER BY COUNT(*) DESC;",
-                    "exit;",
-                    "INVSQLEND",
-                    '        echo "TV_EXIT $?"',
-                    '    fi',
-                    'fi',
-                    "echo TV_END invalid_objects",
-                    "",
-                    # 10. Tablespace usage — dba_tablespace_usage_metrics via apps user
-                    # TWO_TASK set by EBSapps.env routes to the EBS PDB service.
-                    "echo TV_START ts_usage",
-                    'if [ -z "$APPS_PWD" ]; then',
-                    '    echo NO_APPS_PWD',
-                    '    echo "TV_EXIT 0"',
-                    'else',
-                    "    sqlplus -s 'apps/'\"$APPS_PWD\" <<TSSQLEND 2>&1",
-                    "set pages 0 feedback off heading off echo off verify off",
-                    "SELECT tablespace_name||'|'||round(used_space*8192/1048576)||'|'||round(tablespace_size*8192/1048576)||'|'||round(used_percent,1)",
-                    "FROM dba_tablespace_usage_metrics",
-                    "ORDER BY used_percent DESC;",
-                    "exit;",
-                    "TSSQLEND",
-                    '    echo "TV_EXIT $?"',
-                    'fi',
-                    "echo TV_END ts_usage",
-                ]
-                _hc_script = "\n".join(_script_lines) + "\n"
-
-                # Write and execute the single temp script
-                _tf = "/tmp/.tv_hc_%d.sh" % os.getpid()
-                _script_out = ""
-                _script_exit = 1
-                try:
-                    with open(_tf, "w") as _fh:
-                        _fh.write(_hc_script)
-                    os.chmod(_tf, 0o755)
-                    if os.geteuid() == 0 and _apps_user and _apps_user != "root":
-                        try:
-                            import pwd as _pwd2
-                            _uid = _pwd2.getpwnam(_apps_user).pw_uid
-                            os.chown(_tf, _uid, -1)
-                        except Exception:
-                            pass
-                        _script_out, _, _script_exit, _ = run_os_command(
-                            ["su", _apps_user, "-s", "/bin/bash", "-c",
-                             "bash %s; rm -f %s 2>/dev/null" % (_tf, _tf)],
-                            timeout=360, max_output=131072)
-                    else:
-                        _script_out, _, _script_exit, _ = run_os_command(
-                            ["bash", _tf], timeout=360, max_output=131072)
-                        try:
-                            os.unlink(_tf)
-                        except Exception:
-                            pass
-                except Exception as _exc:
-                    print("[HC] script error: %s" % _exc)
-
-                print("[HC] script exit: %d output_len: %d" % (_script_exit, len(_script_out)))
-
-                # Parse TV_START/TV_END/TV_EXIT markers into per-section dict
-                def _parse_sections(output):
-                    result = {}
-                    cur = None
-                    buf = []
-                    ex = 0
-                    for _ln in output.splitlines():
-                        if _ln.startswith("TV_START "):
-                            cur = _ln[9:].strip()
-                            buf = []
-                            ex = 0
-                        elif _ln.startswith("TV_EXIT "):
-                            try:
-                                ex = int(_ln[8:].strip())
-                            except ValueError:
-                                ex = 0
-                        elif _ln.startswith("TV_END "):
-                            if cur:
-                                result[cur] = ("\n".join(buf), ex)
-                            cur = None
-                            buf = []
-                        elif cur is not None:
-                            buf.append(_ln)
-                    return result
-
-                _secs = _parse_sections(_script_out)
-                print("[HC] sections: %r" % sorted(_secs.keys()))
-
-                # ── 1. Apache/OHS ──────────────────────────────────────────────
-                _out, _exit = _secs.get("apache_status", ("", 1))
-                if _exit != 0 or "stopped" in _out.lower():
-                    _finding("apache_status", "Apache/OHS Not Running", "critical",
-                             "adapcctl.sh status reports Apache/OHS is stopped or failed "
-                             "(exit code %d)." % _exit, _out)
-                else:
-                    _ok("apache_status", "Apache/OHS Status", "Apache/OHS is running.", _out)
-
-                # ── 2. OPMN ───────────────────────────────────────────────────
-                _out, _exit = _secs.get("opmn_status", ("", 1))
-                if any(kw in _out for kw in ("Down", "down", "FAILED", "failed")):
-                    _finding("opmn_status", "OPMN Components Down", "critical",
-                             "adopmnctl.sh status reports one or more OPMN components are down.", _out)
-                elif _exit != 0:
-                    _finding("opmn_status", "OPMN Status Check Failed", "warning",
-                             "adopmnctl.sh status returned exit code %d." % _exit, _out)
-                else:
-                    _ok("opmn_status", "OPMN Status", "All OPMN components are Alive.", _out)
-
-                # ── 3. Apps Listener ──────────────────────────────────────────
-                # adalnctl.sh exit code is authoritative — no content parsing needed.
-                _out, _exit = _secs.get("apps_listener", ("", 1))
-                if _exit != 0:
-                    _finding("apps_listener", "Apps Listener Not Running", "warning",
-                             "adalnctl.sh exited with code %d." % _exit, _out)
-                else:
-                    _ok("apps_listener", "Apps Listener Status", "Apps Listener is running.", _out)
-
-                # ── 4. Node Manager ───────────────────────────────────────────
-                _out, _exit = _secs.get("node_manager", ("", 1))
-                if "the node manager is running" in _out.lower():
-                    _ok("node_manager", "Node Manager", "Node Manager is running.", _out)
-                else:
-                    _finding("node_manager", "Node Manager Not Running", "critical",
-                             "adnodemgrctl.sh reports Node Manager is not running "
-                             "(exit code %d)." % _exit, _out)
-
-                # ── 5. Managed servers ─────────────────────────────────────────
-                _ms_out, _ = _secs.get("managed_servers", ("NO_SERVERS_FOUND", 0))
-                if "NO_SERVERS_FOUND" in _ms_out:
-                    _finding("managed_servers", "Managed Servers — No Servers Found", "warning",
-                             "No managed_server entries found in CONTEXT_FILE. "
-                             "Verify CONTEXT_FILE is set correctly.")
-                elif "NO_WLS_PWD" in _ms_out:
-                    _known = [l[13:].strip() for l in _ms_out.splitlines()
-                              if l.startswith("KNOWN_SERVER ")]
-                    _ok("managed_servers", "Managed Servers",
-                        "Set WebLogic password in Edit Connection for per-server status. "
-                        "Servers in CONTEXT_FILE: %s" % (", ".join(_known) if _known else "(none)"))
-                else:
-                    _srv_states = []
-                    _cur_sv = None
-                    _sv_lines = []
-                    _sv_exit = 0
-                    for _ml in _ms_out.splitlines():
-                        if _ml.startswith("TV_SERVER_NAME "):
-                            _cur_sv = _ml[15:].strip()
-                            _sv_lines = []
-                            _sv_exit = 0
-                        elif _ml.startswith("TV_SERVER_EXIT "):
-                            try:
-                                _sv_exit = int(_ml[15:].strip())
-                            except ValueError:
-                                _sv_exit = 0
-                            if _cur_sv is not None:
-                                _s_raw_orig = "\n".join(_sv_lines)
-                                if _sv_exit == 124:
-                                    _srv_states.append((_cur_sv, "TIMEOUT", _s_raw_orig))
-                                elif "invalid server name" in _s_raw_orig.lower() or "invalid managed server" in _s_raw_orig.lower():
-                                    _srv_states.append((_cur_sv, "NOT_DEPLOYED", _s_raw_orig))
-                                elif "is running" in _s_raw_orig.lower():
-                                    _srv_states.append((_cur_sv, "RUNNING", _s_raw_orig))
-                                elif any(kw in _s_raw_orig.lower() for kw in ("is shutdown", "is not running", "not running")):
-                                    _srv_states.append((_cur_sv, "DOWN", _s_raw_orig))
-                                else:
-                                    _srv_states.append((_cur_sv, "UNKNOWN", _s_raw_orig))
-                                _cur_sv = None
-                        elif _cur_sv is not None:
-                            _sv_lines.append(_ml)
-                    _down = [n for n, st, _ in _srv_states if st in ("DOWN", "TIMEOUT")]
-                    _combined_raw = "\n".join(
-                        "=== %s ===\nStatus: %s\n%s" % (n, st, raw)
-                        for n, st, raw in _srv_states)
-                    if not _srv_states:
-                        _finding("managed_servers", "Managed Servers — No Status", "warning",
-                                 "Server names discovered but no status received. "
-                                 "Check admanagedsrvctl.sh and WebLogic password.")
-                    elif _down:
-                        _finding("managed_servers", "Managed Servers Down", "critical",
-                                 "Servers not running: %s" % ", ".join(_down), _combined_raw)
-                    else:
-                        _rc = sum(1 for _, st, _ in _srv_states if st == "RUNNING")
-                        _nd = sum(1 for _, st, _ in _srv_states if st == "NOT_DEPLOYED")
-                        _uk = sum(1 for _, st, _ in _srv_states if st == "UNKNOWN")
-                        _parts = []
-                        if _rc: _parts.append("%d running" % _rc)
-                        if _nd: _parts.append("%d not deployed on this node" % _nd)
-                        if _uk: _parts.append("%d unknown" % _uk)
-                        _ok("managed_servers", "Managed Servers",
-                            "Managed servers: %s" % ", ".join(_parts), _combined_raw)
-
-                # ── 6. Admin Server ───────────────────────────────────────────
-                _out, _exit = _secs.get("admin_server", ("", 1))
-                if "NO_PASSWORDS" in _out:
-                    _ok("admin_server", "WebLogic Admin Server",
-                        "Set WebLogic and APPS passwords in Edit Connection to enable Admin Server check.")
-                elif "SKIP_ADMIN_HOST:" in _out:
-                    _adm_host = next(
-                        (l[len("SKIP_ADMIN_HOST:"):].strip()
-                         for l in _out.splitlines()
-                         if l.startswith("SKIP_ADMIN_HOST:")), "")
-                    _ok("admin_server", "WebLogic Admin Server",
-                        "Admin Server runs on host '%s' — skipped on this managed-server node." % _adm_host)
-                else:
-                    if _exit == 124:
-                        _finding("admin_server", "Admin Server Check Timed Out", "warning",
-                                 "adadminsrvctl.sh status timed out after 60s.", _out)
-                    elif "is running" in _out.lower():
-                        _ok("admin_server", "WebLogic Admin Server",
-                            "Admin Server is running.", _out)
-                    else:
-                        _finding("admin_server", "WebLogic Admin Server Not Running", "critical",
-                                 "adadminsrvctl.sh status reports Admin Server is not running "
-                                 "(exit code %d)." % _exit, _out)
-
-                # ── 7. CM status ──────────────────────────────────────────────
-                _MANDATORY_MGR = {
-                    "internal manager", "standard manager",
-                    "output post processor", "service manager",
-                    "workflow agent listener",
-                }
-                _out, _exit = _secs.get("cm_status", ("", 1))
-                if "NO_APPS_PWD" in _out:
-                    _ok("cm_status", "Concurrent Manager Status",
-                        "Set APPS password in Edit Connection to enable Concurrent Manager checks.")
-                else:
-                    print("[HC] CM sqlplus exit: %d" % _exit)
-                    _mgrs, _crit_down, _warn_down = [], [], []
-                    for _ln in _out.splitlines():
-                        _pts = [p.strip() for p in _ln.strip().split("|")]
-                        if len(_pts) == 4:
-                            try:
-                                _mn  = _pts[0]
-                                _tgt = int(_pts[1])
-                                _rc  = int(_pts[2])
-                                _cc  = _pts[3]
-                                if _cc == 'E' or _tgt == 0:
-                                    continue
-                                _mgrs.append((_mn, _tgt, _rc))
-                                if _rc == 0:
-                                    if _mn.lower() in _MANDATORY_MGR:
-                                        _crit_down.append("%s (0/%d)" % (_mn, _tgt))
-                                    else:
-                                        _warn_down.append("%s (0/%d)" % (_mn, _tgt))
-                                elif _rc < _tgt:
-                                    _warn_down.append("%s (%d/%d)" % (_mn, _rc, _tgt))
-                            except ValueError:
-                                pass
-                    if not _mgrs and _exit != 0:
-                        _finding("cm_status", "CM Query Failed", "warning",
-                                 "sqlplus query to FND_CONCURRENT_QUEUES_VL failed "
-                                 "(exit %d). Check APPS credentials and DB connectivity." % _exit, _out)
-                    elif _crit_down:
-                        _finding("cm_status", "Mandatory Manager Down", "critical",
-                                 "Critical mandatory manager(s) not running: %s"
-                                 % "; ".join(_crit_down[:5]), _out)
-                    elif _warn_down:
-                        _finding("cm_status", "Concurrent Manager Under-Staffed", "warning",
-                                 "%d manager(s) running fewer than target processes: %s"
-                                 % (len(_warn_down), "; ".join(_warn_down[:5])), _out)
-                    elif _mgrs:
-                        _ok("cm_status", "Concurrent Manager Status",
-                            "All %d active managers running at target." % len(_mgrs),
-                            "Manager Name|Target|Running\n" +
-                            "\n".join("%s|%d|%d" % (n, t, r) for n, t, r in _mgrs))
-                    else:
-                        _ok("cm_status", "Concurrent Manager Status",
-                            "No active managers found (all deactivated or max_processes=0).", _out)
-
-                # ── 8. WF Mailer ──────────────────────────────────────────────
-                _wf_out, _wf_exit = _secs.get("wf_mailer", ("", 1))
-                _st_out, _        = _secs.get("wf_stuck",  ("", 0))
-                if "NO_APPS_PWD" in _wf_out:
-                    _ok("wf_mailer", "Workflow Mailer",
-                        "Set APPS password in Edit Connection to enable Workflow Mailer checks.")
-                else:
-                    _stuck_count = 0
+            try:
+                env_file = _APPS_ENV_FILE
+    
+                # Detect apps OS user — prefer agent.env value, fall back to EBSapps.env file owner.
+                import pwd as _pwd
+                _apps_user = _APPS_USER
+                if not _apps_user and env_file and os.path.exists(env_file):
                     try:
-                        _stuck_count = int(_st_out.strip().splitlines()[-1].strip()) if _st_out.strip() else 0
-                    except (ValueError, IndexError):
+                        _st = os.stat(env_file)
+                        _apps_user = _pwd.getpwuid(_st.st_uid).pw_name
+                        print("%s [HC] apps OS user detected from file owner: %s" % (_ts(), _apps_user))
+                    except Exception:
                         pass
-                    _comps = []
-                    _mailer_row = None
-                    for _ln in _wf_out.splitlines():
-                        _pts = [p.strip() for p in _ln.strip().split("|")]
-                        if len(_pts) == 2 and _pts[0]:
-                            _comps.append((_pts[0], _pts[1]))
-                            if "workflow notification mailer" in _pts[0].lower():
-                                _mailer_row = (_pts[0], _pts[1])
-                    _comp_table = "Component|Status\n" + "\n".join("%s|%s" % c for c in _comps[:20])
-                    if not _comps and _wf_exit != 0:
-                        _finding("wf_mailer", "WF Mailer Query Failed", "warning",
-                                 "No service component data returned — check APPS credentials "
-                                 "(sqlplus exit %d)." % _wf_exit, _wf_out)
-                    elif _mailer_row and _mailer_row[1].upper() != "RUNNING":
-                        _finding("wf_mailer", "Workflow Mailer Not Running", "critical",
-                                 "%s status: %s. Restart via EBS System Admin → Workflow → Service Components."
-                                 % (_mailer_row[0], _mailer_row[1]), _comp_table)
-                    elif _stuck_count > 50:
-                        _finding("wf_mailer", "Stuck Workflow Notifications", "warning",
-                                 "%d outbound notifications stuck >2h. "
-                                 "Check Workflow Mailer and WF Background Process." % _stuck_count,
-                                 _comp_table)
-                    elif _mailer_row:
-                        _ok("wf_mailer", "Workflow Mailer",
-                            "%s: %s. %s stuck notifications."
-                            % (_mailer_row[0], _mailer_row[1],
-                               _stuck_count if _stuck_count > 0 else "No"),
-                            _comp_table)
-                    else:
-                        _ok("wf_mailer", "Workflow Mailer",
-                            "No Workflow Notification Mailer component found in FND_SVC_COMPONENTS "
-                            "(%d components returned)." % len(_comps), _comp_table)
-
-                # ── 8b. ADOP status ───────────────────────────────────────────
-                _adop_out, _adop_exit = _secs.get("adop_status", ("", 1))
-                if "NO_APPS_PWD" in _adop_out:
-                    _ok("adop_status", "ADOP Status",
-                        "Set APPS password in Edit Connection to enable ADOP status check.")
-                elif _adop_exit == 124:
-                    _finding("adop_status", "ADOP Command Timed Out", "critical",
-                             "adop -status timed out after 40s.", _adop_out)
-                elif "FAILED" in _adop_out.upper():
-                    _session_line = next(
-                        (l.strip() for l in _adop_out.splitlines()
-                         if "session" in l.lower() or "phase" in l.lower()), "")
-                    _finding("adop_status", "ADOP Session in FAILED State", "critical",
-                             "ADOP reports a FAILED session. Investigate with: adop -status. "
-                             + _session_line, _adop_out)
-                elif "exiting with status = 0" in _adop_out.lower() or "no active session" in _adop_out.lower():
-                    _summary = "; ".join(
-                        l.strip() for l in _adop_out.splitlines()
-                        if any(kw in l.lower() for kw in ("session", "phase", "status"))
-                        and l.strip() and not l.startswith("adop")
-                    )[:200]
-                    _ok("adop_status", "ADOP Status",
-                        "ADOP completed successfully. " + (_summary or "No active patch session."),
-                        _adop_out)
+                if _apps_user:
+                    print("%s [HC] apps OS user: %s" % (_ts(), _apps_user))
+    
+                # Single-quote escape for bash 'export VAR=...' lines in the generated script.
+                def _sh(pwd):
+                    return (pwd or "").replace("'", "'\\''")
+    
+                _MANAGED_NOISE = [
+                    # Script header/footer boilerplate emitted by all adXXXctl.sh scripts
+                    "you are running adapcctl",
+                    "you are running adopmnctl",
+                    "you are running admanagedsrvctl",
+                    "you are running adadminsrvctl",
+                    "you are running adnodemgrctl",
+                    "server specific logs are located",
+                    "admanagedsrvctl.sh: exiting with status",
+                    "admanagedsrvctl.sh: check the logfile",
+                    "adadminsrvctl.sh: exiting with status",
+                    "adadminsrvctl.sh: check the logfile",
+                    "adnodemgrctl.sh: exiting with status",
+                    "adnodemgrctl.sh: check the logfile",
+                    "adapcctl.sh: exiting with status",
+                    "adapcctl.sh: check the logfile",
+                    "adopmnctl.sh: exiting with status",
+                    "adopmnctl.sh: check the logfile",
+                    "adalnctl.sh: exiting with status",
+                    "adalnctl.sh: check the logfile",
+                    # Terminal / TTY noise
+                    "stty: standard input",
+                    "stty:",
+                    # Password prompts (heredoc passes value but prompt still prints)
+                    "enter the weblogic admin password",
+                    "enter the apps schema password",
+                    "enter the apps password",
+                    "enter the apps username",
+                    "nodemanager log is located",
+                    # TNS listener noise in apps-listener check (exit code is authoritative)
+                    "tns-12541",
+                    "tns-12560",
+                    "tns-00511",
+                    "linux error:",
+                ]
+    
+                # Lines containing any of these keywords are ALWAYS preserved even if they
+                # also contain a noise phrase — they carry diagnostic status information.
+                _STATUS_KEYWORDS = [
+                    "is running", "is shutdown", "is not running", "not running",
+                    "failed", "error", "not up", "starting", "stopped",
+                ]
+    
+                def _clean_raw(raw):
+                    lines = []
+                    for l in raw.splitlines():
+                        if not l.strip():
+                            continue
+                        l_lower = l.lower()
+                        # Preserve status lines regardless of noise match
+                        if any(kw in l_lower for kw in _STATUS_KEYWORDS):
+                            lines.append(l)
+                            continue
+                        if not any(n in l_lower for n in _MANAGED_NOISE):
+                            lines.append(l)
+                    return "\n".join(lines)
+    
+                no_env_msg = ("APPS_ENV_FILE not configured — reinstall agent with context file path "
+                              "so EBSapps.env can be sourced for this check.")
+    
+                if not env_file:
+                    for _cid, _ctitle in [
+                        ("apache_status",   "Apache/OHS Status"),
+                        ("opmn_status",     "OPMN Status"),
+                        ("apps_listener",   "Apps Listener Status"),
+                        ("managed_servers", "Managed Servers"),
+                        ("node_manager",    "Node Manager"),
+                        ("admin_server",    "WebLogic Admin Server"),
+                        ("cm_status",       "Concurrent Manager Status"),
+                        ("wf_mailer",       "Workflow Mailer"),
+                        ("adop_status",     "ADOP Status"),
+                        ("invalid_objects", "Invalid Objects"),
+                        ("ts_usage",        "Tablespace Usage"),
+                    ]:
+                        _finding(_cid, _ctitle, "warning", no_env_msg)
                 else:
-                    _finding("adop_status", "ADOP Unexpected Output", "warning",
-                             "adop -status returned unexpected output "
-                             "(exit %d). Review raw output." % _adop_exit, _adop_out)
-
-                # ── 9. Invalid objects ─────────────────────────────────────────
-                _inv_out, _inv_exit = _secs.get("invalid_objects", ("", 1))
-                if "NO_APPS_PWD" in _inv_out:
-                    _ok("invalid_objects", "Invalid Objects",
-                        "Set APPS password in Edit Connection to enable invalid objects check.")
-                elif "DB_CONNECT_FAILED" in _inv_out:
-                    _db_err = " ".join(
-                        l.strip() for l in _inv_out.splitlines()
-                        if l.strip() and l.strip() != "DB_CONNECT_FAILED")
-                    _finding("invalid_objects", "DB Not Accessible from App Server", "warning",
-                             "sqlplus cannot reach the DB — verify the DB server is up and "
-                             "EBSapps.env TWO_TASK points to an accessible service."
-                             + (" Error: " + _db_err[:200] if _db_err else ""), "")
-                else:
-                    _inv_rows = []
-                    for _ln in _inv_out.splitlines():
-                        _pts = _ln.strip().split("|")
-                        if len(_pts) == 2:
+                    # Pre-discover managed server names as root — reads the XML file directly,
+                    # no su or EBSapps.env needed.
+                    _srv_names = []
+                    if _CONTEXT_FILE:
+                        _ctx_esc = _CONTEXT_FILE.replace("'", "'\\''")
+                        _sd_out, _, _, _ = run_os_command(
+                            ["bash", "-c",
+                             "grep 'oa_service_name' '%s' 2>/dev/null "
+                             "| grep 'managed_server' "
+                             "| sed -n 's/.*>\\([a-zA-Z0-9_-]*\\)<.*/\\1/p' "
+                             "| sort -u" % _ctx_esc],
+                            timeout=10)
+                        _srv_names = [s.strip() for s in _sd_out.splitlines() if s.strip()]
+                    print("[HC] managed_server names: %r" % _srv_names)
+    
+                    # Build one complete bash script for all EBS checks.
+                    # Passwords are exported at the top of the script so every heredoc and
+                    # env-reading command receives the literal value — no nested escaping layers.
+                    _ctx  = (_CONTEXT_FILE or "").replace("'", "'\\''")
+                    _ef   = env_file.replace("'", "'\\''")
+                    _apwd = _sh(req_apps_pwd or "")
+                    _wpwd = _sh(req_weblogic_pwd or "")
+                    # Server names come through sed '[a-zA-Z0-9_-]*' so no quoting risk.
+                    _srv_arr = " ".join('"%s"' % s for s in _srv_names)
+    
+                    _script_lines = [
+                        "#!/bin/bash",
+                        "export CONTEXT_FILE='%s'" % _ctx,
+                        "export APPS_PWD='%s'"     % _apwd,
+                        "export WLS_PWD='%s'"      % _wpwd,
+                        "source '%s' run >/dev/null 2>&1" % _ef,
+                        "",
+                        # 1. Apache/OHS
+                        "echo TV_START apache_status",
+                        '"$ADMIN_SCRIPTS_HOME/adapcctl.sh" status 2>&1',
+                        'echo "TV_EXIT $?"',
+                        "echo TV_END apache_status",
+                        "",
+                        # 2. OPMN
+                        "echo TV_START opmn_status",
+                        '"$ADMIN_SCRIPTS_HOME/adopmnctl.sh" status 2>&1',
+                        'echo "TV_EXIT $?"',
+                        "echo TV_END opmn_status",
+                        "",
+                        # 3. Apps Listener
+                        "echo TV_START apps_listener",
+                        '"$ADMIN_SCRIPTS_HOME/adalnctl.sh" status 2>&1',
+                        'echo "TV_EXIT $?"',
+                        "echo TV_END apps_listener",
+                        "",
+                        # 4. Node Manager — WLS password via heredoc (same as managed servers)
+                        "echo TV_START node_manager",
+                        '"$ADMIN_SCRIPTS_HOME/adnodemgrctl.sh" status 2>&1 <<NMEOF',
+                        '$WLS_PWD',
+                        'NMEOF',
+                        'echo "TV_EXIT $?"',
+                        "echo TV_END node_manager",
+                        "",
+                        # 5. Managed servers — WLS_PWD expanded by bash inside heredoc, no escaping needed
+                        "echo TV_START managed_servers",
+                        "SERVERS=( %s )" % _srv_arr,
+                        'if [ ${#SERVERS[@]} -eq 0 ]; then',
+                        '    echo NO_SERVERS_FOUND',
+                        '    echo "TV_EXIT 0"',
+                        'elif [ -z "$WLS_PWD" ]; then',
+                        '    echo NO_WLS_PWD',
+                        '    for _sv in "${SERVERS[@]}"; do echo "KNOWN_SERVER $_sv"; done',
+                        '    echo "TV_EXIT 0"',
+                        'else',
+                        '    for _sv in "${SERVERS[@]}"; do',
+                        '        echo "TV_SERVER_NAME $_sv"',
+                        '        timeout 45 "$ADMIN_SCRIPTS_HOME/admanagedsrvctl.sh" status "$_sv" 2>&1 <<WLSEOF',
+                        '$WLS_PWD',
+                        'WLSEOF',
+                        '        echo "TV_SERVER_EXIT $?"',
+                        '    done',
+                        '    echo "TV_EXIT 0"',
+                        'fi',
+                        "echo TV_END managed_servers",
+                        "",
+                        # 6. Admin Server — two-line heredoc (WLS_PWD then APPS_PWD), both expanded by bash
+                        "echo TV_START admin_server",
+                        'if [ -z "$WLS_PWD" ] || [ -z "$APPS_PWD" ]; then',
+                        '    echo NO_PASSWORDS',
+                        '    echo "TV_EXIT 0"',
+                        'else',
+                        '    _HOST=$(hostname -s)',
+                        '    _ADMIN_HOST=$(grep -i \'s_wls_admin_host\\|wls_admin_host\' "$CONTEXT_FILE" 2>/dev/null | sed -E \'s/.*>([^<]*)<.*/\\1/\' | grep -v \'^[[:space:]]*$\' | head -1 | xargs 2>/dev/null)',
+                        '    if [ -n "$_ADMIN_HOST" ] && [ "$_HOST" != "$_ADMIN_HOST" ]; then',
+                        '        echo "SKIP_ADMIN_HOST:$_ADMIN_HOST"',
+                        '        echo "TV_EXIT 0"',
+                        '    else',
+                        '        timeout 60 "$ADMIN_SCRIPTS_HOME/adadminsrvctl.sh" status 2>&1 <<ADMEOF',
+                        '$WLS_PWD',
+                        '$APPS_PWD',
+                        'ADMEOF',
+                        '        echo "TV_EXIT $?"',
+                        '    fi',
+                        'fi',
+                        "echo TV_END admin_server",
+                        "",
+                        # 7. CM — sqlplus password via env var in connection string
+                        "echo TV_START cm_status",
+                        'if [ -z "$APPS_PWD" ]; then',
+                        '    echo NO_APPS_PWD',
+                        '    echo "TV_EXIT 0"',
+                        'else',
+                        "    sqlplus -s 'apps/'\"$APPS_PWD\" <<CMSQLEND 2>&1",
+                        "set pages 0 feedback off heading off echo off verify off",
+                        "SELECT user_concurrent_queue_name||'|'||max_processes||'|'||running_processes||'|'||nvl(control_code,'A')",
+                        "FROM apps.fnd_concurrent_queues_vl",
+                        "WHERE enabled_flag='Y'",
+                        "ORDER BY user_concurrent_queue_name;",
+                        "exit;",
+                        "CMSQLEND",
+                        '    echo "TV_EXIT $?"',
+                        'fi',
+                        "echo TV_END cm_status",
+                        "",
+                        # 8a. WF mailer components
+                        "echo TV_START wf_mailer",
+                        'if [ -z "$APPS_PWD" ]; then',
+                        '    echo NO_APPS_PWD',
+                        '    echo "TV_EXIT 0"',
+                        'else',
+                        "    sqlplus -s 'apps/'\"$APPS_PWD\" <<WFSQLEND 2>&1",
+                        "set pages 0 feedback off heading off echo off verify off",
+                        "select component_name||'|'||component_status",
+                        "from apps.fnd_svc_components",
+                        "order by component_name;",
+                        "exit;",
+                        "WFSQLEND",
+                        '    echo "TV_EXIT $?"',
+                        'fi',
+                        "echo TV_END wf_mailer",
+                        "",
+                        # 8b. WF stuck outbound notifications
+                        "echo TV_START wf_stuck",
+                        'if [ -z "$APPS_PWD" ]; then',
+                        '    echo NO_APPS_PWD',
+                        '    echo "TV_EXIT 0"',
+                        'else',
+                        "    sqlplus -s 'apps/'\"$APPS_PWD\" <<STUCKSQLEND 2>&1",
+                        "set pages 0 feedback off heading off echo off verify off",
+                        "select count(*) from applsys.wf_notifications",
+                        "where mail_status='MAIL' and status='OPEN'",
+                        "and begin_date < sysdate - 2/24;",
+                        "exit;",
+                        "STUCKSQLEND",
+                        '    echo "TV_EXIT $?"',
+                        'fi',
+                        "echo TV_END wf_stuck",
+                        "",
+                        # 8c. ADOP — pass APPS_PWD via heredoc (Sentinel pattern; adop reads stdin for password)
+                        "echo TV_START adop_status",
+                        'if [ -z "$APPS_PWD" ]; then',
+                        '    echo NO_APPS_PWD',
+                        '    echo "TV_EXIT 0"',
+                        'else',
+                        '    timeout 40 env COLUMNS=300 adop -status 2>&1 <<ADOPEOF',
+                        '$APPS_PWD',
+                        'ADOPEOF',
+                        '    echo "TV_EXIT $?"',
+                        'fi',
+                        "echo TV_END adop_status",
+                        "",
+                        # 9. Invalid objects — quick connect test gates the full query
+                        "echo TV_START invalid_objects",
+                        'if [ -z "$APPS_PWD" ]; then',
+                        '    echo NO_APPS_PWD',
+                        '    echo "TV_EXIT 0"',
+                        'else',
+                        '    _CONN=$(echo "exit;" | sqlplus -s \'apps/\'"$APPS_PWD" 2>&1 | head -5)',
+                        '    if echo "$_CONN" | grep -qiE "ORA-|TNS-|SP2-"; then',
+                        '        echo "DB_CONNECT_FAILED"',
+                        '        echo "$_CONN"',
+                        '        echo "TV_EXIT 1"',
+                        '    else',
+                        "        sqlplus -S 'apps/'\"$APPS_PWD\" <<INVSQLEND 2>&1",
+                        "set pages 0 feedback off heading off echo off verify off",
+                        "SELECT owner||'|'||COUNT(*) FROM dba_objects",
+                        "WHERE status='INVALID' GROUP BY owner ORDER BY COUNT(*) DESC;",
+                        "exit;",
+                        "INVSQLEND",
+                        '        echo "TV_EXIT $?"',
+                        '    fi',
+                        'fi',
+                        "echo TV_END invalid_objects",
+                        "",
+                        # 10. Tablespace usage — dba_tablespace_usage_metrics via apps user
+                        # TWO_TASK set by EBSapps.env routes to the EBS PDB service.
+                        "echo TV_START ts_usage",
+                        'if [ -z "$APPS_PWD" ]; then',
+                        '    echo NO_APPS_PWD',
+                        '    echo "TV_EXIT 0"',
+                        'else',
+                        "    sqlplus -s 'apps/'\"$APPS_PWD\" <<TSSQLEND 2>&1",
+                        "set pages 0 feedback off heading off echo off verify off",
+                        "SELECT tablespace_name||'|'||round(used_space*8192/1048576)||'|'||round(tablespace_size*8192/1048576)||'|'||round(used_percent,1)",
+                        "FROM dba_tablespace_usage_metrics",
+                        "ORDER BY used_percent DESC;",
+                        "exit;",
+                        "TSSQLEND",
+                        '    echo "TV_EXIT $?"',
+                        'fi',
+                        "echo TV_END ts_usage",
+                    ]
+                    _hc_script = "\n".join(_script_lines) + "\n"
+    
+                    # Write and execute the single temp script
+                    _tf = "/tmp/.tv_hc_%d.sh" % os.getpid()
+                    _script_out = ""
+                    _script_exit = 1
+                    try:
+                        with open(_tf, "w") as _fh:
+                            _fh.write(_hc_script)
+                        os.chmod(_tf, 0o755)
+                        if os.geteuid() == 0 and _apps_user and _apps_user != "root":
                             try:
-                                _inv_rows.append((_pts[0].strip(), int(_pts[1].strip())))
-                            except ValueError:
+                                import pwd as _pwd2
+                                _uid = _pwd2.getpwnam(_apps_user).pw_uid
+                                os.chown(_tf, _uid, -1)
+                            except Exception:
                                 pass
-                    _inv_table = ("Owner|Invalid Objects\n" +
-                                  "\n".join("%s|%d" % (o, c) for o, c in _inv_rows)) if _inv_rows else ""
-                    if _inv_exit != 0 and not _inv_rows:
-                        _finding("invalid_objects", "Invalid Objects Check Failed", "warning",
-                                 "sqlplus query for invalid objects failed (exit %d). "
-                                 "Check APPS credentials and DB connectivity." % _inv_exit, _inv_out)
-                    elif _inv_rows:
-                        _apps_inv   = next((c for o, c in _inv_rows if o.upper() == "APPS"), 0)
-                        _other_crit = [(o, c) for o, c in _inv_rows if o.upper() != "APPS" and c > 10]
-                        _top5       = "; ".join("%s: %d" % (o, c) for o, c in _inv_rows[:5])
-                        if _apps_inv > 0:
-                            _finding("invalid_objects", "APPS Schema Has Invalid Objects", "critical",
-                                     "APPS schema has %d invalid object(s). "
-                                     "Run utlrp.sql or adrelink to resolve. Top owners: %s"
-                                     % (_apps_inv, _top5), _inv_table)
-                        elif _other_crit:
-                            _finding("invalid_objects", "Invalid Objects Detected", "warning",
-                                     "%d schema(s) have >10 invalid objects. Top owners: %s"
-                                     % (len(_other_crit), _top5), _inv_table)
+                            _script_out, _, _script_exit, _ = run_os_command(
+                                ["su", _apps_user, "-s", "/bin/bash", "-c",
+                                 "bash %s; rm -f %s 2>/dev/null" % (_tf, _tf)],
+                                timeout=360, max_output=131072)
+                        else:
+                            _script_out, _, _script_exit, _ = run_os_command(
+                                ["bash", _tf], timeout=360, max_output=131072)
+                            try:
+                                os.unlink(_tf)
+                            except Exception:
+                                pass
+                    except Exception as _exc:
+                        print("[HC] script error: %s" % _exc)
+    
+                    print("[HC] script exit: %d output_len: %d" % (_script_exit, len(_script_out)))
+    
+                    # Parse TV_START/TV_END/TV_EXIT markers into per-section dict
+                    def _parse_sections(output):
+                        result = {}
+                        cur = None
+                        buf = []
+                        ex = 0
+                        for _ln in output.splitlines():
+                            if _ln.startswith("TV_START "):
+                                cur = _ln[9:].strip()
+                                buf = []
+                                ex = 0
+                            elif _ln.startswith("TV_EXIT "):
+                                try:
+                                    ex = int(_ln[8:].strip())
+                                except ValueError:
+                                    ex = 0
+                            elif _ln.startswith("TV_END "):
+                                if cur:
+                                    result[cur] = ("\n".join(buf), ex)
+                                cur = None
+                                buf = []
+                            elif cur is not None:
+                                buf.append(_ln)
+                        return result
+    
+                    _secs = _parse_sections(_script_out)
+                    print("[HC] sections: %r" % sorted(_secs.keys()))
+    
+                    # ── 1. Apache/OHS ──────────────────────────────────────────────
+                    _out, _exit = _secs.get("apache_status", ("", 1))
+                    if _exit != 0 or "stopped" in _out.lower():
+                        _finding("apache_status", "Apache/OHS Not Running", "critical",
+                                 "adapcctl.sh status reports Apache/OHS is stopped or failed "
+                                 "(exit code %d)." % _exit, _out)
+                    else:
+                        _ok("apache_status", "Apache/OHS Status", "Apache/OHS is running.", _out)
+    
+                    # ── 2. OPMN ───────────────────────────────────────────────────
+                    _out, _exit = _secs.get("opmn_status", ("", 1))
+                    if any(kw in _out for kw in ("Down", "down", "FAILED", "failed")):
+                        _finding("opmn_status", "OPMN Components Down", "critical",
+                                 "adopmnctl.sh status reports one or more OPMN components are down.", _out)
+                    elif _exit != 0:
+                        _finding("opmn_status", "OPMN Status Check Failed", "warning",
+                                 "adopmnctl.sh status returned exit code %d." % _exit, _out)
+                    else:
+                        _ok("opmn_status", "OPMN Status", "All OPMN components are Alive.", _out)
+    
+                    # ── 3. Apps Listener ──────────────────────────────────────────
+                    # adalnctl.sh exit code is authoritative — no content parsing needed.
+                    _out, _exit = _secs.get("apps_listener", ("", 1))
+                    if _exit != 0:
+                        _finding("apps_listener", "Apps Listener Not Running", "warning",
+                                 "adalnctl.sh exited with code %d." % _exit, _out)
+                    else:
+                        _ok("apps_listener", "Apps Listener Status", "Apps Listener is running.", _out)
+    
+                    # ── 4. Node Manager ───────────────────────────────────────────
+                    _out, _exit = _secs.get("node_manager", ("", 1))
+                    if re.search(r'the\s+node\s+manager\s+is\s+running', _out, re.IGNORECASE):
+                        _ok("node_manager", "Node Manager", "Node Manager is running.", _out)
+                    else:
+                        _finding("node_manager", "Node Manager Not Running", "critical",
+                                 "adnodemgrctl.sh reports Node Manager is not running "
+                                 "(exit code %d)." % _exit, _out)
+    
+                    # ── 5. Managed servers ─────────────────────────────────────────
+                    _ms_out, _ = _secs.get("managed_servers", ("NO_SERVERS_FOUND", 0))
+                    if "NO_SERVERS_FOUND" in _ms_out:
+                        _finding("managed_servers", "Managed Servers — No Servers Found", "warning",
+                                 "No managed_server entries found in CONTEXT_FILE. "
+                                 "Verify CONTEXT_FILE is set correctly.")
+                    elif "NO_WLS_PWD" in _ms_out:
+                        _known = [l[13:].strip() for l in _ms_out.splitlines()
+                                  if l.startswith("KNOWN_SERVER ")]
+                        _ok("managed_servers", "Managed Servers",
+                            "Set WebLogic password in Edit Connection for per-server status. "
+                            "Servers in CONTEXT_FILE: %s" % (", ".join(_known) if _known else "(none)"))
+                    else:
+                        _srv_states = []
+                        _cur_sv = None
+                        _sv_lines = []
+                        _sv_exit = 0
+                        for _ml in _ms_out.splitlines():
+                            if _ml.startswith("TV_SERVER_NAME "):
+                                _cur_sv = _ml[15:].strip()
+                                _sv_lines = []
+                                _sv_exit = 0
+                            elif _ml.startswith("TV_SERVER_EXIT "):
+                                try:
+                                    _sv_exit = int(_ml[15:].strip())
+                                except ValueError:
+                                    _sv_exit = 0
+                                if _cur_sv is not None:
+                                    _s_raw_orig = "\n".join(_sv_lines)
+                                    if _sv_exit == 124:
+                                        _srv_states.append((_cur_sv, "TIMEOUT", _s_raw_orig))
+                                    elif "invalid server name" in _s_raw_orig.lower() or "invalid managed server" in _s_raw_orig.lower():
+                                        _srv_states.append((_cur_sv, "NOT_DEPLOYED", _s_raw_orig))
+                                    elif re.search(r'\b' + re.escape(_cur_sv) + r'\s+is\s+running', _s_raw_orig, re.IGNORECASE):
+                                        _srv_states.append((_cur_sv, "RUNNING", _s_raw_orig))
+                                    elif any(kw in _s_raw_orig.lower() for kw in ("is shutdown", "is not running", "not running")):
+                                        _srv_states.append((_cur_sv, "DOWN", _s_raw_orig))
+                                    else:
+                                        _srv_states.append((_cur_sv, "UNKNOWN", _s_raw_orig))
+                                    _cur_sv = None
+                            elif _cur_sv is not None:
+                                _sv_lines.append(_ml)
+                        _down = [n for n, st, _ in _srv_states if st in ("DOWN", "TIMEOUT")]
+                        _combined_raw = "\n".join(
+                            "=== %s ===\nStatus: %s\n%s" % (n, st, raw)
+                            for n, st, raw in _srv_states)
+                        if not _srv_states:
+                            _finding("managed_servers", "Managed Servers — No Status", "warning",
+                                     "Server names discovered but no status received. "
+                                     "Check admanagedsrvctl.sh and WebLogic password.")
+                        elif _down:
+                            _finding("managed_servers", "Managed Servers Down", "critical",
+                                     "Servers not running: %s" % ", ".join(_down), _combined_raw)
+                        else:
+                            _rc = sum(1 for _, st, _ in _srv_states if st == "RUNNING")
+                            _nd = sum(1 for _, st, _ in _srv_states if st == "NOT_DEPLOYED")
+                            _uk = sum(1 for _, st, _ in _srv_states if st == "UNKNOWN")
+                            _parts = []
+                            if _rc: _parts.append("%d running" % _rc)
+                            if _nd: _parts.append("%d not deployed on this node" % _nd)
+                            if _uk: _parts.append("%d unknown" % _uk)
+                            _ok("managed_servers", "Managed Servers",
+                                "Managed servers: %s" % ", ".join(_parts), _combined_raw)
+    
+                    # ── 6. Admin Server ───────────────────────────────────────────
+                    _out, _exit = _secs.get("admin_server", ("", 1))
+                    if "NO_PASSWORDS" in _out:
+                        _ok("admin_server", "WebLogic Admin Server",
+                            "Set WebLogic and APPS passwords in Edit Connection to enable Admin Server check.")
+                    elif "SKIP_ADMIN_HOST:" in _out:
+                        _adm_host = next(
+                            (l[len("SKIP_ADMIN_HOST:"):].strip()
+                             for l in _out.splitlines()
+                             if l.startswith("SKIP_ADMIN_HOST:")), "")
+                        _ok("admin_server", "WebLogic Admin Server",
+                            "Admin Server runs on host '%s' — skipped on this managed-server node." % _adm_host)
+                    else:
+                        if _exit == 124:
+                            _finding("admin_server", "Admin Server Check Timed Out", "warning",
+                                     "adadminsrvctl.sh status timed out after 60s.", _out)
+                        elif re.search(r'the\s+adminserver\s+is\s+running', _out, re.IGNORECASE):
+                            _ok("admin_server", "WebLogic Admin Server",
+                                "Admin Server is running.", _out)
+                        else:
+                            _finding("admin_server", "WebLogic Admin Server Not Running", "critical",
+                                     "adadminsrvctl.sh status reports Admin Server is not running "
+                                     "(exit code %d)." % _exit, _out)
+    
+                    # ── 7. CM status ──────────────────────────────────────────────
+                    _MANDATORY_MGR = {
+                        "internal manager", "standard manager",
+                        "output post processor", "service manager",
+                        "workflow agent listener",
+                    }
+                    _out, _exit = _secs.get("cm_status", ("", 1))
+                    if "NO_APPS_PWD" in _out:
+                        _ok("cm_status", "Concurrent Manager Status",
+                            "Set APPS password in Edit Connection to enable Concurrent Manager checks.")
+                    else:
+                        print("[HC] CM sqlplus exit: %d" % _exit)
+                        _mgrs, _crit_down, _warn_down = [], [], []
+                        for _ln in _out.splitlines():
+                            _pts = [p.strip() for p in _ln.strip().split("|")]
+                            if len(_pts) == 4:
+                                try:
+                                    _mn  = _pts[0]
+                                    _tgt = int(_pts[1])
+                                    _rc  = int(_pts[2])
+                                    _cc  = _pts[3]
+                                    if _cc == 'E' or _tgt == 0:
+                                        continue
+                                    _mgrs.append((_mn, _tgt, _rc))
+                                    if _rc == 0:
+                                        if _mn.lower() in _MANDATORY_MGR:
+                                            _crit_down.append("%s (0/%d)" % (_mn, _tgt))
+                                        else:
+                                            _warn_down.append("%s (0/%d)" % (_mn, _tgt))
+                                    elif _rc < _tgt:
+                                        _warn_down.append("%s (%d/%d)" % (_mn, _rc, _tgt))
+                                except ValueError:
+                                    pass
+                        if not _mgrs and _exit != 0:
+                            _finding("cm_status", "CM Query Failed", "warning",
+                                     "sqlplus query to FND_CONCURRENT_QUEUES_VL failed "
+                                     "(exit %d). Check APPS credentials and DB connectivity." % _exit, _out)
+                        elif _crit_down:
+                            _finding("cm_status", "Mandatory Manager Down", "critical",
+                                     "Critical mandatory manager(s) not running: %s"
+                                     % "; ".join(_crit_down[:5]), _out)
+                        elif _warn_down:
+                            _finding("cm_status", "Concurrent Manager Under-Staffed", "warning",
+                                     "%d manager(s) running fewer than target processes: %s"
+                                     % (len(_warn_down), "; ".join(_warn_down[:5])), _out)
+                        elif _mgrs:
+                            _ok("cm_status", "Concurrent Manager Status",
+                                "All %d active managers running at target." % len(_mgrs),
+                                "Manager Name|Target|Running\n" +
+                                "\n".join("%s|%d|%d" % (n, t, r) for n, t, r in _mgrs))
+                        else:
+                            _ok("cm_status", "Concurrent Manager Status",
+                                "No active managers found (all deactivated or max_processes=0).", _out)
+    
+                    # ── 8. WF Mailer ──────────────────────────────────────────────
+                    _wf_out, _wf_exit = _secs.get("wf_mailer", ("", 1))
+                    _st_out, _        = _secs.get("wf_stuck",  ("", 0))
+                    if "NO_APPS_PWD" in _wf_out:
+                        _ok("wf_mailer", "Workflow Mailer",
+                            "Set APPS password in Edit Connection to enable Workflow Mailer checks.")
+                    else:
+                        _stuck_count = 0
+                        try:
+                            _stuck_count = int(_st_out.strip().splitlines()[-1].strip()) if _st_out.strip() else 0
+                        except (ValueError, IndexError):
+                            pass
+                        _comps = []
+                        _mailer_row = None
+                        for _ln in _wf_out.splitlines():
+                            _pts = [p.strip() for p in _ln.strip().split("|")]
+                            if len(_pts) == 2 and _pts[0]:
+                                _comps.append((_pts[0], _pts[1]))
+                                if "workflow notification mailer" in _pts[0].lower():
+                                    _mailer_row = (_pts[0], _pts[1])
+                        _comp_table = "Component|Status\n" + "\n".join("%s|%s" % c for c in _comps[:20])
+                        if not _comps and _wf_exit != 0:
+                            _finding("wf_mailer", "WF Mailer Query Failed", "warning",
+                                     "No service component data returned — check APPS credentials "
+                                     "(sqlplus exit %d)." % _wf_exit, _wf_out)
+                        elif _mailer_row and _mailer_row[1].upper() != "RUNNING":
+                            _finding("wf_mailer", "Workflow Mailer Not Running", "critical",
+                                     "%s status: %s. Restart via EBS System Admin → Workflow → Service Components."
+                                     % (_mailer_row[0], _mailer_row[1]), _comp_table)
+                        elif _stuck_count > 50:
+                            _finding("wf_mailer", "Stuck Workflow Notifications", "warning",
+                                     "%d outbound notifications stuck >2h. "
+                                     "Check Workflow Mailer and WF Background Process." % _stuck_count,
+                                     _comp_table)
+                        elif _mailer_row:
+                            _ok("wf_mailer", "Workflow Mailer",
+                                "%s: %s. %s stuck notifications."
+                                % (_mailer_row[0], _mailer_row[1],
+                                   _stuck_count if _stuck_count > 0 else "No"),
+                                _comp_table)
+                        else:
+                            _ok("wf_mailer", "Workflow Mailer",
+                                "No Workflow Notification Mailer component found in FND_SVC_COMPONENTS "
+                                "(%d components returned)." % len(_comps), _comp_table)
+    
+                    # ── 8b. ADOP status ───────────────────────────────────────────
+                    _adop_out, _adop_exit = _secs.get("adop_status", ("", 1))
+                    if "NO_APPS_PWD" in _adop_out:
+                        _ok("adop_status", "ADOP Status",
+                            "Set APPS password in Edit Connection to enable ADOP status check.")
+                    elif _adop_exit == 124:
+                        _finding("adop_status", "ADOP Command Timed Out", "critical",
+                                 "adop -status timed out after 40s.", _adop_out)
+                    elif "FAILED" in _adop_out.upper():
+                        _session_line = next(
+                            (l.strip() for l in _adop_out.splitlines()
+                             if "session" in l.lower() or "phase" in l.lower()), "")
+                        _finding("adop_status", "ADOP Session in FAILED State", "critical",
+                                 "ADOP reports a FAILED session. Investigate with: adop -status. "
+                                 + _session_line, _adop_out)
+                    elif "exiting with status = 0" in _adop_out.lower() or "no active session" in _adop_out.lower():
+                        _summary = "; ".join(
+                            l.strip() for l in _adop_out.splitlines()
+                            if any(kw in l.lower() for kw in ("session", "phase", "status"))
+                            and l.strip() and not l.startswith("adop")
+                        )[:200]
+                        _ok("adop_status", "ADOP Status",
+                            "ADOP completed successfully. " + (_summary or "No active patch session."),
+                            _adop_out)
+                    else:
+                        _finding("adop_status", "ADOP Unexpected Output", "warning",
+                                 "adop -status returned unexpected output "
+                                 "(exit %d). Review raw output." % _adop_exit, _adop_out)
+    
+                    # ── 9. Invalid objects ─────────────────────────────────────────
+                    _inv_out, _inv_exit = _secs.get("invalid_objects", ("", 1))
+                    if "NO_APPS_PWD" in _inv_out:
+                        _ok("invalid_objects", "Invalid Objects",
+                            "Set APPS password in Edit Connection to enable invalid objects check.")
+                    elif "DB_CONNECT_FAILED" in _inv_out:
+                        _db_err = " ".join(
+                            l.strip() for l in _inv_out.splitlines()
+                            if l.strip() and l.strip() != "DB_CONNECT_FAILED")
+                        _finding("invalid_objects", "DB Not Accessible from App Server", "warning",
+                                 "sqlplus cannot reach the DB — verify the DB server is up and "
+                                 "EBSapps.env TWO_TASK points to an accessible service."
+                                 + (" Error: " + _db_err[:200] if _db_err else ""), "")
+                    else:
+                        _inv_rows = []
+                        for _ln in _inv_out.splitlines():
+                            _pts = _ln.strip().split("|")
+                            if len(_pts) == 2:
+                                try:
+                                    _inv_rows.append((_pts[0].strip(), int(_pts[1].strip())))
+                                except ValueError:
+                                    pass
+                        _inv_table = ("Owner|Invalid Objects\n" +
+                                      "\n".join("%s|%d" % (o, c) for o, c in _inv_rows)) if _inv_rows else ""
+                        if _inv_exit != 0 and not _inv_rows:
+                            _finding("invalid_objects", "Invalid Objects Check Failed", "warning",
+                                     "sqlplus query for invalid objects failed (exit %d). "
+                                     "Check APPS credentials and DB connectivity." % _inv_exit, _inv_out)
+                        elif _inv_rows:
+                            _apps_inv   = next((c for o, c in _inv_rows if o.upper() == "APPS"), 0)
+                            _other_crit = [(o, c) for o, c in _inv_rows if o.upper() != "APPS" and c > 10]
+                            _top5       = "; ".join("%s: %d" % (o, c) for o, c in _inv_rows[:5])
+                            if _apps_inv > 0:
+                                _finding("invalid_objects", "APPS Schema Has Invalid Objects", "critical",
+                                         "APPS schema has %d invalid object(s). "
+                                         "Run utlrp.sql or adrelink to resolve. Top owners: %s"
+                                         % (_apps_inv, _top5), _inv_table)
+                            elif _other_crit:
+                                _finding("invalid_objects", "Invalid Objects Detected", "warning",
+                                         "%d schema(s) have >10 invalid objects. Top owners: %s"
+                                         % (len(_other_crit), _top5), _inv_table)
+                            else:
+                                _ok("invalid_objects", "Invalid Objects",
+                                    "No critical invalid objects. Minor counts: %s" % _top5, _inv_table)
                         else:
                             _ok("invalid_objects", "Invalid Objects",
-                                "No critical invalid objects. Minor counts: %s" % _top5, _inv_table)
+                                "No invalid objects found in the database.", "")
+    
+                    # ── 10. Tablespace usage ───────────────────────────────────────────
+                    _ts_out, _ts_exit = _secs.get("ts_usage", ("", 1))
+                    if "NO_APPS_PWD" in _ts_out:
+                        _ok("ts_usage", "Tablespace Usage",
+                            "Set APPS password in Edit Connection to enable tablespace checks.")
                     else:
-                        _ok("invalid_objects", "Invalid Objects",
-                            "No invalid objects found in the database.", "")
-
-                # ── 10. Tablespace usage ───────────────────────────────────────────
-                _ts_out, _ts_exit = _secs.get("ts_usage", ("", 1))
-                if "NO_APPS_PWD" in _ts_out:
-                    _ok("ts_usage", "Tablespace Usage",
-                        "Set APPS password in Edit Connection to enable tablespace checks.")
+                        _ts_rows = []
+                        for _ln in _ts_out.splitlines():
+                            _pts = [p.strip() for p in _ln.strip().split("|")]
+                            if len(_pts) == 4:
+                                try:
+                                    _ts_rows.append((_pts[0], int(_pts[1]), int(_pts[2]), float(_pts[3])))
+                                except (ValueError, IndexError):
+                                    pass
+                        _ts_table = ("Tablespace|Used MB|Total MB|Used %\n" +
+                                     "\n".join("%s|%d|%d|%.1f%%" % (n, u, t, p) for n, u, t, p in _ts_rows)) if _ts_rows else ""
+                        _crit_ts = [(n, p) for n, u, t, p in _ts_rows if p >= 90]
+                        _warn_ts = [(n, p) for n, u, t, p in _ts_rows if 80 <= p < 90]
+                        if _ts_exit != 0 and not _ts_rows:
+                            _finding("ts_usage", "Tablespace Query Failed", "warning",
+                                     "sqlplus query to dba_tablespace_usage_metrics failed "
+                                     "(exit %d). Check APPS credentials and DB connectivity." % _ts_exit, _ts_out)
+                        elif _crit_ts:
+                            _finding("ts_usage", "Critical Tablespace Usage", "critical",
+                                     "%d tablespace(s) above 90%%: %s"
+                                     % (len(_crit_ts),
+                                        "; ".join("%s (%.1f%%)" % (n, p) for n, p in _crit_ts[:3])),
+                                     _ts_table)
+                        elif _warn_ts:
+                            _finding("ts_usage", "High Tablespace Usage", "warning",
+                                     "%d tablespace(s) above 80%%: %s"
+                                     % (len(_warn_ts),
+                                        "; ".join("%s (%.1f%%)" % (n, p) for n, p in _warn_ts[:3])),
+                                     _ts_table)
+                        elif _ts_rows:
+                            _top = _ts_rows[0]
+                            _ok("ts_usage", "Tablespace Usage",
+                                "All tablespaces within limits. Highest: %s at %.1f%% (%dMB of %dMB used)."
+                                % (_top[0], _top[3], _top[1], _top[2]), _ts_table)
+                        else:
+                            _ok("ts_usage", "Tablespace Usage",
+                                "No tablespace data returned (dba_tablespace_usage_metrics empty).", "")
+    
+                # ── Disk usage ─────────────────────────────────────────────────────
+                # df -hP: POSIX portable output — one line per filesystem, fixed columns,
+                # no line-wrapping even for long device names.
+                stdout, stderr, exit_code, _ = run_os_command(["df", "-hP"], timeout=10)
+                if exit_code != 0:
+                    _finding("disk_usage", "Disk Usage Check Failed", "warning",
+                             "df -hP returned exit code %d." % exit_code, stderr)
                 else:
-                    _ts_rows = []
-                    for _ln in _ts_out.splitlines():
-                        _pts = [p.strip() for p in _ln.strip().split("|")]
-                        if len(_pts) == 4:
+                    crit_fs, warn_fs, _disk_rows = [], [], []
+                    for line in stdout.splitlines()[1:]:
+                        parts = line.split()
+                        if len(parts) >= 6:
+                            pct_str = parts[4].rstrip("%")
                             try:
-                                _ts_rows.append((_pts[0], int(_pts[1]), int(_pts[2]), float(_pts[3])))
+                                pct   = int(pct_str)
+                                mount = parts[5]
+                                _disk_rows.append("%s|%s|%s|%s|%d%%" % (mount, parts[1], parts[2], parts[3], pct))
+                                if pct >= 95:
+                                    crit_fs.append("%s at %d%%" % (mount, pct))
+                                elif pct >= 85:
+                                    warn_fs.append("%s at %d%%" % (mount, pct))
+                            except ValueError:
+                                pass
+                    _disk_table = "Mount|Size|Used|Avail|Use%\n" + "\n".join(_disk_rows)
+                    if crit_fs:
+                        _finding("disk_usage", "Critical Disk Usage", "critical",
+                                 "Filesystems at or above 95%%: %s" % ", ".join(crit_fs), _disk_table)
+                    elif warn_fs:
+                        _finding("disk_usage", "High Disk Usage", "warning",
+                                 "Filesystems at or above 85%%: %s" % ", ".join(warn_fs), _disk_table)
+                    else:
+                        _ok("disk_usage", "Disk Usage",
+                            "All filesystems below 85%% threshold.", _disk_table)
+    
+                # ── Memory ─────────────────────────────────────────────────────────
+                # Parses both old (6-col) and new (7-col, adds 'available') free -m output.
+                # Swap check: warn >20%, critical >50% (Sentinel thresholds).
+                stdout, stderr, exit_code, _ = run_os_command(["free", "-m"], timeout=10)
+                if exit_code != 0:
+                    _finding("memory_usage", "Memory Check Failed", "warning",
+                             "free -m returned exit code %d." % exit_code, stderr)
+                else:
+                    _mem_total = _mem_used = _mem_free = _mem_avail = 0
+                    _swp_total = _swp_used = 0
+                    for _ml in stdout.splitlines():
+                        _mp = _ml.split()
+                        if _mp and _mp[0] == "Mem:" and len(_mp) >= 4:
+                            try:
+                                _mem_total = int(_mp[1])
+                                _mem_used  = int(_mp[2])
+                                _mem_free  = int(_mp[3])
+                                # col 6 = 'available' (procps >= 3.3.10); fall back to free
+                                _mem_avail = int(_mp[6]) if len(_mp) >= 7 else _mem_free
                             except (ValueError, IndexError):
                                 pass
-                    _ts_table = ("Tablespace|Used MB|Total MB|Used %\n" +
-                                 "\n".join("%s|%d|%d|%.1f%%" % (n, u, t, p) for n, u, t, p in _ts_rows)) if _ts_rows else ""
-                    _crit_ts = [(n, p) for n, u, t, p in _ts_rows if p >= 90]
-                    _warn_ts = [(n, p) for n, u, t, p in _ts_rows if 80 <= p < 90]
-                    if _ts_exit != 0 and not _ts_rows:
-                        _finding("ts_usage", "Tablespace Query Failed", "warning",
-                                 "sqlplus query to dba_tablespace_usage_metrics failed "
-                                 "(exit %d). Check APPS credentials and DB connectivity." % _ts_exit, _ts_out)
-                    elif _crit_ts:
-                        _finding("ts_usage", "Critical Tablespace Usage", "critical",
-                                 "%d tablespace(s) above 90%%: %s"
-                                 % (len(_crit_ts),
-                                    "; ".join("%s (%.1f%%)" % (n, p) for n, p in _crit_ts[:3])),
-                                 _ts_table)
-                    elif _warn_ts:
-                        _finding("ts_usage", "High Tablespace Usage", "warning",
-                                 "%d tablespace(s) above 80%%: %s"
-                                 % (len(_warn_ts),
-                                    "; ".join("%s (%.1f%%)" % (n, p) for n, p in _warn_ts[:3])),
-                                 _ts_table)
-                    elif _ts_rows:
-                        _top = _ts_rows[0]
-                        _ok("ts_usage", "Tablespace Usage",
-                            "All tablespaces within limits. Highest: %s at %.1f%% (%dMB of %dMB used)."
-                            % (_top[0], _top[3], _top[1], _top[2]), _ts_table)
+                        elif _mp and _mp[0] == "Swap:" and len(_mp) >= 3:
+                            try:
+                                _swp_total = int(_mp[1])
+                                _swp_used  = int(_mp[2])
+                            except (ValueError, IndexError):
+                                pass
+                    _swp_pct = int(_swp_used * 100 / _swp_total) if _swp_total > 0 else 0
+                    _mem_table = ("Metric|Value\n"
+                                  "Total RAM (MB)|%d\n"
+                                  "Used RAM (MB)|%d\n"
+                                  "Free RAM (MB)|%d\n"
+                                  "Available (MB)|%d\n"
+                                  "Swap Total (MB)|%d\n"
+                                  "Swap Used (MB)|%d\n"
+                                  "Swap Used %%|%d%%" % (_mem_total, _mem_used, _mem_free,
+                                                         _mem_avail, _swp_total, _swp_used, _swp_pct))
+                    if _mem_total == 0:
+                        _finding("memory_usage", "Memory Parse Failed", "warning",
+                                 "Could not parse memory from free -m output.", stdout)
+                    elif _swp_pct > 50:
+                        _finding("memory_usage", "Critical Swap Usage", "critical",
+                                 "Swap used %d%% (%dMB of %dMB). Severe memory pressure."
+                                 % (_swp_pct, _swp_used, _swp_total), _mem_table)
+                    elif _mem_avail < 256:
+                        _finding("memory_usage", "Critical Memory Pressure", "critical",
+                                 "Available RAM %dMB below 256MB threshold." % _mem_avail, _mem_table)
+                    elif _swp_pct > 20:
+                        _finding("memory_usage", "High Swap Usage", "warning",
+                                 "Swap used %d%% (%dMB of %dMB). Available RAM: %dMB."
+                                 % (_swp_pct, _swp_used, _swp_total, _mem_avail), _mem_table)
+                    elif _mem_avail < 512:
+                        _finding("memory_usage", "Low Available Memory", "warning",
+                                 "Available RAM %dMB below 512MB threshold." % _mem_avail, _mem_table)
                     else:
-                        _ok("ts_usage", "Tablespace Usage",
-                            "No tablespace data returned (dba_tablespace_usage_metrics empty).", "")
-
-            # ── Disk usage ─────────────────────────────────────────────────────
-            # df -hP: POSIX portable output — one line per filesystem, fixed columns,
-            # no line-wrapping even for long device names.
-            stdout, stderr, exit_code, _ = run_os_command(["df", "-hP"], timeout=10)
-            if exit_code != 0:
-                _finding("disk_usage", "Disk Usage Check Failed", "warning",
-                         "df -hP returned exit code %d." % exit_code, stderr)
-            else:
-                crit_fs, warn_fs, _disk_rows = [], [], []
-                for line in stdout.splitlines()[1:]:
-                    parts = line.split()
-                    if len(parts) >= 6:
-                        pct_str = parts[4].rstrip("%")
-                        try:
-                            pct   = int(pct_str)
-                            mount = parts[5]
-                            _disk_rows.append("%s|%s|%s|%s|%d%%" % (mount, parts[1], parts[2], parts[3], pct))
-                            if pct >= 95:
-                                crit_fs.append("%s at %d%%" % (mount, pct))
-                            elif pct >= 85:
-                                warn_fs.append("%s at %d%%" % (mount, pct))
-                        except ValueError:
-                            pass
-                _disk_table = "Mount|Size|Used|Avail|Use%\n" + "\n".join(_disk_rows)
-                if crit_fs:
-                    _finding("disk_usage", "Critical Disk Usage", "critical",
-                             "Filesystems at or above 95%%: %s" % ", ".join(crit_fs), _disk_table)
-                elif warn_fs:
-                    _finding("disk_usage", "High Disk Usage", "warning",
-                             "Filesystems at or above 85%%: %s" % ", ".join(warn_fs), _disk_table)
-                else:
-                    _ok("disk_usage", "Disk Usage",
-                        "All filesystems below 85%% threshold.", _disk_table)
-
-            # ── Memory ─────────────────────────────────────────────────────────
-            # Parses both old (6-col) and new (7-col, adds 'available') free -m output.
-            # Swap check: warn >20%, critical >50% (Sentinel thresholds).
-            stdout, stderr, exit_code, _ = run_os_command(["free", "-m"], timeout=10)
-            if exit_code != 0:
-                _finding("memory_usage", "Memory Check Failed", "warning",
-                         "free -m returned exit code %d." % exit_code, stderr)
-            else:
-                _mem_total = _mem_used = _mem_free = _mem_avail = 0
-                _swp_total = _swp_used = 0
-                for _ml in stdout.splitlines():
-                    _mp = _ml.split()
-                    if _mp and _mp[0] == "Mem:" and len(_mp) >= 4:
-                        try:
-                            _mem_total = int(_mp[1])
-                            _mem_used  = int(_mp[2])
-                            _mem_free  = int(_mp[3])
-                            # col 6 = 'available' (procps >= 3.3.10); fall back to free
-                            _mem_avail = int(_mp[6]) if len(_mp) >= 7 else _mem_free
-                        except (ValueError, IndexError):
-                            pass
-                    elif _mp and _mp[0] == "Swap:" and len(_mp) >= 3:
-                        try:
-                            _swp_total = int(_mp[1])
-                            _swp_used  = int(_mp[2])
-                        except (ValueError, IndexError):
-                            pass
-                _swp_pct = int(_swp_used * 100 / _swp_total) if _swp_total > 0 else 0
-                _mem_table = ("Metric|Value\n"
-                              "Total RAM (MB)|%d\n"
-                              "Used RAM (MB)|%d\n"
-                              "Free RAM (MB)|%d\n"
-                              "Available (MB)|%d\n"
-                              "Swap Total (MB)|%d\n"
-                              "Swap Used (MB)|%d\n"
-                              "Swap Used %%|%d%%" % (_mem_total, _mem_used, _mem_free,
-                                                     _mem_avail, _swp_total, _swp_used, _swp_pct))
-                if _mem_total == 0:
-                    _finding("memory_usage", "Memory Parse Failed", "warning",
-                             "Could not parse memory from free -m output.", stdout)
-                elif _swp_pct > 50:
-                    _finding("memory_usage", "Critical Swap Usage", "critical",
-                             "Swap used %d%% (%dMB of %dMB). Severe memory pressure."
-                             % (_swp_pct, _swp_used, _swp_total), _mem_table)
-                elif _mem_avail < 256:
-                    _finding("memory_usage", "Critical Memory Pressure", "critical",
-                             "Available RAM %dMB below 256MB threshold." % _mem_avail, _mem_table)
-                elif _swp_pct > 20:
-                    _finding("memory_usage", "High Swap Usage", "warning",
-                             "Swap used %d%% (%dMB of %dMB). Available RAM: %dMB."
-                             % (_swp_pct, _swp_used, _swp_total, _mem_avail), _mem_table)
-                elif _mem_avail < 512:
-                    _finding("memory_usage", "Low Available Memory", "warning",
-                             "Available RAM %dMB below 512MB threshold." % _mem_avail, _mem_table)
-                else:
-                    _ok("memory_usage", "Memory Usage",
-                        "Available RAM: %dMB. Swap: %d%% used (%dMB/%dMB)."
-                        % (_mem_avail, _swp_pct, _swp_used, _swp_total), _mem_table)
-
-            # ── CPU load ───────────────────────────────────────────────────────
-            # Sentinel threshold: warn >5.0, critical >10.0 (standard Linux DBA practice)
-            stdout, stderr, exit_code, _ = run_os_command(
-                ["bash", "-c", "uptime | awk -F'load average:' '{print $2}'"], timeout=5)
-            if exit_code == 0 and stdout.strip():
-                try:
-                    _l_parts = [p.strip().rstrip(",") for p in stdout.strip().split(",")]
-                    _l1  = float(_l_parts[0])
-                    _l5  = float(_l_parts[1]) if len(_l_parts) > 1 else 0.0
-                    _l15 = float(_l_parts[2]) if len(_l_parts) > 2 else 0.0
-                    _load_table = "Load 1m|Load 5m|Load 15m\n%.2f|%.2f|%.2f" % (_l1, _l5, _l15)
-                    if _l1 > 10:
-                        _finding("cpu_load", "CPU Load Critical", "critical",
-                                 "1-min load average %.2f exceeds 10.0 threshold." % _l1, _load_table)
-                    elif _l1 > 5:
-                        _finding("cpu_load", "CPU Load Elevated", "warning",
-                                 "1-min load average %.2f exceeds 5.0 threshold." % _l1, _load_table)
-                    else:
+                        _ok("memory_usage", "Memory Usage",
+                            "Available RAM: %dMB. Swap: %d%% used (%dMB/%dMB)."
+                            % (_mem_avail, _swp_pct, _swp_used, _swp_total), _mem_table)
+    
+                # ── CPU load ───────────────────────────────────────────────────────
+                # Sentinel threshold: warn >5.0, critical >10.0 (standard Linux DBA practice)
+                stdout, stderr, exit_code, _ = run_os_command(
+                    ["bash", "-c", "uptime | awk -F'load average:' '{print $2}'"], timeout=5)
+                if exit_code == 0 and stdout.strip():
+                    try:
+                        _l_parts = [p.strip().rstrip(",") for p in stdout.strip().split(",")]
+                        _l1  = float(_l_parts[0])
+                        _l5  = float(_l_parts[1]) if len(_l_parts) > 1 else 0.0
+                        _l15 = float(_l_parts[2]) if len(_l_parts) > 2 else 0.0
+                        _load_table = "Load 1m|Load 5m|Load 15m\n%.2f|%.2f|%.2f" % (_l1, _l5, _l15)
+                        if _l1 > 10:
+                            _finding("cpu_load", "CPU Load Critical", "critical",
+                                     "1-min load average %.2f exceeds 10.0 threshold." % _l1, _load_table)
+                        elif _l1 > 5:
+                            _finding("cpu_load", "CPU Load Elevated", "warning",
+                                     "1-min load average %.2f exceeds 5.0 threshold." % _l1, _load_table)
+                        else:
+                            _ok("cpu_load", "CPU Load Average",
+                                "Load averages normal: 1m=%.2f 5m=%.2f 15m=%.2f" % (_l1, _l5, _l15),
+                                _load_table)
+                    except (ValueError, IndexError):
                         _ok("cpu_load", "CPU Load Average",
-                            "Load averages normal: 1m=%.2f 5m=%.2f 15m=%.2f" % (_l1, _l5, _l15),
-                            _load_table)
-                except (ValueError, IndexError):
-                    _ok("cpu_load", "CPU Load Average",
-                        "Could not parse load average.", stdout.strip())
-            else:
-                _ok("cpu_load", "CPU Load Average", "uptime not available.")
-
-            # ── IO wait ────────────────────────────────────────────────────────
-            # Sentinel threshold: warn >15%, critical >30%. Skipped if sar missing.
-            # Full sar output kept so Python can locate the iowait column by header name.
-            stdout, stderr, exit_code, _ = run_os_command(
-                ["bash", "-c", "sar -u 1 1 2>/dev/null"],
-                timeout=15)
-            print("[HC] sar exit: %d" % exit_code)
-            print("[HC] sar stdout: %r" % stdout[:300])
-            if exit_code == 0 and stdout.strip():
-                _sar_lines = stdout.strip().splitlines()
-                _iowait = None
-                for _i, _line in enumerate(_sar_lines):
-                    if "iowait" in _line.lower():
-                        _cols = _line.split()
-                        _iowait_col = next(
-                            (j for j, c in enumerate(_cols) if "iowait" in c.lower()), None)
-                        if _iowait_col is not None:
-                            for _avg_line in _sar_lines[_i + 1:]:
-                                if _avg_line.startswith("Average"):
-                                    try:
-                                        _iowait = float(_avg_line.split()[_iowait_col])
-                                    except (ValueError, IndexError):
-                                        pass
-                                    break
-                        break
-                if _iowait is not None:
-                    _io_table = "Metric|Value\nIO Wait %|%.2f%%" % _iowait
-                    if _iowait > 30:
-                        _finding("io_wait", "IO Wait Critical", "critical",
-                                 "IO wait %.1f%% exceeds 30%% critical threshold." % _iowait, _io_table)
-                    elif _iowait > 15:
-                        _finding("io_wait", "IO Wait Elevated", "warning",
-                                 "IO wait %.1f%% exceeds 15%% warning threshold." % _iowait, _io_table)
-                    else:
-                        _ok("io_wait", "IO Wait",
-                            "IO wait %.1f%% — within normal range." % _iowait, _io_table)
+                            "Could not parse load average.", stdout.strip())
                 else:
-                    _ok("io_wait", "IO Wait", "Could not parse sar output.", stdout.strip())
-            else:
-                _ok("io_wait", "IO Wait",
-                    "sar not available (install sysstat package to enable IO wait monitoring).")
-
-            # ── Score ──────────────────────────────────────────────────────────
-            score = 100
-            for f in findings:
-                if f["severity"] == "critical":
-                    score -= 25
-                elif f["severity"] == "warning":
-                    score -= 10
-            score = max(0, score)
-
-            self.send_json(200, {
-                "success":      True,
-                "server_type":  "apps",
-                "score":        score,
-                "findings":     findings,
-                "checks_ok":    checks_ok,
-                "checks_total": len(findings) + len(checks_ok),
-                "ran_at":       timestamp,
-            })
-            return
+                    _ok("cpu_load", "CPU Load Average", "uptime not available.")
+    
+                # ── IO wait ────────────────────────────────────────────────────────
+                # Sentinel threshold: warn >15%, critical >30%. Skipped if sar missing.
+                # Grep for the single Average line, then split by fixed column position.
+                # Columns (OEL 7/8): Average: all %usr %nice %sys %iowait %steal %irq %soft %guest %gnice %idle
+                # Index:              0        1    2    3     4    5                                          (5 = iowait)
+                stdout, stderr, exit_code, _ = run_os_command(
+                    ["bash", "-c", "sar -u 1 1 2>/dev/null | grep '^Average' | tail -1"],
+                    timeout=15)
+                print("[HC] sar exit: %d" % exit_code)
+                print("[HC] sar stdout: %r" % stdout[:300])
+                if exit_code == 0 and stdout.strip():
+                    _parts = stdout.strip().split()
+                    try:
+                        _iowait = float(_parts[5]) if len(_parts) > 5 else None
+                    except (ValueError, IndexError):
+                        _iowait = None
+                    if _iowait is not None:
+                        _io_table = "Metric|Value\nIO Wait %|%.2f%%" % _iowait
+                        if _iowait > 30:
+                            _finding("io_wait", "IO Wait Critical", "critical",
+                                     "IO wait %.1f%% exceeds 30%% critical threshold." % _iowait, _io_table)
+                        elif _iowait > 15:
+                            _finding("io_wait", "IO Wait Elevated", "warning",
+                                     "IO wait %.1f%% exceeds 15%% warning threshold." % _iowait, _io_table)
+                        else:
+                            _ok("io_wait", "IO Wait",
+                                "IO wait %.1f%% — within normal range." % _iowait, _io_table)
+                    else:
+                        _ok("io_wait", "IO Wait", "Could not parse sar output.", stdout.strip())
+                else:
+                    _ok("io_wait", "IO Wait",
+                        "sar not available (install sysstat package to enable IO wait monitoring).")
+    
+                # ── Score ──────────────────────────────────────────────────────────
+                score = 100
+                for f in findings:
+                    if f["severity"] == "critical":
+                        score -= 25
+                    elif f["severity"] == "warning":
+                        score -= 10
+                score = max(0, score)
+    
+                self.send_json(200, {
+                    "success":      True,
+                    "server_type":  "apps",
+                    "score":        score,
+                    "findings":     findings,
+                    "checks_ok":    checks_ok,
+                    "checks_total": len(findings) + len(checks_ok),
+                    "ran_at":       timestamp,
+                })
+                return
+            except Exception as _parse_err:
+                print("[HC] PARSE ERROR: %s" % traceback.format_exc())
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": False, "error": str(_parse_err)}).encode())
+                return
 
         # POST /api/ssh/exec — execute a shell command on a remote host via SSH
         if self.path == "/api/ssh/exec":

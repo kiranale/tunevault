@@ -1980,25 +1980,19 @@
         function renderServerSubRows(raw) {
             const blocks = parseServerBlocks(raw);
             if (!blocks.length) return '';
-            const stateColor = {
-                'RUNNING':      'var(--green)',
-                'DOWN':         'var(--red)',
-                'TIMEOUT':      'var(--red)',
-                'NOT_DEPLOYED': 'var(--text-dim)',
-                'UNKNOWN':      'var(--yellow)'
-            };
-            const stateLabel = {
-                'RUNNING':      'running',
-                'DOWN':         'stopped',
-                'TIMEOUT':      'timeout',
-                'NOT_DEPLOYED': 'not deployed',
-                'UNKNOWN':      'unknown'
-            };
             return `<div style="margin-top:8px;display:flex;flex-direction:column;gap:3px">` +
                 blocks.map(b => {
-                    const st  = serverStatus(b.lines);
-                    const col = stateColor[st]  || 'var(--text-dim)';
-                    const lbl = stateLabel[st] || st.toLowerCase();
+                    const state = serverStatus(b.lines);
+                    const col = state === 'RUNNING'      ? 'var(--green)'
+                              : state === 'DOWN'         ? 'var(--red)'
+                              : state === 'TIMEOUT'      ? 'var(--red)'
+                              : state === 'NOT_DEPLOYED' ? 'var(--text-dim)'
+                              : 'var(--yellow)';
+                    const lbl = state === 'RUNNING'      ? 'running'
+                              : state === 'DOWN'         ? 'stopped'
+                              : state === 'NOT_DEPLOYED' ? 'not deployed'
+                              : state === 'TIMEOUT'      ? 'timeout'
+                              : 'unknown';
                     return `<div style="display:flex;gap:8px;align-items:center;font-size:12px;color:var(--text-dim)">` +
                         `<span style="color:${col}">●</span>` +
                         `<span>${esc(b.name)}: <span style="color:${col};font-weight:500">${lbl}</span></span>` +
