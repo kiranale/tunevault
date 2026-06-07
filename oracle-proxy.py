@@ -271,6 +271,21 @@ for _p in ("/etc/tunevault/agent.env", "/etc/tunevault/proxy.env"):
     except Exception:
         pass
 
+# Read CONTEXT_FILE from agent.env — path to EBS context XML; pre-exported in HC wrapper scripts
+# so $CONTEXT_FILE is available before EBSapps.env is sourced.
+_CONTEXT_FILE = ""
+for _p in ("/etc/tunevault/agent.env", "/etc/tunevault/proxy.env"):
+    try:
+        with open(_p) as _f:
+            for _line in _f:
+                if _line.strip().startswith("CONTEXT_FILE="):
+                    _CONTEXT_FILE = _line.strip().split("=", 1)[1].strip()
+                    break
+        if _CONTEXT_FILE:
+            break
+    except Exception:
+        pass
+
 
 def _resolve_db_host(params):
     """Return the Oracle DB host for a request.
@@ -339,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.19"  # run EBS admin scripts as apps OS user; remove raw_output truncation
+VERSION = "3.20.20"  # fix _src_cmd: temp-script for heredoc + CONTEXT_FILE passthrough via su
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5309,14 +5324,38 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 print("%s [HC] apps OS user: %s" % (_ts(), _apps_user))
 
             def _src_cmd(cmd):
-                """Source EBSapps.env then run cmd — as apps OS user when proxy runs as root."""
+                """Source EBSapps.env then run cmd — as apps OS user when proxy runs as root.
+
+                Uses a temp script file so heredocs inside cmd work correctly and
+                CONTEXT_FILE is exported before EBSapps.env is sourced.
+                """
                 if not env_file:
                     return cmd
                 _ef = env_file.replace("'", "'\\''")
                 base = "source '%s' run >/dev/null 2>&1; %s" % (_ef, cmd)
                 if os.geteuid() == 0 and _apps_user and _apps_user != "root":
                     _u = _apps_user.replace("'", "'\\''")
-                    return "su - '%s' -c 'source \"%s\" run >/dev/null 2>&1; %s'" % (_u, _ef, cmd)
+                    _ctx = (_CONTEXT_FILE or "").replace("'", "'\\''")
+                    _script = (
+                        "#!/bin/bash\n"
+                        "export CONTEXT_FILE='%s'\n"
+                        "source '%s' run >/dev/null 2>&1\n"
+                        "%s\n"
+                    ) % (_ctx, _ef, cmd)
+                    _tf = "/tmp/.tv_hc_%d.sh" % os.getpid()
+                    try:
+                        with open(_tf, 'w') as _fh:
+                            _fh.write(_script)
+                        os.chmod(_tf, 0o755)
+                        try:
+                            import pwd as _pwd_m
+                            _uid = _pwd_m.getpwnam(_apps_user).pw_uid
+                            os.chown(_tf, _uid, -1)
+                        except Exception:
+                            pass
+                        return "su - '%s' -c 'bash %s; rm -f %s' 2>/dev/null" % (_u, _tf, _tf)
+                    except Exception:
+                        return base
                 return base
 
             def _run(cmd, timeout=15):
