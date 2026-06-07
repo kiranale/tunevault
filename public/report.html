@@ -2083,6 +2083,31 @@
             : warnCount > 0 ? `<span class="tab-badge tab-badge-warn">${warnCount}</span>`
             : `<span class="tab-badge tab-badge-ok">✓</span>`;
 
+        // Compute AI summary HTML before the template literal so any throw doesn't
+        // prevent the Checks tab from rendering.
+        let appAiSummaryHtml = '';
+        try {
+            appAiSummaryHtml = renderAISummaryTab(data, findings, critCount, warnCount, checksOk.length);
+        } catch (aiErr) {
+            console.error('[renderAppTierReport] renderAISummaryTab error:', aiErr);
+            appAiSummaryHtml = `<div style="padding:24px;color:var(--text-dim)">AI Summary unavailable — see the EBS Checks tab for findings.</div>`;
+        }
+
+        // Compute checks panels before the template literal for the same reason.
+        const appChecksHtml = (() => {
+            try {
+                return renderPanel('EBS App Tier Checks', MAIN_ORDER)
+                     + renderPanel('EBS DB Health', EBSDB_ORDER)
+                     + renderPanel('System Resources', SYSRES_ORDER)
+                     + (findings.length === 0 && checksOk.length === 0
+                         ? `<div style="text-align:center;padding:60px 20px;color:var(--text-dim)"><div style="font-size:32px;margin-bottom:12px;color:var(--green)">✓</div><div style="font-size:14px">All app tier checks passed.</div></div>`
+                         : '');
+            } catch (panelErr) {
+                console.error('[renderAppTierReport] renderPanel error:', panelErr);
+                return `<div style="padding:24px;color:var(--text-dim)">Panel rendering error — ${esc(panelErr.message)}</div>`;
+            }
+        })();
+
         document.getElementById('reportContent').innerHTML = `
             <div class="report-header">
                 <div class="report-title">
@@ -2119,19 +2144,12 @@
 
             <!-- TAB: AI SUMMARY -->
             <div class="tab-panel active" id="tab-appsummary">
-                ${renderAISummaryTab(data, findings, critCount, warnCount, checksOk.length)}
+                ${appAiSummaryHtml}
             </div>
 
             <!-- TAB: EBS CHECKS -->
             <div class="tab-panel" id="tab-appchecks">
-                ${renderPanel('EBS App Tier Checks', MAIN_ORDER)}
-                ${renderPanel('EBS DB Health', EBSDB_ORDER)}
-                ${renderPanel('System Resources', SYSRES_ORDER)}
-                ${findings.length === 0 && checksOk.length === 0 ? `
-                <div style="text-align:center;padding:60px 20px;color:var(--text-dim)">
-                    <div style="font-size:32px;margin-bottom:12px;color:var(--green)">✓</div>
-                    <div style="font-size:14px">All app tier checks passed.</div>
-                </div>` : ''}
+                ${appChecksHtml}
             </div>
         `;
     }
@@ -3235,20 +3253,29 @@
             // Completed but summary_text is null — generate a rule-based fallback immediately
             // instead of showing a "Generating..." spinner that may hang indefinitely.
             const s = data.scores || {};
-            let fallbackSummary;
-            if (s.overall != null && s.overall < 50) {
-                fallbackSummary = 'This database is in critical condition and requires immediate DBA intervention.';
-            } else if (s.overall != null && s.overall < 75) {
-                fallbackSummary = 'This database is in a degraded state with several issues that need prompt attention.';
-            } else {
-                fallbackSummary = 'This database is in acceptable health with minor items to monitor.';
-            }
             const fbCrit = findings.filter(f => f.severity === 'critical').length;
             const fbWarn = findings.filter(f => f.severity === 'warning').length;
-            if (fbCrit > 0) {
-                fallbackSummary += ' ' + fbCrit + ' critical issue(s) detected — review the findings below for details.';
-            } else if (fbWarn > 0) {
-                fallbackSummary += ' ' + fbWarn + ' item(s) should be reviewed within the next maintenance window.';
+            const isAppTier = data.metrics && data.metrics.server_type === 'apps';
+            let fallbackSummary;
+            if (isAppTier) {
+                fallbackSummary = fbCrit > 0
+                    ? `EBS app tier has ${fbCrit} critical finding${fbCrit !== 1 ? 's' : ''}${fbWarn > 0 ? ' and ' + fbWarn + ' warning' + (fbWarn !== 1 ? 's' : '') : ''}. Review the EBS Checks tab for details.`
+                    : fbWarn > 0
+                        ? `EBS app tier has ${fbWarn} warning${fbWarn !== 1 ? 's' : ''} to review. See the EBS Checks tab for details.`
+                        : 'EBS app tier is healthy — all checks passed.';
+            } else {
+                if (s.overall != null && s.overall < 50) {
+                    fallbackSummary = 'This database is in critical condition and requires immediate DBA intervention.';
+                } else if (s.overall != null && s.overall < 75) {
+                    fallbackSummary = 'This database is in a degraded state with several issues that need prompt attention.';
+                } else {
+                    fallbackSummary = 'This database is in acceptable health with minor items to monitor.';
+                }
+                if (fbCrit > 0) {
+                    fallbackSummary += ' ' + fbCrit + ' critical issue(s) detected — review the findings below for details.';
+                } else if (fbWarn > 0) {
+                    fallbackSummary += ' ' + fbWarn + ' item(s) should be reviewed within the next maintenance window.';
+                }
             }
             html += `<div class="exec-summary-card" id="exec-summary-card">
                 <div class="exec-summary-header">
@@ -3350,18 +3377,19 @@
             }
             if (!Array.isArray(parsedRecs)) parsedRecs = null;
 
-            // If no server-side recommendations, build client-side ones from findings
+            // If no server-side recommendations, build client-side ones from findings.
+            // DB-tier findings have {metric, value, category}; EBS app-tier findings have {title, details, check_id}.
             if ((!parsedRecs || parsedRecs.length === 0) && findings && findings.length > 0) {
                 parsedRecs = findings.filter(f => f.severity === 'critical' || f.severity === 'warning').slice(0, 12).map((f, i) => ({
                     id: 'rec_' + String(i + 1).padStart(3, '0'),
-                    title: f.metric + ' — ' + f.value,
+                    title: (f.metric || f.title || 'Finding') + (f.value || f.details ? ' — ' + (f.value || f.details) : ''),
                     severity: f.severity,
                     confidence: 'high',
-                    evidence: f.recommendation || f.value,
+                    evidence: f.recommendation || f.details || f.value || '',
                     fix_sql: f.fix || null,
                     diagnostic_sql: null,
-                    check_id: (f.category || 'general').toLowerCase(),
-                    check_tab: f.category || 'Summary'
+                    check_id: (f.category || f.check_id || 'general').toLowerCase(),
+                    check_tab: f.category || 'EBS App Tier'
                 }));
             }
 

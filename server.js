@@ -5299,6 +5299,7 @@ async function runAIAnalysis(healthCheckId, metrics, scores, connectionId, t0 = 
 
 async function generateExecutiveSummary(healthCheckId, metrics, scores) {
   const startMs = Date.now();
+  console.log(`[executive-summary] report=${healthCheckId} server_type=${metrics && metrics.server_type} score=${scores && scores.overall}`);
   try {
     // EBS app-tier: proxy findings come as metrics.findings[] — completely different data shape
     if (metrics.server_type === 'apps') {
@@ -5627,6 +5628,24 @@ function buildFindingsForSummary(metrics, scores) {
 function buildInlineSummary(scores, findings) {
   const critCount = findings.filter(f => f.severity === 'critical').length;
   const warnCount = findings.filter(f => f.severity === 'warning').length;
+
+  // EBS app-tier findings use {category:'EBS App', metric:title, value:details}
+  const isAppTier = findings.some(f => f.category === 'EBS App');
+  if (isAppTier) {
+    const critFindings = findings.filter(f => f.severity === 'critical');
+    const warnFindings = findings.filter(f => f.severity === 'warning');
+    if (critCount === 0 && warnCount === 0) {
+      return `EBS app tier is healthy — all ${findings.length > 0 ? findings.length : ''} checks passed.`.trim();
+    }
+    let summary = `EBS app tier health check scored ${scores.overall}/100 with ${critCount} critical finding${critCount !== 1 ? 's' : ''} and ${warnCount} warning${warnCount !== 1 ? 's' : ''}.`;
+    if (critFindings.length > 0) {
+      const names = critFindings.slice(0, 2).map(f => f.metric || f.title).filter(Boolean);
+      if (names.length) summary += ` Critical: ${names.join(', ')}.`;
+    }
+    summary += ' AI analysis is generating — check back shortly for specific remediation steps.';
+    return summary;
+  }
+
   let summary;
   if (scores.overall < 50) {
     summary = 'This database is in critical condition and requires immediate DBA intervention.';
