@@ -324,7 +324,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.11"  # check_for_update: != comparison + debug logging; fix false-negative when regex fallback returns 3.1.1
+VERSION = "3.20.12"  # verify auto-upgrade end-to-end test
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
