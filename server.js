@@ -5320,10 +5320,39 @@ async function generateExecutiveSummary(healthCheckId, metrics, scores) {
         return;
       }
 
-      const appFindingsText = appFindings.map((f, i) =>
-        `${i + 1}. [${f.severity.toUpperCase()}] ${f.title}: ${f.details}`
-      ).join('\n');
       const appOkText = appOk.slice(0, 6).map(c => `- ${c.title}: ${c.details}`).join('\n') || 'None';
+
+      // Pre-compute correct remediation commands server-side so GPT cannot hallucinate them.
+      const commandMap = {
+        'managed_servers': (f) => {
+          const match = (f.details || '').match(/:\s*(\S*server\S*)/i);
+          const srv = match ? match[1].replace(/\.$/, '') : '<server_name>';
+          return `admanagedsrvctl.sh start ${srv}`;
+        },
+        'wf_mailer':       () => 'EBS System Admin → Oracle Applications Manager → Service Components → Workflow Notification Mailer → Activate',
+        'invalid_objects': () => 'On DB server as sysdba: sqlplus / as sysdba\n@$ORACLE_HOME/rdbms/admin/utlrp.sql',
+        'ts_usage': (f) => {
+          const match = (f.details || '').match(/(\w+)\s*\(/);
+          const ts = match ? match[1] : '<tablespace>';
+          return `ALTER TABLESPACE ${ts} ADD DATAFILE SIZE 1G AUTOEXTEND ON NEXT 512M MAXSIZE UNLIMITED;`;
+        },
+        'apache_status':  () => 'adapcctl.sh start',
+        'opmn_status':    () => 'adopmnctl.sh start',
+        'admin_server':   () => 'adadminsrvctl.sh start',
+        'node_manager':   () => 'adnodemgrctl.sh start',
+        'apps_listener':  () => 'adalnctl.sh start',
+        'cm_status':      () => 'adcmctl.sh start apps/<password>',
+      };
+
+      const actionsText = appFindings
+        .filter(f => f.severity === 'critical' || f.severity === 'warning')
+        .map(f => {
+          const cmdFn = commandMap[f.check_id];
+          const cmd = cmdFn ? cmdFn(f) : null;
+          return cmd
+            ? `- ${f.title}: ${f.details}\n  COMMAND: ${cmd}`
+            : `- ${f.title}: ${f.details}`;
+        }).join('\n');
 
       const appRaceTimeout = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Executive summary generation timeout (30s)')), 30000)
@@ -5337,29 +5366,13 @@ async function generateExecutiveSummary(healthCheckId, metrics, scores) {
 
 RULES:
 1. CORE_DB_SUMMARY: 3-5 sentences. Name specific components by their exact names (e.g. "forms-c4ws_server1 is shutdown"). Include exact counts (X critical, Y warnings). State the business impact concretely — which users/functionality is broken. Write for an EBS DBA, not a manager.
-2. TOP_DB_ACTION: 1-2 sentences. The single most urgent fix with the exact EBS command. Example: "Start forms-c4ws_server1 — run as applmgr: admanagedsrvctl.sh start forms-c4ws_server1"
+2. TOP_DB_ACTION: 1-2 sentences. The single most urgent fix. Use ONLY the pre-computed COMMAND provided in the user message — copy it verbatim, do not modify or generate your own.
 3. Never use phrases like "requires immediate attention", "service disruption", or "your team has the details below".
-
-CRITICAL RULES FOR EBS APP TIER COMMANDS:
-All EBS admin scripts are in $ADMIN_SCRIPTS_HOME (set by sourcing EBSapps.env). Run as applmgr OS user.
-
-- Managed server down → admanagedsrvctl.sh start <server_name>
-- Managed server stop → admanagedsrvctl.sh stop <server_name>
-- Admin Server → adadminsrvctl.sh start (WLS pwd then APPS pwd via stdin)
-- Node Manager → adnodemgrctl.sh start
-- Apache/OHS → adapcctl.sh start
-- OPMN → adopmnctl.sh start
-- Apps Listener → adalnctl.sh start
-- Concurrent Manager → adcmctl.sh start apps/<password>
-- Workflow Mailer → Cannot be started via command line. Navigate: EBS System Administrator → Oracle Applications Manager → Service Components → Find "Workflow Notification Mailer" → click Activate. Or use: SELECT component_name, component_status FROM fnd_svc_components WHERE component_type='WF_MAILER';
-- Invalid objects → Run on DB SERVER as sysdba: sqlplus / as sysdba @$ORACLE_HOME/rdbms/admin/utlrp.sql
-- Tablespace → Run on DB SERVER: ALTER TABLESPACE <name> ADD DATAFILE SIZE 1G AUTOEXTEND ON NEXT 512M MAXSIZE UNLIMITED;
-- NEVER use $AD_TOP/bin, stopall.sh, startall.sh, or any Oracle DB home bin scripts for EBS app tier fixes
-- NEVER suggest adapcctl.sh for Workflow Mailer — it starts Apache not the mailer`
+4. Use ONLY the pre-computed commands provided. Do not generate your own commands. Copy them verbatim.`
           },
           {
             role: 'user',
-            content: `EBS App Tier health check — score: ${scores.overall}/100\n${critItems.length} critical, ${warnItems.length} warnings\n\nFindings:\n${appFindingsText}\n\nPassing checks (context):\n${appOkText}\n\nWrite:\nCORE_DB_SUMMARY: <3-5 sentences naming specific down components and business impact>\nTOP_DB_ACTION: <1-2 sentences with exact EBS command to fix the top issue>`
+            content: `EBS App Tier health check — score: ${scores.overall}/100\n${critItems.length} critical, ${warnItems.length} warnings\n\nPre-computed remediation commands (use EXACTLY these, do not modify):\n${actionsText}\n\nPassing checks (context):\n${appOkText}\n\nWrite:\nCORE_DB_SUMMARY: <3-5 sentences naming specific down components and business impact>\nTOP_DB_ACTION: <1-2 sentences with the most urgent fix, copying the COMMAND verbatim>`
           }
         ],
         temperature: 0.2,
