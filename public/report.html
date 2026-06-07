@@ -1965,22 +1965,43 @@
         }
 
         function serverStatus(lines) {
+            // Prefer the structured "Status: XXX" line injected by the proxy
+            for (const l of lines) {
+                const m = l.match(/^Status:\s*(\S+)/i);
+                if (m) return m[1].toUpperCase();
+            }
+            // Fallback: pattern-match raw text
             const txt = lines.join(' ');
-            if (/running|alive|started/i.test(txt))          return 'running';
-            if (/stopped|failed|down|not running/i.test(txt)) return 'stopped';
-            return 'unknown';
+            if (/running|alive|started/i.test(txt))          return 'RUNNING';
+            if (/stopped|failed|down|not running/i.test(txt)) return 'DOWN';
+            return 'UNKNOWN';
         }
 
         function renderServerSubRows(raw) {
             const blocks = parseServerBlocks(raw);
             if (!blocks.length) return '';
+            const stateColor = {
+                'RUNNING':      'var(--green)',
+                'DOWN':         'var(--red)',
+                'TIMEOUT':      'var(--red)',
+                'NOT_DEPLOYED': 'var(--text-dim)',
+                'UNKNOWN':      'var(--yellow)'
+            };
+            const stateLabel = {
+                'RUNNING':      'running',
+                'DOWN':         'stopped',
+                'TIMEOUT':      'timeout',
+                'NOT_DEPLOYED': 'not deployed',
+                'UNKNOWN':      'unknown'
+            };
             return `<div style="margin-top:8px;display:flex;flex-direction:column;gap:3px">` +
                 blocks.map(b => {
-                    const st = serverStatus(b.lines);
-                    const col = st === 'running' ? 'var(--green)' : st === 'stopped' ? 'var(--red)' : 'var(--text-dim)';
+                    const st  = serverStatus(b.lines);
+                    const col = stateColor[st]  || 'var(--text-dim)';
+                    const lbl = stateLabel[st] || st.toLowerCase();
                     return `<div style="display:flex;gap:8px;align-items:center;font-size:12px;color:var(--text-dim)">` +
                         `<span style="color:${col}">●</span>` +
-                        `<span>${esc(b.name)}: <span style="color:${col};font-weight:500">${st}</span></span>` +
+                        `<span>${esc(b.name)}: <span style="color:${col};font-weight:500">${lbl}</span></span>` +
                         `</div>`;
                 }).join('') +
                 `</div>`;

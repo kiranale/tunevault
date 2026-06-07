@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.29"  # raw output unfiltered in all _finding()/_ok() calls; _clean_raw() for detection only
+VERSION = "3.20.30"  # io_wait sar header-based column detection + debug logging; NOT_DEPLOYED label in report
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -6139,12 +6139,30 @@ class ProxyHandler(BaseHTTPRequestHandler):
 
             # ── IO wait ────────────────────────────────────────────────────────
             # Sentinel threshold: warn >15%, critical >30%. Skipped if sar missing.
+            # Full sar output kept so Python can locate the iowait column by header name.
             stdout, stderr, exit_code, _ = run_os_command(
-                ["bash", "-c", "sar -u 1 1 2>/dev/null | grep '^Average' | awk 'NR==1{print $5}'"],
+                ["bash", "-c", "sar -u 1 1 2>/dev/null"],
                 timeout=15)
+            print("[HC] sar exit: %d" % exit_code)
+            print("[HC] sar stdout: %r" % stdout[:300])
             if exit_code == 0 and stdout.strip():
-                try:
-                    _iowait = float(stdout.splitlines()[0].strip())
+                _sar_lines = stdout.strip().splitlines()
+                _iowait = None
+                for _i, _line in enumerate(_sar_lines):
+                    if "iowait" in _line.lower():
+                        _cols = _line.split()
+                        _iowait_col = next(
+                            (j for j, c in enumerate(_cols) if "iowait" in c.lower()), None)
+                        if _iowait_col is not None:
+                            for _avg_line in _sar_lines[_i + 1:]:
+                                if _avg_line.startswith("Average"):
+                                    try:
+                                        _iowait = float(_avg_line.split()[_iowait_col])
+                                    except (ValueError, IndexError):
+                                        pass
+                                    break
+                        break
+                if _iowait is not None:
                     _io_table = "Metric|Value\nIO Wait %|%.2f%%" % _iowait
                     if _iowait > 30:
                         _finding("io_wait", "IO Wait Critical", "critical",
@@ -6155,7 +6173,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     else:
                         _ok("io_wait", "IO Wait",
                             "IO wait %.1f%% — within normal range." % _iowait, _io_table)
-                except ValueError:
+                else:
                     _ok("io_wait", "IO Wait", "Could not parse sar output.", stdout.strip())
             else:
                 _ok("io_wait", "IO Wait",
