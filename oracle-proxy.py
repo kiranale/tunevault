@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.24"  # one-shot temp script: passwords exported at top, all heredocs literal in file — eliminates nested escaping layers
+VERSION = "3.20.25"  # node-mgr heredoc; apps-listener TNS detection; stty noise filter; no raw truncation
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5338,6 +5338,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 "enter the apps schema password",
                 "adadminsrvctl.sh: exiting with status",
                 "adadminsrvctl.sh: check the logfile",
+                "stty: standard input",
+                "stty:",
             ]
 
             def _clean_raw(raw):
@@ -5414,9 +5416,11 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     'echo "TV_EXIT $?"',
                     "echo TV_END apps_listener",
                     "",
-                    # 4. Node Manager
+                    # 4. Node Manager — WLS password via heredoc (same as managed servers)
                     "echo TV_START node_manager",
-                    '"$ADMIN_SCRIPTS_HOME/adnodemgrctl.sh" status 2>&1',
+                    '"$ADMIN_SCRIPTS_HOME/adnodemgrctl.sh" status 2>&1 <<NMEOF',
+                    '$WLS_PWD',
+                    'NMEOF',
                     'echo "TV_EXIT $?"',
                     "echo TV_END node_manager",
                     "",
@@ -5625,20 +5629,23 @@ class ProxyHandler(BaseHTTPRequestHandler):
 
                 # ── 3. Apps Listener ──────────────────────────────────────────
                 _out, _exit = _secs.get("apps_listener", ("", 1))
-                if _exit != 0 or any(kw in _out.lower() for kw in ("not running", "stopped", "down")):
+                if _exit != 0:
                     _finding("apps_listener", "Apps Listener Not Running", "warning",
-                             "adalnctl.sh status reports the Apps Listener (FNDSM) is not running.", _out)
+                             "adalnctl.sh status returned exit code %d." % _exit, _out)
+                elif "tns-12541" in _out.lower() or "no listener" in _out.lower():
+                    _finding("apps_listener", "Apps Listener Not Responding", "warning",
+                             "adalnctl.sh reports the Apps Listener (FNDSM) is not responding.", _out)
                 else:
                     _ok("apps_listener", "Apps Listener Status", "Apps Listener is running.", _out)
 
                 # ── 4. Node Manager ───────────────────────────────────────────
                 _out, _exit = _secs.get("node_manager", ("", 1))
-                if _exit != 0 or any(kw in _out.lower() for kw in ("not running", "stopped", "failed", "dead")):
-                    _finding("node_manager", "Node Manager Not Running", "critical",
-                             "adnodemgrctl.sh status reports Node Manager is not running "
-                             "(exit code %d)." % _exit, _out)
-                else:
+                if "the node manager is running" in _out.lower():
                     _ok("node_manager", "Node Manager", "Node Manager is running.", _out)
+                else:
+                    _finding("node_manager", "Node Manager Not Running", "critical",
+                             "adnodemgrctl.sh reports Node Manager is not running "
+                             "(exit code %d)." % _exit, _out)
 
                 # ── 5. Managed servers ─────────────────────────────────────────
                 _ms_out, _ = _secs.get("managed_servers", ("NO_SERVERS_FOUND", 0))
@@ -5685,7 +5692,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                             _sv_lines.append(_ml)
                     _down = [n for n, st, _ in _srv_states if st in ("DOWN", "TIMEOUT")]
                     _combined_raw = "\n".join(
-                        "=== %s ===\nStatus: %s\n%s" % (n, st, raw[:500])
+                        "=== %s ===\nStatus: %s\n%s" % (n, st, raw)
                         for n, st, raw in _srv_states)
                     if not _srv_states:
                         _finding("managed_servers", "Managed Servers — No Status", "warning",
