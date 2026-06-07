@@ -324,7 +324,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.14"  # auto-upgrade end-to-end verification
+VERSION = "3.20.15"  # perform_update: line-by-line VERSION scan replaces 2000-byte read
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -819,12 +819,17 @@ def perform_update(remote_version, download_url, expected_checksum):
                     _ts(), actual_sha256, expected_hex))
                 return False
 
-        # Verify the downloaded file contains the expected VERSION string
+        # Verify the downloaded file contains the expected VERSION string.
+        # Read line-by-line so file size doesn't matter.
         import re as _re
+        _dv = None
         with open(tmp_path, "r", errors="replace") as _vf:
-            _vc = _vf.read(2000)
-        _vm = _re.search(r'^VERSION\s*=\s*["\']([^"\']+)["\']', _vc, _re.MULTILINE)
-        _dv = _vm.group(1).strip() if _vm else None
+            for _line in _vf:
+                if _line.startswith("VERSION"):
+                    _vm = _re.match(r'^VERSION\s*=\s*["\']([^"\']+)["\']', _line)
+                    if _vm:
+                        _dv = _vm.group(1).strip()
+                    break
         if _dv != remote_version:
             print("%s [auto-update] WARN: downloaded VERSION=%s but expected %s — aborting" % (
                 _ts(), _dv, remote_version))
