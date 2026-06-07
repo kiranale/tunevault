@@ -324,7 +324,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.8"  # NOT_DEPLOYED detection on original output; cooldown reset on already-at-latest
+VERSION = "3.20.9"  # raw output added to apache/opmn/node_manager/apps_listener ok results
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5320,7 +5320,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                              "adapcctl.sh status reports Apache/OHS is stopped or failed "
                              "(exit code %d)." % exit_code, out)
                 else:
-                    _ok("apache_status", "Apache/OHS Status", "Apache/OHS is running.")
+                    _ok("apache_status", "Apache/OHS Status", "Apache/OHS is running.", out)
 
             # ── 2. OPMN status ────────────────────────────────────────────────
             if not env_file:
@@ -5336,7 +5336,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     _finding("opmn_status", "OPMN Status Check Failed", "warning",
                              "adopmnctl.sh status returned exit code %d." % exit_code, out)
                 else:
-                    _ok("opmn_status", "OPMN Status", "All OPMN components are Alive.")
+                    _ok("opmn_status", "OPMN Status", "All OPMN components are Alive.", out)
 
             # ── 3. Apps Listener (FNDSM) status ──────────────────────────────
             if not env_file:
@@ -5349,7 +5349,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     _finding("apps_listener", "Apps Listener Not Running", "warning",
                              "adalnctl.sh status reports the Apps Listener (FNDSM) is not running.", out)
                 else:
-                    _ok("apps_listener", "Apps Listener Status", "Apps Listener is running.")
+                    _ok("apps_listener", "Apps Listener Status", "Apps Listener is running.", out)
 
             # Helper: shell-escape a password for single-quoted heredoc interpolation
             def _sh(pwd):
@@ -5465,7 +5465,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                              "adnodemgrctl.sh status reports Node Manager is not running "
                              "(exit code %d)." % exit_code, out)
                 else:
-                    _ok("node_manager", "Node Manager", "Node Manager is running.")
+                    _ok("node_manager", "Node Manager", "Node Manager is running.", out)
 
             # ── 6. WebLogic Admin Server (via adadminsrvctl.sh, heredoc) ─────
             # Only relevant on the WLS admin host — skip on managed-server-only nodes.

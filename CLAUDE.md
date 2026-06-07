@@ -129,29 +129,22 @@ Node.js + Express, PostgreSQL (Neon), Render deployment. Vanilla JS frontend (no
 
 All Add Connection links in the app MUST point to `/connections/new` — the single canonical v6 wizard (routes/ssh-install.js). `/setup/fresh` is a 301 permanent redirect to it as of 2026-05-22. Adding a new entry point? Verify it points to `/connections/new`, not `/setup/fresh`.
 
-## Known Issues (as of 2026-06-05)
-
-🔴 Critical:
-- ~~Blog /blog page loads but shows "Loading articles…" — blog_posts.coming_soon column missing~~ — RESOLVED: ensureColumns() auto-adds coming_soon on deploy.
-- Blog articles still need seeding — run `npm run seed-blog` in Render shell, or POST /api/admin/seed-blog (admin-only, idempotent).
+## Known Issues (as of 2026-06-07)
 
 🟡 High:
-- ebs12212-app-dev (latest conn after reinstall): server_type likely NULL or 'unknown' in DB → shows NODE badge + no APPS/WebLogic fields in Edit panel. Root causes fixed (badge now uses server_type; confirm handler rejects 'unknown'). Immediate fix: re-run install.sh with TUNEVAULT_SERVER_TYPE=apps, or set server_type='apps' directly in Neon for this conn.
-- ebs12212-app-dev: APPS password and WebLogic password not set — CM/WF Mailer/admin script checks will skip. Fix: open Edit Connection (APPS/WebLogic fields show once server_type='apps') and set both passwords.
-- ebs_instance_name not set on any connection — Fleet shows flat list, EBS Instances = 0. Fix: set ebs_instance_name = EBS12212 on ebs12212-db-dev and ebs12212-app-dev via Edit Connection.
-- oracle-proxy.py 3.20.1 not tested yet on live HC — needs HC run on ebs12212-app-dev with passwords set to verify OACore/Forms/OAFM show real status.
+- AI summary not showing on EBS app tier health checks — runAIAnalysis() is called (3.20.7+, verified by [ai] log), but summary text not surfacing in report UI. Needs investigation on live HC run with ebs12212-app-dev.
 - apex-lab (192.168.56.101, OEL 8.10, Oracle 23ai) — agent never installed.
 - Export PDF button broken — not fixed in any session.
 
 🟢 Low:
+- Blog articles still need seeding — run `npm run seed-blog` in Render shell, or POST /api/admin/seed-blog (admin-only, idempotent).
 - ~20 debug/fix/verify scripts in repo root (fix-all.js, check-emdash.js, debug-nav.js etc.) — move to scripts/debug/ or delete.
 - README.md CI badge URLs point to Polsia-Inc/tunevault — should be kiranale/tunevault.
-- lib/polsia-ai.js still referenced in CLAUDE.md directory map — update to actual AI client.
-- OAFM check and adop_status check added but not verified on live server.
 - OPP check not yet added to EBS app tier checks.
 
 ## Recent changes
 
+- 2026-06-07: FEAT — oracle-proxy.py 3.20.9: raw output added to apache_status, opmn_status, apps_listener, node_manager ok results — expandable details now show adapcctl/adopmnctl/adalnctl/adnodemgrctl stdout+stderr in report UI. LATEST_PROXY_VERSION → 3.20.9.
 - 2026-06-07: FIX — Remove hardcoded lab connection IDs from ensureColumns(): generic query now resets auto-upgrade suppression for all connections where proxy_version < '3.20.6' or IS NULL (pre-3.20.6 proxies can't handle self-upgrade work items). evaluateProxyUpgrade: skip work item entirely for proxies < 3.20.6 (auto_update_loop handles those via poll response); add exponential backoff on failure (5m→10m→20m→…→6h max) instead of immediate retry; clear backoff on success.
 - 2026-06-07: FIX — EBS app server reinstall: ebs_context_file now stored in oracle_connections (ensureColumns ADD COLUMN IF NOT EXISTS ebs_context_file TEXT; db/agent.js updateConnectionInstallerInfo adds ebsContextFile param + COALESCE update; routes/agent.js confirm handler saves + returns it in response). install.sh: CONTEXT_FILE= added to agent.env template; patched after EBS detection; after confirm, if CONTEXT_FILE is blank but server returned stored value, backfills CONTEXT_FILE and re-derives APPS_ENV_FILE from the restored context XML. routes/connections-list.js reissue-install-token: reads ebs_context_file from DB and includes TUNEVAULT_EBS_CONTEXT_FILE in reinstall command if set; adds TUNEVAULT_CONNECTION_ID= comment for visibility; comment notes APPS/WebLogic passwords are preserved.
 - 2026-06-06: FIX — evaluateAutoUpgrade: gate on agent version major < 6 (oracle-proxy.py reports 3.x; install.sh agent reports 6.x/7.x) — skips ALL oracle-proxy.py connections regardless of server_type (handles DB-tier conns running old proxy too). Previous server_type check kept as secondary guard. expirePendingDrafts: add NOT EXISTS health_checks guard to prevent FK constraint violation when deleting stale pending_registration connections that already have health check runs.
