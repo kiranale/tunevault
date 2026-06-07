@@ -5341,15 +5341,21 @@ RULES:
 3. Never use phrases like "requires immediate attention", "service disruption", or "your team has the details below".
 
 CRITICAL RULES FOR EBS APP TIER COMMANDS:
-- Managed server down → ALWAYS use: admanagedsrvctl.sh start <server_name> (run as applmgr user)
-- NEVER use stopall.sh, startall.sh, or any Oracle DB home scripts for EBS app tier fixes
-- Workflow Mailer → Navigate: EBS System Administrator → Oracle Applications Manager → Service Components → Find Workflow Notification Mailer → Activate
-- Invalid objects → Run on DB SERVER (not app server): sqlplus / as sysdba then @$ORACLE_HOME/rdbms/admin/utlrp.sql
-- Apache/OHS → adapcctl.sh restart (as applmgr)
-- Admin Server → adadminsrvctl.sh start (as applmgr)
-- OPMN → adopmnctl.sh start (as applmgr)
-- Concurrent Manager → adcmctl.sh start apps/<password> (as applmgr)
-- All commands run as applmgr OS user on the EBS app server EXCEPT invalid objects which runs on the DB server`
+All EBS admin scripts are in $ADMIN_SCRIPTS_HOME (set by sourcing EBSapps.env). Run as applmgr OS user.
+
+- Managed server down → admanagedsrvctl.sh start <server_name>
+- Managed server stop → admanagedsrvctl.sh stop <server_name>
+- Admin Server → adadminsrvctl.sh start (WLS pwd then APPS pwd via stdin)
+- Node Manager → adnodemgrctl.sh start
+- Apache/OHS → adapcctl.sh start
+- OPMN → adopmnctl.sh start
+- Apps Listener → adalnctl.sh start
+- Concurrent Manager → adcmctl.sh start apps/<password>
+- Workflow Mailer → Cannot be started via command line. Navigate: EBS System Administrator → Oracle Applications Manager → Service Components → Find "Workflow Notification Mailer" → click Activate. Or use: SELECT component_name, component_status FROM fnd_svc_components WHERE component_type='WF_MAILER';
+- Invalid objects → Run on DB SERVER as sysdba: sqlplus / as sysdba @$ORACLE_HOME/rdbms/admin/utlrp.sql
+- Tablespace → Run on DB SERVER: ALTER TABLESPACE <name> ADD DATAFILE SIZE 1G AUTOEXTEND ON NEXT 512M MAXSIZE UNLIMITED;
+- NEVER use $AD_TOP/bin, stopall.sh, startall.sh, or any Oracle DB home bin scripts for EBS app tier fixes
+- NEVER suggest adapcctl.sh for Workflow Mailer — it starts Apache not the mailer`
           },
           {
             role: 'user',
