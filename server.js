@@ -1280,6 +1280,7 @@ app.get('/api-docs', (req, res) => {
 
 // Convenience URL for manual agent upgrades: curl -fsSL .../oracle-proxy.py -o /opt/tunevault/oracle-proxy.py
 app.get('/oracle-proxy.py', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.sendFile(path.join(__dirname, 'oracle-proxy.py'));
 });
 
@@ -1287,6 +1288,7 @@ app.get('/oracle-proxy.py', (req, res) => {
 app.get('/downloads/oracle-proxy.py', (req, res) => {
   const filePath = path.join(__dirname, 'oracle-proxy.py');
   if (fs.existsSync(filePath)) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Content-Disposition', 'attachment; filename="oracle-proxy.py"');
     res.setHeader('Content-Type', 'text/plain');
     res.sendFile(filePath);
@@ -3560,7 +3562,7 @@ async function runRealHealthCheckInner(healthCheckId, oracleConfig, t0) {
 }
 
 // Current canonical proxy version — bump this when oracle-proxy.py/oracle-proxy.js VERSION changes
-const LATEST_PROXY_VERSION = '3.20.9';
+const LATEST_PROXY_VERSION = '3.20.10';
 
 // ============================================================
 // Proxy Health Check Flow
@@ -6590,6 +6592,7 @@ function generateFallbackAnalysis(metrics, scores) {
 // Proxy version endpoint — used by oracle-proxy.py auto-update check
 // Returns current canonical version + sha256 checksum of the downloadable file
 app.get('/api/proxy/version', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   const filePath = path.join(__dirname, 'oracle-proxy.py');
   try {
     const content = fs.readFileSync(filePath);

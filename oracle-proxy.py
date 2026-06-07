@@ -324,7 +324,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.9"  # raw output added to apache/opmn/node_manager/apps_listener ok results
+VERSION = "3.20.10"  # stale-upgrade backoff: 1min/2min/.../10min instead of instant retry
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -723,6 +723,7 @@ _first_heartbeat_event = threading.Event()
 _last_poll_ok_time     = None          # float (time.time()) or None
 _poll_stage            = "init"        # string label
 _last_poll_upgrade_trigger = 0.0       # rate-limit poll-triggered proxy updates (1h)
+_stale_upgrade_count = 0               # consecutive "already at latest" responses — drives backoff
 
 # Lock protecting _last_poll_ok_time and _poll_stage
 _poll_state_lock = threading.Lock()
@@ -6507,16 +6508,20 @@ def _cloud_poll_loop():
                     print("%s [upgrade] proxy_upgrade_available in poll response — latest %s — triggering background update" % (_ts(), _latest_ver))
                     logger.info("poll — proxy upgrade signalled (latest %s) — triggering immediate update", _latest_ver)
                     def _do_poll_upgrade():
-                        global _last_poll_upgrade_trigger
+                        global _last_poll_upgrade_trigger, _stale_upgrade_count
                         try:
                             _nu, _rv, _du, _ck = check_for_update()
                             if _nu:
+                                _stale_upgrade_count = 0
                                 print("%s [upgrade] poll-triggered: downloading %s..." % (_ts(), _rv))
                                 perform_update(_rv, _du, _ck)
                             else:
-                                # Render may not have deployed yet — reset cooldown so we
-                                # retry on the next poll rather than waiting a full hour.
-                                print("%s [upgrade] poll-triggered: already at latest (%s) — resetting cooldown for retry" % (_ts(), VERSION))
+                                # Render deployment still in progress — back off before retry
+                                _stale_upgrade_count += 1
+                                _backoff = min(60 * _stale_upgrade_count, 600)
+                                print("%s [upgrade] poll-triggered: Render still serving %s (attempt %d) — retry in %ds" % (
+                                    _ts(), VERSION, _stale_upgrade_count, _backoff))
+                                time.sleep(_backoff)
                                 _last_poll_upgrade_trigger = 0.0
                         except Exception as _ue:
                             logger.warning("poll-triggered update failed: %s", _ue)
@@ -6542,16 +6547,20 @@ def _cloud_poll_loop():
                 _dl_url = body.get("latest_proxy_url") or (api_url + "/oracle-proxy.py")
                 print("%s [upgrade] proxy self-upgrade work item — target %s — initiating..." % (_ts(), _target_ver))
                 def _do_witem_upgrade(_url=_dl_url, _ver=_target_ver):
-                    global _last_poll_upgrade_trigger
+                    global _last_poll_upgrade_trigger, _stale_upgrade_count
                     try:
                         _nu, _rv, _du, _ck = check_for_update()
                         if _nu:
+                            _stale_upgrade_count = 0
                             print("%s [upgrade] work item: downloading %s..." % (_ts(), _rv))
                             perform_update(_rv, _du, _ck)
                         else:
-                            # Render may not have deployed yet — reset cooldown so the
-                            # next work item or poll response retries without waiting.
-                            print("%s [upgrade] work item: already at latest (%s) — resetting cooldown for retry" % (_ts(), VERSION))
+                            # Render deployment still in progress — back off before retry
+                            _stale_upgrade_count += 1
+                            _backoff = min(60 * _stale_upgrade_count, 600)
+                            print("%s [upgrade] work item: Render still serving %s (attempt %d) — retry in %ds" % (
+                                _ts(), VERSION, _stale_upgrade_count, _backoff))
+                            time.sleep(_backoff)
                             _last_poll_upgrade_trigger = 0.0
                     except Exception as _we:
                         print("%s [upgrade] work item error: %s" % (_ts(), _we))
