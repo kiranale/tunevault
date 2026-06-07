@@ -3562,7 +3562,7 @@ async function runRealHealthCheckInner(healthCheckId, oracleConfig, t0) {
 }
 
 // Current canonical proxy version — bump this when oracle-proxy.py/oracle-proxy.js VERSION changes
-const LATEST_PROXY_VERSION = '3.20.21';
+const LATEST_PROXY_VERSION = '3.20.22';
 
 // ============================================================
 // Proxy Health Check Flow
@@ -3749,11 +3749,13 @@ async function fetchMetricsFromProxy({ connectionId, serviceName, username, pass
     const appBody = {};
     if (appsPwd)     appBody.apps_pwd     = appsPwd;
     if (weblogicPwd) appBody.weblogic_pwd = weblogicPwd;
+    // For EBS app tier — longer timeout to accommodate slow VMs and large EBS environments
+    const hcTimeout = serverType === 'apps' ? 300000 : 120000;
     const resp = await agentChannel.sendToAgent(connectionId, {
       method: 'POST',
       path: '/api/ebs-app-healthcheck',
       body: appBody,
-    }, 120000);
+    }, hcTimeout);
     const parsed = resp.body || {};
     if (resp.statusCode !== 200 || !parsed.success) {
       throw new Error(parsed.error || `App-tier health check failed (HTTP ${resp.statusCode})`);

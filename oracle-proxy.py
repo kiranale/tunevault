@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.21"  # configurable proxy upgrade cooldown via PROXY_UPGRADE_COOLDOWN env var
+VERSION = "3.20.22"  # app-tier HC timeout 300s; adop -status (no -detail); adop timeout 40s
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -3381,7 +3381,7 @@ def query_apps_env(cursor):
 # ============================================================
 
 def query_adop_status():
-    """Run `adop -status -detail` on the EBS app tier and parse output.
+    """Run `adop -status` on the EBS app tier and parse output.
 
     Requires APPS_PWD in environment. SKIP if not set.
     """
@@ -3403,7 +3403,7 @@ def query_adop_status():
 
     try:
         proc = subprocess.run(
-            [adop_bin, '-status', '-detail'],
+            [adop_bin, '-status'],
             env=dict(os.environ, APPS_PWD=apps_pwd),
             capture_output=True,
             text=True,
@@ -3464,7 +3464,7 @@ def query_adop_status():
 
 
 def _parse_adop_output(text):
-    """Parse `adop -status -detail` output into session dicts."""
+    """Parse `adop -status` output into session dicts."""
     sessions = []
     # Split by blank lines to get per-session blocks
     import re
@@ -5724,20 +5724,20 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     "Set APPS password in Edit Connection to enable ADOP status check.")
             else:
                 _adop_cmd = _src_cmd(
-                    "timeout 60 bash -c 'env COLUMNS=300 adop -status -detail <<EOF\n"
+                    "timeout 40 bash -c 'env COLUMNS=300 adop -status <<EOF\n"
                     "%(apps)s\nEOF\n'"
                 ) % {"apps": _sh(req_apps_pwd)}
-                _adop_out, _adop_err, _adop_exit, _ = _run(_adop_cmd, timeout=65)
+                _adop_out, _adop_err, _adop_exit, _ = _run(_adop_cmd, timeout=45)
                 _adop_full = _adop_out + _adop_err
                 if _adop_exit == 124:
                     _finding("adop_status", "ADOP Command Timed Out", "critical",
-                             "adop -status -detail timed out after 60s.", _adop_full)
+                             "adop -status timed out after 40s.", _adop_full)
                 elif "FAILED" in _adop_full.upper():
                     _session_line = next(
                         (l.strip() for l in _adop_full.splitlines()
                          if "session" in l.lower() or "phase" in l.lower()), "")
                     _finding("adop_status", "ADOP Session in FAILED State", "critical",
-                             "ADOP reports a FAILED session. Investigate with: adop -status -detail. "
+                             "ADOP reports a FAILED session. Investigate with: adop -status. "
                              + _session_line, _adop_full)
                 elif "exiting with status = 0" in _adop_full.lower() or "no active session" in _adop_full.lower():
                     # Extract session/phase info if present
@@ -5751,7 +5751,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         _adop_full)
                 else:
                     _finding("adop_status", "ADOP Unexpected Output", "warning",
-                             "adop -status -detail returned unexpected output "
+                             "adop -status returned unexpected output "
                              "(exit %d). Review raw output." % _adop_exit, _adop_full)
 
             # ── 9. Invalid objects (local sqlplus via EBSapps.env) ───────────
