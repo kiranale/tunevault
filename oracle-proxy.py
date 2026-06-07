@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.22"  # app-tier HC timeout 300s; adop -status (no -detail); adop timeout 40s
+VERSION = "3.20.23"  # su without login shell to avoid EBSapps.env stdout from .bash_profile; CONTEXT_FILE grep runs as root directly
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5355,7 +5355,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                             os.chown(_tf, _uid, -1)
                         except Exception:
                             pass
-                        return "su - '%s' -c 'bash %s; rm -f %s' 2>/dev/null" % (_u, _tf, _tf)
+                        return "su '%s' -s /bin/bash -c 'bash %s; rm -f %s' 2>/dev/null" % (_u, _tf, _tf)
                     except Exception:
                         return base
                 return base
@@ -5451,12 +5451,9 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 _finding("managed_servers", "Managed Servers", "warning", no_env_msg)
             elif not req_weblogic_pwd:
                 # No WebLogic password — list server names from CONTEXT_FILE as informational
-                _srv_out, _, _, _ = _run(_src_cmd(
-                    "grep 'oa_service_name' \"$CONTEXT_FILE\" 2>/dev/null "
-                    "| grep 'managed_server' "
-                    "| sed -n 's/.*>\\([a-zA-Z0-9_-]*\\)<.*/\\1/p' "
-                    "| grep -v '^$' | sort -u"
-                ), timeout=10)
+                # Get server names directly from context file — no su needed, just read the XML
+                _srv_cmd = "grep 'oa_service_name' '%s' 2>/dev/null | grep 'managed_server' | sed -n 's/.*>\\([a-zA-Z0-9_-]*\\)<.*/\\1/p' | sort -u" % (_CONTEXT_FILE or "")
+                _srv_out, _, _, _ = _run(_srv_cmd, timeout=10)
                 _srv_names = [s.strip() for s in _srv_out.splitlines() if s.strip()]
                 if _srv_names:
                     _ok("managed_servers", "Managed Servers",
@@ -5466,12 +5463,9 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     _ok("managed_servers", "Managed Servers",
                         "Set WebLogic password in Edit Connection to enable managed server status check.")
             else:
-                _srv_out, _, _, _ = _run(_src_cmd(
-                    "grep 'oa_service_name' \"$CONTEXT_FILE\" 2>/dev/null "
-                    "| grep 'managed_server' "
-                    "| sed -n 's/.*>\\([a-zA-Z0-9_-]*\\)<.*/\\1/p' "
-                    "| grep -v '^$' | sort -u"
-                ), timeout=10)
+                # Get server names directly from context file — no su needed, just read the XML
+                _srv_cmd = "grep 'oa_service_name' '%s' 2>/dev/null | grep 'managed_server' | sed -n 's/.*>\\([a-zA-Z0-9_-]*\\)<.*/\\1/p' | sort -u" % (_CONTEXT_FILE or "")
+                _srv_out, _, _, _ = _run(_srv_cmd, timeout=10)
                 _srv_names = [s.strip() for s in _srv_out.splitlines() if s.strip()]
                 if not _srv_names:
                     _finding("managed_servers", "Managed Servers — No Servers Found", "warning",
