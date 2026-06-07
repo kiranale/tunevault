@@ -5191,10 +5191,7 @@ async function runAIAnalysis(healthCheckId, metrics, scores, connectionId, t0 = 
       } else if (fbWarnCount > 0) {
         inlineSummary += ` ${fbWarnCount} item(s) should be reviewed within the next maintenance window.`;
       }
-      const topFinding = fallbackFindings[0];
-      const inlineAction = topFinding
-        ? `Address the most urgent ${topFinding.category.toLowerCase()} issue first — your DBA team has the specific details in the Health Overview below.`
-        : 'Continue monitoring on the current schedule.';
+      const inlineAction = buildInlineAction(fallbackFindings);
 
       const fallbackRecs = buildInlineRecommendations(metrics, scores, fallbackFindings);
       const fbEbsSummary = metrics.ebs_detected ? buildInlineEbsSummary(metrics) : null;
@@ -5303,6 +5300,68 @@ async function runAIAnalysis(healthCheckId, metrics, scores, connectionId, t0 = 
 async function generateExecutiveSummary(healthCheckId, metrics, scores) {
   const startMs = Date.now();
   try {
+    // EBS app-tier: proxy findings come as metrics.findings[] — completely different data shape
+    if (metrics.server_type === 'apps') {
+      const appFindings = metrics.findings || [];
+      const appOk = metrics.checks_ok || [];
+      const critItems = appFindings.filter(f => f.severity === 'critical');
+      const warnItems = appFindings.filter(f => f.severity === 'warning');
+
+      if (appFindings.length === 0) {
+        await pool.query(
+          `UPDATE health_checks SET summary_text = $1, top_action = $2 WHERE id = $3`,
+          [
+            appOk.length > 0 ? `All ${appOk.length} EBS app tier components are healthy — no issues found.` : 'EBS app tier health check completed with no findings.',
+            'Continue monitoring on the current schedule.',
+            healthCheckId
+          ]
+        );
+        return;
+      }
+
+      const appFindingsText = appFindings.map((f, i) =>
+        `${i + 1}. [${f.severity.toUpperCase()}] ${f.title}: ${f.details}`
+      ).join('\n');
+      const appOkText = appOk.slice(0, 6).map(c => `- ${c.title}: ${c.details}`).join('\n') || 'None';
+
+      const appRaceTimeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Executive summary generation timeout (30s)')), 30000)
+      );
+      const appCompletion = await Promise.race([openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a senior Oracle E-Business Suite administrator writing a terse technical brief for another EBS admin who needs to act right now.
+
+RULES:
+1. CORE_DB_SUMMARY: 3-5 sentences. Name specific components by their exact names (e.g. "forms-c4ws_server1 is shutdown"). Include exact counts (X critical, Y warnings). State the business impact concretely — which users/functionality is broken. Write for an EBS DBA, not a manager.
+2. TOP_DB_ACTION: 1-2 sentences. The single most urgent fix with the exact EBS command. Example: "Start forms-c4ws_server1 — run as applmgr: admanagedsrvctl.sh start forms-c4ws_server1"
+3. Never use phrases like "requires immediate attention", "service disruption", or "your team has the details below".`
+          },
+          {
+            role: 'user',
+            content: `EBS App Tier health check — score: ${scores.overall}/100\n${critItems.length} critical, ${warnItems.length} warnings\n\nFindings:\n${appFindingsText}\n\nPassing checks (context):\n${appOkText}\n\nWrite:\nCORE_DB_SUMMARY: <3-5 sentences naming specific down components and business impact>\nTOP_DB_ACTION: <1-2 sentences with exact EBS command to fix the top issue>`
+          }
+        ],
+        temperature: 0.2,
+        max_tokens: 400
+      }), appRaceTimeout]);
+
+      const appRaw = appCompletion.choices[0]?.message?.content || '';
+      const appSummaryMatch = appRaw.match(/CORE_DB_SUMMARY:\s*(.+?)(?=TOP_DB_ACTION:|$)/s);
+      const appActionMatch = appRaw.match(/TOP_DB_ACTION:\s*(.+)/s);
+      const appSummaryText = (appSummaryMatch ? appSummaryMatch[1] : appRaw).trim();
+      const appTopAction = appActionMatch ? appActionMatch[1].trim() : null;
+
+      await pool.query(
+        `UPDATE health_checks SET summary_text = $1, top_action = $2 WHERE id = $3`,
+        [appSummaryText, appTopAction, healthCheckId]
+      );
+      console.log(`[executive-summary] report=${healthCheckId} app_tier=true crit=${critItems.length} warn=${warnItems.length} latency_ms=${Date.now() - startMs}`);
+      return;
+    }
+
     // Build compact findings list for prompt — critical first, max 15
     const findings = buildFindingsForSummary(metrics, scores);
     const top15 = findings.slice(0, 15);
@@ -5315,49 +5374,10 @@ async function generateExecutiveSummary(healthCheckId, metrics, scores) {
       return;
     }
 
-    // Translate raw findings into business-language descriptions.
-    // CRITICAL: Do NOT pass tablespace names, wait event names, SQL IDs, or raw % values
-    // into this prompt — GPT at low temperature will echo whatever it receives.
-    // Instead pass category + business risk description only.
-    const findingsText = top15.map((f, i) => {
-      const sev = f.severity.toUpperCase();
-      // Translate each category into business impact language
-      let businessDesc;
-      switch (f.category) {
-        case 'Storage':
-          businessDesc = f.severity === 'critical'
-            ? 'a storage volume is critically full — write operations may halt during peak load'
-            : 'a storage volume is approaching capacity and needs expansion soon';
-          break;
-        case 'Performance':
-          businessDesc = f.severity === 'critical'
-            ? 'database contention is causing significant slowdowns across user-facing operations'
-            : 'database wait times are elevated, slowing application response';
-          break;
-        case 'SQL':
-          businessDesc = 'key database queries are running slowly, degrading application performance';
-          break;
-        case 'Indexes':
-          businessDesc = f.severity === 'critical'
-            ? 'critical database indexes are fragmented, causing severe query slowdowns'
-            : 'database indexes need maintenance to prevent performance degradation';
-          break;
-        case 'Backup':
-          businessDesc = f.severity === 'critical'
-            ? 'backup coverage is overdue — data loss window exceeds recovery policy'
-            : 'backup schedule is behind recommended frequency — recovery window at risk';
-          break;
-        case 'Memory':
-          businessDesc = 'memory configuration is undersized relative to current workload';
-          break;
-        case 'Config':
-          businessDesc = 'a database configuration setting poses an operational risk';
-          break;
-        default:
-          businessDesc = `a ${f.category.toLowerCase()} issue requires attention`;
-      }
-      return `${i + 1}. [${sev}] ${businessDesc}`;
-    }).join('\n');
+    // Pass real metric names/values — DBA needs specifics, not executive translations.
+    const findingsText = top15.map((f, i) =>
+      `${i + 1}. [${f.severity.toUpperCase()}] ${f.category} — ${f.metric}: ${f.value}`
+    ).join('\n');
 
     // EBS operational context — passed to GPT only for the EBS-specific section.
     // Never included in core DB findings to prevent leaking EBS terms into DB summary.
@@ -5387,35 +5407,22 @@ async function generateExecutiveSummary(healthCheckId, metrics, scores) {
       messages: [
         {
           role: 'system',
-          content: `You are TuneVault, writing a structured executive brief for a CIO or IT director. The brief has two separate sections — a core Oracle DB summary and (if EBS is detected) a separate EBS application summary.
+          content: `You are a senior Oracle DBA writing a terse technical brief for another DBA who needs to act right now. Two sections: core Oracle DB summary and (if EBS detected) a separate EBS app-layer summary.
 
-HARD RULES — violating any of these means the output is wrong:
-1. CORE_DB_SUMMARY must ONLY cover Oracle database metrics: storage, wait events, SQL performance, memory, backups, sessions.
-2. CORE_DB_SUMMARY must NEVER mention: ICM, Concurrent Manager, Workflow Mailer, ADOP, ADCP, OPP, FNDOPP, EBS, E-Business Suite, or any Oracle application layer term.
-3. CORE_DB_SUMMARY must NEVER mention tablespace names, wait event names, SQL IDs, or raw percentages.
-4. CORE_DB_SUMMARY must synthesize findings into 3 sentences max — business risk, impact, urgency.
-5. TOP_DB_ACTION must be a single Oracle DB action — never an EBS application action.
-6. EBS_SUMMARY (only write this section if EBS is detected) covers ONLY the Oracle E-Business Suite application layer. Keep it to 2 sentences.
-7. EBS_ACTION (only write if EBS is detected) is one sentence: what EBS app-layer thing to check first.
-8. If EBS is NOT detected, omit EBS_SUMMARY and EBS_ACTION entirely — write nothing for those keys.
-9. The overall score may appear ONCE in CORE_DB_SUMMARY sentence 1 only.
+RULES:
+1. CORE_DB_SUMMARY: 3-5 sentences. Use the exact metric names from the findings (tablespace names, wait event names, percentages). Quantify: "X critical findings, Y warnings". State the specific impact — which operations are at risk. End with the single most urgent area. Write for a DBA, not a manager.
+2. TOP_DB_ACTION: 1-2 sentences. The single most urgent fix with a specific runnable SQL query. Format: "Fix <specific issue> — run: <SQL here>"
+3. Never use phrases like "requires immediate attention", "service disruption risk", or "your DBA team has the details".
+4. EBS_SUMMARY (only if EBS detected): 2 sentences. Name specific EBS services with their exact status and which users/functionality is affected.
+5. EBS_ACTION (only if EBS detected): 1 sentence with a specific EBS command or SQL query.
+6. If EBS is NOT detected, omit EBS_SUMMARY and EBS_ACTION entirely.
 
-BAD CORE_DB_SUMMARY (wrong — mixes EBS): "The database scored 61/100 with ICM showing pending requests and Workflow Mailer errors accumulating."
-GOOD CORE_DB_SUMMARY (correct — DB only): "This Oracle database scored 61/100 and is under strain with storage capacity risks and elevated query wait times. Without intervention, write failures and application slowdowns are likely during peak load. Immediate DBA attention is needed on storage and query performance."
-
-The human will forward CORE_DB_SUMMARY to their DBA, and EBS_SUMMARY to their EBS admin. Keep them completely separate.`
+GOOD TOP_DB_ACTION example: "log file sync at 71.8% of DB time indicates redo log I/O bottleneck — check: SELECT group#, bytes/1024/1024 mb, status FROM v\$log ORDER BY group#;"
+BAD TOP_DB_ACTION example: "Address the most urgent performance issue — your DBA team has the details."`
         },
         {
           role: 'user',
-          content: `Oracle database health check — overall score: ${scores.overall}/100
-
-Core Oracle DB findings (for CORE_DB_SUMMARY and TOP_DB_ACTION only):
-${findingsText}${ebsContext}
-
-Write the structured brief. Format strictly as shown — include EBS sections only if EBS is detected:
-CORE_DB_SUMMARY: <exactly 3 sentences covering only Oracle DB metrics — storage/waits/SQL/memory/backup. No EBS terms ever.>
-TOP_DB_ACTION: <1 sentence: the single most urgent Oracle DB action the DBA should take first>
-${hasEbs ? 'EBS_SUMMARY: <exactly 2 sentences covering only EBS application-layer status — CM/WF/Mailer/notifications. No DB metrics.>\nEBS_ACTION: <1 sentence: what the EBS admin should check or act on first>' : ''}`
+          content: `Oracle database health check — score: ${scores.overall}/100\n${top15.filter(f => f.severity === 'critical').length} critical findings, ${top15.filter(f => f.severity === 'warning').length} warnings\n\nFindings:\n${findingsText}${ebsContext}\n\nWrite the structured brief. Include EBS sections only if EBS is detected:\nCORE_DB_SUMMARY: <3-5 sentences using exact metric names from findings, quantify counts, name most urgent area>\nTOP_DB_ACTION: <1-2 sentences with specific runnable SQL to diagnose or fix the top issue>\n${hasEbs ? 'EBS_SUMMARY: <2 sentences naming specific EBS services and their status — no DB metrics>\nEBS_ACTION: <1 sentence with specific EBS command or SQL>' : ''}`
         }
       ],
       temperature: 0.2,
@@ -5482,11 +5489,7 @@ ${hasEbs ? 'EBS_SUMMARY: <exactly 2 sentences covering only EBS application-laye
         fallbackSummary += ' Immediate action is recommended to prevent service disruption.';
       }
 
-      // Top action in plain English — no SQL
-      const topFinding = fallbackFindings[0];
-      const fallbackAction = topFinding
-        ? `Address the most urgent ${topFinding.category.toLowerCase()} issue first — your DBA team has the specific details in the Health Overview below.`
-        : null;
+      const fallbackAction = buildInlineAction(fallbackFindings) || null;
 
       // Rule-based EBS fallback so the EBS card never stays stuck on the spinner
       const fbEbsSummary = metrics.ebs_detected ? buildInlineEbsSummary(metrics) : null;
@@ -5534,6 +5537,19 @@ function buildEbsFindingsForSummary(metrics) {
 // Only critical and warning items — ordered critical first.
 function buildFindingsForSummary(metrics, scores) {
   const findings = [];
+
+  // EBS app-tier: findings come directly from the proxy response
+  if (metrics.server_type === 'apps') {
+    const sevOrder = { critical: 0, warning: 1 };
+    return (metrics.findings || [])
+      .map(f => ({
+        severity: f.severity === 'critical' ? 'critical' : 'warning',
+        category: 'EBS App',
+        metric: f.title,
+        value: f.details
+      }))
+      .sort((a, b) => (sevOrder[a.severity] ?? 2) - (sevOrder[b.severity] ?? 2));
+  }
 
   // Tablespace
   (metrics.tablespaces || []).forEach(t => {
@@ -5636,12 +5652,38 @@ function buildInlineSummary(scores, findings) {
   return summary;
 }
 
-// Build an inline top-action string from findings.
+// Build an inline top-action string from findings. Provides specific SQL or command per category.
 function buildInlineAction(findings) {
   const topFinding = findings[0];
-  return topFinding
-    ? `Address the most urgent ${topFinding.category.toLowerCase()} issue first — your DBA team has the specific details in the Health Overview below.`
-    : 'Continue monitoring on the current schedule.';
+  if (!topFinding) return 'Continue monitoring on the current schedule.';
+  if (topFinding.category === 'EBS App') {
+    const t = topFinding.metric.toLowerCase();
+    if (t.includes('forms') || t.includes('oacore') || t.includes('managed server'))
+      return `Start the managed server — run as applmgr: admanagedsrvctl.sh start <server_name>`;
+    if (t.includes('concurrent') || t.includes('adcmctl'))
+      return `Start Concurrent Manager — run as applmgr: adcmctl.sh start apps/<apps_pwd>`;
+    if (t.includes('workflow') || t.includes('mailer'))
+      return `Restart Workflow Notification Mailer via OAM: System Administrator > Workflow > Notification Mailer > Activate`;
+    if (t.includes('apache') || t.includes('ohs'))
+      return `Restart Apache/OHS — run as applmgr: adapcctl.sh restart`;
+    return `Check EBS services status — run as applmgr: admanagedsrvctl.sh status all`;
+  }
+  switch (topFinding.category) {
+    case 'Storage':
+      return `Check tablespace headroom: SELECT tablespace_name, ROUND(used_space/total_space*100,1)||'%' pct_used FROM dba_tablespace_usage_metrics ORDER BY used_space/total_space DESC FETCH FIRST 10 ROWS ONLY;`;
+    case 'Performance':
+      return `Check top waits: SELECT event, ROUND(time_waited/100,1) seconds, wait_class FROM v$system_event WHERE wait_class!='Idle' ORDER BY time_waited DESC FETCH FIRST 5 ROWS ONLY;`;
+    case 'Backup':
+      return `Check RMAN history: SELECT status, input_type, ROUND((SYSDATE-completion_time)*24,1)||'h ago' age FROM v$rman_backup_job_details ORDER BY start_time DESC FETCH FIRST 3 ROWS ONLY;`;
+    case 'Indexes':
+      return `Rebuild fragmented index: ALTER INDEX <index_name> REBUILD ONLINE; -- verify bloat first: SELECT index_name, pct_deleted FROM index_stats;`;
+    case 'Memory':
+      return `Check PGA usage: SELECT name, ROUND(value/1024/1024,1)||' MB' val FROM v$pgastat WHERE name IN ('total PGA allocated','total PGA used for auto workareas');`;
+    case 'SQL':
+      return `Check top SQL by elapsed: SELECT sql_id, ROUND(elapsed_time/NULLIF(executions,0)/1000,1)||'ms' avg, SUBSTR(sql_text,1,80) FROM v$sql WHERE executions>0 ORDER BY elapsed_time/NULLIF(executions,0) DESC FETCH FIRST 5 ROWS ONLY;`;
+    default:
+      return `Investigate ${topFinding.metric} — see the Health Overview tab for remediation SQL.`;
+  }
 }
 
 // Build an inline rule-based EBS summary from metrics.
