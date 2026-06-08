@@ -21,7 +21,7 @@ const SEV_RANK = { ok: 0, green: 0, info: 1, amber: 2, warning: 2, red: 3, criti
 const rankOf = s => SEV_RANK[s?.toLowerCase()] ?? 0;
 
 // Threshold: findings at or above this rank trigger alerts
-const THRESHOLD_RANK = { amber: 2, red: 3 };
+const THRESHOLD_RANK = { info: 1, amber: 2, red: 3 };
 
 /**
  * Builds a stable finding_key for a check_results row.
@@ -77,7 +77,7 @@ async function runDeltaForConnection(connectionId, healthCheckId) {
               raw_payload, ai_summary, recommendation
        FROM check_results
        WHERE connection_id = $1
-         AND status IN ('amber', 'red')
+         AND status IN ('amber', 'red', 'warning', 'critical', 'info')
        ORDER BY executed_at DESC
        LIMIT 200`,
       [connectionId]

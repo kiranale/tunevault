@@ -61,7 +61,7 @@ async function stampHcEmailSent(userId) {
  */
 async function getUserForConnection(connectionId) {
   const result = await pool.query(
-    `SELECT oc.user_id, u.email, u.name, oc.connection_name
+    `SELECT oc.user_id, u.email, u.name, oc.name AS connection_name
      FROM oracle_connections oc
      JOIN users u ON u.id = oc.user_id
      WHERE oc.id = $1`,

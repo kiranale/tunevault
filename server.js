@@ -7603,7 +7603,7 @@ const { sendDripStep } = require('./services/drip-mailer');
  */
 function suppressDripOnCheckComplete(healthCheckId) {
   pool.query(
-    `SELECT hc.user_id, hc.is_demo, hc.connection_id, hc.score,
+    `SELECT hc.user_id, hc.is_demo, hc.connection_id, hc.overall_score,
             oc.is_ebs,
             (SELECT COUNT(*) FROM check_results WHERE run_id = hc.id AND status = 'red') AS red_count,
             (SELECT COUNT(*) FROM check_results WHERE run_id = hc.id) AS finding_count
@@ -7627,7 +7627,7 @@ function suppressDripOnCheckComplete(healthCheckId) {
     );
     const isFirst = prevRes.rows.length === 0;
     const checkProps = {
-      score        : hc.score ? Number(hc.score) : null,
+      score        : hc.overall_score ? Number(hc.overall_score) : null,
       critical_count: Number(hc.red_count),
       finding_count: Number(hc.finding_count),
       is_ebs       : Boolean(hc.is_ebs),
