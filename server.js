@@ -5066,6 +5066,19 @@ async function runAIAnalysis(healthCheckId, metrics, scores, connectionId, t0 = 
   // Captured after successful GPT call — shared with post-analysis fire-and-forget tasks
   let completedAnalysisText = null;
 
+  // Global 2-minute safety net — forces status=completed if the entire analysis hangs
+  // (e.g. DB pool exhausted before/after GPT call, or fallback path also hangs).
+  const safetyTimeout = setTimeout(async () => {
+    console.error(`[ai-analysis] report=${healthCheckId} TIMEOUT after 120s — forcing completed`);
+    try {
+      await pool.query(
+        `UPDATE health_checks SET status='completed', analysis_stage='timeout' WHERE id=$1 AND status='analyzing'`,
+        [healthCheckId]
+      );
+    } catch (_e) { /* best-effort */ }
+  }, 120000);
+
+  try {
   try {
     // t2: prompt assembled
     const prompt = buildAnalysisPrompt(metrics, scores);
@@ -5260,8 +5273,12 @@ async function runAIAnalysis(healthCheckId, metrics, scores, connectionId, t0 = 
       ]
     ).catch(e => console.error(`[ai-analysis] report=${healthCheckId} analysis_runs_error_write=${e.message}`));
   }
+  } finally {
+    clearTimeout(safetyTimeout);
+  }
 
   // Generate executive summary (fire-and-forget — displayed prominently at top of report)
+  console.log(`[ai-analysis] report=${healthCheckId} calling generateExecutiveSummary`);
   generateExecutiveSummary(healthCheckId, metrics, scores).catch(err => {
     console.error('generateExecutiveSummary error:', err.message);
   });
@@ -5269,6 +5286,7 @@ async function runAIAnalysis(healthCheckId, metrics, scores, connectionId, t0 = 
   // Generate structured recommendations with confidence badges + evidence trails (fire-and-forget)
   // Skip for EBS app tier — generateExecutiveSummary() handles server-side actions separately.
   if (metrics.server_type !== 'apps') {
+    console.log(`[ai-analysis] report=${healthCheckId} calling generateStructuredRecommendations`);
     generateStructuredRecommendations(healthCheckId, metrics, scores, completedAnalysisText).catch(err => {
       console.error('generateStructuredRecommendations error:', err.message);
     });
@@ -7906,6 +7924,20 @@ async function ensureColumns() {
            OR proxy_version IS NULL
       )
   `);
+
+  // Recover HCs stuck in analyzing — any still in analyzing after 5 min were abandoned
+  // (process crash, DB timeout, etc.). Force them to completed so the dashboard unblocks.
+  const { rowCount: recoveredCount } = await pool.query(`
+    UPDATE health_checks
+    SET status = 'completed', analysis_stage = 'recovered_on_boot'
+    WHERE status = 'analyzing'
+      AND created_at < NOW() - INTERVAL '5 minutes'
+  `);
+  if (recoveredCount > 0) {
+    console.log(`[startup] recovered ${recoveredCount} stuck analyzing HC(s)`);
+  } else {
+    console.log('[startup] no stuck analyzing HCs found');
+  }
 }
 
 ensureColumns()
