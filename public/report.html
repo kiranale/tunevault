@@ -3445,59 +3445,48 @@
         const dbCritCount = findings.filter(f => f.severity === 'critical').length;
         const ebsCritCount = ebsAppFindings.filter(f => f.severity === 'critical').length;
 
-        // ── Prominent Critical Issues section header ────────────
-        // Always visible so users immediately see the health check findings
-        // regardless of whether structured recommendations are above.
-        const totalCrit = critCount + ebsCritCount;
-        html += `<div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">
-            <h3 style="margin:0 0 12px;font-size:16px;font-weight:700;color:var(--text)">
-                ${totalCrit > 0 ? '🚨 Critical Issues' : '✅ Health Check Findings'}
-            </h3>
-        </div>`;
+        // App tier: Evidence cards above already show all findings — skip the duplicate Critical Issues block.
+        if (!isAppTier) {
+            const totalCrit = critCount + ebsCritCount;
+            html += `<div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">
+                <h3 style="margin:0 0 12px;font-size:16px;font-weight:700;color:var(--text)">
+                    ${totalCrit > 0 ? '🚨 Critical Issues' : '✅ Health Check Findings'}
+                </h3>
+            </div>`;
 
-        html += `<div class="findings-header">
-            ${totalCrit ? `<div class="findings-counter counter-crit">🔴 ${totalCrit} Critical</div>` : ''}
-            ${warnCount ? `<div class="findings-counter counter-warn">🟡 ${warnCount} Warning</div>` : ''}
-            ${okCount ? `<div class="findings-counter counter-ok">🟢 ${okCount} OK</div>` : ''}
-        </div>`;
+            html += `<div class="findings-header">
+                ${totalCrit ? `<div class="findings-counter counter-crit">🔴 ${totalCrit} Critical</div>` : ''}
+                ${warnCount ? `<div class="findings-counter counter-warn">🟡 ${warnCount} Warning</div>` : ''}
+                ${okCount ? `<div class="findings-counter counter-ok">🟢 ${okCount} OK</div>` : ''}
+            </div>`;
 
-        // ── Database / App Tier Critical subsection ───────────────
-        if (isAppTier) {
-            if (critCount > 0) {
+            if (dbCritCount > 0) {
                 html += `<div class="findings-subsection-header">
-                    <span class="findings-subsection-icon">📋</span>
-                    <span class="findings-subsection-title">EBS App Tier Critical</span>
-                    <span class="findings-subsection-count">${critCount} issue${critCount > 1 ? 's' : ''}</span>
+                    <span class="findings-subsection-icon">🗄️</span>
+                    <span class="findings-subsection-title">Database Critical</span>
+                    <span class="findings-subsection-count">${dbCritCount} issue${dbCritCount > 1 ? 's' : ''}</span>
+                </div>`;
+            } else if (critCount === 0 && !hasEbs) {
+                html += `<div style="padding:16px;border-radius:8px;background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.2);margin-bottom:12px">
+                    <span style="font-size:14px;color:var(--green);font-weight:600">No critical issues detected.</span>
+                    <span style="font-size:13px;color:var(--text-dim);margin-left:8px">All monitored dimensions are within healthy thresholds.</span>
                 </div>`;
             }
-        } else if (dbCritCount > 0) {
-            html += `<div class="findings-subsection-header">
-                <span class="findings-subsection-icon">🗄️</span>
-                <span class="findings-subsection-title">Database Critical</span>
-                <span class="findings-subsection-count">${dbCritCount} issue${dbCritCount > 1 ? 's' : ''}</span>
-            </div>`;
-        } else if (critCount === 0 && !hasEbs && !isAppTier) {
-            html += `<div style="padding:16px;border-radius:8px;background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.2);margin-bottom:12px">
-                <span style="font-size:14px;color:var(--green);font-weight:600">No critical issues detected.</span>
-                <span style="font-size:13px;color:var(--text-dim);margin-left:8px">All monitored dimensions are within healthy thresholds.</span>
-            </div>`;
-        }
 
-        // Finding cards (all DB findings)
-        findings.forEach((f, i) => { html += renderFindingCard(f, i); });
+            findings.forEach((f, i) => { html += renderFindingCard(f, i); });
 
-        // ── Application Critical (EBS) subsection ──────────────────
-        // Only renders when EBS is detected AND has app-layer critical items.
-        if (hasEbs && ebsAppFindings.length > 0) {
-            const ebsApp = data.metrics && data.metrics.detected_apps && data.metrics.detected_apps.find(a => a.key === 'EBS');
-            const ebsLabel = ebsApp ? esc(ebsApp.label) : 'EBS';
-            html += `<div class="findings-subsection-header findings-subsection-header-ebs" style="margin-top:24px">
-                <span class="findings-subsection-icon">📋</span>
-                <span class="findings-subsection-title">Application Critical (${ebsLabel})</span>
-                <span class="findings-subsection-count">${ebsCritCount} critical</span>
-                <a href="/ebs-deep" style="margin-left:auto;font-size:12px;color:var(--accent);text-decoration:none;font-weight:600">Open EBS Monitor &rarr;</a>
-            </div>`;
-            ebsAppFindings.forEach((f, i) => { html += renderFindingCard(f, i); });
+            // ── Application Critical (EBS) subsection ──────────────────
+            if (hasEbs && ebsAppFindings.length > 0) {
+                const ebsApp = data.metrics && data.metrics.detected_apps && data.metrics.detected_apps.find(a => a.key === 'EBS');
+                const ebsLabel = ebsApp ? esc(ebsApp.label) : 'EBS';
+                html += `<div class="findings-subsection-header findings-subsection-header-ebs" style="margin-top:24px">
+                    <span class="findings-subsection-icon">📋</span>
+                    <span class="findings-subsection-title">Application Critical (${ebsLabel})</span>
+                    <span class="findings-subsection-count">${ebsCritCount} critical</span>
+                    <a href="/ebs-deep" style="margin-left:auto;font-size:12px;color:var(--accent);text-decoration:none;font-weight:600">Open EBS Monitor &rarr;</a>
+                </div>`;
+                ebsAppFindings.forEach((f, i) => { html += renderFindingCard(f, i); });
+            }
         }
 
         return html;

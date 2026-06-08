@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.33"  # _strip_stty() in _finding()/_ok() removes stty noise from all HC raw output
+VERSION = "3.20.34"  # c4ws/oaea managed servers treated as WARNING; commandMap context comments; structured-recs skipped for app tier
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5761,7 +5761,12 @@ class ProxyHandler(BaseHTTPRequestHandler):
                                     _cur_sv = None
                             elif _cur_sv is not None:
                                 _sv_lines.append(_ml)
-                        _down = [n for n, st, _ in _srv_states if st in ("DOWN", "TIMEOUT")]
+                        _down = [n for n, st, _ in _srv_states
+                                 if st in ("DOWN", "TIMEOUT")
+                                 and 'c4ws' not in n.lower() and 'oaea' not in n.lower()]
+                        _warn_down = [n for n, st, _ in _srv_states
+                                      if st in ("DOWN", "TIMEOUT")
+                                      and ('c4ws' in n.lower() or 'oaea' in n.lower())]
                         _combined_raw = "\n".join(
                             "=== %s ===\nStatus: %s\n%s" % (n, st, raw)
                             for n, st, raw in _srv_states)
@@ -5772,6 +5777,10 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         elif _down:
                             _finding("managed_servers", "Managed Servers Down", "critical",
                                      "Servers not running: %s" % ", ".join(_down), _combined_raw)
+                        elif _warn_down:
+                            _finding("managed_servers", "Optional Servers Not Running", "warning",
+                                     "Optional servers not running: %s" % ", ".join(_warn_down),
+                                     _combined_raw)
                         else:
                             _rc = sum(1 for _, st, _ in _srv_states if st == "RUNNING")
                             _nd = sum(1 for _, st, _ in _srv_states if st == "NOT_DEPLOYED")

@@ -3562,7 +3562,7 @@ async function runRealHealthCheckInner(healthCheckId, oracleConfig, t0) {
 }
 
 // Current canonical proxy version — bump this when oracle-proxy.py/oracle-proxy.js VERSION changes
-const LATEST_PROXY_VERSION = '3.20.33';
+const LATEST_PROXY_VERSION = '3.20.34';
 
 // ============================================================
 // Proxy Health Check Flow
@@ -5251,10 +5251,12 @@ async function runAIAnalysis(healthCheckId, metrics, scores, connectionId, t0 = 
   });
 
   // Generate structured recommendations with confidence badges + evidence trails (fire-and-forget)
-  // Pass completedAnalysisText so GPT can extract verbatim fix_sql commands from the analysis.
-  generateStructuredRecommendations(healthCheckId, metrics, scores, completedAnalysisText).catch(err => {
-    console.error('generateStructuredRecommendations error:', err.message);
-  });
+  // Skip for EBS app tier — generateExecutiveSummary() handles server-side actions separately.
+  if (metrics.server_type !== 'apps') {
+    generateStructuredRecommendations(healthCheckId, metrics, scores, completedAnalysisText).catch(err => {
+      console.error('generateStructuredRecommendations error:', err.message);
+    });
+  }
 
   // Persist individual check rows for history/trends (fire-and-forget — never blocks HC completion)
   if (runId) {
@@ -5327,21 +5329,21 @@ async function generateExecutiveSummary(healthCheckId, metrics, scores) {
         'managed_servers': (f) => {
           const match = (f.details || '').match(/:\s*(\S*server\S*)/i);
           const srv = match ? match[1].replace(/\.$/, '') : '<server_name>';
-          return `admanagedsrvctl.sh start ${srv}`;
+          return `# Run as applmgr (after sourcing EBSapps.env run):\nadmanagedsrvctl.sh start ${srv}`;
         },
-        'wf_mailer':       () => 'EBS System Admin → Oracle Applications Manager → Service Components → Workflow Notification Mailer → Activate',
-        'invalid_objects': () => 'On DB server as sysdba: sqlplus / as sysdba\n@$ORACLE_HOME/rdbms/admin/utlrp.sql',
+        'wf_mailer': () => 'Navigate: EBS System Admin → Oracle Applications Manager → Service Components → Workflow Notification Mailer → Activate',
+        'invalid_objects': () => '# Run on DB server as sysdba:\nsqlplus / as sysdba\n@$ORACLE_HOME/rdbms/admin/utlrp.sql',
         'ts_usage': (f) => {
           const match = (f.details || '').match(/(\w+)\s*\(/);
           const ts = match ? match[1] : '<tablespace>';
-          return `ALTER TABLESPACE ${ts} ADD DATAFILE SIZE 1G AUTOEXTEND ON NEXT 512M MAXSIZE UNLIMITED;`;
+          return `# Run on DB server:\nALTER TABLESPACE ${ts} ADD DATAFILE SIZE 1G AUTOEXTEND ON NEXT 512M MAXSIZE UNLIMITED;`;
         },
-        'apache_status':  () => 'adapcctl.sh start',
-        'opmn_status':    () => 'adopmnctl.sh start',
-        'admin_server':   () => 'adadminsrvctl.sh start',
-        'node_manager':   () => 'adnodemgrctl.sh start',
-        'apps_listener':  () => 'adalnctl.sh start',
-        'cm_status':      () => 'adcmctl.sh start apps/<password>',
+        'apache_status':  () => '# Run as applmgr:\nadapcctl.sh start',
+        'opmn_status':    () => '# Run as applmgr:\nadopmnctl.sh start',
+        'admin_server':   () => '# Run as applmgr:\nadadminsrvctl.sh start',
+        'node_manager':   () => '# Run as applmgr:\nadnodemgrctl.sh start',
+        'apps_listener':  () => '# Run as applmgr:\nadalnctl.sh start',
+        'cm_status':      () => '# Run as applmgr:\nadcmctl.sh start apps/<password>',
       };
 
       const actionsText = appFindings
