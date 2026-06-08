@@ -80,8 +80,8 @@ function buildHtml({ connectionName, connectionId, scheduleId, deltas, healthChe
 
   const findingRows = topDeltas.map(d => {
     const checkAnchor = healthCheckId
-      ? `${APP_URL}/checks/${healthCheckId}#${encodeURIComponent(d.findingKey)}`
-      : `${APP_URL}/dashboard`;
+      ? `${APP_URL}/report/${healthCheckId}`
+      : `${APP_URL}/connections`;
 
     return `
     <tr>
@@ -172,7 +172,7 @@ function buildHtml({ connectionName, connectionId, scheduleId, deltas, healthChe
         </tr>
         <tr>
           <td style="padding:0 40px 24px;">
-            <a href="${APP_URL}/dashboard?connection=${connectionId}"
+            <a href="${healthCheckId ? `${APP_URL}/report/${healthCheckId}` : `${APP_URL}/connections`}"
                style="display:inline-block;background:linear-gradient(135deg,#f0a830,#d4891f);color:#0a0a0c;font-size:14px;font-weight:700;text-decoration:none;padding:12px 28px;border-radius:8px;letter-spacing:0.3px;">
               View full report →
             </a>
@@ -210,7 +210,7 @@ function buildText({ connectionName, connectionId, scheduleId, deltas, healthChe
     lines.push('');
   }
   if (deltas.length > 3) lines.push(`…and ${deltas.length - 3} more. See full report.`);
-  lines.push(`Full report: ${APP_URL}/dashboard?connection=${connectionId}`);
+  lines.push(`Full report: ${healthCheckId ? `${APP_URL}/report/${healthCheckId}` : `${APP_URL}/connections`}`);
   lines.push('');
   lines.push(`Snooze 24h: ${snoozeLink(scheduleId)}`);
   lines.push(`Adjust schedule: ${settingsLink(connectionId)}`);

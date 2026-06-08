@@ -42,7 +42,7 @@ const THROTTLE_MS = 10 * 60 * 1000;
 // ─── HTML TEMPLATE ──────────────────────────────────────────────────────────
 
 function buildHtml({ connectionName, score, criticalCount, amberCount, isEbs, completedAt, topFindings, hcId }) {
-  const reportUrl   = `${APP_URL}/healthcheck/report/${hcId}`;
+  const reportUrl   = `${APP_URL}/report/${hcId}`;
   const settingsUrl = `${APP_URL}/settings/notifications`;
   const dateStr     = completedAt
     ? new Date(completedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })
@@ -292,7 +292,7 @@ async function sendHcCompletionEmail({ healthCheckId, connectionId, metrics, sco
         ? `Top critical findings:\n${topCritical.map(f => `  • ${f.title}: ${f.impact}`).join('\n')}`
         : 'No critical findings.',
       '',
-      `View full report: ${APP_URL}/healthcheck/report/${healthCheckId}`,
+      `View full report: ${APP_URL}/report/${healthCheckId}`,
       '',
       `Manage email preferences: ${APP_URL}/settings/notifications`
     ].join('\n');
