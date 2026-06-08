@@ -479,7 +479,8 @@
   async function loadConnections() {
     const r = await fetch('/api/connections', { credentials: 'include' });
     if (!r.ok) return;
-    connections = tvConn.parseList(await r.json());
+    // DB Ops runs against DB-tier connections only — exclude app-tier-only servers
+    connections = tvConn.parseList(await r.json()).filter(c => c.server_type !== 'apps');
     const sel = document.getElementById('conn-select');
     connections.forEach(c => {
       const opt = document.createElement('option');
