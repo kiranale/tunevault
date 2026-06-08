@@ -119,19 +119,23 @@ Node.js + Express, PostgreSQL (Neon), Render deployment. Vanilla JS frontend (no
 - **Anthropic/Claude** — Claude API for additional AI features. Key: ANTHROPIC_API_KEY env var on Render.
 - **Google OAuth** — sign-in with Google
 - **Razorpay** — one-time payments + monthly subscriptions (USD only); live keys RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET
-- **Postmark or Resend** — transactional emails (magic links, HC completion emails). Check RESEND_API_KEY / POSTMARK env vars — one is active.
+- **Resend** — transactional emails (magic links, HC completion emails, alert emails). RESEND_API_KEY env var. Domain tunevault.app verified on Resend (Cloudflare DNS auto-configured).
 - **Tunnel API** — auto-provisions secure tunnels + DNS CNAME for one-line agent install (optional env vars)
 
 ## Add Connection route rule
 
 All Add Connection links in the app MUST point to `/connections/new` — the single canonical v6 wizard (routes/ssh-install.js). `/setup/fresh` is a 301 permanent redirect to it as of 2026-05-22. Adding a new entry point? Verify it points to `/connections/new`, not `/setup/fresh`.
 
-## Known Issues (as of 2026-06-07)
+## Known Issues (as of 2026-06-08)
 
 🟡 High:
-- AI summary not showing on EBS app tier health checks — runAIAnalysis() is called (3.20.7+, verified by [ai] log), but summary text not surfacing in report UI. Needs investigation on live HC run with ebs12212-app-dev.
-- apex-lab (192.168.56.101, OEL 8.10, Oracle 23ai) — agent never installed.
 - Export PDF button broken — not fixed in any session.
+- apex-lab (192.168.56.101, OEL 8.10, Oracle 23ai) — agent never installed.
+- DB Ops Run button — hasSqlOps verification needed end-to-end.
+- EBS Ops cards — need full redesign and wiring (service control panel, start/stop per component).
+- HC completion email — Impact column shows "—" for EBS findings (metrics.findings[] structure differs from DB findings).
+- forms-c4ws_server1 showing as critical — optional server, should be warning or skipped.
+- App tier score showing 30 instead of 15 — investigate scoring logic for EBS app tier.
 
 🟢 Low:
 - Blog articles still need seeding — run `npm run seed-blog` in Render shell, or POST /api/admin/seed-blog (admin-only, idempotent).
@@ -141,8 +145,19 @@ All Add Connection links in the app MUST point to `/connections/new` — the sin
 
 ## Recent changes
 
-- 2026-06-08: FIX — report-ebs.html toolbar export buttons missing: replaced static #exportPdfBtn with #toolbar-export-slot; added injectToolbarExportButtons(connectionId) — injects EBS PDF + EBS XLSX into toolbar slot on report load; falls back to deep-EBS PDF button in demo mode.
-- 2026-06-08: FEAT — Two-tier nav redesign: nav-component.js removed report action buttons from buildNav(); mobile breakpoint 1200px→860px absolute dropdown from hamburger. report.html + report-ebs.html: static #page-toolbar below nav-root with New Check / All Reports links + #toolbar-export-slot.
-- 2026-06-08: FIX — hasSqlOps always false for proxy connections: db-ops.js capabilities endpoint now uses `await channel.isAgentConnected(connId)` instead of cx_oracle_version field (null/stale).
-- 2026-06-08: FIX — Mobile nav: right-side slide-in panel (280px) + overlay; DB Ops AbortController 10s timeout; DB Ops run button missing `await` fixed (Promise always truthy → 503 never fired); EBS Ops connection dropdown replaces status pill (server_type filter).
-- 2026-06-08: FIX — DB Ops + EBS Ops: proxy SQL via agent channel (/api/run_sql, SELECT/WITH whitelist); capabilities hasSqlOps=true for cx_oracle_version; Copy SQL replaces SQL/Cmd button; EBS Ops hasEbs gate matches server_type='apps'|'both'. LATEST_PROXY_VERSION → 3.20.35.
+- 2026-06-08: FEAT — Autonomous monitoring fully working. Scheduler runs every 60s, picks up due connections from connection_schedules, runs HC automatically. Alert emails via Resend from noreply@tunevault.app. Delta-aware — only alerts on new/worsened findings. Boot recovery for stuck 'analyzing' HCs. 2-minute safety timeout on runAIAnalysis().
+- 2026-06-08: FEAT — Magic link emails working via Resend. Domain tunevault.app verified on Resend (Cloudflare auto-configured). RESEND_API_KEY set in Render. Both Google OAuth and magic link sign-in working.
+- 2026-06-08: FIX — Connection dropdowns broken on 14 pages — tvConn.parseList() and tvConn.bind() were called but never defined in connection-state.js. Fixed by adding both methods.
+- 2026-06-08: FEAT — Nav redesign: two-tier nav with slim top nav + context-sensitive page toolbar for export buttons. Mobile burger menu replaced with compact dropdown.
+- 2026-06-08: FIX — HC completion email for EBS app tier: counts were 0/0, now correctly reads from metrics.findings[] JSONB. DB tier email also fixed (hc.score → hc.overall_score, connection_name → name).
+
+## Pending Tasks (immediate — before go-live)
+1. DB Ops — full redesign and wiring (Run button, results display, all categories)
+2. EBS Ops — full redesign (service control panel, start/stop per component, JVM heap, concurrent requests)
+3. Export PDF — fix broken button on both DB and EBS reports
+4. Support agent setup — Claude API + Intercom/Crisp
+5. Outreach email templates
+6. Blog articles — 8 remaining stubs
+7. apex-lab agent install (Oracle 23ai)
+8. Autonomous monitoring UI — "Run now" button, status display after save
+9. HC completion email — populate Impact column for EBS findings
