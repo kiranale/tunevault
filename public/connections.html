@@ -559,8 +559,8 @@ function renderCard(c, isRemoved) {
     lastSeen = 'Added ' + timeAgo(c.created_at);
   }
 
-  // Health score from latest run
-  const healthScore = c.health && c.health.score !== undefined ? c.health.score : null;
+  // Health score from latest completed health check run (0-100 scale)
+  const healthScore = c.latest_hc_score !== null && c.latest_hc_score !== undefined ? c.latest_hc_score : null;
   const healthRow = healthScore !== null ? `
     <div class="health-bar"><div class="health-fill ${healthScore >= 80 ? 'good' : healthScore >= 60 ? 'warn' : 'bad'}"
          style="width:${healthScore}%"></div></div>
@@ -684,16 +684,20 @@ async function openSlideout(connId) {
         ⚠ Agent never phoned home. Token issued ${c.install_token_issued_minutes_ago ? c.install_token_issued_minutes_ago + 'm ago' : 'recently'}.
        </div>` : '';
 
-  // Health history (mock for now — pull from /api/connections/:id/health-history)
+  // Health history — latest completed HC run
   let healthHistory = '<div style="color:var(--muted);font-size:13px">No health checks yet.</div>';
-  if (c.health && c.health.score !== undefined) {
-    const score = c.health.score;
+  if (c.latest_hc_score !== null && c.latest_hc_score !== undefined) {
+    const score = c.latest_hc_score;
     const cls = score >= 80 ? 'good' : score >= 60 ? 'warn' : 'bad';
+    const viewLink = c.latest_hc_id
+      ? `<a href="/report/${c.latest_hc_id}" style="font-size:12px;color:var(--accent);margin-left:8px;text-decoration:none;">View report →</a>`
+      : '';
     healthHistory = `
       <div class="hc-list">
         <div class="hc-item">
           <span class="hc-score ${cls}">${score}</span>
-          <span class="hc-time">Latest run · ${timeAgo(c.health.run_at || c.updated_at)} ago</span>
+          <span class="hc-time">Latest run · ${timeAgo(c.latest_hc_at || c.updated_at)} ago</span>
+          ${viewLink}
         </div>
       </div>`;
   }

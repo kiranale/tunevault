@@ -546,56 +546,121 @@ window.tvNav = (function() {
   };
 
   // ── Dynamic connection list in Connections dropdown ─────────────────────────
-  // Fetches /api/connections and injects per-connection items into the dropdown.
-  // No server_type filtering — all active connections are shown.
+  // Fetches /api/connections + /api/health-checks and injects:
+  //   • per-connection quick-links (with score pill) at the top of the dropdown
+  //   • "Recent Reports" section (last 5 completed HCs) at the bottom
   function loadNavConnections() {
-    fetch('/api/connections', { credentials: 'include' })
+    var timeNavAgo = function(dateStr) {
+      var diff = Date.now() - new Date(dateStr).getTime();
+      var mins = Math.floor(diff / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return mins + 'm ago';
+      var hrs = Math.floor(mins / 60);
+      if (hrs < 24) return hrs + 'h ago';
+      return Math.floor(hrs / 24) + 'd ago';
+    };
+
+    var connsP = fetch('/api/connections', { credentials: 'include' })
       .then(function(r) { return r.ok ? r.json() : []; })
-      .then(function(rows) {
-        if (!Array.isArray(rows)) return;
-        var active = rows.filter(function(c) {
-          return c.name && c.id;
-        });
-        if (!active.length) return;
+      .catch(function() { return []; });
+    var hcsP = fetch('/api/health-checks', { credentials: 'include' })
+      .then(function(r) { return r.ok ? r.json() : []; })
+      .catch(function() { return []; });
 
-        // Use the stable ID added to the Connections dropdown menu.
-        var connMenu = document.getElementById('nav-connections-menu');
-        if (!connMenu) return; // not an authenticated page
+    Promise.all([connsP, hcsP]).then(function(results) {
+      var rows = results[0];
+      var hcs  = results[1];
+      if (!Array.isArray(rows)) return;
+      var active = rows.filter(function(c) { return c.name && c.id; });
+      if (!active.length) return;
 
-        // Guard against double-injection if loadNavConnections is called more than once
-        if (connMenu.querySelector('[data-nav-conn]')) return;
+      var connMenu = document.getElementById('nav-connections-menu');
+      if (!connMenu) return;
+      if (connMenu.querySelector('[data-nav-conn]')) return;
 
-        var typeLabel = function(c) {
-          if (c.server_type === 'apps' || c.server_type === 'both') return 'APP';
-          if (c.server_type === 'db') return 'DB';
-          if (c.is_ebs) return 'EBS';
-          return 'DB';
-        };
-        var divider = document.createElement('div');
-        divider.style.cssText = 'border-top:1px solid rgba(255,255,255,0.08);margin:4px 0;';
-        divider.setAttribute('data-nav-conn', '1');
-        connMenu.insertBefore(divider, connMenu.firstChild);
+      var typeLabel = function(c) {
+        if (c.server_type === 'apps' || c.server_type === 'both') return 'APP';
+        if (c.server_type === 'db') return 'DB';
+        if (c.is_ebs) return 'EBS';
+        return 'DB';
+      };
 
-        // Insert connections in reverse order so first connection ends up at top
-        for (var i = active.length - 1; i >= 0; i--) {
-          var c = active[i];
-          var a = document.createElement('a');
-          a.href = '/connections';
-          a.setAttribute('data-nav-conn', '1');
-          a.style.cssText = 'display:block;padding:8px 16px;text-decoration:none;color:#e8e8ed;transition:background 0.15s;';
-          a.onmouseover = function() { this.style.background = 'rgba(240,168,48,0.08)'; };
-          a.onmouseout  = function() { this.style.background = 'transparent'; };
-          a.innerHTML =
-            '<div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;">' +
-              (c.name || 'Connection #' + c.id) +
-              '<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(255,255,255,0.08);color:#9898a8;font-family:monospace;flex-shrink:0">' +
-                typeLabel(c) +
-              '</span>' +
-            '</div>';
-          connMenu.insertBefore(a, connMenu.firstChild);
+      // ── Per-connection quick-links (inserted before existing static items) ──
+      var divider = document.createElement('div');
+      divider.style.cssText = 'border-top:1px solid rgba(255,255,255,0.08);margin:4px 0;';
+      divider.setAttribute('data-nav-conn', '1');
+      connMenu.insertBefore(divider, connMenu.firstChild);
+
+      for (var i = active.length - 1; i >= 0; i--) {
+        var c = active[i];
+        var a = document.createElement('a');
+        a.href = c.latest_hc_id ? '/report/' + c.latest_hc_id : '/connections';
+        a.setAttribute('data-nav-conn', '1');
+        a.style.cssText = 'display:block;padding:8px 16px;text-decoration:none;color:#e8e8ed;transition:background 0.15s;';
+        a.onmouseover = function() { this.style.background = 'rgba(240,168,48,0.08)'; };
+        a.onmouseout  = function() { this.style.background = 'transparent'; };
+        var scoreHtml = '';
+        if (c.latest_hc_score !== null && c.latest_hc_score !== undefined) {
+          var sc = c.latest_hc_score;
+          var scColor = sc >= 80 ? '#34d399' : sc >= 60 ? '#fbbf24' : '#f87171';
+          scoreHtml = '<span style="font-size:11px;color:' + scColor + ';font-weight:600;margin-left:auto;padding-left:8px;flex-shrink:0;">' + sc + '</span>';
         }
-      })
-      .catch(function() {}); // silent fail — nav still works without dynamic connections
+        a.innerHTML =
+          '<div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;">' +
+            (c.name || 'Connection #' + c.id) +
+            '<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(255,255,255,0.08);color:#9898a8;font-family:monospace;flex-shrink:0">' +
+              typeLabel(c) +
+            '</span>' +
+            scoreHtml +
+          '</div>';
+        connMenu.insertBefore(a, connMenu.firstChild);
+      }
+
+      // ── Recent Reports section (appended at bottom of dropdown) ──
+      var recentHcs = Array.isArray(hcs)
+        ? hcs.filter(function(h) { return h.status === 'completed'; }).slice(0, 5)
+        : [];
+      if (recentHcs.length > 0) {
+        var rDivider = document.createElement('div');
+        rDivider.setAttribute('data-nav-conn', '1');
+        rDivider.style.cssText = 'border-top:1px solid rgba(255,255,255,0.08);margin:4px 0;';
+        connMenu.appendChild(rDivider);
+
+        var rHeader = document.createElement('div');
+        rHeader.setAttribute('data-nav-conn', '1');
+        rHeader.style.cssText = 'padding:6px 16px 2px;font-size:10px;font-weight:600;letter-spacing:.06em;color:#6b6b7a;text-transform:uppercase;';
+        rHeader.textContent = 'Recent Reports';
+        connMenu.appendChild(rHeader);
+
+        recentHcs.forEach(function(hc) {
+          var score = hc.overall_score;
+          var scColor = score >= 80 ? '#34d399' : score >= 60 ? '#fbbf24' : '#f87171';
+          var timeStr = hc.completed_at ? timeNavAgo(hc.completed_at) : '';
+          var hcEl = document.createElement('a');
+          hcEl.href = '/report/' + hc.id;
+          hcEl.setAttribute('data-nav-conn', '1');
+          hcEl.style.cssText = 'display:block;padding:7px 16px;text-decoration:none;color:#e8e8ed;transition:background 0.15s;';
+          hcEl.onmouseover = function() { this.style.background = 'rgba(240,168,48,0.08)'; };
+          hcEl.onmouseout  = function() { this.style.background = 'transparent'; };
+          hcEl.innerHTML =
+            '<div style="display:flex;align-items:center;gap:8px;font-size:12px;">' +
+              '<span style="font-weight:600;color:' + scColor + ';min-width:28px;">' + score + '</span>' +
+              '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#c8c8d4;">' + (hc.connection_name || 'Unknown') + '</span>' +
+              (timeStr ? '<span style="font-size:11px;color:#6b6b7a;flex-shrink:0;">' + timeStr + '</span>' : '') +
+            '</div>';
+          connMenu.appendChild(hcEl);
+        });
+
+        var allLink = document.createElement('a');
+        allLink.href = '/reports';
+        allLink.setAttribute('data-nav-conn', '1');
+        allLink.style.cssText = 'display:block;padding:7px 16px 9px;text-decoration:none;color:var(--accent);font-size:12px;transition:background 0.15s;';
+        allLink.onmouseover = function() { this.style.background = 'rgba(240,168,48,0.08)'; };
+        allLink.onmouseout  = function() { this.style.background = 'transparent'; };
+        allLink.textContent = 'All Reports →';
+        connMenu.appendChild(allLink);
+      }
+    }).catch(function() {}); // silent fail — nav still works without dynamic data
   }
 
 })();

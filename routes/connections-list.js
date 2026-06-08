@@ -55,6 +55,29 @@ const LATEST_AGENT_VERSION = '7.5.0';
 
 const router = express.Router();
 
+// ── Batch latest HC score helper ──────────────────────────────────────────────
+// Fetches the most-recent completed health_checks row per connection.
+// Returns a map: { connectionId → { hc_id, score, created_at } }
+async function getLatestHcScores(connIds) {
+  if (!connIds || connIds.length === 0) return {};
+  try {
+    const result = await pool.query(
+      `SELECT DISTINCT ON (connection_id) connection_id, id AS hc_id, overall_score, created_at
+       FROM health_checks
+       WHERE connection_id = ANY($1::int[]) AND status = 'completed'
+       ORDER BY connection_id, created_at DESC`,
+      [connIds]
+    );
+    const map = {};
+    result.rows.forEach(r => {
+      map[r.connection_id] = { hc_id: r.hc_id, score: r.overall_score, created_at: r.created_at };
+    });
+    return map;
+  } catch (_) {
+    return {};
+  }
+}
+
 // ── Batch restart-count helper ────────────────────────────────────────────────
 // Fetches restart counts (1h + 24h) for a list of connection IDs in one query.
 // Returns a map: { connectionId → { count_1h, count_24h } }
@@ -144,9 +167,10 @@ router.get('/connections', requireAuth, async (req, res) => {
     // Attach latest health run and latest diagnose run to each connection (single batch queries)
     const latestRunsMap = await healthDb.getLatestRunsForUser(req.user.id);
     const connIds = result.rows.map(r => r.id);
-    const [diagnoseMap, restartCountsMap] = await Promise.all([
+    const [diagnoseMap, restartCountsMap, latestHcMap] = await Promise.all([
       diagnoseDb.getLatestDiagnoseRunsForConnections(connIds),
       getBatchRestartCounts(connIds),
+      getLatestHcScores(connIds),
     ]);
 
     const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
@@ -169,9 +193,13 @@ router.get('/connections', requireAuth, async (req, res) => {
         : null;
 
       const restartCounts = restartCountsMap[row.id] || { count_1h: 0, count_24h: 0 };
+      const latestHc = latestHcMap[row.id] || null;
       const enriched = {
         ...row,
         health: healthDb.deriveHealthStatus(run),
+        latest_hc_score: latestHc ? latestHc.score : null,
+        latest_hc_id: latestHc ? latestHc.hc_id : null,
+        latest_hc_at: latestHc ? latestHc.created_at : null,
         proxy_upgrade_available: proxyUpgradeAvailable,
         latest_proxy_version: LATEST_PROXY_VERSION,
         agent_upgrade_available: agentUpgradeAvailable,
