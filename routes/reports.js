@@ -630,7 +630,7 @@ function drawEbsAdop(doc, y, ebs) {
 
 // ── Full PDF renderers (DB-only, EBS-only, Combined) ──────────────────────────
 
-function generateDbPDF(data) {
+function generateDbPDF(data, out) {
   const doc = new PDFDocument({
     size: 'A4',
     margins: { top: MG, bottom: MG, left: MG, right: MG },
@@ -643,6 +643,7 @@ function generateDbPDF(data) {
     bufferPages: true,
     autoFirstPage: true,
   });
+  if (out) doc.pipe(out);
 
   const m = data.metrics || {};
   let y = drawDbCoverPage(doc, data);
@@ -666,7 +667,7 @@ function generateDbPDF(data) {
   return doc;
 }
 
-function generateEbsPDF(data) {
+function generateEbsPDF(data, out) {
   const doc = new PDFDocument({
     size: 'A4',
     margins: { top: MG, bottom: MG, left: MG, right: MG },
@@ -679,6 +680,7 @@ function generateEbsPDF(data) {
     bufferPages: true,
     autoFirstPage: true,
   });
+  if (out) doc.pipe(out);
 
   const m = data.metrics || {};
   const ebs = m.ebs_operations || {};
@@ -702,7 +704,7 @@ function generateEbsPDF(data) {
   return doc;
 }
 
-function generateCombinedPDF(data) {
+function generateCombinedPDF(data, out) {
   const doc = new PDFDocument({
     size: 'A4',
     margins: { top: MG, bottom: MG, left: MG, right: MG },
@@ -715,6 +717,7 @@ function generateCombinedPDF(data) {
     bufferPages: true,
     autoFirstPage: true,
   });
+  if (out) doc.pipe(out);
 
   const m = data.metrics || {};
   const ebs = m.ebs_operations || {};
@@ -1119,7 +1122,7 @@ router.get('/demo/db', requireAuth, async (req, res) => {
     }
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="tunevault-demo-db-${date}.pdf"`);
-    generateDbPDF(data).pipe(res);
+    generateDbPDF(data, res);
   } catch (err) {
     console.error('[reports] demo db error', err.message);
     if (!res.headersSent) res.status(500).json({ error: 'Failed to generate demo report' });
@@ -1157,7 +1160,7 @@ router.get('/:connectionId/db', requireAuth, requireRole('junior_dba'), async (r
     const filename = `tunevault-db-${instance}-${date}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    generateDbPDF(data).pipe(res);
+    generateDbPDF(data, res);
   } catch (err) {
     console.error('[reports] db error', err.message);
     if (!res.headersSent) res.status(500).json({ error: 'Failed to generate DB report' });
@@ -1199,7 +1202,7 @@ router.get('/:connectionId/ebs', requireAuth, requireRole('junior_dba'), async (
     const filename = `tunevault-ebs-${instance}-${date}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    generateEbsPDF(data).pipe(res);
+    generateEbsPDF(data, res);
   } catch (err) {
     console.error('[reports] ebs error', err.message);
     if (!res.headersSent) res.status(500).json({ error: 'Failed to generate EBS report' });
@@ -1238,7 +1241,7 @@ router.get('/:connectionId/combined', requireAuth, requireRole('junior_dba'), as
     const filename = `tunevault-full-${instance}-${date}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    generateCombinedPDF(data).pipe(res);
+    generateCombinedPDF(data, res);
   } catch (err) {
     console.error('[reports] combined error', err.message);
     if (!res.headersSent) res.status(500).json({ error: 'Failed to generate combined report' });

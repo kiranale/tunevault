@@ -511,7 +511,6 @@ function buildExportPDF(hc, checks, opts) {
 
   // ── FINAL PAGE FOOTER ─────────────────────────────────────────────────────────
   drawFooter(doc, hc, agentVer, genAtUTC);
-  doc.end();
   return doc;
 }
 
@@ -635,6 +634,7 @@ router.get('/:run_id/export', requireAuth, async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     const pdfDoc = buildExportPDF(hc, checks, { connection_name: connectionName, agent_version: agentVer });
     pdfDoc.pipe(res);
+    pdfDoc.end();
   } catch (err) {
     console.error('[hc-export] error:', err.message, err.stack);
     if (!res.headersSent) {
