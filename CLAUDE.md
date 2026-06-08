@@ -126,38 +126,33 @@ Node.js + Express, PostgreSQL (Neon), Render deployment. Vanilla JS frontend (no
 
 All Add Connection links in the app MUST point to `/connections/new` — the single canonical v6 wizard (routes/ssh-install.js). `/setup/fresh` is a 301 permanent redirect to it as of 2026-05-22. Adding a new entry point? Verify it points to `/connections/new`, not `/setup/fresh`.
 
-## Known Issues (as of 2026-06-08)
+## Known Issues (as of 2026-06-09)
 
 🟡 High:
-- Export PDF button broken — not fixed in any session.
+- AI summary not showing on EBS app tier health checks — runAIAnalysis() is called (3.20.7+, verified by [ai] log), but summary text not surfacing in report UI. Needs investigation on live HC run with ebs12212-app-dev.
 - apex-lab (192.168.56.101, OEL 8.10, Oracle 23ai) — agent never installed.
-- DB Ops Run button — hasSqlOps verification needed end-to-end.
-- EBS Ops cards — need full redesign and wiring (service control panel, start/stop per component).
-- HC completion email — Impact column shows "—" for EBS findings (metrics.findings[] structure differs from DB findings).
+- EBS Ops cards — need full redesign and wiring (service control panel, start/stop per component). NOT started — review/design required before implementation.
 - forms-c4ws_server1 showing as critical — optional server, should be warning or skipped.
 - App tier score showing 30 instead of 15 — investigate scoring logic for EBS app tier.
 
 🟢 Low:
-- Blog articles still need seeding — run `npm run seed-blog` in Render shell, or POST /api/admin/seed-blog (admin-only, idempotent).
-- ~20 debug/fix/verify scripts in repo root (fix-all.js, check-emdash.js, debug-nav.js etc.) — move to scripts/debug/ or delete.
+- Blog articles need seeding to DB — run `node scripts/seed-blog.js` in Render shell, or POST /api/admin/seed-blog. AWR/ASH, 19c upgrade, tablespace mgmt are now full articles; 5 stubs remain.
+- ~20 debug/fix/verify scripts in repo root — move to scripts/debug/ or delete.
 - README.md CI badge URLs point to Polsia-Inc/tunevault — should be kiranale/tunevault.
 - OPP check not yet added to EBS app tier checks.
 
 ## Recent changes
 
-- 2026-06-08: FEAT — Autonomous monitoring fully working. Scheduler runs every 60s, picks up due connections from connection_schedules, runs HC automatically. Alert emails via Resend from noreply@tunevault.app. Delta-aware — only alerts on new/worsened findings. Boot recovery for stuck 'analyzing' HCs. 2-minute safety timeout on runAIAnalysis().
-- 2026-06-08: FEAT — Magic link emails working via Resend. Domain tunevault.app verified on Resend (Cloudflare auto-configured). RESEND_API_KEY set in Render. Both Google OAuth and magic link sign-in working.
-- 2026-06-08: FIX — Connection dropdowns broken on 14 pages — tvConn.parseList() and tvConn.bind() were called but never defined in connection-state.js. Fixed by adding both methods.
-- 2026-06-08: FEAT — Nav redesign: two-tier nav with slim top nav + context-sensitive page toolbar for export buttons. Mobile burger menu replaced with compact dropdown.
+- 2026-06-09: FIX — HC completion email Impact column: f.detail → f.details (plural) for EBS app tier findings. The field is `details` in the proxy findings structure; f.detail was always undefined so Impact showed "—".
+- 2026-06-09: FIX — DB Ops Run endpoint: removed stale cxOracleVersion pre-check that blocked runs when oracle_connections.cx_oracle_version was null (stale metadata). The proxy's /api/run_sql already handles no-driver case. Consistent with hasSqlOps=agentOnline from capabilities.
+- 2026-06-09: FIX — PDF export: all PDF generators (generateDbPDF, generateEbsPDF, generateCombinedPDF in reports.js; buildExportPDF in health-check-export.js) called doc.end() before pipe(res) — wrong Node.js stream order causing the HTTP response to hang. Fixed by piping inside the generator functions (before end) for reports.js, and pdfDoc.pipe(res) then pdfDoc.end() for health-check-export.js.
+- 2026-06-09: FEAT — 3 full blog articles: oracle-awr-ash-analysis, oracle-19c-upgrade-from-12c, oracle-tablespace-management. DB Time analysis, AWR wait tables, ASH drill-down SQL; AutoUpgrade config + post-upgrade tasks; autoextend framework, growth trend SQL, UNDO formula. Run seed-blog to publish.
 - 2026-06-08: FIX — HC completion email for EBS app tier: counts were 0/0, now correctly reads from metrics.findings[] JSONB. DB tier email also fixed (hc.score → hc.overall_score, connection_name → name).
 
 ## Pending Tasks (immediate — before go-live)
-1. DB Ops — full redesign and wiring (Run button, results display, all categories)
-2. EBS Ops — full redesign (service control panel, start/stop per component, JVM heap, concurrent requests)
-3. Export PDF — fix broken button on both DB and EBS reports
-4. Support agent setup — Claude API + Intercom/Crisp
-5. Outreach email templates
-6. Blog articles — 8 remaining stubs
-7. apex-lab agent install (Oracle 23ai)
-8. Autonomous monitoring UI — "Run now" button, status display after save
-9. HC completion email — populate Impact column for EBS findings
+1. EBS Ops — full redesign (service control panel, start/stop per component, JVM heap, concurrent requests) — NEEDS DESIGN REVIEW FIRST
+2. Support agent setup — Claude API + Intercom/Crisp
+3. Outreach email templates
+4. Blog articles — 5 remaining stubs (adop-patching, rac-troubleshooting, data-guard, ebs-performance-tuning, ebs-oci-cloning, security-hardening)
+5. apex-lab agent install (Oracle 23ai)
+6. Autonomous monitoring UI — "Run now" button, status display after save
