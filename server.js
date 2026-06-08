@@ -7523,37 +7523,44 @@ app.locals.runHealthCheckForConnection = runScheduledHealthCheck;
 
 // Tick every 60 seconds — find due connections and run them
 function startScheduler() {
+  const schedulesDb = require('./db/schedules');
   cron.schedule('* * * * *', async () => {
     try {
-      // Find all connections due for a scheduled run
-      const result = await pool.query(
-        `SELECT oc.id, oc.name, oc.host, oc.port, oc.service_name, oc.username,
-                oc.encrypted_password, oc.connection_type, oc.proxy_url, oc.proxy_api_key_enc,
-                oc.schedule_cron, oc.user_id, oc.server_type,
-                oc.apps_pwd_enc, oc.weblogic_pwd_enc
-         FROM oracle_connections oc
-         WHERE oc.schedule_enabled = true
-           AND oc.next_scheduled_run_at <= NOW()`
-      );
+      const [countRow, due] = await Promise.all([
+        pool.query(`SELECT COUNT(*) FROM connection_schedules
+                    WHERE enabled = true
+                      AND (snoozed_until IS NULL OR snoozed_until < NOW())`),
+        schedulesDb.getDueSchedules(),
+      ]);
+      const total = parseInt(countRow.rows[0].count, 10);
+      console.log(`[scheduler] tick — checked ${total} connection(s), ${due.length} due`);
+      if (due.length === 0) return;
 
-      if (result.rows.length === 0) return;
-      console.log(`[scheduler] ${result.rows.length} connection(s) due for scheduled run`);
+      for (const schedule of due) {
+        // Advance next_run_at first (prevents double-fire if run takes > 60s)
+        await schedulesDb.advanceSchedule(schedule.id, schedule.cadence_minutes);
 
-      for (const conn of result.rows) {
-        // Update timestamps first (prevents double-fire if run takes > 60s)
-        const nextRun = computeNextRunAt(conn.schedule_cron);
-        await pool.query(
-          `UPDATE oracle_connections
-           SET last_scheduled_run_at = NOW(), next_scheduled_run_at = $1
-           WHERE id = $2`,
-          [nextRun, conn.id]
-        );
+        const conn = {
+          id:                 schedule.connection_id,
+          name:               schedule.connection_name,
+          host:               schedule.host,
+          port:               schedule.port,
+          service_name:       schedule.service_name,
+          username:           schedule.username,
+          encrypted_password: schedule.encrypted_password,
+          connection_type:    schedule.connection_type,
+          proxy_url:          schedule.proxy_url,
+          proxy_api_key_enc:  schedule.proxy_api_key_enc,
+          user_id:            schedule.user_id,
+          server_type:        schedule.server_type,
+          apps_pwd_enc:       schedule.apps_pwd_enc,
+          weblogic_pwd_enc:   schedule.weblogic_pwd_enc,
+        };
 
         // Check free-tier guard
         const access = await isScheduledRunAllowed(conn.user_id);
         if (!access.allowed) {
           console.log(`[scheduler] Skipping conn ${conn.id} (${conn.name}): ${access.reason}`);
-          // Write a blocked row so it's visible in history
           const runId = crypto.randomUUID();
           await pool.query(
             `INSERT INTO check_results

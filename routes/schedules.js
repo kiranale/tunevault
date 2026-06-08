@@ -24,7 +24,7 @@ const router = express.Router();
 
 // ── Validate cadence ──────────────────────────────────────────────────────────
 
-const ALLOWED_CADENCES = new Set([60, 240, 720, 1440]); // 1h, 4h, 12h, 24h
+const ALLOWED_CADENCES = new Set([15, 30, 60, 120, 240, 480, 1440]); // 15m, 30m, 1h, 2h, 4h, 8h, 24h
 
 // ── User endpoints ────────────────────────────────────────────────────────────
 
@@ -52,9 +52,9 @@ router.get('/connection/:id', requireAuth, async (req, res) => {
   }
 });
 
-// PUT /api/schedules/connection/:id — upsert schedule config — senior_dba+
+// PUT /api/schedules/connection/:id — upsert schedule config
 // Body: { cadence_minutes, enabled, alert_email, severity_threshold }
-router.put('/connection/:id', requireAuth, requireRole('senior_dba'), async (req, res) => {
+router.put('/connection/:id', requireAuth, async (req, res) => {
   const connId = parseInt(req.params.id, 10);
   if (!connId) return res.status(400).json({ error: 'Invalid connection id' });
 
@@ -71,8 +71,8 @@ router.put('/connection/:id', requireAuth, requireRole('senior_dba'), async (req
     return res.status(400).json({ error: 'alert_email must be a valid email address' });
   }
   const threshold = severity_threshold || 'amber';
-  if (!['amber', 'red'].includes(threshold)) {
-    return res.status(400).json({ error: 'severity_threshold must be amber or red' });
+  if (!['amber', 'red', 'info'].includes(threshold)) {
+    return res.status(400).json({ error: 'severity_threshold must be red, amber, or info' });
   }
 
   try {
@@ -99,6 +99,38 @@ router.put('/connection/:id', requireAuth, requireRole('senior_dba'), async (req
   } catch (err) {
     console.error('[schedules] PUT error:', err.message);
     res.status(500).json({ error: 'Failed to save schedule' });
+  }
+});
+
+// POST /api/schedules/connection/:id/snooze — snooze alerts for N hours (UI-triggered, auth required)
+router.post('/connection/:id/snooze', requireAuth, async (req, res) => {
+  const connId = parseInt(req.params.id, 10);
+  if (!connId) return res.status(400).json({ error: 'Invalid connection id' });
+  const hours = Math.min(Math.max(parseInt((req.body || {}).hours, 10) || 1, 1), 168);
+
+  try {
+    const { rows: connRows } = await pool.query(
+      'SELECT id, user_id FROM oracle_connections WHERE id = $1',
+      [connId]
+    );
+    if (!connRows[0]) return res.status(404).json({ error: 'Connection not found' });
+    if (connRows[0].user_id && connRows[0].user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const { rows } = await pool.query(
+      `UPDATE connection_schedules
+       SET snoozed_until = NOW() + ($1 * INTERVAL '1 hour'), updated_at = NOW()
+       WHERE connection_id = $2
+       RETURNING snoozed_until`,
+      [hours, connId]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'No schedule configured for this connection' });
+    console.log(`[schedules] conn ${connId} snoozed ${hours}h by user ${req.user.id}`);
+    res.json({ snoozed_until: rows[0].snoozed_until });
+  } catch (err) {
+    console.error('[schedules] snooze error:', err.message);
+    res.status(500).json({ error: 'Failed to snooze alerts' });
   }
 });
 

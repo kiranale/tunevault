@@ -330,6 +330,21 @@
     .save-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.2); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* Monitoring section */
+    .mon-toggle-label { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; }
+    .mon-toggle-label input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+    #mon-details .field-group { margin-bottom: 12px; }
+    /* Snooze row */
+    .snooze-row { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; }
+    .snooze-row .icon { font-size: 18px; width: 24px; text-align: center; margin-top: 2px; }
+    .snooze-row .snooze-body { flex: 1; }
+    .snooze-row .snooze-label { font-size: 13px; font-weight: 500; margin-bottom: 6px; }
+    .snooze-controls { display: flex; gap: 8px; align-items: center; }
+    .snooze-select {
+      background: var(--bg3); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text); font-size: 12px; padding: 5px 8px; cursor: pointer; font-family: inherit;
+    }
+
     @media (max-width: 600px) {
       .servers-grid { grid-template-columns: 1fr; }
       .slideout { width: 100%; }
@@ -774,6 +789,23 @@ async function openSlideout(connId) {
               <div class="sub">Change name, credentials, or EBS passwords</div>
             </div>
           </button>
+          <div class="snooze-row">
+            <span class="icon">🔕</span>
+            <div class="snooze-body">
+              <div class="snooze-label">Snooze alerts</div>
+              <div class="snooze-controls">
+                <select id="snooze-duration-${c.id}" class="snooze-select">
+                  <option value="1">1 hour</option>
+                  <option value="4">4 hours</option>
+                  <option value="8">8 hours</option>
+                  <option value="24">24 hours</option>
+                  <option value="168">1 week</option>
+                </select>
+                <button class="btn btn-secondary" style="padding:4px 12px;font-size:12px"
+                        onclick="applySnooze(${c.id})">Apply</button>
+              </div>
+            </div>
+          </div>
           <hr class="so-divider"/>
           <button class="so-action-btn danger-btn" onclick="confirmDelete(${c.id})">
             <span class="icon">🗑</span>
@@ -1045,6 +1077,54 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ── Edit connection panel ─────────────────────────────────────────────────────
+function buildMonitoringSection(connId, schedule) {
+  const enabled    = !!(schedule && schedule.enabled);
+  const cadence    = (schedule && schedule.cadence_minutes) || 60;
+  const email      = (schedule && schedule.alert_email) || '';
+  const threshold  = (schedule && schedule.severity_threshold) || 'amber';
+  const snoozedUntil = schedule && schedule.snoozed_until && new Date(schedule.snoozed_until) > new Date()
+    ? new Date(schedule.snoozed_until).toLocaleString() : null;
+
+  const cadenceOptions = [[15,'Every 15 minutes'],[30,'Every 30 minutes'],[60,'Every 1 hour'],
+    [120,'Every 2 hours'],[240,'Every 4 hours'],[480,'Every 8 hours'],[1440,'Every 24 hours']]
+    .map(([v,l]) => `<option value="${v}"${cadence===v?' selected':''}>${l}</option>`).join('');
+
+  const thresholdOptions = [['red','Critical only'],['amber','Warning and above'],['info','Info and above']]
+    .map(([v,l]) => `<option value="${v}"${threshold===v?' selected':''}>${l}</option>`).join('');
+
+  return `
+    <hr class="so-divider" style="margin:20px 0"/>
+    <div class="so-section">
+      <div class="so-section-title">⏱ Autonomous Monitoring</div>
+      <div class="edit-form" style="gap:14px">
+        <label class="mon-toggle-label">
+          <input type="checkbox" id="mon-enabled"${enabled?' checked':''}
+                 onchange="document.getElementById('mon-details').style.display=this.checked?'':'none'"/>
+          Enable scheduled health checks
+        </label>
+        <div id="mon-details"${enabled?'':' style="display:none"'}>
+          <div class="field-group">
+            <label class="field-label">Cadence</label>
+            <select class="field-input" id="mon-cadence">${cadenceOptions}</select>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Alert email</label>
+            <input class="field-input" id="mon-email" type="email"
+                   value="${esc(email)}" placeholder="alerts@example.com"/>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Alert on</label>
+            <select class="field-input" id="mon-threshold">${thresholdOptions}</select>
+          </div>
+        </div>
+        ${snoozedUntil ? `<div style="font-size:12px;color:var(--yellow)">🔕 Alerts snoozed until ${snoozedUntil}</div>` : ''}
+        <div class="edit-actions" style="margin-top:4px">
+          <button class="btn btn-primary" id="btn-save-monitoring" onclick="saveMonitoring(${connId})">Save Monitoring Settings</button>
+        </div>
+      </div>
+    </div>`;
+}
+
 async function openEditPanel(connId) {
   const c = allConnections.find(x => x.id === connId);
   if (!c) return;
@@ -1052,6 +1132,10 @@ async function openEditPanel(connId) {
   document.getElementById('so-title').textContent = 'Edit Connection';
   document.getElementById('slideout-overlay').classList.add('open');
   document.getElementById('slideout').classList.add('open');
+  document.getElementById('so-body').innerHTML = '<div style="padding:40px 24px;color:var(--muted);font-size:14px">Loading…</div>';
+
+  const schedRes = await api(`/api/schedules/connection/${connId}`).catch(() => null);
+  const schedule = (schedRes && schedRes.ok) ? (await schedRes.json().catch(() => ({}))).schedule : null;
 
   document.getElementById('so-body').innerHTML = `
     <div class="so-section">
@@ -1121,6 +1205,7 @@ async function openEditPanel(connId) {
         <button class="btn btn-secondary" onclick="openSlideout(${c.id})">Cancel</button>
       </div>
     </div>
+    ${buildMonitoringSection(c.id, schedule)}
   `;
 }
 
@@ -1223,6 +1308,57 @@ function showToast(msg, type) {
   el.textContent = msg;
   document.body.appendChild(el);
   setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 3500);
+}
+
+async function saveMonitoring(connId) {
+  const btn = document.getElementById('btn-save-monitoring');
+  if (!btn) return;
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  const enabled   = document.getElementById('mon-enabled').checked;
+  const cadence_minutes   = parseInt(document.getElementById('mon-cadence').value, 10);
+  const alert_email       = (document.getElementById('mon-email').value || '').trim();
+  const severity_threshold = document.getElementById('mon-threshold').value;
+
+  if (enabled && !alert_email) {
+    showToast('Alert email is required when monitoring is enabled', 'error');
+    btn.disabled = false; btn.textContent = 'Save Monitoring Settings';
+    return;
+  }
+
+  const res = await api(`/api/schedules/connection/${connId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled, cadence_minutes, alert_email: alert_email || 'noreply@tunevault.app', severity_threshold }),
+  });
+
+  if (res && res.ok) {
+    showToast('Monitoring settings saved', 'success');
+    btn.disabled = false; btn.textContent = 'Saved ✓';
+  } else {
+    let msg = 'Failed to save monitoring settings';
+    try { const b = await res.json(); if (b.error) msg = b.error; } catch (_) {}
+    showToast(msg, 'error');
+    btn.disabled = false; btn.textContent = 'Save Monitoring Settings';
+  }
+}
+
+async function applySnooze(connId) {
+  const sel = document.getElementById(`snooze-duration-${connId}`);
+  const hours = parseInt(sel ? sel.value : '1', 10);
+  const res = await api(`/api/schedules/connection/${connId}/snooze`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ hours }),
+  });
+  if (res && res.ok) {
+    showToast(`Alerts snoozed for ${hours} hour${hours !== 1 ? 's' : ''}`, 'success');
+  } else if (res && res.status === 404) {
+    showToast('No monitoring schedule configured — set one up in Edit Connection', 'warn');
+  } else {
+    showToast('Failed to snooze alerts', 'error');
+  }
 }
 
 // ── Boot ─────────────────────────────────────────────────────────────────────

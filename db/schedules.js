@@ -59,7 +59,8 @@ async function getDueSchedules() {
   const { rows } = await pool.query(
     `SELECT cs.*, oc.name AS connection_name, oc.host, oc.port, oc.service_name,
             oc.username, oc.encrypted_password, oc.connection_type, oc.proxy_url,
-            oc.proxy_api_key_enc
+            oc.proxy_api_key_enc, oc.user_id, oc.server_type,
+            oc.apps_pwd_enc, oc.weblogic_pwd_enc
      FROM connection_schedules cs
      JOIN oracle_connections oc ON oc.id = cs.connection_id
      WHERE cs.enabled = true
