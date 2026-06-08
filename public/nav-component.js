@@ -191,19 +191,19 @@ window.tvNav = (function() {
 
   function buildMobileMenuStyle() {
     return '<style>' +
-      '/* Dropdown visibility — desktop: shown by class, hidden by default */' +
       '.tv-dropdown-menu{display:none;}' +
       '.tv-dropdown-menu.tv-open{display:block;}' +
-      '@media(max-width:1200px){' +
+      '@media(max-width:860px){' +
         '#tv-hamburger{display:block!important;}' +
-        '.nav-right{display:none!important;flex-direction:column!important;position:fixed!important;top:60px!important;right:0!important;width:min(280px,85vw)!important;height:calc(100vh - 60px)!important;background:var(--bg-card,#1a1a22)!important;border-left:1px solid var(--border,#2a2a30)!important;border-bottom:none!important;padding:16px!important;gap:4px!important;z-index:9999!important;overflow-y:auto!important;box-shadow:-4px 0 20px rgba(0,0,0,0.4)!important;}' +
+        '.nav-right{display:none!important;flex-direction:column!important;position:absolute!important;top:calc(100% + 6px)!important;right:0!important;min-width:220px!important;background:#111114!important;border:1px solid #2a2a30!important;border-radius:10px!important;padding:6px 0!important;gap:0!important;z-index:9999!important;box-shadow:0 8px 28px rgba(0,0,0,0.55)!important;overflow:hidden!important;}' +
         '.nav-right.tv-mobile-open{display:flex!important;}' +
-        '.tv-mobile-overlay{display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.3);}' +
-        '.tv-mobile-overlay.tv-mobile-open{display:block;}' +
-        '.tv-dropdown-menu{position:static!important;box-shadow:none!important;border:none!important;background:transparent!important;padding-left:12px!important;}' +
+        '.nav-right>a,.nav-right>button{padding:10px 18px!important;width:100%!important;box-sizing:border-box!important;border-radius:0!important;border:none!important;text-align:left!important;}' +
+        '.nav-right>.tv-dropdown{display:block!important;width:100%!important;position:static!important;}' +
+        '.nav-right>.tv-dropdown>button{padding:10px 18px!important;width:100%!important;box-sizing:border-box!important;border-radius:0!important;border:none!important;text-align:left!important;}' +
+        '.tv-dropdown-menu{position:static!important;box-shadow:none!important;border:none!important;background:rgba(255,255,255,0.03)!important;padding-left:12px!important;border-radius:0!important;}' +
         '.tv-dropdown-menu.tv-mobile-open{display:block!important;}' +
       '}' +
-    '</style><div class="tv-mobile-overlay" id="tv-mobile-overlay" onclick="tvNavToggleMobile()"></div>';
+    '</style>';
   }
 
   function buildNav(type, user, isAdmin, hasEbs) {
@@ -239,13 +239,6 @@ window.tvNav = (function() {
     // ── AUTHENTICATED APP NAV ──────────────────────────────────────────────────
     var AUTH_TYPES = { dashboard:1, 'ebs-deep':1, fleet:1, 'sql-tuning':1, report:1, 'db-ops':1, 'ebs-ops':1, 'ebs-concurrent':1, 'sanity-check':1, activity:1, manager:1, pricing:1, connections:1, settings:1, billing:1, 'connection-targets':1, 'ebs-clone':1, 'ebs-control-exec':1, security:1, 'ebs-middleware':1, 'ebs-patches':1, 'ebs-status-sources':1, 'os-diagnostics':1, 'ebs-log-tail':1, fndload:1 };
     if (isLoggedIn && AUTH_TYPES[type]) {
-      if (type === 'report') {
-        rightHtml += '<span id="navActions" style="display:inline-flex;align-items:center;gap:8px;"></span>';
-        rightHtml += '<a href="/connections" style="' + reportBtnStyle + '" onmouseover="' + reportBtnHover + '" onmouseout="' + reportBtnOut + '">New Check</a>';
-        rightHtml += '<a href="/reports" style="' + reportBtnStyle + '" onmouseover="' + reportBtnHover + '" onmouseout="' + reportBtnOut + '">All Reports</a>';
-        rightHtml += '<span style="width:1px;height:16px;background:rgba(255,255,255,0.12);margin:0 4px;"></span>';
-      }
-
       // Dashboard
       rightHtml += '<a href="/dashboard" style="' + currentLinkStyle + (type === 'dashboard' ? 'color:var(--accent);' : '') + '" onmouseover="' + (type === 'dashboard' ? "this.style.opacity='0.75'" : linkHover) + '" onmouseout="' + (type === 'dashboard' ? "this.style.opacity='1'" : linkOut) + '">Dashboard</a>';
 
@@ -685,18 +678,20 @@ function tvNavToggleDropdown(btn) {
 
 function tvNavToggleMobile() {
   var navRight = document.querySelector('#nav-root .nav-right');
-  var overlay = document.getElementById('tv-mobile-overlay');
   if (!navRight) return;
   navRight.classList.toggle('tv-mobile-open');
-  if (overlay) overlay.classList.toggle('tv-mobile-open');
 }
 
-// Close dropdowns when clicking outside
+// Close dropdowns + mobile nav when clicking outside
 document.addEventListener('click', function(e) {
   if (!e.target.closest('.tv-dropdown')) {
     document.querySelectorAll('.tv-dropdown-menu').forEach(function(m) {
       m.classList.remove('tv-open');
     });
+  }
+  if (!e.target.closest('#nav-root .nav-right') && !e.target.closest('#tv-hamburger')) {
+    var navRight = document.querySelector('#nav-root .nav-right');
+    if (navRight) navRight.classList.remove('tv-mobile-open');
   }
 });
 

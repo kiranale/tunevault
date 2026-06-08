@@ -48,6 +48,22 @@
             display: flex; justify-content: space-between; align-items: center;
             padding: 16px 48px; max-width: 1400px; margin: 0 auto;
         }
+        /* ── Page toolbar: action buttons below nav ── */
+        .page-toolbar {
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+            padding: 10px 48px;
+            background: rgba(10,10,12,0.97);
+            border-bottom: 1px solid var(--border);
+        }
+        .toolbar-link {
+            font-size: 13px; color: var(--text); text-decoration: none;
+            padding: 7px 14px; border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 6px; transition: all 0.2s; white-space: nowrap;
+        }
+        .toolbar-link:hover { border-color: var(--accent); color: var(--accent); }
+        .toolbar-sep {
+            width: 1px; height: 20px; background: rgba(255,255,255,0.12); flex-shrink: 0;
+        }
         .logo { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
         .logo-icon { width: 28px; height: 28px; background: var(--accent); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; color: var(--bg); }
         .nav-actions { display: flex; gap: 12px; align-items: center; }
@@ -1228,6 +1244,14 @@
 
     <nav id="nav-root"></nav>
 
+    <!-- ── Page toolbar: context-sensitive action buttons ── -->
+    <div class="page-toolbar" id="page-toolbar">
+      <a href="/connections" class="toolbar-link">New Check</a>
+      <a href="/reports" class="toolbar-link">All Reports</a>
+      <span class="toolbar-sep" id="toolbar-sep" style="display:none"></span>
+      <span id="toolbar-export-slot" style="display:inline-flex;align-items:center;gap:8px;"></span>
+    </div>
+
     <!-- ============================================================
          STICKY VITALS BAR
     ============================================================ -->
@@ -1647,14 +1671,14 @@
         injectExportButtons();
     }
 
-    // Idempotent: injects PDF/XLSX buttons into #navActions if not already present.
-    // Called both when report completes AND after nav rebuilds (auth callback).
-    // WHY inline styles + JS hover: nav-component rebuilds wipe the DOM, so CSS class
-    // alone is unreliable; and CSS :hover cannot override inline styles, so we use
-    // mouseenter/mouseleave listeners for hover feedback.
+    // Injects PDF/XLSX buttons into #toolbar-export-slot (idempotent).
+    // #page-toolbar is a static HTML element outside nav-root, so it is never
+    // wiped by nav rebuilds — no need to re-call from tvNav.onReady().
     function injectExportButtons() {
-        const nav = document.getElementById('navActions');
+        const nav = document.getElementById('toolbar-export-slot');
         if (!nav || nav.querySelector('.tv-export-btn')) return;
+        const sep = document.getElementById('toolbar-sep');
+        if (sep) sep.style.display = '';
 
         var btnBase = 'display:inline-flex;align-items:center;gap:6px;padding:9px 14px;' +
             'border-radius:6px;font-family:"Space Grotesk",sans-serif;font-size:12px;' +
@@ -7361,12 +7385,6 @@
     <script src="/nav-component.js"></script>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Re-inject export buttons after every nav rebuild (auth check wipes #navActions)
-        window.tvNav.onReady(function() {
-            if (typeof exportButtonsReady !== 'undefined' && exportButtonsReady) {
-                injectExportButtons();
-            }
-        });
         window.tvNav.init('report');
     });
     </script>
