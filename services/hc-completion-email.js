@@ -268,7 +268,7 @@ async function sendHcCompletionEmail({ healthCheckId, connectionId, metrics, sco
       topCritical   = appFindings
         .filter(f => f.severity === 'critical')
         .slice(0, 3)
-        .map(f => ({ check_id: f.check_id || '', title: f.title || f.label || '', impact: f.detail || f.status || '' }));
+        .map(f => ({ check_id: f.check_id || '', title: f.title || f.label || '', impact: f.details || f.detail || f.status || '' }));
     } else {
       const findings = buildTopFindings(usableMetrics, scores);
       criticalCount = findings.filter(f => f.severity === 'critical').length;
