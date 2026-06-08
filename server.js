@@ -3603,7 +3603,7 @@ async function runProxyHealthCheck(healthCheckId, { connectionId, proxyUrl, prox
       proxyTimeoutPromise
     ]);
   } catch (err) {
-    console.error('Proxy health check failed:', err.message);
+    console.error(`[proxy-hc] hc=${healthCheckId} conn=${connectionId} failed:`, err.message);
     const diagnosis = classifyOracleError(err, {
       host: null,
       port: null,
@@ -3751,6 +3751,7 @@ async function fetchMetricsFromProxy({ connectionId, serviceName, username, pass
       [connectionId]
     );
     if (tunnelCheck.rows.length === 0 && !agentChannel.isAgentConnected(connectionId)) {
+      console.warn(`[fetchMetrics] conn ${connectionId}: agent not connected (no poll in last 30s) — aborting HC`);
       throw new Error(
         'Agent is not connected. The TuneVault Agent connects outbound to the cloud — ' +
         'no inbound ports or firewall rules are needed. ' +
@@ -7482,6 +7483,8 @@ async function runScheduledHealthCheck(conn) {
     const healthCheckId = insertResult.rows[0].id;
 
     // Kick off the run (fire-and-forget)
+    const agentOnline = isProxy ? await agentChannel.isAgentConnected(connId) : true;
+    console.log(`[scheduler/hc] hc=${healthCheckId} conn=${connId} type=${isProxy?'proxy':'direct'} agent_online=${agentOnline} — firing`);
     if (isProxy) {
       runProxyHealthCheck(healthCheckId, {
         connectionId: connId,
