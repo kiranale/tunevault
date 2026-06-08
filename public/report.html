@@ -3405,8 +3405,8 @@
                     : `<div class="ai-content">${markdownToHtml(analysisText)}</div>`
                 }
             </div>`;
-            // Admin debug panel — only rendered when analysis_run data is present (server gate: admin only)
-            if (data.analysis_run) {
+            // Admin debug panel — hidden from non-admins (server sets is_admin; analysis_run only populated for admins)
+            if (data.is_admin && data.analysis_run) {
                 const r = data.analysis_run;
                 const fmt = ms => ms != null ? `${ms.toLocaleString()}ms` : '—';
                 const fmtS = ms => ms != null ? `${(ms/1000).toFixed(1)}s` : '—';

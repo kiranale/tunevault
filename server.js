@@ -2753,8 +2753,9 @@ app.get('/api/health-checks/:id', requireAuth, async (req, res) => {
       analysisElapsedMs = hc.analysis_progress_ms != null ? hc.analysis_progress_ms : 0;
     }
 
-    // Admin debug data: attach analysis_run if present (gated at render time in frontend)
+    // Admin debug data: attach analysis_run + is_admin flag (server-gated to ADMIN_EMAILS)
     let analysisRun = null;
+    let isAdminUser = false;
     const token = getTokenFromRequest(req);
     const payload = verifyToken(token);
     if (payload) {
@@ -2762,6 +2763,7 @@ app.get('/api/health-checks/:id', requireAuth, async (req, res) => {
         const userRes = await pool.query('SELECT email FROM users WHERE id = $1', [payload.userId]);
         const email = (userRes.rows[0]?.email || '').toLowerCase();
         if (ADMIN_EMAILS.has(email)) {
+          isAdminUser = true;
           const runRes = await pool.query(
             `SELECT * FROM analysis_runs WHERE health_check_id = $1 ORDER BY id DESC LIMIT 1`,
             [hc.id]
@@ -2812,6 +2814,7 @@ app.get('/api/health-checks/:id', requireAuth, async (req, res) => {
       // Instrumentation fields — used by dashboard live counter + admin debug panel
       analysis_stage: hc.analysis_stage || null,
       analysis_elapsed_ms: analysisElapsedMs,
+      is_admin: isAdminUser,
       analysis_run: analysisRun
     });
   } catch (err) {
@@ -5331,7 +5334,21 @@ async function generateExecutiveSummary(healthCheckId, metrics, scores) {
           const srv = match ? match[1].replace(/\.$/, '') : '<server_name>';
           return `# Run as applmgr (after sourcing EBSapps.env run):\nadmanagedsrvctl.sh start ${srv}`;
         },
-        'wf_mailer': () => 'Navigate: EBS System Admin → Oracle Applications Manager → Service Components → Workflow Notification Mailer → Activate',
+        'wf_mailer': () => [
+          'Option 1 — OAM UI (recommended):',
+          'Navigate to: EBS System Admin → Oracle Applications Manager → Workflow → Service Components',
+          'Find "Workflow Notification Mailer" → click Activate',
+          '',
+          'Option 2 — PL/SQL (run on DB server as APPS):',
+          'DECLARE',
+          '  l_id NUMBER;',
+          'BEGIN',
+          '  SELECT component_id INTO l_id FROM fnd_svc_components',
+          '  WHERE component_type = \'WF_MAILER\';',
+          '  fnd_svc_util.start_service(l_id, NULL, NULL, NULL, NULL);',
+          'END;',
+          '/',
+        ].join('\n'),
         'invalid_objects': () => '# Run on DB server as sysdba:\nsqlplus / as sysdba\n@$ORACLE_HOME/rdbms/admin/utlrp.sql',
         'ts_usage': (f) => {
           const match = (f.details || '').match(/(\w+)\s*\(/);
