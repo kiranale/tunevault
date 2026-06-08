@@ -7393,12 +7393,19 @@ app.get('/api/schedule-presets', (req, res) => {
 const INTERNAL_DOMAINS = new Set(['polsia.com', 'polsia.internal', 'tunevault.internal']);
 
 async function isScheduledRunAllowed(userId) {
+  if (process.env.SKIP_TIER_LIMITS === 'true') {
+    return { allowed: true, reason: 'tier_limits_disabled' };
+  }
   // Connections without user_id are legacy/admin entries — allow them
   if (!userId) return { allowed: true, reason: 'no_user_id' };
   try {
-    const userResult = await pool.query('SELECT company_domain FROM users WHERE id = $1', [userId]);
+    const userResult = await pool.query('SELECT email, company_domain FROM users WHERE id = $1', [userId]);
     if (userResult.rows.length === 0) return { allowed: false, reason: 'user_not_found' };
-    const domain = userResult.rows[0].company_domain || '';
+    const { email, company_domain } = userResult.rows[0];
+    if (email && ADMIN_EMAILS.has(email.toLowerCase().trim())) {
+      return { allowed: true, reason: 'admin' };
+    }
+    const domain = company_domain || '';
     if (INTERNAL_DOMAINS.has(domain)) return { allowed: true, reason: 'internal' };
 
     // Check company_hc_usage — if hc_count >= 999 it's been manually unlocked (paid/trial)
