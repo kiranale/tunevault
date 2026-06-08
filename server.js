@@ -832,6 +832,12 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
 
 // POST /api/auth/magic-link/request — send magic link email
 app.post('/api/auth/magic-link/request', authLimiter, validateBody(magicLinkSchema), async (req, res) => {
+  console.log('[magic-link] email provider:', process.env.RESEND_API_KEY ? 'resend' : process.env.POSTMARK_API_TOKEN ? 'postmark' : 'NONE');
+  if (!process.env.RESEND_API_KEY) {
+    console.error('[magic-link] RESEND_API_KEY not set — cannot send magic link emails');
+    return res.status(503).json({ error: 'Email delivery not configured. Contact support.' });
+  }
+
   const { email, redirect: redirectParam } = req.body;
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ error: 'Valid email required' });
@@ -882,7 +888,7 @@ app.post('/api/auth/magic-link/request', authLimiter, validateBody(magicLinkSche
     `;
     const textBody = `Sign in to TuneVault\n\nClick this link to sign in (expires in 15 minutes):\n${magicLink}\n\nIf you didn't request this, ignore this email.`;
 
-    await fetch('https://api.resend.com/emails', {
+    const emailRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.RESEND_API_KEY}` },
       body: JSON.stringify({
@@ -893,6 +899,12 @@ app.post('/api/auth/magic-link/request', authLimiter, validateBody(magicLinkSche
         html: htmlBody
       })
     });
+    if (!emailRes.ok) {
+      const errBody = await emailRes.text().catch(() => '');
+      console.error(`[magic-link] Resend error ${emailRes.status}:`, errBody);
+      throw new Error(`Resend returned ${emailRes.status}`);
+    }
+    console.log('[magic-link] sent to', normalizedEmail);
 
     // Always return success (don't leak whether email exists)
     res.json({ success: true, message: 'Magic link sent. Check your inbox.' });
