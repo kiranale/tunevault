@@ -88,13 +88,15 @@ router.post('/api/db-ops/capabilities', requireAuth, requireRole('junior_dba'), 
   const hasGi = !!(connParams.giOsUser && connParams.giOracleHome && connParams.asmSid);
 
   if (connParams.connectionType === 'proxy') {
-    // Proxy connections: return stored flags + hasSqlOps (true when oracledb reported on last heartbeat)
+    const agentOnline = await channel.isAgentConnected(connId);
+    const hasSqlOps = agentOnline;
+    console.log('[db-ops/capabilities] conn=%d hasSqlOps=%s agentOnline=%s cxOracleVersion=%s', connId, hasSqlOps, agentOnline, connParams.cxOracleVersion);
     return res.json({
       hasAsm: connParams.isAsm,
       hasRac: connParams.isRac,
       hasPdb: false,
       hasGi,
-      hasSqlOps: !!(connParams.cxOracleVersion),
+      hasSqlOps,
     });
   }
 

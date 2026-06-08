@@ -927,6 +927,7 @@
       });
       clearTimeout(runTimer);
       const data = await r.json();
+      console.log('[db-ops/run] response:', data);
 
       if (r.status === 428 && data.requiresConfirmation) {
         pendingConfirm = { opKey, params };
