@@ -8,122 +8,119 @@ Node.js + Express, PostgreSQL (Neon), Render deployment. Vanilla JS frontend (no
 
 ## Directory map
 - `server.js` — single Express entry point (~5000 lines); all routes, business logic, scheduler
-- `db/setup/` — canonical DBA setup SQL (tunevault_reader.sql = least-privilege role script served from /setup/role-script)
-- `routes/` — modular Express routers (admin-agents.js = GET /admin/agents (UI) + GET /api/admin/agents (fleet list with status pills) + GET /api/admin/agents/:id/log-tail + GET /api/admin/agents/export.csv + POST /api/admin/agents/log-tail (agent log push); tns-topology.js = GET /connections/:id/tns-topology (HTML) + GET /api/connections/:id/tns-topology (7-query live analysis: V$SERVICES/V$ACTIVE_SERVICES/V$PDBS/V$INSTANCE/V$SERVICEMETRIC/DBA_SERVICES/lsnrctl) + POST .../snapshot + POST .../share + GET .../history + public /share/tns-topology/:token; ready-to-test.js = GET /status/ready-to-test (operator go/no-go HTML) + GET /api/status/ready-to-test?conn= (6-badge JSON + optional 7th tns_mode badge when connectivity_mode≠tns, session or ?token= gate); ssh-connectivity.js = GET/PUT /api/connections/:id/ssh-connectivity (SSH key store + mode) + POST /api/connections/:id/ssh-connectivity/test (SSH→sqlplus validation); upgrade-verifications.js = POST /api/upgrade-verifications (agent verification bundle ingestion) + GET /api/upgrade-verifications/recent + GET /api/upgrade-verifications/connection/:id + POST /api/connections/:id/re-verify; ssh-profiles.js = GET/POST /api/connections/:id/ssh-profiles + PUT/DELETE /api/connections/:id/ssh-profiles/:role + POST /api/connections/:id/ssh-test?role=; installer-validation.js = /status/installer (public page) + /api/status/installer (JSON) + /api/installer-validation/report (CI POST) + /api/admin/installer-validation/run (admin dispatch); privileges.js = GET /docs/privileges + GET /setup/role-script; seo.js = /sitemap.xml (dynamic, 1h cached, includes blog slugs from DB); ai-discoverability.js = /llms.txt + /llms-full.txt + /.well-known/ai-plugin.json + IndexNow key; payments.js = Razorpay; billing.js = /api/billing/usage + /free-usage + /summary + /payment-history + /cancel + /enterprise-inquiry; blog.js = /blog + /blog/:slug; addm.js = ADDM findings; performance-advisor.js = GET/POST /api/advisor/:connectionId/findings|fetch — ADDM + SQL Tuning Advisor panel (EE+Diagnostics Pack gated), AI summary, empty-state explainer; performance.js = /api/performance/* top-sql + wait-events + blocking-sessions + segment-hotspots; housekeeping.js = auto-housekeeping status; sessions.js = blocking sessions + long operations; outreach-lock.js = hard-lock control panel + outreach_attempts audit; outreach-approve.js = approval gate UI + send-trigger API; outreach-audit.js = read-only compliance audit; security.js = /security CISO trust page + /security/commands + lockdown-bundle.tar.gz; ebs-deep.js = Deep EBS live status + SSH cmd whitelist + sanity check engine; ebs-deep-reports.js = Deep EBS reports run/view/PDF; ebs-control.js = Control catalog + preview + lockdown downloads; control-runbook.js = 4 EBS recovery runbook generators (cm-stuck, opp-zero, wfmailer-stall, adop-cleanup); performance.js = top-sql + wait-events + blocking-sessions + segment-hotspots endpoints; patches.js = GET /patches (301 → /db-ops?cat=patches) + GET /ebs-patches + GET /api/patches/advisor/:connectionId — patch level detection, gap analysis, adop/OPatch runbook; schedules.js = PUT/GET /api/schedules/connection/:id + GET /api/schedules/snooze + GET /api/schedules/admin/all; fleet.js = GET /api/fleet/overview — aggregated fleet status per connection; ebs-validation.js = /api/admin/ebs-validation/run-all — 16 EBS smoke tests, admin-only; proxy-self-test.js = GET /admin/proxy-self-test UI + POST /api/admin/proxy/self-test + GET /api/admin/proxy/self-test/runs — synthetic EBS fixture pipeline validator, admin-only; reports.js = /api/reports/:connectionId/db|ebs|combined?format=pdf|xlsx — split DB/EBS/combined report downloads with distinct cover pages; test-harness.js = /admin/test-harness guide page + /api/test-harness/validator-bundle tar download, admin-only; ebs-ssh-checks.js = GET /api/ebs-ssh-checks/catalog + /target/:connId + POST /run — SSH check runner for EBS Ops tab; os-exec.js = POST /api/connections/:id/os/exec — whitelisted OS commands via proxy tunnel (no SSH needed; proxy v3.5.5+); db-ops.js = GET /db-ops + /api/db-ops/catalog|capabilities|run — 32 ops across 11 categories; ebs-middleware.js = GET /ebs-middleware + /api/ebs-middleware/catalog|run|context-servers|rolling-bounce — WLS AdminServer, Apache/OHS, Apps Listener SSH ops + rolling bounce (SSE-streamed, sequential stop→verify→start per server); ebs-concurrent.js = GET /ebs-concurrent + /api/ebs-concurrent/catalog|run — Running Requests SQL view + Start/Stop All Nodes SSH ops; ssh-targets.js = /admin/ssh-targets + /api/ssh/targets CRUD (admin-only) + /api/ssh/run (auth, ownership-enforced); user-ssh-targets.js = /settings/ssh-targets + /api/user/ssh/targets CRUD (user-scoped, ownership-enforced); apps-tunnel.js = PATCH/GET /api/connections/:id/apps-urls + GET /api/connections/:id/open/ebs|weblogic + GET /api/tunnel — EBS/WebLogic HTTP-forward tunnel via proxy agent; team.js = /settings/team + /api/team/* CRUD + /invite/accept accept flow + branded invite emails; roles.js = /api/roles/* CRUD + /api/approvals/* approval workflow + /api/patches/status role-filtered widget; tuneops.js = GET/POST /api/tuneops/tickets + PATCH/action endpoints + GET /api/tuneops/stats; console.js = GET /sql-console + GET /terminal (requireAuth) + POST /api/sql-console/run (requireRole senior_dba) — SQL editor page, terminal page, Oracle SQL execution against user-owned connections; ssh-execute.js = POST /api/ssh-targets/:id/execute + GET /api/ssh-targets/:id/stream — allowlist-based SSH command execution with rate limiting + confirmation gate + audit trail; sql-execute.js = POST /api/connections/:id/execute-sql + GET .../sql-audit — whitelisted SQL via proxy or direct TCP, 10 req/min rate limit, full sql_audit_log trail; fndload.js = GET /fndload + /api/ebs/fndload/validate|download|diff|upload|history — FNDLOAD object migration wizard for Concurrent Programs, Value Sets, Lookups, etc.; tunebot.js = GET /api/tunebot/context + POST /api/tunebot/chat — context-aware AI chat using active connection's health check data and open tickets; ssh-install.js = GET /connections/new (one-screen Add Connection form) + POST /api/connections/new (create record + issue token + encrypt SSH creds) + GET /api/connections/:id/ssh-install/stream (SSE: SFTP-upload install.sh → sudo run → stream stdout → wait for agent register → ping → green checkmark); page-events.js = POST /api/events (landing page CTA click tracking, no auth, 100/min rate limit) + GET /api/admin/analytics/events (admin daily counts by event_name))
-- `db/` — DB query helpers (index.js = Pool; tns-topology.js = tns_topology_snapshots CRUD — insertSnapshot, getSnapshots, getSnapshotById, issueShareToken, resolveShareToken, purgeOldSnapshots; ebs-adop-state.js = upsertAdopState, getAdopState, getAdopStateForConnections, getAdopPatchingFlag — ADOP patch-cycle state per connection; connection-health.js = connection_health_runs CRUD — insertHealthRun, getLatestRunsForUser, deriveHealthStatus(), getConnectionsForSweep(); installer-validation.js = installer_validation_runs CRUD (insertRun, updateRun, getLatestRuns, getHistory, findRunByRunId); payments.js = payments/subscriptions/credits; blog.js = blog_posts; outreach.js = outreach_batches/recipients/send_log; outreach-lock.js = outreach_attempts CRUD; ebs-deep.js = EBS connection queries + ebs_sanity_runs CRUD; ebs-deep-reports.js = ebs_deep_reports CRUD; ebs-control.js = ebs_control_commands reads + audit_log writes; performance.js = sql_fix_cache reads/writes; advisor-findings.js = advisor_findings upsert + read (per-connection ADDM/STA snapshot); addm-runs.js = addm_runs CRUD — insertAddmRun, getAddmRuns, getAddmRun, getConnectionForAddm; email-drip.js = email_drip_state CRUD; patches.js = oracle_connections lookup for patch advisor; schedules.js = connection_schedules + finding_history CRUD; fleet.js = read-only fleet overview aggregation; teams.js = teams/team_members/team_invites CRUD; tier-usage.js = live usage counters for tier enforcement; tuneops-notifications.js = tuneops_notification_prefs/mutes/log CRUD; compliance-reports.js = compliance_reports CRUD + data assembly queries for SOX/Access/Activity reports; roles.js = roles + approval_requests CRUD + seedDefaultRoles() + userHasPermission(); sql-audit-log.js = sql_audit_log CRUD — logSqlExecution() append + getAuditLog() read; fndload.js = fndload_history append + history reads; proxy-exec-audit.js = proxy_exec_audit CRUD — logExec() append + getAuditLog() read)
-- `config/` — shared configuration (pricing.js = plan prices, single source of truth; finding_weights.json = severity×blast_radius×time_to_fix_inverse weights for first-run Top 5 ranking — tune without redeploy)
-- `lib/` — shared utility modules (polsia-ai.js = Polsia AI proxy client; all AI inference in TuneVault goes through this; oracle/service-classifier.js = CDB/PDB-aware service classifier: classifyServices(services, pdbs) → ranked annotated array with classification/recommended/blocked flags; ebs/adop-state.js = ADOP patch-cycle detector: detectAdopState(queryFn) → {patching, phase, session_id, services_in_patch_mode}; formatBannerMessage(); isOpBlockedDuringAdop(opKey))
-- `data/` — static JSON data (oracle-patches.json = curated CPU/PSU patch index, 19c/21c/26ai(23ai)/12.2 + EBS 12.2; LAST_REFRESHED 2026-05-12; quarterly refresh due 2026-07-22)
-- `services/` — business logic modules (adop-detector.js = detectAndPersistAdopState(connectionId) — wires oracle-runner/agent-channel queryFn to lib/ebs/adop-state, upserts result to DB; fire-and-forget, never throws; oracle-runner.js = SSH-first query execution — runQuery(conn, sql) routes to SSH sqlplus when connectivity_mode=ssh_sqlplus|both; testSshConnectivity(); evictSshPool(); pooled SSH connections with 5-min idle timeout; agent-channel.js = Postgres-backed durable long-poll channel — sendToAgent() enqueues to agent_command_queue + pg_notify, waitForWork() SELECT FOR UPDATE SKIP LOCKED + LISTEN, deliverResult() persists result + NOTIFY; outreach-mailer.js = sendOutreachEmail() 4-gate function with hard OUTREACH_UNLOCK_TOKEN lock, the only path cold emails can take; drip-mailer.js = 3-step trial activation drip email sequence; welcome-email.js = post-payment welcome email; alert-mailer.js = delta-aware alert emails for autonomous monitoring; schedule-runner.js = delta logic comparing check_results against finding_history; ebs-ssh-checks.js = 24-check SSH catalog with parsers (filesystem/adop/CM/WLS/logs) + runSshChecks() orchestrator; ebs-12-2-checks.js = 30 EBS 12.2.7+ deep checks (topology/JVM/OS/code-levels/ETCC) + CHECK_COUNTS constant (marketing single source of truth); db-ops-executor.js = 86-op catalog executor (SQL via oracledb + SSH via ssh-executor) + detectCapabilities(ASM/RAC/PDB); tier-limits.js = per-tier cap definitions + resolveTier() + getCaps() + isAtCap(); tuneops-mailer.js = 10-event TuneOps notification sender with dedup/rate-limit enforcement via Polsia email proxy; tuneops-ticket-engine.js = processHealthCheckFindings() + seedDemoTickets() — canonical key dedup, auto-create/reopen/resolve tickets from check_results)
-- `middleware/` — Express middleware (auth.js = centralized requireAuth, requireAdmin, requireConnectionOwner, requireRole(minRole) RBAC; security.js = helmet headers, rate limiters, zod validators; tier-enforce.js = enforceConnectionCap/enforceMemberCap/enforceHealthCheckCap → 402 on tier cap hit)
-- `public/` — static HTML pages (dashboard, login, docs, etc.)
-- `proxy/` — proxy contract documentation (PROXY_SCHEMA.md = full JSON schema for oracle-proxy.py payload + EBS detection probe chain; fixtures/synthetic-ebs-payload.json = 4-scenario EBS fixture for self-test endpoint)
-- `migrations/` — node-pg-migrate JS migration files
-- `oracle-client.js` — Oracle DB connection + query helpers; APPS.DUAL probe gates EBS Operations section (Wave F checks: CM, WF, Security, Functional)
+- `db/setup/` — canonical DBA setup SQL (tunevault_reader.sql = least-privilege role script)
+- `routes/` — modular Express routers: admin-agents.js (fleet list, log-tail, CSV export); tns-topology.js (7-query TNS analysis, snapshots, share links); ready-to-test.js (go/no-go badges); ssh-connectivity.js (SSH key store + test); upgrade-verifications.js (agent verification); ssh-profiles.js (per-connection SSH profiles); installer-validation.js (OL7/OL8 CI validation); privileges.js (role script docs); seo.js (sitemap); ai-discoverability.js (llms.txt, ai-plugin.json); payments.js (Razorpay); billing.js (usage + history); blog.js; addm.js; performance-advisor.js (ADDM + SQL Tuning Advisor); performance.js (top-sql, wait-events, blocking); housekeeping.js; sessions.js; outreach-*.js (lock/approve/audit); security.js (CISO page, lockdown); ebs-deep.js (Deep EBS status + sanity); ebs-deep-reports.js; ebs-control.js (EBS catalog + lockdown); control-runbook.js (4 recovery runbooks); patches.js (patch advisor); schedules.js (autonomous monitoring); fleet.js (fleet overview); ebs-validation.js (16 EBS smoke tests); proxy-self-test.js; reports.js (DB/EBS/combined PDF+XLSX); test-harness.js; ebs-ssh-checks.js (SSH check runner); os-exec.js (whitelisted OS cmds via proxy); db-ops.js (32 ops, 11 categories); ebs-middleware.js (WLS/Apache/OHS ops, rolling bounce SSE); ebs-concurrent.js (running requests, node ops); ssh-targets.js (admin SSH vault); user-ssh-targets.js (user SSH vault); apps-tunnel.js (EBS/WebLogic HTTP tunnel); team.js; roles.js (RBAC + approvals); tuneops.js (ticketing); console.js (SQL editor + terminal); ssh-execute.js; sql-execute.js; fndload.js (FNDLOAD wizard); tunebot.js (AI chat); ssh-install.js (Add Connection wizard + SSE install stream); page-events.js (CTA tracking)
+- `db/` — DB query helpers: index.js (Pool); per-table CRUD modules for tns-topology, ebs-adop-state, connection-health, installer-validation, payments, blog, outreach, ebs-deep, ebs-control, performance, advisor-findings, addm-runs, email-drip, patches, schedules, fleet, teams, tier-usage, tuneops-notifications, compliance-reports, roles, sql-audit-log, fndload, proxy-exec-audit
+- `config/` — pricing.js (plan prices); finding_weights.json (severity×blast_radius weights for Top 5 ranking)
+- `lib/` — ai-client.js (OpenAI + Anthropic calls); oracle/service-classifier.js (CDB/PDB service ranking); ebs/adop-state.js (ADOP patch-cycle detector)
+- `data/` — oracle-patches.json (CPU/PSU patch index 19c/21c/23ai/12.2 + EBS 12.2; refresh due 2026-07-22)
+- `services/` — adop-detector.js; oracle-runner.js (SSH-first query, pooled SSH); agent-channel.js (Postgres durable long-poll); outreach-mailer.js; drip-mailer.js; welcome-email.js; alert-mailer.js; schedule-runner.js; ebs-ssh-checks.js (24-check SSH catalog); ebs-12-2-checks.js (30 EBS 12.2.7+ checks); db-ops-executor.js (86-op catalog); tier-limits.js; tuneops-mailer.js; tuneops-ticket-engine.js
+- `middleware/` — auth.js (requireAuth/Admin/ConnectionOwner/Role); security.js (helmet, rate limiters, zod); tier-enforce.js (402 on cap hit)
+- `public/` — static HTML pages
+- `proxy/` — PROXY_SCHEMA.md (full proxy payload schema); fixtures/synthetic-ebs-payload.json
+- `migrations/` — node-pg-migrate JS files
+- `oracle-client.js` — Oracle DB connection + query helpers; APPS.DUAL probe gates EBS Operations
 - `oracle-proxy.js` / `oracle-proxy.py` — proxy binaries served as downloads
-- `oracle-proxy-install.sh` — installer script served as download
 - `pdf-generator.js` — PDF report generation
-- `crypto-utils.js` — AES-256-GCM encrypt/decrypt for stored credentials
-- `demo-data.js` — demo health check fixtures
-- `scripts/gen-og-images.js` — generates 1200×630 PNG OG cards to public/og/ via sharp+SVG; also exports buildBlogSvg() for per-post on-demand generation
-- `install.sh` / `uninstall.sh` — one-line agent installer/uninstaller; served at /install.sh + /uninstall.sh
-- `scripts/ci-installer-validation.sh` — runs inside OL7/OL8 Docker containers (CI); installs agent headless, runs 7 probes (incl. probe 7 stale-proxy check), prints JSON result for workflow to report back
+- `crypto-utils.js` — AES-256-GCM encrypt/decrypt
+- `install.sh` / `uninstall.sh` — agent installer/uninstaller served at /install.sh + /uninstall.sh
+- `scripts/ci-installer-validation.sh` — OL7/OL8 CI install validation (7 probes, JSON result)
 
 ## Database
-- `oracle_connections` — saved DB connections; key fields: host, port, credentials (AES-GCM), proxy_url, proxy_api_key_enc/previous, key_rotation_status idle|pending|acknowledged, connection_type, ebs_login_url, weblogic_console_url, privilege_model reader|sysdba, proxy_version, auto_upgrade_enabled BOOL, connectivity_mode tns|ssh_sqlplus|both, ssh_db_host/user/key_enc/oracle_home/sid, apps_pwd_enc, weblogic_pwd_enc, ebs_instance_name VARCHAR(64), server_type db|apps|both, agent metadata (proxy_version, installed_at, python_version, cx_oracle_version, os_id, kernel_version)
-- `agent_upgrade_audit` — append-only auto-upgrade lifecycle log (connection_id, from_version, to_version, triggered_by, triggered_at, completed_at, status queued|in_progress|completed|failed, error, verification_payload JSONB, verification_status pass|fail, verified_at)
-- `health_checks` — health check runs (results, score, ai_analysis, summary_text, top_action, ebs_summary, ebs_action, analysis_stage, analysis_progress_ms, ai_recommendations JSONB)
-- `analysis_runs` — per-run AI pipeline timing (t0-t6 stage timestamps, token counts, finish_reason, outcome)
-- `check_results` — individual check results per run (51+ core checks + EBS_* checks when EBS detected; category='ebs_operations')
-- `users` — user accounts (email, google_id, magic link tokens)
-- `company_hc_usage` — free-tier health check usage tracking per company domain
-- `health_check_requests` — async health check job queue
-- `checks_catalogue` — master catalogue of all 92 core check definitions (100+ with on-demand panels)
-- `payments` — Razorpay order/payment records (one_time + subscription)
-- `subscriptions` — recurring subscription state (razorpay_subscription_id, plan_tier, status, period)
-- `user_credits` — check quota per user (checks_remaining, plan_tier, refreshed on payment/renewal)
-- `blog_posts` — SEO blog content (title, slug, excerpt, content, author, published_at, read_time_minutes, coming_soon BOOL default FALSE)
-- `roadmap_reminders` — deferred "remind me later" roadmap items (title, body_md, trigger_condition_json, manual_flag, dismissed_at)
-- `payment_test_runs` — admin pipeline test runs (one_off + subscription; stages: order_created, sig_verified, credits_updated)
-- `payment_method_test_runs` — admin live checkout tests per method (upi_intent, upi_collect, netbanking, domestic_card, intl_card; captures status, error_code, latency_ms)
-- `outreach_batches` — one row per planned email wave (name, template, approval_status, approved_by, approved_at); approval expires after 60 min
-- `outreach_recipients` — one row per prospect in a batch (email, send_authorized flag, status, sent_at)
-- `outreach_send_log` — append-only audit log of every sendOutreachEmail() call, allowed or blocked (gate result, reason, gate index)
-- `ebs_deep_reports` — Deep EBS Health Report runs (user_id, connection_id, findings_json, ai_analysis, is_demo)
-- `ebs_sanity_runs` — EBS Sanity Check engine results (connection_id, run_at, overall_status, findings_json, is_demo); one row per run, connection-scoped
-- `ebs_control_commands` — whitelisted EBS control command catalog (slug, label, category, shell_template, risk_level, dry_run_only); seeded by migration, never user-supplied
-- `audit_log` — append-only log of all /api/ebs-control/preview attempts; records allowed + rejected slugs (user_id, action, slug, allowed, rejection_reason, metadata)
-- `payment_reconciliation` — append-only error log for payment events that could not be fully processed (plan unlock DB failure, welcome email failure); manual review queue
-- `sql_fix_cache` — AI-generated SQL fix recommendations (sql_id, plan_hash_value, fix_type, fix_sql, rationale); 24h TTL; unique on (sql_id, plan_hash_value)
-- `analytics_events` — full funnel event log (14 event types from page_view to checkout_completed); user_id, session_id, page_path, referrer, properties JSONB, occurred_at
-- `page_events` — landing page CTA click tracking (event_type cta_click|page_view, event_name, page_url, referrer, user_agent, ip_hash SHA-256, session_id uuid, created_at); indexes on (event_type, created_at) + (event_name, created_at)
-- `email_drip_state` — per-user per-step drip state (sequence_step 1/2/3, sent_at, suppressed_at, suppressed_reason); unique on (user_id, sequence_step)
-- `connection_schedules` — autonomous monitoring config per connection (cadence_minutes, enabled, next_run_at, alert_email, severity_threshold, last_alert_sent_at, snoozed_until); unique on connection_id
-- `finding_history` — tracks per-check finding state across runs for delta detection (connection_id, check_id, finding_key, title, metric_line, remediation, severity, first_seen_at, last_seen_at, resolved_at); unique on (connection_id, finding_key)
-- `sql_tuning_findings` — SQL tuning analysis per connection (sql_id, plan_hash, rank, metrics_json, plan_summary_json, ai_recommendation_text, recommended_sql_text, fix_type, diagnosis_tag, is_heuristic); replaced on each analyze run
-- `outreach_attempts` — append-only hard-lock audit log; every sendOutreachEmail() attempt logged here (attempted_to, attempted_by, blocked, unlock_token_present, blocked_reason, metadata)
-- `ssh_targets` — SSH credential vault (user_id FK for ownership scoping, host, port, os_user, auth_method=key|password, encrypted_private_key, encrypted_passphrase, role=apps_tier|db_tier|utility, connection_id FK); AES-256-GCM encrypted; user_id=NULL = admin-managed
-- `ssh_audit` — append-only SSH execution log (target_id, command_key, rendered_command, exit_code, stdout_bytes, stderr_bytes, duration_ms, was_rejected, rejection_reason, initiated_by)
-- `ebs_validation_runs` — persisted results of static smoke-test runs on /admin/ebs-validation (summary JSONB + tests JSONB per run); loaded on page mount so rows are never stuck at "— Pending —"
-- `teams` — team accounts (name, owner_id, plan_tier)
-- `team_members` — team membership + roles (admin/senior_dba/junior_dba/viewer); unique on (team_id, user_id)
-- `team_invites` — pending/accepted/revoked invite tokens (7-day expiry, email + role + token)
-- `rbac_audit_log` — append-only log of permission-denied API attempts (user_id, method, path, required_role, actual_role, denied_at)
-- `sample_report_leads` — optional email captures from /sample-report PDF download CTA (email, captured_at, ip, referrer)
-- `tuneops_notification_prefs` — per-user TuneOps email preferences (enabled toggle, severity threshold info/warning/critical)
-- `tuneops_notification_mutes` — per-user per-connection 24h mute records
-- `tuneops_notification_log` — append-only send log for dedup (1h window) + rate-limit (10/ticket/hour)
-- `user_mfa` — TOTP secret (AES-256-GCM encrypted), is_enabled, recovery_codes (bcrypt-hashed JSONB), verified_at, last_used_at; unique on user_id
-- `mfa_attempts` — append-only MFA attempt log (succeeded/failed, method, ip); drives 5-attempt/15-min lockout
-- `sso_configs` — SAML 2.0 SSO config per company domain (provider_type, sso_url, entity_id, certificate, attribute_mapping JSONB, group_role_mapping JSONB, default_role, is_active, require_sso); enterprise tier only
-- `sso_login_log` — append-only SSO login attempt audit log (company_domain, email, succeeded, failure_reason, ip)
-- `api_keys` — per-user API keys for REST API v1 (key_prefix, key_hash SHA-256, name, last_used_at, revoked_at)
-- `compliance_reports` — generated compliance report records (report_type, title, date_from, date_to, generated_by, generated_data JSONB, row_counts JSONB); business/enterprise tier only
-- `alert_policies` — configurable alert threshold rules per user (check_type, conditions JSONB, notification_channels JSONB, escalation_chain JSONB, sustained_minutes, is_active, is_default)
-- `alert_events` — triggered/resolved alert instances (policy_id, connection_id, severity, status triggered/acknowledged/escalated/resolved, escalation_step, notifications_sent JSONB)
-- `activity_log` — unified audit log for all DBA actions (user_id, user_email, user_role, action_type, detail JSONB, connection_id, result, duration_ms, ip_address, created_at); scoped by team ownership
-- `roles` — per-team role definitions (name, slug, branch dba/functional/dev/management, permissions JSONB, approval_required_from FK, is_default, sort_order); seeded with 8 default cross-team roles on team creation
-- `approval_requests` — approval gate records for TuneOps execution (ticket_id, requester_id, approver_role_id, status pending/approved/rejected, approved_by, rejection_reason, context JSONB)
-- `tuneops_tickets` — TuneOps ticketing system (ticket_number TO-XXXX, canonical_key for dedup, severity critical/warning/info, status OPEN/CONFIRMED/EXECUTING/RESOLVED/REOPENED/ACKNOWLEDGED, source health_check/db_ops/control_tab/ssh_command/sql_command/manual, execution lifecycle fields, reopened_count)
-- `clone_recipes` — EBS Clone & Scale wizard recipes (company_id, source/target connection FKs, recipe_name user-defined, pre_checks_config JSONB, clone_steps JSONB, post_steps JSONB, last_run_at, last_run_status)
-- `clone_history` — append-only clone run log (recipe_id FK, source/target connection FKs, started_by, status running/success/failed/aborted, step_results JSONB, error_message, duration_ms)
-- `sql_audit_log` — append-only log of every POST /api/connections/:id/execute-sql attempt (user, connection, sql_text, allowed, block_reason, success, row_count, error_message, duration_ms)
-- `sql_console_history` — SQL Console execution history for audit compliance; 90-day retention; indexed by (user_id, connection_id)
-- `fndload_history` — append-only FNDLOAD audit (action download/diff/upload, object_type, diff_summary, pre_state_ldt for rollback, success, error_message)
-- `user_preferences` — per-user notification settings (hc_completion_email toggle, last_hc_email_sent_at for 10-min throttle); unique on user_id; defaults to enabled
-- `email_log` — append-only audit log of every outbound email (user_id, user_email, template, hc_id, status sent/failed/suppressed, postmark_message_id, sent_at)
-- `advisor_findings` — per-connection Oracle advisor snapshot (addm_tasks, findings, recommendations, sql_tuning_tasks JSONB, ai_summary, licensed flag); unique on connection_id (upsert on each fetch)
-- `addm_runs` — append-only ADDM execution history (connection_id, user, task_name, task_id, begin/end snap IDs + times, db_time_seconds, avg_active_sessions, findings JSONB, raw_report_text, ai_commentary, is_idle, timing breakdown)
-- `agent_tunnels` — secure tunnel metadata per connection (tunnel_uuid, tunnel_name, dns_hostname, status pending→provisioned→confirmed→active→uninstalled, os_info, oracle_sids, heartbeat timestamps); unique on connection_id
-- `agent_reg_tokens` — short-lived install tokens issued by UI, redeemed by install.sh via /api/agent/provision (token, connection_id, user_id, used bool, 30-min expires_at)
-- `agents_log_buffer` — last 500 log lines per agent flushed on heartbeat; unique on connection_id; read by /admin/agents log-tail drill-in modal
-- `proxy_exec_audit` — append-only log of every POST /api/connections/:id/exec attempt (connection_id, user_id, command_id, args JSONB, exit_code, duration_ms, stdout_bytes, stderr_bytes, succeeded, error_message, executed_at)
-- `ssh_install_credentials` — encrypted SSH creds for one-screen Add Connection flow (AES-GCM, install_status pending/running/success/failed, install_log up to 32 KB)
-- `installer_validation_runs` — automated install.sh validation on OL7/OL8 Docker containers (probe_1..6 status, overall pass/fail, trigger_source cron/deploy_webhook/manual)
-- `connection_health_runs` — one row per 8-probe diagnostic run per connection (probe_1..8 status+ms+detail, passed, total, agent_version, agent_uptime_s, trigger manual|sweeper); latest row per connection drives /connections fleet-health dots
-- `connection_ssh_profiles` — per-connection SSH access profiles (role: db_host/apps_tier/concurrent_tier/web_tier); ssh_host, auth_method (agent_forward/key_upload/password), AES-GCM key, bastion fields, known_hosts_pin, last_test_status
-- `smoke_test_runs` — end-to-end agent smoke test runs (connection_id, started_at, finished_at, overall_status running|pass|fail|error, steps_jsonb [{step,label,status,duration_ms,detail,error_msg}], triggered_by_user_id)
-- `ebs_credentials` — AES-256-GCM encrypted EBS/WebLogic passwords per connection (credential_type apps|system|sys|weblogic_admin|sysadmin_user|xml_gateway, username, encrypted_value, iv, auth_tag, rotated_at); unique on (connection_id, credential_type)
-- `credential_access_log` — append-only audit of every in-memory decryption event (connection_id, credential_type, action, user_id, accessed_at)
-- `ebs_adop_state` — latest ADOP patch-cycle state per connection (patching bool, phase, session_id, started_at, services_in_patch_mode JSONB, source, checked_at); unique on connection_id; upserted on each health-pack sweep; drives red banner + op-gating
-- `validation_runs` — full validation suite runs (status running|pass|partial|fail|error, share_token, summary_json, full_results_json); 7-day signed share link
-- `check_failure_bundles` — per-check failure context (sql_text, ORA error, python traceback, proxy log tail, agent/oracle version); 30-day auto-purge
-- `tns_topology_snapshots` — TNS topology snapshots per connection (service_names[], recommended_svc, share_token/expires_at); 30-day auto-purge; 7-day signed share links
-- `agent_diagnose_runs` — 8-probe diagnose run results per connection (probes JSONB, roundtrip_ms, overall_status); auto-trim keeps last 50; source of truth for connection card probe display
-- `agent_install_failures` — append-only log of failed install.sh runs (error_class systemd_failed|no_heartbeat|module_import_error, journalctl_tail, install_log_tail); surfaced at /admin/agent-installs
-- `agent_command_results` — one-shot command results queued via /pull-journalctl (status pending|completed|error)
-- `agent_crash_alerts_sent` — dedup table for crash-loop email alerts (one row per connection; cleared on heartbeat recovery; drives once-per-24h email limit)
-- `agent_restart_events` — append-only proxy restart log (reason_code, last_stage_reached, last_error, uptime_seconds); drives restart-loop detection (≥5 same reason in 10 min → agent_in_restart_loop flag)
-- `agent_channel_state` — one row per agent tracking last_poll_at, last_heartbeat_at, claim_holder, claim_expires_at; drives isAgentConnected() and poll observability
-- `agent_command_queue` — durable command queue per agent (SELECT FOR UPDATE SKIP LOCKED delivery, 60s claim expiry); replaces in-memory Map
+- `oracle_connections` — connections: host/port/creds (AES-GCM), proxy_url/key, server_type db|apps|both, connectivity_mode tns|ssh_sqlplus|both, privilege_model reader|sysdba, apps_pwd_enc, weblogic_pwd_enc, ebs_instance_name, auto_upgrade_enabled, agent metadata (proxy_version, python_version, cx_oracle_version, os_id)
+- `agent_upgrade_audit` — auto-upgrade lifecycle: from/to version, status queued|in_progress|completed|failed, verification_payload/status
+- `health_checks` — HC runs: results, score, ai_analysis, summary_text, ebs_summary, analysis_stage, ai_recommendations JSONB
+- `analysis_runs` — per-run AI pipeline timing: t0-t6 timestamps, token counts, finish_reason
+- `check_results` — individual check results per run: 51+ core checks + EBS_* checks; category='ebs_operations'
+- `users` — user accounts: email, google_id, magic link tokens
+- `company_hc_usage` — free-tier HC usage per company domain
+- `health_check_requests` — async HC job queue
+- `checks_catalogue` — master catalogue: 92 core check definitions (100+ with on-demand panels)
+- `payments` — Razorpay orders: one_time + subscription
+- `subscriptions` — subscription state: razorpay_subscription_id, plan_tier, status, period
+- `user_credits` — check quota: checks_remaining, plan_tier
+- `blog_posts` — SEO blog: title, slug, content, published_at, coming_soon BOOL
+- `roadmap_reminders` — deferred roadmap items with trigger_condition_json
+- `payment_test_runs` — admin payment pipeline test runs
+- `payment_method_test_runs` — live checkout tests per method (upi/netbanking/card)
+- `outreach_batches` — email wave config: name, template, approval_status; 60-min approval expiry
+- `outreach_recipients` — prospects per batch: email, send_authorized, status
+- `outreach_send_log` — append-only audit of every sendOutreachEmail() call
+- `ebs_deep_reports` — Deep EBS report runs: findings_json, ai_analysis, is_demo
+- `ebs_sanity_runs` — EBS Sanity Check results per connection: overall_status, findings_json
+- `ebs_control_commands` — whitelisted EBS control catalog: slug, shell_template, risk_level; seeded by migration
+- `audit_log` — append-only EBS control preview attempts: slug, allowed, rejection_reason
+- `payment_reconciliation` — append-only payment error log for manual review
+- `sql_fix_cache` — AI SQL fix recommendations: sql_id, plan_hash_value, fix_sql; 24h TTL
+- `analytics_events` — full funnel event log: 14 event types, user_id, session_id, properties JSONB
+- `page_events` — landing page CTA tracking: event_type, event_name, ip_hash SHA-256
+- `email_drip_state` — per-user drip state: sequence_step 1/2/3, sent_at, suppressed_at
+- `connection_schedules` — autonomous monitoring: cadence_minutes, enabled, next_run_at, alert_email, snoozed_until
+- `finding_history` — per-check delta state: finding_key, severity, first_seen_at, resolved_at; unique on (connection_id, finding_key)
+- `sql_tuning_findings` — SQL tuning snapshot per connection: sql_id, plan_hash, metrics_json, ai_recommendation_text
+- `outreach_attempts` — hard-lock audit: every sendOutreachEmail() attempt, blocked status
+- `ssh_targets` — admin SSH credential vault: host, os_user, auth_method, AES-GCM key; user_id=NULL=admin
+- `ssh_audit` — SSH execution log: command_key, exit_code, was_rejected, rejection_reason
+- `ebs_validation_runs` — EBS smoke-test run results: summary JSONB + tests JSONB
+- `teams` — team accounts: name, owner_id, plan_tier
+- `team_members` — team membership: (team_id, user_id) + role admin|senior_dba|junior_dba|viewer
+- `team_invites` — invite tokens: email, role, 7-day expiry
+- `rbac_audit_log` — permission-denied API attempts: method, path, required_role, actual_role
+- `sample_report_leads` — /sample-report email captures
+- `tuneops_notification_prefs` — per-user TuneOps email prefs: enabled, severity threshold
+- `tuneops_notification_mutes` — per-user per-connection 24h mutes
+- `tuneops_notification_log` — send dedup log: 1h window, 10/ticket/hour rate limit
+- `user_mfa` — TOTP secret (AES-GCM), is_enabled, recovery_codes (bcrypt JSONB)
+- `mfa_attempts` — MFA attempt log: drives 5-attempt/15-min lockout
+- `sso_configs` — SAML 2.0 per domain: sso_url, entity_id, certificate, role mapping; enterprise only
+- `sso_login_log` — SSO login audit: company_domain, email, succeeded, failure_reason
+- `api_keys` — per-user API keys: key_prefix, key_hash SHA-256, revoked_at
+- `compliance_reports` — compliance report records: report_type, date_from/to, generated_data JSONB; business+ only
+- `alert_policies` — alert threshold rules: check_type, conditions JSONB, escalation_chain, sustained_minutes
+- `alert_events` — alert instances: policy_id, severity, status triggered|acknowledged|escalated|resolved
+- `activity_log` — unified DBA audit: action_type, detail JSONB, connection_id, duration_ms, ip_address
+- `roles` — per-team role definitions: slug, branch dba|functional|dev|management, permissions JSONB; 8 defaults seeded
+- `approval_requests` — TuneOps approval gate: ticket_id, status pending|approved|rejected, approver_role_id
+- `tuneops_tickets` — tickets: TO-XXXX, canonical_key, severity, status OPEN→RESOLVED, source, reopened_count
+- `clone_recipes` — EBS clone wizard: source/target connections, clone_steps JSONB, last_run_status
+- `clone_history` — clone run log: status running|success|failed|aborted, step_results JSONB
+- `sql_audit_log` — execute-sql attempts: sql_text, allowed, block_reason, success, duration_ms
+- `sql_console_history` — SQL Console history: 90-day retention, indexed by (user_id, connection_id)
+- `fndload_history` — FNDLOAD audit: action download|diff|upload, object_type, pre_state_ldt for rollback
+- `user_preferences` — HC completion email toggle + 10-min throttle; unique on user_id
+- `email_log` — outbound email audit: template, hc_id, status sent|failed|suppressed, postmark_message_id
+- `advisor_findings` — ADDM/STA snapshot per connection: addm_tasks, ai_summary, licensed flag
+- `addm_runs` — ADDM history: task_name, snap IDs, db_time_seconds, findings JSONB, ai_commentary
+- `agent_tunnels` — tunnel metadata: tunnel_uuid, dns_hostname, status pending→active→uninstalled
+- `agent_reg_tokens` — install tokens: 30-min expiry, redeemed by install.sh via /api/agent/provision
+- `agents_log_buffer` — last 500 log lines per agent; read by /admin/agents log-tail modal
+- `proxy_exec_audit` — OS exec attempts: command_id, exit_code, duration_ms, succeeded
+- `ssh_install_credentials` — encrypted SSH creds for Add Connection wizard: install_status, install_log
+- `installer_validation_runs` — OL7/OL8 CI validation results: probe_1..6 status, trigger_source
+- `connection_health_runs` — 8-probe diagnostic per connection: probe_1..8 status+ms, drives fleet-health dots
+- `connection_ssh_profiles` — SSH profiles per connection role (db_host/apps_tier/web_tier): auth_method, known_hosts_pin
+- `smoke_test_runs` — end-to-end smoke test runs: overall_status, steps_jsonb
+- `ebs_credentials` — EBS/WebLogic passwords: credential_type apps|system|sys|weblogic_admin, AES-GCM encrypted
+- `credential_access_log` — in-memory decryption audit: credential_type, action, accessed_at
+- `ebs_adop_state` — ADOP state per connection: patching bool, phase, session_id; drives red banner + op-gating
+- `validation_runs` — validation suite runs: status, share_token (7-day), summary_json
+- `check_failure_bundles` — per-check failure context: ORA error, traceback, proxy log tail; 30-day purge
+- `tns_topology_snapshots` — TNS topology per connection: service_names[], share_token; 30-day purge
+- `agent_diagnose_runs` — 8-probe diagnose results: probes JSONB, overall_status; last 50 kept
+- `agent_install_failures` — failed install.sh log: error_class, journalctl_tail, install_log_tail
+- `agent_command_results` — one-shot command results queued via /pull-journalctl
+- `agent_crash_alerts_sent` — crash-loop email dedup: once per 24h per connection
+- `agent_restart_events` — proxy restart log: reason_code, uptime_seconds; ≥5 same reason/10min → restart_loop flag
+- `agent_channel_state` — agent poll state: last_poll_at, last_heartbeat_at, claim_holder
+- `agent_command_queue` — durable command queue: SELECT FOR UPDATE SKIP LOCKED, 60s claim expiry
 
 ## External integrations
-- **OpenAI (via Polsia proxy)** — AI summaries of health check results
+- **OpenAI** — direct API calls (gpt-4o-mini) for AI summaries, structured recommendations, executive summaries. Key: OPENAI_API_KEY env var on Render.
+- **Anthropic/Claude** — Claude API for additional AI features. Key: ANTHROPIC_API_KEY env var on Render.
 - **Google OAuth** — sign-in with Google
-- **Polsia email proxy** — magic-link emails, contact form
-- **Razorpay** — one-time payments + monthly subscriptions (USD only); live keys via RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET; optional test keys via RAZORPAY_TEST_KEY_ID / RAZORPAY_TEST_KEY_SECRET (used only on admin activation page)
+- **Razorpay** — one-time payments + monthly subscriptions (USD only); live keys RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET
+- **Postmark or Resend** — transactional emails (magic links, HC completion emails). Check RESEND_API_KEY / POSTMARK env vars — one is active.
 - **Tunnel API** — auto-provisions secure tunnels + DNS CNAME for one-line agent install (optional env vars)
-- **Datadog** — structured logging (via `console.log` in server)
 
 ## Add Connection route rule
 
@@ -144,21 +141,8 @@ All Add Connection links in the app MUST point to `/connections/new` — the sin
 
 ## Recent changes
 
-- 2026-06-08: FIX — report-ebs.html toolbar export buttons missing: replaced static #exportPdfBtn with #toolbar-export-slot; added injectToolbarExportButtons(connectionId) — injects EBS PDF (orange, /api/reports/:id/ebs?format=pdf) + EBS XLSX (orange-outline, /api/reports/:id/ebs?format=xlsx) into toolbar slot on report load; falls back to deep-EBS PDF button when connection_id is null (demo mode). renderReport() now calls injectToolbarExportButtons before injectSplitDownloadButtons (which still handles .report-actions in-page buttons).
-- 2026-06-08: FEAT — Two-tier nav redesign: nav-component.js: removed report action buttons from buildNav() (no more #navActions injection); mobile breakpoint moved from 1200px slide-in panel to 860px absolute dropdown card from hamburger; tvNavToggleMobile() simplified (no overlay div). report.html + report-ebs.html: added static #page-toolbar below nav-root (outside nav so it survives auth-driven nav rebuilds); toolbar contains New Check / All Reports links + #toolbar-sep + #toolbar-export-slot for dynamic export buttons; injectExportButtons() targets #toolbar-export-slot instead of #navActions; report-ebs.html adds static #exportPdfBtn (hidden until renderReport() shows it + separator).
-- 2026-06-08: FIX — hasSqlOps always false for proxy connections: routes/db-ops.js capabilities endpoint now uses `await channel.isAgentConnected(connId)` instead of checking cx_oracle_version field (which can be null/stale). Added [db-ops/capabilities] console.log.
-- 2026-06-08: FIX — (1) Mobile nav: right-side slide-in panel (280px wide) with semi-transparent overlay backdrop — replaces full-width overlay; ESC/click-outside closes via overlay div. (2) DB Ops capabilities spinner: AbortController 10s timeout — on abort shows "⚠ Could not detect capabilities" and still calls renderMain() so cards appear. (3) DB Ops run button: `await channel.isAgentConnected()` bug fixed (was missing await → Promise always truthy → 503 never fired); 60s AbortController on run fetch; error message shows data.detail too. (4) EBS Ops: connection dropdown replaces status pill — filters to server_type='apps'|'both'|is_ebs; saves to tv_conn localStorage so sub-pages auto-select same connection. right-side slide-in panel (280px wide) with semi-transparent overlay backdrop — replaces full-width overlay; ESC/click-outside closes via overlay div. (2) DB Ops capabilities spinner: AbortController 10s timeout — on abort shows "⚠ Could not detect capabilities" and still calls renderMain() so cards appear. (3) DB Ops run button: `await channel.isAgentConnected()` bug fixed (was missing await → Promise always truthy → 503 never fired); 60s AbortController on run fetch; error message shows data.detail too. (4) EBS Ops: connection dropdown replaces status pill — filters to server_type='apps'|'both'|is_ebs; saves to tv_conn localStorage so sub-pages auto-select same connection.
-- 2026-06-08: FIX — DB Ops + EBS Ops multiple fixes: (1) Proxy connections with cx_oracle_version now route SQL ops through agent channel → new /api/run_sql endpoint on oracle-proxy.py 3.20.35 (SELECT/WITH-only whitelist, returns columns+rows JSON). (2) capabilities API returns hasSqlOps=true when cx_oracle_version set; status label shows "✓ Proxy (SQL via agent)". (3) Dry-run modal overflow fixed (align-items:flex-start + max-height:85vh on modal). (4) "SQL / Cmd" button replaced with "Copy SQL" — copySql() copies rendered SQL to clipboard with ✓ feedback. (5) EBS Ops hasEbs gate now also matches server_type='apps'|'both' so app-tier connections unlock EBS Ops cards. (6) EBS Ops confirmed as fleet-mode (no connection dropdown). LATEST_PROXY_VERSION → 3.20.35.
-- 2026-06-08: FIX — Connection dropdowns broken on 14 pages (db-ops, ebs-middleware, ebs-concurrent, patches, sanity-check, sql-tuning, performance, sql-console, os-diagnostics, ebs-log-tail, ebs-patches, ebs-control-exec, ebs-12-2-checks, ebs-deep): tvConn.parseList() and tvConn.bind() were called but never defined in connection-state.js. Fixed by adding both methods: parseList() filters removed_connection rows and adds a label field; bind() restores saved connection from localStorage. db-ops.html also filters out server_type='apps' connections since DB Ops only runs against DB-tier servers.
-- 2026-06-08: FIX — Connection card health scores: connections.html was reading c.health.score (probe count 0-8 from connection_health_runs) and displaying as "/100". Fixed: routes/connections-list.js adds getLatestHcScores() batch query (DISTINCT ON connection_id from health_checks WHERE status='completed') — exposes latest_hc_score/latest_hc_id/latest_hc_at on each connection. connections.html uses latest_hc_score for card health bar and slideout; slideout adds "View report →" link. nav-component.js loadNavConnections() updated: connection items link to /report/:latest_hc_id (score pill shown); "Recent Reports" section appended at dropdown bottom (last 5 completed HCs with score + time ago + All Reports → link).
-- 2026-06-08: FIX/FEAT — oracle-proxy.py 3.20.34: commandMap uses full commands with context comments (# Run as applmgr:); c4ws/oaea managed servers treated as WARNING not CRITICAL (optional servers); generateStructuredRecommendations skipped for EBS app tier in server.js; report.html renderAISummaryTab wraps Critical Issues block in !isAppTier to eliminate duplicate findings display. LATEST_PROXY_VERSION → 3.20.34.
-- 2026-06-07: FIX — oracle-proxy.py 3.20.21: proxy upgrade cooldown configurable via PROXY_UPGRADE_COOLDOWN env var (seconds; default 300). routes/agent.js: PROXY_UPGRADE_COOLDOWN_MS env var replaces hardcoded 60*60*1000. LATEST_PROXY_VERSION → 3.20.21.
-- 2026-06-07: FIX — oracle-proxy.py 3.20.20: _src_cmd() rewritten to use temp script file (/tmp/.tv_hc_<pid>.sh) instead of `su -c '...'`. Fixes: heredocs broken via su stdin; $CONTEXT_FILE unavailable; MOTD/banner bleeding into raw output. Falls back to non-root base command if temp file write fails. LATEST_PROXY_VERSION → 3.20.20.
-- 2026-06-07: FIX — Auto-upgrade fully working as of 3.20.17/3.20.18. Root causes: TUNEVAULT_URL defaulted to tunevault.app (fixed 3.20.13); VERSION read truncated to 2000 bytes (removed 3.20.17). Verified 3.20.17→3.20.18 with zero manual steps. LATEST_PROXY_VERSION → 3.20.18.
-- 2026-06-07: FIX — oracle-proxy.py 3.20.11: check_for_update() comparison changed > → != so any version mismatch triggers update. Added [upgrade] debug logging. LATEST_PROXY_VERSION → 3.20.11.
-- 2026-06-07: FIX — oracle-proxy.py 3.20.10: stale-upgrade backoff — _backoff = min(60*count, 600)s when no update available. Cache-Control: no-cache on proxy download routes. LATEST_PROXY_VERSION → 3.20.10.
-- 2026-06-07: FEAT — oracle-proxy.py 3.20.9: raw output added to apache_status, opmn_status, apps_listener, node_manager ok results. LATEST_PROXY_VERSION → 3.20.9.
-- 2026-06-07: FIX — ensureColumns(): generic query resets auto-upgrade suppression for all connections where proxy_version < '3.20.6' or IS NULL. evaluateProxyUpgrade: skip work item for proxies < 3.20.6; exponential backoff on failure (5m→6h max).
-- 2026-06-07: FIX — EBS app server reinstall: ebs_context_file stored in oracle_connections. install.sh backfills CONTEXT_FILE from DB value after confirm if blank. reissue-install-token includes TUNEVAULT_EBS_CONTEXT_FILE if set.
-- 2026-06-06: FIX — evaluateAutoUpgrade: gate on agent version major < 6 skips all oracle-proxy.py connections. expirePendingDrafts: add NOT EXISTS health_checks guard to prevent FK constraint violation.
-- 2026-06-06: FIX — Auto-upgrade suppression: POST /api/admin/reset-upgrade/:id back-dates failed audit rows; evaluateAutoUpgrade skips app/both server_type; poll response includes proxy_upgrade_available+latest_proxy_version when proxy is stale.
+- 2026-06-08: FIX — report-ebs.html toolbar export buttons missing: replaced static #exportPdfBtn with #toolbar-export-slot; added injectToolbarExportButtons(connectionId) — injects EBS PDF + EBS XLSX into toolbar slot on report load; falls back to deep-EBS PDF button in demo mode.
+- 2026-06-08: FEAT — Two-tier nav redesign: nav-component.js removed report action buttons from buildNav(); mobile breakpoint 1200px→860px absolute dropdown from hamburger. report.html + report-ebs.html: static #page-toolbar below nav-root with New Check / All Reports links + #toolbar-export-slot.
+- 2026-06-08: FIX — hasSqlOps always false for proxy connections: db-ops.js capabilities endpoint now uses `await channel.isAgentConnected(connId)` instead of cx_oracle_version field (null/stale).
+- 2026-06-08: FIX — Mobile nav: right-side slide-in panel (280px) + overlay; DB Ops AbortController 10s timeout; DB Ops run button missing `await` fixed (Promise always truthy → 503 never fired); EBS Ops connection dropdown replaces status pill (server_type filter).
+- 2026-06-08: FIX — DB Ops + EBS Ops: proxy SQL via agent channel (/api/run_sql, SELECT/WITH whitelist); capabilities hasSqlOps=true for cx_oracle_version; Copy SQL replaces SQL/Cmd button; EBS Ops hasEbs gate matches server_type='apps'|'both'. LATEST_PROXY_VERSION → 3.20.35.
