@@ -546,6 +546,762 @@ function stubContent(topics) {
   return `## Coming Soon\n\nThis article is in progress. It will cover: ${topics.join(', ')}.\n\nCheck back soon, or [see our other articles](/blog) for Oracle DBA field notes you can use today.`;
 }
 
+const AWR_ASH_CONTENT = `
+## Why AWR Reports Are Misread
+
+Most DBAs open an AWR report, scroll straight to "Top 5 Timed Events," pick the top entry, and start tuning that. That's the wrong approach. The top wait event is often a symptom, not a root cause. Reading AWR correctly means starting with the load profile, understanding DB Time, and only then looking at waits — with the context to interpret them.
+
+This guide walks through the sections that actually matter and shows you what to look for in each.
+
+## Generating an AWR Report
+
+AWR snapshots are taken automatically every hour (default). To generate a report:
+
+\`\`\`sql
+-- List recent snapshots to find your window
+SELECT snap_id, begin_interval_time, end_interval_time
+FROM dba_hist_snapshot
+ORDER BY snap_id DESC
+FETCH FIRST 48 ROWS ONLY;
+
+-- Generate the HTML report for snap IDs 1200–1201 on instance 1
+@$ORACLE_HOME/rdbms/admin/awrrpt.sql
+-- Choose: html or text, instance number, begin/end snap IDs
+\`\`\`
+
+For a specific time window from the command line:
+
+\`\`\`sql
+-- AWR report for the last 2 hours
+VARIABLE rpt CLOB;
+EXEC :rpt := DBMS_WORKLOAD_REPOSITORY.AWR_REPORT_HTML(
+  l_dbid    => (SELECT dbid FROM v$database),
+  l_inst_num => 1,
+  l_bid     => (SELECT min(snap_id) FROM dba_hist_snapshot
+                WHERE begin_interval_time >= SYSDATE - 2/24),
+  l_eid     => (SELECT max(snap_id) FROM dba_hist_snapshot
+                WHERE end_interval_time   <= SYSDATE)
+);
+\`\`\`
+
+## Section 1: Report Summary — DB Time Is Everything
+
+The first thing to look at is **DB Time** in the Report Summary. DB Time is the total Oracle CPU + wait time consumed by all foreground sessions during the snapshot window. It is the single most important number in the report.
+
+\`\`\`
+DB Time:         1,482.3 (mins)
+Elapsed time:       60.1 (mins)
+DB CPU:            421.6 (mins)
+\`\`\`
+
+Calculate the **active session count**: DB Time ÷ Elapsed Time = 1482.3 ÷ 60.1 = **24.7 average active sessions**.
+
+If your server has 32 CPUs and you see 24.7 average active sessions, the database is well-utilized. If you see 150 average active sessions on the same server, you have a throughput problem — sessions are piling up waiting.
+
+DB CPU ÷ DB Time = 421.6 ÷ 1482.3 = **28% of DB Time was on CPU**. The remaining 72% was wait time. That means wait events matter here.
+
+## Section 2: Load Profile — Throughput at a Glance
+
+\`\`\`
+                           Per Second    Per Transaction
+               DB Time(s):        24.7              0.04
+                DB CPU(s):         7.0              0.01
+       Redo size (bytes):    2,847,312         4,210.2
+   Logical reads (blocks):      98,421           145.7
+   Block changes:                8,492            12.6
+   Physical reads (blocks):      1,847             2.7
+   Physical writes (blocks):     2,104             3.1
+   User calls:                   4,823             7.1
+   Parses:                       2,312             3.4
+   Hard parses:                    147             0.2
+   Executions:                  67,621           100.1
+   Rollbacks:                       32             0.0
+   Transactions:                   676
+\`\`\`
+
+What to look for:
+
+**Hard parses per second > 100**: SQL is not being reused. Check cursor_sharing or application-level bind variable usage. Hard parses are CPU-expensive and cause library cache latch contention.
+
+**Logical reads per transaction > 10,000**: Queries are doing full scans or missing indexes. Cross-check with the SQL ordered by logical reads section.
+
+**Redo size per second > 50 MB**: Heavy write workload. Check for bulk DML without commit batching, or missing direct-path inserts.
+
+**Physical reads per second disproportionate to logical reads**: Buffer cache hit ratio is low. Consider increasing `DB_CACHE_SIZE`.
+
+## Section 3: Top 5 Timed Events — Read These Last
+
+Now that you have context, look at Top 5 Timed Events:
+
+\`\`\`
+Top 5 Timed Foreground Events
+Event                          Waits     Time (s)  Avg wait (ms)  % DB Time
+------------------------------ --------- --------- -------------- ---------
+DB CPU                                     25,300                     28.4%
+db file sequential read        2,847,201  31,200          10.96      35.0%
+log file sync                    412,100   8,904          21.61      10.0%
+db file scattered read           198,300   4,200          21.18       4.7%
+latch: shared pool               12,400   3,600         290.32       4.0%
+\`\`\`
+
+**DB CPU first**: If CPU is 28% of DB Time and you have capacity, CPU is not the bottleneck.
+
+**db file sequential read (single block I/O)**: Index reads or undo reads. High total time with reasonable avg wait (10ms) usually means the query is doing many correct index lookups — not necessarily a problem. If avg wait > 30ms, I/O subsystem is slow.
+
+**log file sync**: Wait experienced by a COMMIT. If avg wait > 20ms, your redo log group is on slow storage or log_buffer is undersized. Move redo logs to SSD.
+
+**db file scattered read (multi-block I/O)**: Full table scans or fast full index scans. High here often matches high logical reads per transaction — look for missing indexes.
+
+**latch: shared pool**: If this appears with high total time, you have hard parse or cursor invalidation issues. Check `cursor_sharing` and look at `v$sql` for statements with high `parse_calls/executions` ratio.
+
+## Section 4: SQL Ordered by CPU and Elapsed Time
+
+This is where you find the specific SQL causing load:
+
+\`\`\`sql
+-- Find the same top SQL from v$sql in real time
+SELECT sql_id,
+       ROUND(cpu_time/1e6, 2)         cpu_sec,
+       ROUND(elapsed_time/1e6, 2)     elapsed_sec,
+       executions,
+       ROUND(cpu_time/NULLIF(executions,0)/1e6, 4) cpu_per_exec,
+       SUBSTR(sql_text, 1, 100)       sql_preview
+FROM v$sql
+WHERE executions > 0
+ORDER BY cpu_time DESC
+FETCH FIRST 20 ROWS ONLY;
+\`\`\`
+
+For a top SQL from the AWR report, get its execution plan history:
+
+\`\`\`sql
+-- See all plans for a specific SQL ID from AWR history
+SELECT plan_hash_value,
+       MIN(begin_interval_time) first_seen,
+       MAX(end_interval_time)   last_seen,
+       SUM(executions_delta)    total_execs,
+       ROUND(SUM(elapsed_time_delta)/1e6 / NULLIF(SUM(executions_delta),0), 2) avg_elapsed_ms
+FROM dba_hist_sql_plan p
+JOIN dba_hist_sqlstat  s USING (sql_id, plan_hash_value)
+JOIN dba_hist_snapshot sn USING (snap_id)
+WHERE p.sql_id = '&your_sql_id'
+GROUP BY plan_hash_value
+ORDER BY last_seen DESC;
+\`\`\`
+
+A plan_hash_value change between two snapshots means the optimizer chose a different plan — often the root cause of a sudden performance regression.
+
+## Section 5: Wait Event Histograms
+
+The histogram section shows how waits are distributed. A histogram where 90% of "db file sequential read" waits complete in <8ms tells a very different story than one where 40% take >64ms.
+
+\`\`\`sql
+-- Current wait event histogram from memory
+SELECT event, wait_time_milli, wait_count
+FROM v$event_histogram
+WHERE event IN ('db file sequential read', 'db file scattered read', 'log file sync')
+ORDER BY event, wait_time_milli;
+\`\`\`
+
+For I/O events, if you see a bimodal distribution (lots of fast waits + a long tail of slow waits), suspect I/O subsystem contention at specific times rather than a persistent problem.
+
+## Using ASH to Drill Into a Specific Window
+
+AWR covers an hour; ASH covers seconds. When a user says "it was slow between 14:23 and 14:31," use ASH:
+
+\`\`\`sql
+-- What was happening between 14:23 and 14:31 today?
+SELECT
+    TO_CHAR(sample_time, 'HH24:MI:SS')  sample_time,
+    session_state,
+    event,
+    COUNT(*)                             active_sessions
+FROM v$active_session_history
+WHERE sample_time BETWEEN
+    TO_DATE('2026-06-09 14:23:00', 'YYYY-MM-DD HH24:MI:SS') AND
+    TO_DATE('2026-06-09 14:31:00', 'YYYY-MM-DD HH24:MI:SS')
+GROUP BY TO_CHAR(sample_time, 'HH24:MI:SS'), session_state, event
+ORDER BY 1, 4 DESC;
+\`\`\`
+
+For a specific SQL during that window:
+
+\`\`\`sql
+SELECT sql_id, event, COUNT(*) samples,
+       ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER(), 1) pct
+FROM v$active_session_history
+WHERE sample_time BETWEEN
+    TO_DATE('2026-06-09 14:23:00', 'YYYY-MM-DD HH24:MI:SS') AND
+    TO_DATE('2026-06-09 14:31:00', 'YYYY-MM-DD HH24:MI:SS')
+  AND session_state = 'WAITING'
+GROUP BY sql_id, event
+ORDER BY samples DESC
+FETCH FIRST 20 ROWS ONLY;
+\`\`\`
+
+For historical ASH (older than the in-memory window):
+
+\`\`\`sql
+-- From DBA_HIST_ACTIVE_SESS_HISTORY — same query on the history table
+SELECT sql_id, event, COUNT(*) samples
+FROM dba_hist_active_sess_history
+WHERE sample_time BETWEEN
+    TO_DATE('2026-06-08 14:23:00', 'YYYY-MM-DD HH24:MI:SS') AND
+    TO_DATE('2026-06-08 14:31:00', 'YYYY-MM-DD HH24:MI:SS')
+  AND session_state = 'WAITING'
+GROUP BY sql_id, event
+ORDER BY samples DESC;
+\`\`\`
+
+## The Six Questions an AWR Report Should Answer
+
+When you open any AWR report, work through this checklist:
+
+1. **What is the average active session count?** (DB Time ÷ Elapsed Time) — are you over your CPU count?
+2. **What fraction of DB Time is on CPU vs waiting?** If >70% CPU, look at CPU-bound SQL. If <30% CPU, look at waits.
+3. **What is the hard parse rate?** Anything above 100/second warrants attention.
+4. **What are the top 2–3 waits by total time, and what are their average wait times?** Average wait tells you severity; total time tells you scope.
+5. **Are there any "new" events in Top 5 compared to your baseline?** A new latch or enqueue event is a signal.
+6. **Which SQL IDs dominate CPU and elapsed time?** Pull their plans and check for plan regressions.
+
+## Common AWR Patterns and What They Mean
+
+| Pattern | Likely Cause | First Check |
+|---------|-------------|-------------|
+| log file sync >15ms avg | Slow redo storage | Move redo to SSD; check iostat on redo disk |
+| library cache: mutex X high | Hard parses / plan invalidation | cursor_sharing=FORCE; check v$sql_plan_statistics_all |
+| enq: TX — row lock contention | Application lock contention | v$session.blocking_session |
+| buffer busy waits > 1% DB Time | Hot blocks (segment header or data block) | dba_segments where segment_type='TABLE' |
+| latch: cache buffers chains | Hot data blocks | Find object with v$bh by file#/block# |
+| cursor: pin S wait on X | Hard parse concurrency | cursor_sharing, avoid shared pool flush |
+| read by other session | I/O bottleneck with session contention | Check I/O queuing, consider async I/O |
+
+TuneVault's health check runs AWR analysis automatically on every check, surfacing the top wait patterns and flagging SQL regressions without requiring you to manually generate and read the report.
+`;
+
+const UPGRADE_19C_CONTENT = `
+## Why 19c Is the Right Target
+
+Oracle 19c (19.3+) is Oracle's long-term support release for the 12.2 family — full Premier Support runs through April 2024, Extended Support through April 2027. It is the most stable, best-patched version of the 12.2 codebase. More importantly for EBS and third-party applications, 19c is the last version that maintains full compatibility with 12c feature sets.
+
+If you are on 12.1.0.2 or 12.2.0.1, upgrading to 19c is a direct, supported path. If you are on 11.2.0.4, you can go direct to 19c as well. Oracle does not require you to step through intermediate versions.
+
+## Before You Start: Pre-Upgrade Checks
+
+### Step 1: Run preupgrade.jar
+
+Oracle provides a free diagnostic tool that checks your database for upgrade-blocking conditions:
+
+\`\`\`bash
+# On the source (12c) database server
+# Download preupgrade.jar from MOS (Doc ID 884522.1)
+# Or use the one bundled in your 19c ORACLE_HOME:
+
+java -jar $ORACLE_HOME_19C/rdbms/admin/preupgrade.jar \
+  TEXT TERMINAL DIR /tmp/preupgrade_output
+
+# This connects to the database via bequeath (must run as oracle OS user)
+# and generates:
+#   /tmp/preupgrade_output/preupgrade.log      — human-readable report
+#   /tmp/preupgrade_output/preupgrade_fixups.sql — fixups to run BEFORE upgrade
+#   /tmp/preupgrade_output/postupgrade_fixups.sql — fixups to run AFTER upgrade
+\`\`\`
+
+Read through every WARNING and RECOMMEND item in preupgrade.log. The most common blockers:
+
+**Timezone version mismatch**: Your DB uses TZ version 14, the 19c home ships with TZ version 32. You must update to the target version. Run \`$ORACLE_HOME_19C/OPatch/datapatch\` post-upgrade — or use the timezone upgrade utility.
+
+**Invalid/broken objects**: Pre-upgrade fixups recompile known Oracle-owned invalid objects. Custom schema invalids must be resolved by you.
+
+**Deprecated parameters**: Parameters removed in 19c that must be cleared from spfile before upgrade. preupgrade.log lists them explicitly.
+
+### Step 2: Run preupgrade_fixups.sql on the SOURCE database
+
+\`\`\`sql
+-- Connect as SYSDBA to the source database
+@/tmp/preupgrade_output/preupgrade_fixups.sql
+\`\`\`
+
+This runs automatically — it fixes timezone issues, gathers optimizer statistics, recompiles invalid objects. Review the output for any FAILURE lines.
+
+### Step 3: Identify and fix custom invalid objects
+
+\`\`\`sql
+-- Find all non-Oracle invalid objects
+SELECT owner, object_type, object_name, status
+FROM dba_objects
+WHERE status = 'INVALID'
+  AND owner NOT IN (
+    'SYS','SYSTEM','OUTLN','DBA_BUNDLE','OJVMSYS','LBACSYS',
+    'DBSNMP','APPQOSSYS','DBSFWUSER','GSMADMIN_INTERNAL',
+    'CTXSYS','ORDPLUGINS','ORDDATA','ORDSYS','SI_INFORMTN_SCHEMA',
+    'MDSYS','OLAPSYS','DVSYS','AUDSYS','DVF','GGSYS','APEX_PUBLIC_USER'
+  )
+ORDER BY owner, object_type, object_name;
+
+-- Recompile invalid objects in a schema
+EXEC DBMS_UTILITY.COMPILE_SCHEMA(schema => 'YOUR_SCHEMA', compile_all => FALSE);
+
+-- Or use utlrp.sql to recompile all (takes 5–30 min on large databases)
+@$ORACLE_HOME/rdbms/admin/utlrp.sql
+\`\`\`
+
+## The AutoUpgrade Tool
+
+AutoUpgrade is Oracle's recommended upgrade method from 19.3 onwards. It handles the entire upgrade process: pre-checks, mode switching, upgrade execution, post-upgrade fixups, and compilation.
+
+### Download and Version Check
+
+AutoUpgrade is distributed as a single JAR. Always use the latest version (downloaded from MOS Doc ID 2485457.1 — do not use the one bundled in the 19c home, it may be outdated):
+
+\`\`\`bash
+# Check version
+java -jar autoupgrade.jar -version
+# Should be 23.x or later for production use
+
+# Verify Java version (minimum: Java 8)
+java -version
+\`\`\`
+
+### Create the Configuration File
+
+\`\`\`ini
+# /home/oracle/autoupgrade/config.cfg
+
+# Global settings
+global.autoupg_log_dir=/u01/autoupgrade/logs
+
+# Database 1: PRODDB
+upg1.dbname=PRODDB
+upg1.start_time=NOW
+upg1.source_home=/u01/app/oracle/product/12.2.0/db_1
+upg1.target_home=/u01/app/oracle/product/19.3.0/db_1
+upg1.sid=PRODDB
+upg1.log_dir=/u01/autoupgrade/logs/PRODDB
+upg1.upgrade_node=localhost
+upg1.run_utlrp=yes
+upg1.timezone_upg=yes
+
+# Optional: retain old parameters for analysis (AutoUpgrade strips deprecated ones)
+# upg1.drop_grp_after_upgrade=no
+\`\`\`
+
+### Analyze Mode (No Changes Made)
+
+\`\`\`bash
+# Run analyze — reads the database and generates a report
+java -jar autoupgrade.jar -config /home/oracle/autoupgrade/config.cfg -mode analyze
+
+# Review:
+cat /u01/autoupgrade/logs/PRODDB/*/autoupgrade_*.log | grep -E "ERROR|WARNING|CRITICAL"
+\`\`\`
+
+### Fixups Mode (Prepares the Database)
+
+\`\`\`bash
+# Run fixups — makes changes needed before upgrade, but does not upgrade yet
+java -jar autoupgrade.jar -config /home/oracle/autoupgrade/config.cfg -mode fixups
+\`\`\`
+
+### Deploy Mode (Full Upgrade)
+
+\`\`\`bash
+# Full unattended upgrade
+nohup java -jar autoupgrade.jar \
+  -config /home/oracle/autoupgrade/config.cfg \
+  -mode deploy > /u01/autoupgrade/logs/autoupgrade.out 2>&1 &
+
+# Monitor progress (while running)
+tail -f /u01/autoupgrade/logs/PRODDB/*/autoupgrade_*.log
+
+# Or use the interactive console
+java -jar autoupgrade.jar -config /home/oracle/autoupgrade/config.cfg -mode deploy
+# Type 'lsj' to list jobs, 'status -job 1' for detail
+\`\`\`
+
+AutoUpgrade will:
+1. Shut down the source database cleanly
+2. Start it in upgrade mode using the 19c home
+3. Run catupgrd.sql (the core catalog upgrade)
+4. Run post-upgrade fixups
+5. Recompile all invalid objects
+6. Update timezone data
+7. Restart the database in normal mode
+
+On a typical 200GB database, expect 45–90 minutes. For multi-terabyte databases, the catalog upgrade is the bottleneck (not data volume) and usually completes in under 3 hours.
+
+## Post-Upgrade Tasks
+
+### Verify the Upgrade
+
+\`\`\`sql
+-- Check database version
+SELECT version FROM v$instance;
+-- Should show 19.x.x.x.x
+
+-- Check for remaining invalid objects
+SELECT count(*), status FROM dba_objects GROUP BY status;
+
+-- Run post-upgrade fixups
+@/tmp/preupgrade_output/postupgrade_fixups.sql
+
+-- Gather fresh optimizer statistics (critical — skip this and you will have bad plans)
+EXEC DBMS_STATS.GATHER_DICTIONARY_STATS;
+EXEC DBMS_STATS.GATHER_FIXED_OBJECTS_STATS;
+\`\`\`
+
+### Update Compatibility Parameter
+
+\`\`\`sql
+-- Check current compatible parameter
+SHOW PARAMETER compatible;
+
+-- It was set to 12.2.0 for the upgrade — once you are satisfied, advance it:
+-- WARNING: This is irreversible. The database cannot be downgraded after this.
+ALTER SYSTEM SET COMPATIBLE = '19.0.0' SCOPE=SPFILE;
+SHUTDOWN IMMEDIATE;
+STARTUP;
+\`\`\`
+
+Wait at least 2–4 weeks before advancing compatible. If you discover application issues, you can still restore from backup to 12c as long as compatible < 19.
+
+### Update timezone (if not done by AutoUpgrade)
+
+\`\`\`bash
+# Check current timezone version
+SELECT version FROM v$timezone_file;
+
+# If < 32, run the DBMS_DST upgrade (required for correct timestamp handling)
+# This is a two-phase operation requiring a maintenance window
+EXEC DBMS_DST.BEGIN_UPGRADE(32);
+# ... application downtime here ...
+EXEC DBMS_DST.UPGRADE_DATABASE;
+EXEC DBMS_DST.END_UPGRADE;
+\`\`\`
+
+### Update listener and tnsnames
+
+\`\`\`bash
+# Update listener.ora to point to new ORACLE_HOME
+# Remove the 12c entry, add 19c:
+
+LISTENER =
+  (DESCRIPTION_LIST =
+    (DESCRIPTION =
+      (ADDRESS = (PROTOCOL = TCP)(HOST = dbhost)(PORT = 1521))
+    )
+  )
+
+SID_LIST_LISTENER =
+  (SID_LIST =
+    (SID_DESC =
+      (GLOBAL_DBNAME = PRODDB)
+      (ORACLE_HOME = /u01/app/oracle/product/19.3.0/db_1)
+      (SID_NAME = PRODDB)
+    )
+  )
+
+# Restart listener from 19c home
+$ORACLE_HOME_19C/bin/lsnrctl stop
+$ORACLE_HOME_19C/bin/lsnrctl start
+\`\`\`
+
+## Common Problems and Fixes
+
+**Upgrade hangs at "Running component Catalog"**: Usually a contention issue in the catalog upgrade SQL. Check alert log for ORA-1555 (undo space) or ORA-60 (deadlock). Adding undo space and restarting from the checkpoint usually resolves it.
+
+**catupgrd.sql fails with ORA-04063**: Invalid packages that the upgrade depends on. Run utlrp.sql manually, then re-run the catupgrd script from where it failed (AutoUpgrade can resume from checkpoint).
+
+**Applications fail post-upgrade with ORA-00904 (invalid identifier)**: A column or feature was removed or renamed in 19c. The most common is column names that became reserved words. Fix by using column aliases in queries.
+
+**JDBC thin driver connection failures**: Old JDBC drivers (ojdbc6.jar) are incompatible with 19c in some combinations. Upgrade to ojdbc8.jar from the 19c home.
+
+**EBS R12.2 on 19c**: Run the Oracle E-Business Suite Pre-Upgrade steps first (MOS Doc ID 2552566.1). EBS 12.2.7+ is certified on 19c. Run adop phase=apply for any pending patches after the upgrade.
+
+## Rollback Plan
+
+AutoUpgrade creates a guaranteed restore point (GRP) before the upgrade unless you explicitly disable it:
+
+\`\`\`sql
+-- If you need to roll back (must be done before advancing compatible)
+SHUTDOWN IMMEDIATE;
+STARTUP MOUNT;
+FLASHBACK DATABASE TO RESTORE POINT AUTOUPGRADE_9212_PRODDB12201;
+ALTER DATABASE OPEN RESETLOGS;
+-- Re-link the database to the 12c home
+\`\`\`
+
+The GRP is automatically dropped by AutoUpgrade after 30 days. Make sure you have a physical backup as well — GRP-based rollback requires the FRA to have enough space for all redo since the snapshot.
+
+TuneVault's health check runs the Oracle 19c readiness checks automatically, identifying deprecated parameters, invalid objects, and timezone version mismatches before you start your upgrade window.
+`;
+
+const TABLESPACE_MGMT_CONTENT = `
+## The Two Modes of Datafile Sizing
+
+Every Oracle tablespace is backed by datafiles. Each datafile is either:
+
+- **Fixed size**: You allocated 100GB and that is what it gets. The database will raise ORA-01652 or ORA-01653 when space runs out.
+- **AUTOEXTEND ON**: The datafile grows automatically when more space is needed, up to a MAXSIZE (or unlimited if you did not set one).
+
+Most production databases use a mix of both. Knowing when to use each is the first decision in tablespace management.
+
+## When to Use AUTOEXTEND
+
+Autoextend makes sense for:
+
+- **SYSTEM and SYSAUX tablespaces**: These are internal Oracle spaces. They should never fill up — autoextend prevents outages from catalog growth during patches or upgrades.
+- **UNDO tablespace**: Autoextend gives the undo system breathing room during large batch operations. Pair it with UNDO_RETENTION tuning.
+- **TEMP tablespace**: Temporary segments are transient. Autoextend with a reasonable MAXSIZE avoids sort-abort errors without wasting permanent disk.
+
+Autoextend is risky for:
+
+- **Application data tablespaces** where runaway jobs or batch imports can fill an entire filesystem overnight. A fixed MAXSIZE with a monitoring alert is safer.
+- **Environments where disk is shared** between multiple databases — one database can consume space intended for another.
+
+## When to Use Fixed Size with Alerts
+
+Fixed-size datafiles force you to take an explicit action before a tablespace grows. This is the right model for application data because it catches problems:
+
+- A runaway batch job that is duplicating data
+- A missing partition that dumps all rows into a default partition
+- An archivelog or audit table that was not housekept
+
+The tradeoff: you need active monitoring and the discipline to pre-allocate space before it is needed.
+
+## Core Monitoring Queries
+
+### Current Tablespace Usage
+
+\`\`\`sql
+SELECT
+    t.tablespace_name,
+    t.contents,
+    ROUND(NVL(f.free_mb, 0), 2)             free_mb,
+    ROUND(t.total_mb, 2)                    total_mb,
+    ROUND((1 - NVL(f.free_mb,0)/t.total_mb)*100, 1) pct_used,
+    ROUND(NVL(mx.maxsize_mb, t.total_mb), 2) maxsize_mb,
+    CASE
+      WHEN (1 - NVL(f.free_mb,0)/t.total_mb)*100 > 90 THEN 'CRITICAL'
+      WHEN (1 - NVL(f.free_mb,0)/t.total_mb)*100 > 80 THEN 'WARNING'
+      ELSE 'OK'
+    END status
+FROM
+    (SELECT tablespace_name, contents,
+            SUM(bytes)/1048576 total_mb
+     FROM dba_data_files GROUP BY tablespace_name, contents) t
+LEFT JOIN
+    (SELECT tablespace_name, SUM(bytes)/1048576 free_mb
+     FROM dba_free_space GROUP BY tablespace_name) f
+    ON t.tablespace_name = f.tablespace_name
+LEFT JOIN
+    (SELECT tablespace_name,
+            SUM(CASE WHEN maxbytes = 0 THEN bytes ELSE maxbytes END)/1048576 maxsize_mb
+     FROM dba_data_files GROUP BY tablespace_name) mx
+    ON t.tablespace_name = mx.tablespace_name
+ORDER BY pct_used DESC;
+\`\`\`
+
+This query accounts for autoextend: if a datafile has MAXSIZE set, it uses that as the ceiling rather than the current allocation. This gives you a more accurate "how much headroom do I really have?" answer.
+
+### UNDO and TEMP (Use Different Views)
+
+UNDO and TEMP tablespaces are not covered by dba_free_space:
+
+\`\`\`sql
+-- UNDO usage
+SELECT
+    d.tablespace_name,
+    ROUND(SUM(d.bytes)/1e9, 2) allocated_gb,
+    ROUND(SUM(u.bytes)/1e9, 2) used_gb,
+    ROUND(SUM(u.bytes)*100/NULLIF(SUM(d.bytes),0), 1) pct_used
+FROM dba_data_files d
+JOIN v$undostat u ON 1=1  -- cross-join trick; v$undostat shows current undo usage
+WHERE d.tablespace_name = (SELECT value FROM v$parameter WHERE name='undo_tablespace')
+GROUP BY d.tablespace_name;
+
+-- Simpler UNDO check via v$undostat (last 1440 minutes = 24 hours of stats)
+SELECT
+    TO_CHAR(begin_time,'HH24:MI') period,
+    undoblks,
+    txncount,
+    maxconcurrency,
+    ROUND(undoblks * 8192 / 1e9, 3) undo_gb_per_period
+FROM v$undostat
+ORDER BY begin_time DESC
+FETCH FIRST 12 ROWS ONLY;
+
+-- TEMP usage (currently used)
+SELECT
+    t.tablespace_name,
+    ROUND(SUM(t.bytes)/1e9, 2) total_gb,
+    ROUND(NVL(SUM(u.bytes_used)/1e9, 0), 2) used_gb,
+    ROUND(NVL(SUM(u.bytes_used)*100/SUM(t.bytes), 0), 1) pct_used
+FROM dba_temp_files t
+LEFT JOIN v$temp_extent_pool u ON t.file_id = u.file_id
+GROUP BY t.tablespace_name;
+\`\`\`
+
+## Growth Rate Analysis
+
+Knowing current usage tells you today's problem. Growth rate tells you next month's.
+
+\`\`\`sql
+-- Tablespace growth over the last 7 days (requires AWR — Diagnostics Pack license)
+SELECT
+    tablespace_name,
+    TO_CHAR(snap_date, 'YYYY-MM-DD') snap_date,
+    ROUND(allocated_mb, 1) allocated_mb,
+    ROUND(used_mb, 1) used_mb,
+    ROUND(used_mb - LAG(used_mb, 1) OVER (PARTITION BY tablespace_name ORDER BY snap_date), 1) daily_growth_mb
+FROM (
+    SELECT
+        s.tablespace_name,
+        TRUNC(sn.end_interval_time) snap_date,
+        MAX(s.tablespace_size * 8 / 1024) allocated_mb,
+        MAX(s.tablespace_used_size * 8 / 1024) used_mb
+    FROM dba_hist_tbspc_space_usage s
+    JOIN dba_hist_snapshot sn ON s.snap_id = sn.snap_id
+    WHERE sn.end_interval_time >= SYSDATE - 7
+    GROUP BY s.tablespace_name, TRUNC(sn.end_interval_time)
+)
+ORDER BY tablespace_name, snap_date;
+\`\`\`
+
+For non-AWR environments, log snapshots daily using a custom table:
+
+\`\`\`sql
+-- Create a simple tablespace history log
+CREATE TABLE dba_ts_history AS
+SELECT SYSDATE snap_time, tablespace_name, SUM(bytes)/1048576 used_mb
+FROM dba_segments
+GROUP BY tablespace_name;
+
+-- Schedule via DBMS_SCHEDULER to run nightly
+-- Then query growth trend:
+SELECT tablespace_name,
+       MAX(used_mb) - MIN(used_mb) growth_mb_over_period,
+       COUNT(*) days_sampled
+FROM dba_ts_history
+WHERE snap_time >= SYSDATE - 30
+GROUP BY tablespace_name
+ORDER BY growth_mb_over_period DESC;
+\`\`\`
+
+## Adding Space
+
+When you need to extend a tablespace:
+
+\`\`\`sql
+-- Option 1: Add a new datafile
+ALTER TABLESPACE APP_DATA
+  ADD DATAFILE '/u02/oradata/PRODDB/app_data02.dbf'
+  SIZE 50G AUTOEXTEND OFF;
+
+-- Option 2: Resize an existing datafile
+ALTER DATABASE DATAFILE '/u01/oradata/PRODDB/app_data01.dbf' RESIZE 100G;
+
+-- Option 3: Enable autoextend on existing datafile (carefully)
+ALTER DATABASE DATAFILE '/u01/oradata/PRODDB/app_data01.dbf'
+  AUTOEXTEND ON MAXSIZE 200G;
+
+-- Find current datafiles and their sizes
+SELECT file_name, bytes/1073741824 size_gb, maxbytes/1073741824 maxsize_gb, autoextensible
+FROM dba_data_files
+WHERE tablespace_name = 'APP_DATA'
+ORDER BY file_id;
+\`\`\`
+
+## Bigfile Tablespaces
+
+Bigfile tablespaces use a single datafile instead of many smallfiles. Benefits:
+- No 1022-datafile limit per tablespace
+- Simpler Oracle Managed Files management
+- Smaller control file
+
+Drawbacks:
+- Backup I/O is sequential (one big file, not parallelizable across files)
+- Recovery of a single block requires restoring the entire large file
+
+Use bigfile for ASM environments (ASM handles striping) or when you are already using Oracle Managed Files. Avoid bigfile on filesystems where your backup software can parallelize by file.
+
+\`\`\`sql
+-- Create a bigfile tablespace
+CREATE BIGFILE TABLESPACE WAREHOUSE_DATA
+  DATAFILE '/u04/oradata/PRODDB/warehouse01.dbf' SIZE 5T
+  EXTENT MANAGEMENT LOCAL UNIFORM SIZE 1M
+  SEGMENT SPACE MANAGEMENT AUTO;
+
+-- Check if a tablespace is bigfile
+SELECT tablespace_name, bigfile FROM dba_tablespaces;
+\`\`\`
+
+## Setting Up Proactive Alerts
+
+The best way to avoid tablespace emergencies is to alert before you hit 80%. Oracle provides built-in thresholds via the Server Alert system:
+
+\`\`\`sql
+-- Set custom warning/critical thresholds per tablespace
+EXEC DBMS_SERVER_ALERT.SET_THRESHOLD(
+  metrics_id       => DBMS_SERVER_ALERT.TABLESPACE_PCT_FULL,
+  warning_operator => DBMS_SERVER_ALERT.OPERATOR_GE,
+  warning_value    => '80',
+  critical_operator => DBMS_SERVER_ALERT.OPERATOR_GE,
+  critical_value   => '90',
+  observation_period => 30,
+  consecutive_occurrences => 1,
+  instance_name    => NULL,
+  object_type      => DBMS_SERVER_ALERT.OBJECT_TYPE_TABLESPACE,
+  object_name      => 'APP_DATA'
+);
+
+-- View current thresholds
+SELECT object_name, metrics_name, warning_value, critical_value
+FROM dba_thresholds
+WHERE object_type = 'TABLESPACE';
+\`\`\`
+
+For email alerts via DBMS_ALERT or an external script:
+
+\`\`\`bash
+#!/bin/bash
+# tablespace_alert.sh — run from cron every 30 minutes
+ALERT_THRESHOLD=80
+
+sqlplus -s / as sysdba <<EOF
+SET PAGESIZE 0 FEEDBACK OFF HEADING OFF
+SELECT tablespace_name || '|' || ROUND((1-f.free_mb/t.total_mb)*100,1)
+FROM (SELECT tablespace_name, SUM(bytes)/1048576 total_mb FROM dba_data_files GROUP BY tablespace_name) t
+LEFT JOIN (SELECT tablespace_name, SUM(bytes)/1048576 free_mb FROM dba_free_space GROUP BY tablespace_name) f
+USING (tablespace_name)
+WHERE (1-NVL(f.free_mb,0)/t.total_mb)*100 > $ALERT_THRESHOLD;
+EXIT;
+EOF
+\`\`\`
+
+## UNDO Sizing: A Practical Formula
+
+Undersized UNDO causes ORA-01555 (snapshot too old) during long queries. Oversized UNDO wastes disk. The correct UNDO size depends on:
+
+- Peak concurrent transactions (from v$undostat: maxconcurrency)
+- Transaction size (undoblks per transaction)
+- UNDO_RETENTION setting
+
+\`\`\`sql
+-- Calculate recommended UNDO size
+SELECT
+    MAX(undoblks) * 8192 / 1e9                 peak_undo_gb,
+    (SELECT value FROM v$parameter WHERE name='undo_retention') undo_retention_s,
+    MAX(undoblks) * 8192 / 1e9 *
+    (SELECT value FROM v$parameter WHERE name='undo_retention') / 1800 recommended_size_gb
+FROM v$undostat;
+\`\`\`
+
+The formula: recommended_undo_size = (undo_blocks_per_second × block_size × undo_retention_seconds). Add 20% headroom.
+
+TuneVault monitors tablespace usage across all your Oracle connections, alerting you when any tablespace exceeds your configured threshold — with 30-day growth trend analysis to predict when you will run out before it becomes an emergency.
+`;
+
 const ARTICLES = [
   { title: 'Oracle ZDM — Zero Downtime Migration: Architecture, Setup, and Execution', slug: 'oracle-zdm-zero-downtime-migration', excerpt: 'A production-tested guide to Oracle ZDM: architecture overview, prerequisites, response file parameters, migration phases, monitoring with zdmcli, and the fixes for the failures you will actually encounter.', content: ZDM_CONTENT.trim(), published_at: '2025-05-10', read_time_minutes: 18, coming_soon: false },
   { title: 'Oracle Database Performance Crisis: Triage, Analysis, and Resolution', slug: 'oracle-database-performance-crisis', excerpt: 'Load average 120, 247 active sessions, users calling. A step-by-step methodology for diagnosing and resolving an Oracle performance crisis — from first OS command to root cause analysis.', content: PERF_CRISIS_CONTENT.trim(), published_at: '2024-04-22', read_time_minutes: 16, coming_soon: false },
@@ -554,10 +1310,10 @@ const ARTICLES = [
   { title: 'Oracle RAC Troubleshooting — Interconnect, Voting Disk, and CRS', slug: 'oracle-rac-troubleshooting', excerpt: 'Diagnosing Oracle RAC issues: interconnect performance problems, voting disk failures, CRS evictions, and the OS-level tools that actually tell you what is happening.', content: stubContent(['cluster interconnect diagnosis', 'ocrcheck', 'crsctl commands', 'voting disk recovery', 'node eviction analysis']), published_at: '2026-02-01', read_time_minutes: 15, coming_soon: true },
   { title: 'Oracle Data Guard — Switchover and Failover Procedures', slug: 'oracle-data-guard-switchover-failover', excerpt: 'Step-by-step Data Guard switchover and failover procedures with the DGMGRL commands and SQL, verification steps, and how to recover when the switchover does not complete cleanly.', content: stubContent(['dgmgrl commands', 'switchover procedure', 'failover procedure', 'verify after switchover', 'flashback database recovery']), published_at: '2026-02-15', read_time_minutes: 13, coming_soon: true },
   { title: 'EBS Performance Tuning — CM Queue Management, OPP, and WF Mailer', slug: 'ebs-performance-tuning-cm-opp-wf', excerpt: 'The practical EBS performance levers that actually matter: sizing Concurrent Manager queues, diagnosing OPP bottlenecks, fixing stuck WF Mailer, and SQL tuning for FND tables.', content: stubContent(['FND_CONCURRENT_QUEUES tuning', 'OPP configuration', 'WF_MAILER diagnosis', 'FND_STATS gather']), published_at: '2026-03-01', read_time_minutes: 12, coming_soon: true },
-  { title: 'Oracle Tablespace Management — Autoextend, Monitoring, and Alerts', slug: 'oracle-tablespace-management', excerpt: 'When to use autoextend vs fixed-size datafiles, how to monitor tablespace growth trends, and the SQL scripts to alert before you hit a full tablespace in production.', content: stubContent(['autoextend vs fixed sizing', 'growth rate projection SQL', 'bigfile tablespaces', 'UNDO and TEMP sizing', 'alert thresholds']), published_at: '2026-03-15', read_time_minutes: 10, coming_soon: true },
-  { title: 'Oracle AWR and ASH — Reading Reports Like a Senior DBA', slug: 'oracle-awr-ash-analysis', excerpt: 'How to read an AWR report without getting lost in the noise: the six sections that matter, what DB Time tells you, how to interpret top wait events, and using ASH to drill into a specific window.', content: stubContent(['AWR report structure', 'DB Time interpretation', 'Top 5 Timed Events', 'SQL ordered by CPU', 'ASH drill-down']), published_at: '2026-04-01', read_time_minutes: 14, coming_soon: true },
+  { title: 'Oracle Tablespace Management — Autoextend, Monitoring, and Alerts', slug: 'oracle-tablespace-management', excerpt: 'When to use autoextend vs fixed-size datafiles, how to monitor tablespace growth trends, and the SQL scripts to alert before you hit a full tablespace in production.', content: TABLESPACE_MGMT_CONTENT.trim(), published_at: '2026-03-15', read_time_minutes: 12, coming_soon: false },
+  { title: 'Oracle AWR and ASH — Reading Reports Like a Senior DBA', slug: 'oracle-awr-ash-analysis', excerpt: 'How to read an AWR report without getting lost in the noise: the six sections that matter, what DB Time tells you, how to interpret top wait events, and using ASH to drill into a specific window.', content: AWR_ASH_CONTENT.trim(), published_at: '2026-04-01', read_time_minutes: 14, coming_soon: false },
   { title: 'EBS Cloning to OCI — Lift and Shift with ZDM and Rapid Clone', slug: 'ebs-cloning-to-oci', excerpt: 'Moving EBS 12.2 to Oracle Cloud Infrastructure: choosing between ZDM physical migration and traditional clone, the networking prerequisites, and the EBS-specific post-migration steps.', content: stubContent(['ZDM vs manual clone', 'OCI DB provisioning', 'VCN and subnet setup', 'EBS autoconfig for cloud hostnames']), published_at: '2026-04-15', read_time_minutes: 16, coming_soon: true },
-  { title: 'Oracle 19c Upgrade from 12c — Step by Step', slug: 'oracle-19c-upgrade-from-12c', excerpt: 'The complete Oracle 12.1/12.2 to 19c upgrade path: pre-upgrade checks, AutoUpgrade tool, post-upgrade tasks, and the compatibility issues to anticipate before you start.', content: stubContent(['AutoUpgrade tool', 'preupgrade.jar checks', 'invalid object pre-fix', 'timezone update', 'post-upgrade recompile', 'EBS compatibility']), published_at: '2026-05-01', read_time_minutes: 15, coming_soon: true },
+  { title: 'Oracle 19c Upgrade from 12c — Step by Step', slug: 'oracle-19c-upgrade-from-12c', excerpt: 'The complete Oracle 12.1/12.2 to 19c upgrade path: pre-upgrade checks, AutoUpgrade tool, post-upgrade tasks, and the compatibility issues to anticipate before you start.', content: UPGRADE_19C_CONTENT.trim(), published_at: '2026-05-01', read_time_minutes: 15, coming_soon: false },
   { title: 'Oracle Security Hardening — Profiles, Auditing, and Privilege Reviews', slug: 'oracle-security-hardening', excerpt: 'Production Oracle security hardening: configuring the DEFAULT profile, implementing unified auditing, reviewing excessive privileges with DBA_SYS_PRIVS, and the checks auditors always ask for.', content: stubContent(['DEFAULT profile settings', 'unified auditing', 'DBA_SYS_PRIVS review', 'PUBLIC privilege cleanup', 'password policies']), published_at: '2026-05-15', read_time_minutes: 12, coming_soon: true },
 ];
 
