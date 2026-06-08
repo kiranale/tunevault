@@ -67,6 +67,7 @@ async function getDueSchedules() {
        AND cs.next_run_at <= NOW()
        AND (cs.snoozed_until IS NULL OR cs.snoozed_until < NOW())`
   );
+  console.log('[scheduler/getDueSchedules] found:', rows.length, 'due schedules');
   return rows;
 }
 
