@@ -7615,15 +7615,17 @@ function suppressDripOnCheckComplete(healthCheckId) {
     const hc = rows[0];
     if (!hc || !hc.user_id || hc.is_demo) return;
 
+    const userId = String(hc.user_id);
+
     // Suppress drip emails
-    await emailDripDb.suppressUser(hc.user_id, 'check_completed');
+    await emailDripDb.suppressUser(userId, 'check_completed');
 
     // Track health_check_completed (all checks) and first_check_completed (first only)
     const prevRes = await pool.query(
       `SELECT 1 FROM health_checks
        WHERE connection_id IN (SELECT id FROM oracle_connections WHERE user_id = $1::uuid)
          AND id != $2 AND is_demo = false AND status = 'completed' LIMIT 1`,
-      [hc.user_id, healthCheckId]
+      [userId, healthCheckId]
     );
     const isFirst = prevRes.rows.length === 0;
     const checkProps = {
@@ -7635,13 +7637,13 @@ function suppressDripOnCheckComplete(healthCheckId) {
     // Generalised event — every completed check
     await dbAnalytics.trackEvent({
       eventName: 'health_check_completed',
-      userId: hc.user_id,
+      userId,
       properties: checkProps,
     });
     if (isFirst) {
       await dbAnalytics.trackEvent({
         eventName: 'first_check_completed',
-        userId: hc.user_id,
+        userId,
         properties: checkProps,
       });
     }

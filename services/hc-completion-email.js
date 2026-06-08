@@ -254,7 +254,6 @@ async function sendHcCompletionEmail({ healthCheckId, connectionId, metrics, sco
     // Build findings for the top-3 critical table
     // Use metrics from the HC row (most reliable post-completion source)
     const hcMetrics = typeof hc.metrics === 'string' ? JSON.parse(hc.metrics) : (hc.metrics || {});
-    const hcResults = typeof hc.results === 'string' ? JSON.parse(hc.results) : (hc.results || {});
     const usableMetrics = (metrics && Object.keys(metrics).length > 0) ? metrics : hcMetrics;
 
     const isEbs      = !!(usableMetrics && usableMetrics.ebs_detected);
@@ -262,8 +261,8 @@ async function sendHcCompletionEmail({ healthCheckId, connectionId, metrics, sco
 
     let criticalCount, amberCount, topCritical;
     if (serverType === 'apps') {
-      // EBS app tier: findings stored in health_checks.results.findings[], not DB metrics
-      const appFindings = hcResults?.findings || [];
+      // EBS app tier: findings stored as metrics.findings[] (set by runProxyHealthCheckInner)
+      const appFindings = usableMetrics.findings || [];
       criticalCount = appFindings.filter(f => f.severity === 'critical').length;
       amberCount    = appFindings.filter(f => f.severity === 'warning').length;
       topCritical   = appFindings
