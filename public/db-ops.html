@@ -362,8 +362,8 @@
 </div>
 
 <!-- ── Dry-run preview modal ── -->
-<div class="modal-backdrop" id="dryrun-backdrop" onclick="closeDryRun(event)" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;align-items:center;justify-content:center;padding:24px">
-  <div class="modal" style="max-width:640px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px">
+<div class="modal-backdrop" id="dryrun-backdrop" onclick="closeDryRun(event)" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9998;align-items:flex-start;justify-content:center;padding:32px 24px;overflow-y:auto;">
+  <div class="modal" style="max-width:640px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;max-height:85vh;overflow-y:auto;position:relative;">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)">
       <div>
         <div style="font-size:15px;font-weight:600" id="dryrun-title">Command Preview</div>
@@ -404,7 +404,7 @@
   let connections = [];
   let sshTargets = [];
   let selectedConn = null;
-  let caps = { hasAsm: false, hasRac: false, hasPdb: false, hasGi: false };
+  let caps = { hasAsm: false, hasRac: false, hasPdb: false, hasGi: false, hasSqlOps: false };
   let searchQuery = '';
   let activeCategory = new URLSearchParams(window.location.search).get('cat') || null;
   let pendingConfirm = null;
@@ -509,7 +509,7 @@
     const connId = document.getElementById('conn-select').value;
     if (connId) tvConn.save(connId);
     selectedConn = connections.find(c => String(c.id) === String(connId)) || null;
-    caps = { hasAsm: false, hasRac: false, hasPdb: false, hasGi: false };
+    caps = { hasAsm: false, hasRac: false, hasPdb: false, hasGi: false, hasSqlOps: false };
 
     // Update breadcrumb connection name
     const bcName = document.getElementById('bc-conn-name');
@@ -530,7 +530,7 @@
     sshTargets = tgt.ok ? (await tgt.json()).targets || [] : [];
     updateSshBanner();
 
-    if (selectedConn.connection_type !== 'proxy') {
+    {
       const capR = await fetch('/api/db-ops/capabilities', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -546,8 +546,12 @@
     setCap('cap-pdb', caps.hasPdb, 'Pluggable DBs');
     setCap('cap-gi', caps.hasGi, 'GI (Grid)');
 
-    document.getElementById('conn-status').textContent = selectedConn.connection_type === 'proxy'
-      ? 'Proxy — SQL ops unavailable' : '✓ Direct TCP';
+    if (selectedConn.connection_type === 'proxy') {
+      document.getElementById('conn-status').textContent = caps.hasSqlOps
+        ? '✓ Proxy (SQL via agent)' : 'Proxy — upgrade agent to enable SQL ops';
+    } else {
+      document.getElementById('conn-status').textContent = '✓ Direct TCP';
+    }
 
     // Privilege pill — show tier for the current connection
     const privPill = document.getElementById('priv-pill');
@@ -851,7 +855,7 @@
           ${isGated ? '🔒 Requires ' + escHtml(op.privilegeLabel || 'elevated access') : '▶ Run'}
         </button>
         <button class="btn btn-outline" onclick="showDryRun('${op.key}')">👁 Preview</button>
-        <button class="btn btn-outline" onclick="togglePreview('${op.key}')">SQL / Cmd</button>
+        <button class="btn btn-outline" id="copy-${op.key.replace(/\./g,'-')}" onclick="copySql('${op.key}', this)">Copy SQL</button>
       </div>
       <div class="result-panel" id="result-${op.key.replace(/\./g,'-')}"></div>
     `;
@@ -1013,9 +1017,26 @@
     document.getElementById('dryrun-backdrop').style.display = 'none';
   }
 
-  function togglePreview(opKey) {
+  document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Escape') return;
+    const dryrun = document.getElementById('dryrun-backdrop');
+    if (dryrun && dryrun.style.display !== 'none') { dryrun.style.display = 'none'; return; }
+    const modal = document.getElementById('modal-backdrop');
+    if (modal && modal.classList.contains('open')) { modal.classList.remove('open'); }
+  });
+
+  function copySql(opKey, btn) {
     const el = document.getElementById('preview-' + opKey.replace(/\./g, '-'));
-    if (el) el.classList.toggle('expanded');
+    const sql = el ? el.textContent.trim() : '';
+    if (!sql) return;
+    navigator.clipboard.writeText(sql).then(function() {
+      const orig = btn.textContent;
+      btn.textContent = '✓ Copied';
+      setTimeout(function() { btn.textContent = orig; }, 1500);
+    }).catch(function() {
+      btn.textContent = 'Copy failed';
+      setTimeout(function() { btn.textContent = 'Copy SQL'; }, 1500);
+    });
   }
 
   // ── Patch Advisor Panel ────────────────────────────────────────────────────

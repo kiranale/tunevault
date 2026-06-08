@@ -1390,4 +1390,12 @@ function getOpCatalog() {
 
 module.exports.PRIVILEGE_LABELS = PRIVILEGE_LABELS;
 
-module.exports = { runOp, getOpCatalog, detectCapabilities };
+// Render the SQL for a given op key with substituted params.
+// Used by db-ops.js to get the SQL to send to the proxy /api/run_sql endpoint.
+function renderOpSql(opKey, params = {}) {
+  const op = OP_CATALOG[opKey];
+  if (!op || op.type !== 'sql') return null;
+  return renderPreview(op, params);
+}
+
+module.exports = { runOp, getOpCatalog, detectCapabilities, renderOpSql };

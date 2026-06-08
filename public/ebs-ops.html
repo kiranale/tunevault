@@ -358,7 +358,7 @@
     fetch('/api/connections', { credentials: 'include' })
       .then(function(r) { return r.ok ? r.json() : []; })
       .then(function(conns) {
-        var hasEbs = conns.some(function(c) { return c.is_ebs; });
+        var hasEbs = conns.some(function(c) { return c.is_ebs || c.server_type === 'apps' || c.server_type === 'both'; });
         if (!hasEbs) {
           ebsLocked = true;
           if (conns.length === 0) {

@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.34"  # c4ws/oaea managed servers treated as WARNING; commandMap context comments; structured-recs skipped for app tier
+VERSION = "3.20.35"  # add /api/run_sql endpoint for DB Ops SQL execution via agent channel
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -6558,6 +6558,70 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     "error": str(e), "exit_code": -1,
                     "stdout": "", "stderr": str(e), "duration_ms": 0,
                 })
+            return
+
+        # POST /api/run_sql — execute a single read-only SQL query for DB Ops
+        # Auth: same X-Api-Key as all proxy endpoints.
+        # Body: { sql, service_name, username, password, host?, port? }
+        # Only SELECT/WITH queries permitted (read-only safety).
+        # Returns: { success, columns, rows, row_count, duration_ms }
+        if self.path == "/api/run_sql":
+            if not self.check_auth():
+                return
+            if _ORACLE_DRIVER is None:
+                self.send_json(200, {
+                    "success": False,
+                    "error": "Oracle driver not available on this server — install cx_Oracle or python-oracledb",
+                })
+                return
+            try:
+                body = self.read_body()
+                params = json.loads(body)
+                sql = (params.get("sql") or "").strip()
+                if not sql:
+                    self.send_json(400, {"success": False, "error": "sql is required"})
+                    return
+                # Safety: only allow read operations
+                sql_upper = sql.lstrip().upper()
+                if not (sql_upper.startswith("SELECT") or sql_upper.startswith("WITH")):
+                    self.send_json(403, {"success": False, "error": "Only SELECT/WITH queries are permitted"})
+                    return
+                service_name = params.get("service_name", "")
+                username = params.get("username", "")
+                password = params.get("password", "")
+                host = _resolve_db_host(params)
+                port = int(params.get("port", 1521))
+                os_auth = params.get("os_auth", False)
+                if not os_auth and (not service_name or not username or not password):
+                    self.send_json(400, {"success": False, "error": "service_name, username, and password are required"})
+                    return
+                t0 = time.time()
+                if os_auth:
+                    conn = cx_Oracle.connect("/", mode=cx_Oracle.SYSDBA)
+                else:
+                    dsn = cx_Oracle.makedsn(host, port, service_name=service_name)
+                    conn = cx_Oracle.connect(user=username, password=password, dsn=dsn)
+                cursor = conn.cursor()
+                cursor.execute(sql)
+                columns = [d[0] for d in cursor.description] if cursor.description else []
+                rows = []
+                for row in cursor.fetchall():
+                    rows.append([None if v is None else (v if isinstance(v, (int, float, bool)) else str(v)) for v in row])
+                cursor.close()
+                conn.close()
+                duration_ms = int((time.time() - t0) * 1000)
+                timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+                print("[%s] run_sql: %d rows in %dms" % (timestamp, len(rows), duration_ms))
+                self.send_json(200, {
+                    "success": True,
+                    "columns": columns,
+                    "rows": rows,
+                    "row_count": len(rows),
+                    "duration_ms": duration_ms,
+                })
+            except Exception as e:
+                traceback.print_exc()
+                self.send_json(500, {"success": False, "error": format_oracle_error(e)})
             return
 
         self.send_json(404, {"error": "Not found"})

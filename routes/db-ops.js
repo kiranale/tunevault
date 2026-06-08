@@ -24,6 +24,7 @@ const pool     = require('../db/index');
 const sshDb    = require('../db/ssh-targets');
 const { decrypt } = require('../crypto-utils');
 const executor = require('../services/db-ops-executor');
+const channel  = require('../services/agent-channel');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
@@ -33,7 +34,7 @@ const router = express.Router();
 async function getConnParams(connectionId, userId) {
   const { rows } = await pool.query(
     `SELECT id, host, port, service_name, username, encrypted_password, connection_type,
-            is_asm, is_rac, gi_os_user, gi_oracle_home, asm_sid
+            is_asm, is_rac, gi_os_user, gi_oracle_home, asm_sid, cx_oracle_version
      FROM oracle_connections WHERE id = $1 AND user_id = $2`,
     [connectionId, userId]
   );
@@ -53,6 +54,9 @@ async function getConnParams(connectionId, userId) {
     giOsUser: conn.gi_os_user || null,
     giOracleHome: conn.gi_oracle_home || null,
     asmSid: conn.asm_sid || null,
+    // Oracle driver version reported by the agent on last heartbeat — non-null means
+    // oracledb/cx_Oracle is installed on the proxy and can execute SQL via /api/run_sql
+    cxOracleVersion: conn.cx_oracle_version || null,
   };
 }
 
@@ -84,8 +88,14 @@ router.post('/api/db-ops/capabilities', requireAuth, requireRole('junior_dba'), 
   const hasGi = !!(connParams.giOsUser && connParams.giOracleHome && connParams.asmSid);
 
   if (connParams.connectionType === 'proxy') {
-    // Proxy connections can't run server-side SQL; return stored flags only
-    return res.json({ hasAsm: connParams.isAsm, hasRac: connParams.isRac, hasPdb: false, hasGi });
+    // Proxy connections: return stored flags + hasSqlOps (true when oracledb reported on last heartbeat)
+    return res.json({
+      hasAsm: connParams.isAsm,
+      hasRac: connParams.isRac,
+      hasPdb: false,
+      hasGi,
+      hasSqlOps: !!(connParams.cxOracleVersion),
+    });
   }
 
   try {
@@ -190,11 +200,55 @@ router.post('/api/db-ops/run', requireAuth, requireRole('junior_dba'), async (re
   const connParams = await getConnParams(parseInt(connection_id, 10), req.user.id);
   if (!connParams) return res.status(404).json({ error: 'Connection not found' });
 
-  // Proxy connections: SQL ops can't run server-side
+  // Proxy connections: route SQL ops through the agent channel → /api/run_sql on the proxy
   if (connParams.connectionType === 'proxy') {
-    return res.status(400).json({
-      error: 'This operation requires a Direct TCP connection. Proxy connections do not support server-side SQL execution.',
-    });
+    const catalog = executor.getOpCatalog();
+    const opEntry = catalog.find(o => o.key === op_key);
+    if (!opEntry || opEntry.type !== 'sql') {
+      return res.status(400).json({ error: 'Only SQL operations are supported on proxy connections (SSH ops require a direct connection).' });
+    }
+    if (!connParams.cxOracleVersion) {
+      return res.status(400).json({ error: 'Oracle driver (cx_Oracle/python-oracledb) not detected on this proxy. Run a health check to refresh agent metadata.' });
+    }
+    if (!channel.isAgentConnected(connParams.id)) {
+      return res.status(503).json({ error: 'Agent is not connected. Wait up to 30 seconds for the agent to check in, then retry.' });
+    }
+    // Build SQL from the op — render template substitutions
+    const renderedSql = executor.renderOpSql(op_key, params || {});
+    if (!renderedSql) {
+      return res.status(400).json({ error: `Cannot render SQL for op: ${op_key}` });
+    }
+    if (renderedSql.includes('{{')) {
+      return res.status(400).json({ error: 'Missing required parameters' });
+    }
+    try {
+      const proxyResp = await channel.sendToAgent(connParams.id, {
+        method: 'POST',
+        path: '/api/run_sql',
+        body: {
+          sql: renderedSql,
+          service_name: connParams.serviceName || '',
+          username: connParams.username || '',
+          password: connParams.password || '',
+          host: connParams.host || 'localhost',
+          port: connParams.port || 1521,
+        },
+      }, 30000);
+      const body = proxyResp.body || {};
+      if (proxyResp.statusCode !== 200 || !body.success) {
+        return res.json({ ok: false, error: body.error || `Proxy returned HTTP ${proxyResp.statusCode}` });
+      }
+      return res.json({
+        ok: true,
+        rows: body.rows || [],
+        columns: body.columns || [],
+        text: null,
+        durationMs: body.duration_ms,
+      });
+    } catch (err) {
+      console.error('[db-ops] proxy run_sql error:', err.message);
+      return res.status(500).json({ error: 'Proxy SQL execution failed', detail: err.message });
+    }
   }
 
   // If SSH op: validate target belongs to this user's connection
