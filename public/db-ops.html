@@ -530,13 +530,23 @@
     sshTargets = tgt.ok ? (await tgt.json()).targets || [] : [];
     updateSshBanner();
 
+    let capTimedOut = false;
     {
-      const capR = await fetch('/api/db-ops/capabilities', {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connection_id: connId }),
-      });
-      if (capR.ok) caps = await capR.json();
+      const capCtrl = new AbortController();
+      const capTimer = setTimeout(() => { capCtrl.abort(); capTimedOut = true; }, 10000);
+      try {
+        const capR = await fetch('/api/db-ops/capabilities', {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ connection_id: connId }),
+          signal: capCtrl.signal,
+        });
+        clearTimeout(capTimer);
+        if (capR.ok) caps = await capR.json();
+      } catch (e) {
+        clearTimeout(capTimer);
+        capTimedOut = capTimedOut || (e.name === 'AbortError');
+      }
     }
 
     const capRow = document.getElementById('caps-row');
@@ -546,7 +556,9 @@
     setCap('cap-pdb', caps.hasPdb, 'Pluggable DBs');
     setCap('cap-gi', caps.hasGi, 'GI (Grid)');
 
-    if (selectedConn.connection_type === 'proxy') {
+    if (capTimedOut) {
+      document.getElementById('conn-status').textContent = '⚠ Could not detect capabilities — some ops may be unavailable';
+    } else if (selectedConn.connection_type === 'proxy') {
       document.getElementById('conn-status').textContent = caps.hasSqlOps
         ? '✓ Proxy (SQL via agent)' : 'Proxy — upgrade agent to enable SQL ops';
     } else {
@@ -898,6 +910,8 @@
 
     const targetId = sshTargets.length > 0 ? sshTargets[0].id : null;
 
+    const runCtrl = new AbortController();
+    const runTimer = setTimeout(() => runCtrl.abort(), 60000);
     try {
       const r = await fetch('/api/db-ops/run', {
         method: 'POST', credentials: 'include',
@@ -909,7 +923,9 @@
           confirmed: !!confirmed,
           params,
         }),
+        signal: runCtrl.signal,
       });
+      clearTimeout(runTimer);
       const data = await r.json();
 
       if (r.status === 428 && data.requiresConfirmation) {
@@ -920,10 +936,12 @@
       } else if (data.ok) {
         renderResult(resultEl, data);
       } else {
-        resultEl.innerHTML = `<div class="result-status status-err">✗ ${escHtml(data.error || 'Operation failed')}</div>`;
+        resultEl.innerHTML = `<div class="result-status status-err">✗ ${escHtml(data.error || data.detail || 'Operation failed')}</div>`;
       }
     } catch (err) {
-      resultEl.innerHTML = `<div class="result-status status-err">✗ Network error: ${escHtml(err.message)}</div>`;
+      clearTimeout(runTimer);
+      const msg = err.name === 'AbortError' ? 'Request timed out (60s) — the operation may still be running on the server' : err.message;
+      resultEl.innerHTML = `<div class="result-status status-err">✗ ${escHtml(msg)}</div>`;
     } finally {
       btn.disabled = false;
       btn.innerHTML = '▶ Run';

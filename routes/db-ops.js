@@ -210,7 +210,7 @@ router.post('/api/db-ops/run', requireAuth, requireRole('junior_dba'), async (re
     if (!connParams.cxOracleVersion) {
       return res.status(400).json({ error: 'Oracle driver (cx_Oracle/python-oracledb) not detected on this proxy. Run a health check to refresh agent metadata.' });
     }
-    if (!channel.isAgentConnected(connParams.id)) {
+    if (!await channel.isAgentConnected(connParams.id)) {
       return res.status(503).json({ error: 'Agent is not connected. Wait up to 30 seconds for the agent to check in, then retry.' });
     }
     // Build SQL from the op — render template substitutions

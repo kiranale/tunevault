@@ -194,16 +194,16 @@ window.tvNav = (function() {
       '/* Dropdown visibility — desktop: shown by class, hidden by default */' +
       '.tv-dropdown-menu{display:none;}' +
       '.tv-dropdown-menu.tv-open{display:block;}' +
-      /* Hamburger collapse at 1200px: catches 1024-1280px viewports where the
-         authenticated nav overflows. Matches existing mobile-collapse pattern. */
       '@media(max-width:1200px){' +
         '#tv-hamburger{display:block!important;}' +
-        '.nav-right{display:none!important;flex-direction:column!important;position:absolute!important;top:100%!important;left:0!important;right:0!important;background:#111114!important;border-bottom:1px solid #2a2a30!important;padding:16px 24px!important;gap:4px!important;z-index:999!important;}' +
+        '.nav-right{display:none!important;flex-direction:column!important;position:fixed!important;top:60px!important;right:0!important;width:min(280px,85vw)!important;height:calc(100vh - 60px)!important;background:var(--bg-card,#1a1a22)!important;border-left:1px solid var(--border,#2a2a30)!important;border-bottom:none!important;padding:16px!important;gap:4px!important;z-index:9999!important;overflow-y:auto!important;box-shadow:-4px 0 20px rgba(0,0,0,0.4)!important;}' +
         '.nav-right.tv-mobile-open{display:flex!important;}' +
+        '.tv-mobile-overlay{display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.3);}' +
+        '.tv-mobile-overlay.tv-mobile-open{display:block;}' +
         '.tv-dropdown-menu{position:static!important;box-shadow:none!important;border:none!important;background:transparent!important;padding-left:12px!important;}' +
         '.tv-dropdown-menu.tv-mobile-open{display:block!important;}' +
       '}' +
-    '</style>';
+    '</style><div class="tv-mobile-overlay" id="tv-mobile-overlay" onclick="tvNavToggleMobile()"></div>';
   }
 
   function buildNav(type, user, isAdmin, hasEbs) {
@@ -685,8 +685,10 @@ function tvNavToggleDropdown(btn) {
 
 function tvNavToggleMobile() {
   var navRight = document.querySelector('#nav-root .nav-right');
+  var overlay = document.getElementById('tv-mobile-overlay');
   if (!navRight) return;
   navRight.classList.toggle('tv-mobile-open');
+  if (overlay) overlay.classList.toggle('tv-mobile-open');
 }
 
 // Close dropdowns when clicking outside

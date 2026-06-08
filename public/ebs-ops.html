@@ -179,6 +179,16 @@
     .section-label:first-child { margin-top: 0; }
 
     /* ── Connection status pill ── */
+    /* ── Connection selector row ── */
+    .conn-row {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;
+    }
+    .conn-select {
+      background: var(--surface); border: 1px solid var(--border); color: var(--text);
+      font-family: inherit; font-size: 14px; padding: 8px 12px; border-radius: 8px;
+      min-width: 220px; max-width: 360px; cursor: pointer;
+    }
+    .conn-select:focus { outline: none; border-color: var(--accent); }
     .conn-status-banner {
       display: flex; align-items: center; gap: 12px;
       margin-bottom: 20px;
@@ -303,11 +313,14 @@
     <p>Oracle E-Business Suite operations — Concurrent Managers, Application Tier, ADOP, SSH checks, and deep EBS health reports.</p>
   </div>
 
-  <!-- ── Connection status pill — always rendered, state set by JS ── -->
-  <div class="conn-status-banner" id="conn-status-banner">
-    <div class="conn-status-pill checking" id="conn-status-pill">
+  <!-- ── Connection selector ── -->
+  <div class="conn-row" id="conn-row" style="display:none">
+    <select class="conn-select" id="conn-select" onchange="onEbsConnChange()">
+      <option value="">— Select EBS connection —</option>
+    </select>
+    <div class="conn-status-pill checking" id="conn-status-pill" style="display:none">
       <span class="pill-dot"></span>
-      <span id="conn-status-text">Checking EBS connection…</span>
+      <span id="conn-status-text"></span>
     </div>
     <span class="conn-status-detail" id="conn-status-detail"></span>
   </div>
@@ -340,53 +353,71 @@
 <script>
   window.tvNav.init('ebs-ops');
 
-  // ── Connection/EBS gate ───────────────────────────────────────────────────
-  // Always show the full ops grid immediately. The connection check runs async
-  // and updates a status pill (green/amber/red) without touching card layout.
+  // ── Connection selector + EBS gate ───────────────────────────────────────
   var ebsLocked = false;
+  var ebsConns = [];
+  var selectedEbsConn = null;
 
-  function setConnPill(state, text, detail) {
-    var pill = document.getElementById('conn-status-pill');
-    var textEl = document.getElementById('conn-status-text');
-    var detailEl = document.getElementById('conn-status-detail');
-    pill.className = 'conn-status-pill ' + state;
-    textEl.textContent = text;
-    detailEl.innerHTML = detail || '';
+  function onEbsConnChange() {
+    var sel = document.getElementById('conn-select');
+    var connId = sel.value;
+    if (connId) tvConn.save(connId);
+    selectedEbsConn = ebsConns.find(function(c) { return String(c.id) === String(connId); }) || null;
+    var bcName = document.getElementById('bc-conn-name');
+    if (selectedEbsConn) {
+      bcName.textContent = selectedEbsConn.name || (selectedEbsConn.host + ':' + (selectedEbsConn.port || 1521));
+      bcName.style.color = 'var(--text)';
+    } else {
+      bcName.textContent = '—';
+      bcName.style.color = 'var(--text-dim)';
+    }
   }
 
   (function() {
     fetch('/api/connections', { credentials: 'include' })
       .then(function(r) { return r.ok ? r.json() : []; })
       .then(function(conns) {
-        var hasEbs = conns.some(function(c) { return c.is_ebs || c.server_type === 'apps' || c.server_type === 'both'; });
+        ebsConns = conns.filter(function(c) {
+          return !c.removed_connection && (c.is_ebs || c.server_type === 'apps' || c.server_type === 'both');
+        });
+        var hasEbs = ebsConns.length > 0;
+        var connRow = document.getElementById('conn-row');
+        var detailEl = document.getElementById('conn-status-detail');
         if (!hasEbs) {
           ebsLocked = true;
-          if (conns.length === 0) {
-            setConnPill('disconnected', 'No connections', '<a href="/connections/new">Add Connection →</a>');
-          } else {
-            setConnPill('no-ebs', 'No EBS instance connected', '<a href="/connections">View Connections →</a> &nbsp;·&nbsp; <a href="/connections/new">Add Connection →</a>');
-          }
-          // Breadcrumb — no EBS connection
+          connRow.style.display = 'flex';
+          detailEl.innerHTML = conns.length === 0
+            ? '<a href="/connections/new">Add Connection →</a>'
+            : '<a href="/connections">View Connections →</a>&nbsp;·&nbsp;<a href="/connections/new">Add Connection →</a>';
           var bcName = document.getElementById('bc-conn-name');
           bcName.textContent = '—';
           bcName.style.color = 'var(--text-dim)';
           document.getElementById('ebs-no-conn-banner').classList.add('visible');
-          // Re-render so newly built cards get the locked class applied
           renderMain();
         } else {
-          var ebsConns = conns.filter(function(c) { return c.is_ebs; });
-          var names = ebsConns.slice(0, 2).map(function(c) { return c.name || (c.host + ':' + c.port); }).join(', ');
-          var extra = ebsConns.length > 2 ? ' +' + (ebsConns.length - 2) + ' more' : '';
-          setConnPill('connected', 'EBS connected', escHtml(names + extra));
-          // Breadcrumb — show EBS connection name
-          var bcName = document.getElementById('bc-conn-name');
-          bcName.textContent = names + extra;
-          bcName.style.color = 'var(--text)';
+          // Populate dropdown
+          var sel = document.getElementById('conn-select');
+          ebsConns.forEach(function(c) {
+            var opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.name || (c.host + ':' + (c.port || 1521));
+            sel.appendChild(opt);
+          });
+          connRow.style.display = 'flex';
+          // Restore saved selection
+          tvConn.bind(sel, ebsConns);
+          onEbsConnChange();
+          // If nothing restored, default to first
+          if (!sel.value && ebsConns.length > 0) {
+            sel.value = ebsConns[0].id;
+            onEbsConnChange();
+          }
         }
       })
       .catch(function() {
-        // Network error — show a warning but keep grid unlocked (fail open)
-        setConnPill('disconnected', 'Connection check failed', 'Could not reach server — try refreshing');
+        var detailEl = document.getElementById('conn-status-detail');
+        detailEl.textContent = 'Connection check failed — try refreshing';
+        document.getElementById('conn-row').style.display = 'flex';
       });
   })();
 
