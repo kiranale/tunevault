@@ -7621,7 +7621,7 @@ function suppressDripOnCheckComplete(healthCheckId) {
     // Track health_check_completed (all checks) and first_check_completed (first only)
     const prevRes = await pool.query(
       `SELECT 1 FROM health_checks
-       WHERE connection_id IN (SELECT id FROM oracle_connections WHERE user_id = $1)
+       WHERE connection_id IN (SELECT id FROM oracle_connections WHERE user_id = $1::uuid)
          AND id != $2 AND is_demo = false AND status = 'completed' LIMIT 1`,
       [hc.user_id, healthCheckId]
     );

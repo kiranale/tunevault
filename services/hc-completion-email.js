@@ -220,7 +220,7 @@ async function sendHcCompletionEmail({ healthCheckId, connectionId, metrics, sco
     const connRow = await getUserForConnection(connectionId);
     if (!connRow) return; // connection or user not found
 
-    const { user_id, email: userEmail, name: userName, connection_name } = connRow;
+    const { user_id, email: userEmail, name: userName, connection_name, server_type: serverType } = connRow;
 
     // Get the completed health check details for score + timestamp
     const hc = await getHealthCheckForEmail(healthCheckId);
@@ -254,22 +254,31 @@ async function sendHcCompletionEmail({ healthCheckId, connectionId, metrics, sco
     // Build findings for the top-3 critical table
     // Use metrics from the HC row (most reliable post-completion source)
     const hcMetrics = typeof hc.metrics === 'string' ? JSON.parse(hc.metrics) : (hc.metrics || {});
+    const hcResults = typeof hc.results === 'string' ? JSON.parse(hc.results) : (hc.results || {});
     const usableMetrics = (metrics && Object.keys(metrics).length > 0) ? metrics : hcMetrics;
 
-    const findings = buildTopFindings(usableMetrics, scores);
-    const criticalCount = findings.filter(f => f.severity === 'critical').length;
-    const amberCount    = findings.filter(f => f.severity === 'warning').length;
-    const isEbs         = !!(usableMetrics && usableMetrics.ebs_detected);
-    const finalScore    = hc.overall_score ?? (scores && scores.overall) ?? 0;
+    const isEbs      = !!(usableMetrics && usableMetrics.ebs_detected);
+    const finalScore = hc.overall_score ?? (scores && scores.overall) ?? 0;
 
-    const topCritical = findings
-      .filter(f => f.severity === 'critical')
-      .slice(0, 3)
-      .map(f => ({
-        check_id: f.category,
-        title   : f.metric,
-        impact  : f.value
-      }));
+    let criticalCount, amberCount, topCritical;
+    if (serverType === 'apps') {
+      // EBS app tier: findings stored in health_checks.results.findings[], not DB metrics
+      const appFindings = hcResults?.findings || [];
+      criticalCount = appFindings.filter(f => f.severity === 'critical').length;
+      amberCount    = appFindings.filter(f => f.severity === 'warning').length;
+      topCritical   = appFindings
+        .filter(f => f.severity === 'critical')
+        .slice(0, 3)
+        .map(f => ({ check_id: f.check_id || '', title: f.title || f.label || '', impact: f.detail || f.status || '' }));
+    } else {
+      const findings = buildTopFindings(usableMetrics, scores);
+      criticalCount = findings.filter(f => f.severity === 'critical').length;
+      amberCount    = findings.filter(f => f.severity === 'warning').length;
+      topCritical   = findings
+        .filter(f => f.severity === 'critical')
+        .slice(0, 3)
+        .map(f => ({ check_id: f.category, title: f.metric, impact: f.value }));
+    }
 
     const connName = connection_name || hc.connection_name || 'Oracle';
     const flagEmoji = finalScore < 50 ? '🚨 ' : '';
