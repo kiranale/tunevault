@@ -129,6 +129,22 @@
     .svc-loading { display: flex; align-items: center; gap: 10px; padding: 16px 0; color: var(--text-dim); font-size: 13px; }
     .svc-no-data { padding: 14px 0; font-size: 13px; color: var(--text-dim); }
 
+    /* ── System Resources sub-section ── */
+    .svc-resources-section { margin-top: 14px; }
+    .svc-resources-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); margin-bottom: 8px; }
+    .svc-resources-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px;
+    }
+    .svc-resource-item {
+      background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+      padding: 10px 12px; display: flex; flex-direction: column; gap: 3px;
+    }
+    .svc-resource-label { font-size: 11px; font-weight: 600; color: var(--text-dim); }
+    .svc-resource-val { font-size: 12px; color: var(--text); }
+    .svc-resource-item.svc-resource-ok     { border-left: 3px solid var(--green); }
+    .svc-resource-item.svc-resource-warning  { border-left: 3px solid var(--yellow); }
+    .svc-resource-item.svc-resource-critical { border-left: 3px solid var(--red); }
+
     /* ── Quick links grid ── */
     .quick-grid {
       display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px;
@@ -473,14 +489,45 @@ const CARDS = [
   { id: 'wf-agent-restart',  section: 'housekeeping', title: 'WF Agent Restart',           subtitle: 'Control',           desc: 'Restart the Workflow Agent Listener and Deferred Agent Listener from ICM when WF queues are stalled.',              tags: [{cls:'tag-control',label:'Control'}],                            href: '/ebs-deep#monitor',    checkCount: 'Control',    icon: '▶️', iconCls: 'hub-icon-amber' },
 ];
 
-// Service component display names
+// Service check_ids that render as service status cards
+const SERVICE_CHECK_IDS = new Set([
+  'apache_status', 'apache', 'apache_ohs',
+  'opmn_status', 'opmn',
+  'admin_server', 'wls_admin_server', 'wls_admin',
+  'managed_servers', 'oacore_servers', 'oacore', 'forms_servers', 'forms', 'oafm_servers', 'oafm',
+  'node_manager',
+  'apps_listener',
+  'cm_status', 'cm', 'adcmctl',
+  'wf_mailer', 'wf_mailer_status',
+  'adop_status', 'adop',
+]);
+
+// System resource check_ids — shown in a separate panel
+const RESOURCE_CHECK_IDS = new Set([
+  'disk_usage', 'disk', 'memory_usage', 'memory', 'cpu_load', 'io_wait',
+  'ts_usage', 'tablespace_usage', 'invalid_objects',
+]);
+
+// Display names for service check_ids
 const SVC_LABELS = {
-  apache: 'Apache / OHS', apache_ohs: 'Apache / OHS', opmn: 'OPMN',
-  apps_listener: 'Apps Listener', wls_admin_server: 'WLS Admin', wls_admin: 'WLS Admin',
-  oacore_servers: 'OACore Servers', oacore: 'OACore', forms_servers: 'Forms Servers', forms: 'Forms',
-  node_manager: 'Node Manager', oafm_servers: 'OAFM Servers', oafm: 'OAFM',
-  cm: 'Concurrent Manager', adcmctl: 'Concurrent Manager',
-  disk: 'Disk Usage', memory: 'Memory',
+  apache: 'Apache / OHS', apache_ohs: 'Apache / OHS', apache_status: 'Apache / OHS',
+  opmn: 'OPMN', opmn_status: 'OPMN',
+  apps_listener: 'Apps Listener',
+  admin_server: 'WLS Admin', wls_admin_server: 'WLS Admin', wls_admin: 'WLS Admin',
+  managed_servers: 'Managed Servers', oacore_servers: 'OACore Servers', oacore: 'OACore',
+  forms_servers: 'Forms Servers', forms: 'Forms', oafm_servers: 'OAFM', oafm: 'OAFM',
+  node_manager: 'Node Manager',
+  cm_status: 'Concurrent Manager', cm: 'Concurrent Manager', adcmctl: 'Concurrent Manager',
+  wf_mailer: 'WF Mailer', wf_mailer_status: 'WF Mailer',
+  adop_status: 'ADOP', adop: 'ADOP',
+};
+
+const RESOURCE_LABELS = {
+  disk_usage: 'Disk Usage', disk: 'Disk Usage',
+  memory_usage: 'Memory', memory: 'Memory',
+  cpu_load: 'CPU Load', io_wait: 'I/O Wait',
+  ts_usage: 'Tablespace', tablespace_usage: 'Tablespace',
+  invalid_objects: 'Invalid Objects',
 };
 
 // ── Bootstrap ────────────────────────────────────────────────────────────────
@@ -594,29 +641,62 @@ async function loadServiceStatus(connId) {
       checkedAt.textContent = 'Last checked ' + ago;
     }
 
-    const grid = document.createElement('div');
-    grid.className = 'svc-grid';
+    const svcKeys = keys.filter(k => SERVICE_CHECK_IDS.has(k));
+    const resKeys = keys.filter(k => RESOURCE_CHECK_IDS.has(k));
 
-    keys.forEach(key => {
-      const comp = d.components[key];
-      const label = SVC_LABELS[key] || (comp.title || key);
-      const status = comp.passed ? 'ok' : (comp.status || 'warning');
-      const badgeLabel = status === 'ok' ? 'Running' : status === 'critical' ? 'Down' : status === 'warning' ? 'Warning' : 'Unknown';
-      const details = comp.details ? String(comp.details).slice(0, 80) : '';
+    const frag = document.createDocumentFragment();
 
-      const card = document.createElement('div');
-      card.className = 'svc-card';
-      card.innerHTML = `
-        <div class="svc-card-top">
-          <span class="svc-name">${escHtml(label)}</span>
-          <span class="svc-badge ${status}">${escHtml(badgeLabel)}</span>
-        </div>
-        ${details ? `<div class="svc-detail">${escHtml(details)}</div>` : ''}`;
-      grid.appendChild(card);
-    });
+    if (svcKeys.length > 0) {
+      const grid = document.createElement('div');
+      grid.className = 'svc-grid';
+      svcKeys.forEach(key => {
+        const comp = d.components[key];
+        const label = SVC_LABELS[key] || (comp.title || key);
+        const status = comp.passed ? 'ok' : (comp.status || 'warning');
+        const badgeLabel = status === 'ok' ? 'Running' : status === 'critical' ? 'Down' : status === 'warning' ? 'Warning' : 'Unknown';
+        const details = comp.details ? String(comp.details).slice(0, 80) : '';
+        const card = document.createElement('div');
+        card.className = 'svc-card';
+        card.innerHTML = `
+          <div class="svc-card-top">
+            <span class="svc-name">${escHtml(label)}</span>
+            <span class="svc-badge ${status}">${escHtml(badgeLabel)}</span>
+          </div>
+          ${details ? `<div class="svc-detail">${escHtml(details)}</div>` : ''}`;
+        grid.appendChild(card);
+      });
+      frag.appendChild(grid);
+    } else {
+      const empty = document.createElement('div');
+      empty.className = 'svc-no-data';
+      empty.textContent = 'No service status in last health check.';
+      frag.appendChild(empty);
+    }
+
+    if (resKeys.length > 0) {
+      const resSection = document.createElement('div');
+      resSection.className = 'svc-resources-section';
+      resSection.innerHTML = '<div class="svc-resources-title">System Resources</div>';
+      const resGrid = document.createElement('div');
+      resGrid.className = 'svc-resources-grid';
+      resKeys.forEach(key => {
+        const comp = d.components[key];
+        const label = RESOURCE_LABELS[key] || (comp.title || key);
+        const status = comp.passed ? 'ok' : (comp.status || 'warning');
+        const details = comp.details ? String(comp.details).slice(0, 80) : '';
+        const item = document.createElement('div');
+        item.className = 'svc-resource-item svc-resource-' + status;
+        item.innerHTML = `
+          <span class="svc-resource-label">${escHtml(label)}</span>
+          ${details ? `<span class="svc-resource-val">${escHtml(details)}</span>` : ''}`;
+        resGrid.appendChild(item);
+      });
+      resSection.appendChild(resGrid);
+      frag.appendChild(resSection);
+    }
 
     wrap.innerHTML = '';
-    wrap.appendChild(grid);
+    wrap.appendChild(frag);
   } catch (err) {
     wrap.innerHTML = `<div class="svc-no-data" style="color:var(--red)">Failed to load status: ${escHtml(err.message)}</div>`;
   }

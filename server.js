@@ -979,6 +979,21 @@ app.get('/api/auth/me', requireAuth, async (req, res) => {
   }
 });
 
+// GET /api/debug/agent/:id — temporary: time isAgentConnected to isolate bottleneck
+app.get('/api/debug/agent/:id', requireAuth, async (req, res) => {
+  const connId = parseInt(req.params.id, 10);
+  const start = Date.now();
+  try {
+    const result = await Promise.race([
+      channel.isAgentConnected(connId),
+      new Promise(resolve => setTimeout(() => resolve('TIMEOUT'), 3000)),
+    ]);
+    res.json({ result, ms: Date.now() - start });
+  } catch (e) {
+    res.json({ error: e.message, ms: Date.now() - start });
+  }
+});
+
 // GET /api/auth/config — public config for frontend (Google Client ID)
 app.get('/api/auth/config', (req, res) => {
   res.json({ googleClientId: GOOGLE_CLIENT_ID || null });

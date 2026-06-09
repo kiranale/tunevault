@@ -22,7 +22,7 @@ async function getEbsConnections(userId) {
     `SELECT id, name, host, connection_type
      FROM oracle_connections
      WHERE user_id = $1
-       AND is_ebs = true
+       AND (is_ebs = true OR server_type IN ('apps', 'both'))
      ORDER BY name`,
     [userId]
   );
