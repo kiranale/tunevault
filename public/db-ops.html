@@ -219,12 +219,12 @@
     .result-hdr-summary.ok  { color: var(--green); }
     .result-hdr-summary.err { color: var(--red); }
     .result-hdr-right { display: flex; align-items: center; gap: 4px; }
-    .result-toggle {
-      display: flex; align-items: center; justify-content: center;
-      min-width: 28px; min-height: 28px; padding: 4px 8px;
-      font-size: 16px; cursor: pointer; color: var(--text-dim); border-radius: 5px;
+    .result-toggle-btn {
+      font-size: 11px; padding: 3px 10px; height: 24px; line-height: 1;
+      color: var(--text-dim); background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 5px; cursor: pointer; white-space: nowrap;
     }
-    .result-panel-hdr:hover .result-toggle { background: var(--surface-2); }
+    .result-toggle-btn:hover { color: var(--text); background: var(--surface-3); }
     .result-clear-btn {
       display: flex; align-items: center; justify-content: center;
       background: none; border: none; cursor: pointer; color: var(--text-dim);
@@ -660,13 +660,13 @@ function onSearchChange() {
 // ── Result store helpers ──────────────────────────────────────────────────────
 function buildResultPanelHtml(opKey, stored) {
   const k = opKey.replace(/\./g, '-');
-  const chevron = stored.collapsed ? '▸' : '▾';
+  const toggleLabel = stored.collapsed ? 'Show Results' : 'Hide Results';
   const bodyStyle = stored.collapsed ? 'style="display:none"' : '';
   return `
     <div class="result-panel-hdr" onclick="toggleResult('${opKey}')">
       <span class="result-hdr-summary ${stored.isOk ? 'ok' : 'err'}">${escHtml(stored.summaryText)}</span>
       <div class="result-hdr-right">
-        <span class="result-toggle" id="result-chevron-${k}">${chevron}</span>
+        <button class="result-toggle-btn" id="result-chevron-${k}" onclick="toggleResult('${opKey}');event.stopPropagation()">${toggleLabel}</button>
         <button class="result-clear-btn" onclick="clearResult('${opKey}', event)" title="Dismiss">✕</button>
       </div>
     </div>
@@ -679,9 +679,9 @@ function toggleResult(opKey) {
   stored.collapsed = !stored.collapsed;
   const k = opKey.replace(/\./g, '-');
   const body = document.getElementById('result-body-' + k);
-  const chevron = document.getElementById('result-chevron-' + k);
+  const btn  = document.getElementById('result-chevron-' + k);
   if (body) body.style.display = stored.collapsed ? 'none' : '';
-  if (chevron) chevron.textContent = stored.collapsed ? '▸' : '▾';
+  if (btn)  btn.textContent = stored.collapsed ? 'Show Results' : 'Hide Results';
 }
 
 function clearResult(opKey, event) {
@@ -995,7 +995,7 @@ function buildResultBodyHtml(data, isOk) {
 
 function friendlyError(msg) {
   if (!msg) return msg;
-  if (/SSH target required|Configure SSH/i.test(msg)) {
+  if (/SSH target required|Configure SSH|only sql operations|ssh ops require/i.test(msg)) {
     return 'Requires SSH target — <a href="/admin/ssh-targets" style="color:var(--accent)">Configure SSH Access →</a>';
   }
   if (/ORA-01031|insufficient.?privilege|privilege.*not.*granted|SYSDBA.*required|requires.*sysdba/i.test(msg)) {
