@@ -602,40 +602,21 @@
     window.open(`/api/ebs-deep/report/${reportId}/pdf`, '_blank');
   }
 
-  // Injects EBS PDF + EBS XLSX buttons into #toolbar-export-slot (idempotent).
+  // Injects EBS PDF + EBS XLSX buttons into #toolbar-export-slot.
   function injectToolbarExportButtons(connectionId) {
     const slot = document.getElementById('toolbar-export-slot');
-    if (!slot || slot.querySelector('.tv-export-btn')) return;
+    if (!slot || !connectionId) return;
     const sep = document.getElementById('toolbar-sep');
     if (sep) sep.style.display = '';
-
-    const dlIcon = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
-
-    function mkBtn(href, label, bg, color, border, hoverBg) {
-      const a = document.createElement('a');
-      a.href = href;
-      a.className = 'tv-export-btn';
-      a.style.cssText = 'display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;padding:7px 14px;border-radius:6px;cursor:pointer;text-decoration:none;white-space:nowrap;line-height:1;transition:all 0.2s;' +
-        'background:' + bg + ';color:' + color + ';border:1.5px solid ' + border + ';';
-      a.innerHTML = dlIcon + label;
-      a.addEventListener('mouseenter', function() { this.style.background = hoverBg; this.style.transform = 'translateY(-1px)'; });
-      a.addEventListener('mouseleave', function() { this.style.background = bg; this.style.transform = 'translateY(0)'; });
-      return a;
-    }
-
-    if (connectionId) {
-      const base = '/api/reports/' + connectionId;
-      slot.appendChild(mkBtn(base + '/ebs?format=pdf',  'EBS PDF',  '#c2410c',     '#fff',     '#c2410c',  '#9a3409'));
-      slot.appendChild(mkBtn(base + '/ebs?format=xlsx', 'EBS XLSX', 'transparent', '#f97316',  '#f97316',  'rgba(249,115,22,0.15)'));
-    } else {
-      // Demo — no connection_id, fall back to deep EBS PDF
-      const btn = document.createElement('button');
-      btn.className = 'tv-export-btn';
-      btn.onclick = exportPdf;
-      btn.style.cssText = 'display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;padding:7px 14px;background:var(--accent);color:#0a0a0c;border:none;border-radius:6px;cursor:pointer;line-height:1;';
-      btn.innerHTML = dlIcon + 'Export PDF';
-      slot.appendChild(btn);
-    }
+    slot.innerHTML =
+      `<a href="/api/reports/${connectionId}/ebs?format=pdf"
+          style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;padding:7px 14px;background:#f0a830;color:#0a0a0c;border:none;border-radius:6px;text-decoration:none;white-space:nowrap;">
+         ⬇ EBS PDF
+       </a>
+       <a href="/api/reports/${connectionId}/ebs?format=xlsx"
+          style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;padding:7px 14px;background:transparent;color:#f0a830;border:1px solid #f0a830;border-radius:6px;text-decoration:none;white-space:nowrap;">
+         ⬇ EBS XLSX
+       </a>`;
   }
 
   // Inject split download buttons into .report-actions once connection_id is known.

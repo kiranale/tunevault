@@ -12,44 +12,22 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
-      --bg: #0a0a0c;
-      --surface: #111114;
-      --surface-2: #1a1a1f;
-      --border: #2a2a30;
-      --text: #e8e8ed;
-      --text-dim: #b8b8c8;
-      --accent: #f0a830;
-      --accent-dim: rgba(240,168,48,0.12);
-      --green: #34d399;
-      --green-dim: rgba(52,211,153,0.12);
-      --red: #f87171;
-      --red-dim: rgba(248,113,113,0.12);
-      --yellow: #fbbf24;
-      --yellow-dim: rgba(251,191,36,0.12);
-      --blue: #60a5fa;
-      --blue-dim: rgba(96,165,250,0.12);
-      --purple: #a78bfa;
-      --purple-dim: rgba(167,139,250,0.12);
+      --bg: #0a0a0c; --surface: #111114; --surface-2: #1a1a1f; --border: #2a2a30;
+      --text: #e8e8ed; --text-dim: #b8b8c8;
+      --accent: #f0a830; --accent-dim: rgba(240,168,48,0.12);
+      --green: #34d399; --green-dim: rgba(52,211,153,0.12);
+      --red: #f87171; --red-dim: rgba(248,113,113,0.12);
+      --yellow: #fbbf24; --yellow-dim: rgba(251,191,36,0.12);
+      --blue: #60a5fa; --blue-dim: rgba(96,165,250,0.12);
+      --purple: #a78bfa; --purple-dim: rgba(167,139,250,0.12);
     }
-    body {
-      font-family: 'Space Grotesk', -apple-system, sans-serif;
-      background: var(--bg); color: var(--text);
-      line-height: 1.6; min-height: 100vh; overflow-x: hidden;
-    }
-    .grain {
-      position: fixed; top:0; left:0; right:0; bottom:0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
-      pointer-events: none; z-index: 999;
-    }
+    body { font-family: 'Space Grotesk', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; overflow-x: hidden; }
+    .grain { position: fixed; top:0; left:0; right:0; bottom:0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"); pointer-events: none; z-index: 999; }
     nav { background: rgba(10,10,12,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 9999; }
     .page-wrap { max-width: 1200px; margin: 0 auto; padding: 32px 24px 80px; }
 
     /* ── Breadcrumb ── */
-    .breadcrumb-bar {
-      font-size: 12px; color: var(--text-dim); max-width: 1200px;
-      margin: 0 auto; padding: 10px 24px;
-      display: flex; align-items: center; gap: 6px;
-    }
+    .breadcrumb-bar { font-size: 12px; color: var(--text-dim); max-width: 1200px; margin: 0 auto; padding: 10px 24px; display: flex; align-items: center; gap: 6px; }
     .breadcrumb-bar a { color: var(--accent); text-decoration: none; }
     .breadcrumb-bar a:hover { text-decoration: underline; }
     .bc-sep { color: var(--border); }
@@ -58,30 +36,19 @@
     .toolbar { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; }
     .toolbar h1 { font-size: 21px; font-weight: 700; flex: 1; min-width: 0; }
     .conn-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-    .conn-select {
-      background: var(--surface); border: 1px solid var(--border); color: var(--text);
-      font-family: inherit; font-size: 13px; padding: 8px 12px; border-radius: 8px;
-      min-width: 240px; cursor: pointer;
-    }
+    .conn-select { background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: inherit; font-size: 13px; padding: 8px 12px; border-radius: 8px; min-width: 240px; cursor: pointer; }
     .conn-select:focus { outline: none; border-color: var(--accent); }
 
     /* ── Status dot ── */
     .status-dot-wrap { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-dim); }
-    .status-dot {
-      width: 9px; height: 9px; border-radius: 50%; background: var(--border);
-      flex-shrink: 0; transition: background 0.3s;
-    }
+    .status-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--border); flex-shrink: 0; transition: background 0.3s; }
     .status-dot.online  { background: var(--green); box-shadow: 0 0 6px rgba(52,211,153,0.45); }
     .status-dot.offline { background: var(--red); }
     .status-dot.checking { background: var(--yellow); animation: pulse-dot 1s ease-in-out infinite; }
     @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.35} }
 
     /* ── No-conn banner ── */
-    .no-conn-banner {
-      display: none; align-items: flex-start; gap: 14px;
-      background: var(--surface); border: 1px solid rgba(96,165,250,0.3); border-radius: 10px;
-      padding: 16px 20px; margin-bottom: 28px;
-    }
+    .no-conn-banner { display: none; align-items: flex-start; gap: 14px; background: var(--surface); border: 1px solid rgba(96,165,250,0.3); border-radius: 10px; padding: 16px 20px; margin-bottom: 28px; }
     .no-conn-banner.visible { display: flex; }
     .no-conn-banner .banner-icon { font-size: 20px; flex-shrink: 0; }
     .no-conn-banner .banner-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
@@ -89,213 +56,120 @@
     .no-conn-banner a { color: var(--blue); text-decoration: none; }
     .no-conn-banner a:hover { text-decoration: underline; }
 
-    /* ── Section label ── */
-    .section-label {
-      font-size: 11px; font-weight: 700; color: var(--text-dim);
-      letter-spacing: .08em; text-transform: uppercase;
-      margin: 32px 0 14px; padding-bottom: 10px;
-      border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; gap: 10px;
-    }
-    .section-label:first-child { margin-top: 0; }
-    .section-label .sl-count {
-      font-size: 10px; padding: 1px 7px; border-radius: 10px;
-      background: var(--surface-2); color: var(--text-dim); font-weight: 600;
-    }
+    /* ── Tab bar ── */
+    .tab-bar { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 28px; overflow-x: auto; scrollbar-width: none; }
+    .tab-bar::-webkit-scrollbar { display: none; }
+    .tab { padding: 9px 16px; font-size: 13px; font-weight: 600; white-space: nowrap; color: var(--text-dim); cursor: pointer; border: none; background: none; font-family: inherit; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.15s, border-color 0.15s; border-radius: 6px 6px 0 0; display: flex; align-items: center; gap: 6px; }
+    .tab:hover { color: var(--text); background: rgba(255,255,255,0.025); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
-    /* ── Service Status grid ── */
-    .svc-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px;
-      margin-bottom: 8px;
-    }
-    .svc-card {
-      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-      padding: 14px 16px; transition: border-color 0.15s;
-    }
+    /* ── Op cards grid ── */
+    .ops-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px,1fr)); gap: 14px; margin-bottom: 8px; }
+
+    /* ── Op card ── */
+    .op-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; transition: border-color 0.15s; }
+    .op-card:hover { border-color: rgba(240,168,48,0.3); }
+    .op-card-header { display: flex; align-items: flex-start; gap: 11px; margin-bottom: 10px; }
+    .op-icon { width: 34px; height: 34px; border-radius: 8px; background: var(--surface-2); display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+    .op-title { font-size: 14px; font-weight: 600; }
+    .op-meta { font-size: 11px; color: var(--text-dim); margin-top: 1px; }
+    .op-preview { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); background: #0d0d10; border: 1px solid var(--border); border-radius: 6px; padding: 9px 11px; margin: 10px 0; white-space: pre-wrap; word-break: break-all; max-height: 72px; overflow: hidden; }
+    .op-actions { display: flex; gap: 7px; flex-wrap: wrap; }
+    .btn { padding: 6px 13px; border-radius: 7px; font-size: 12px; font-weight: 600; border: none; cursor: pointer; transition: all 0.15s; font-family: inherit; display: inline-flex; align-items: center; gap: 5px; }
+    .btn-run { background: var(--accent); color: #0a0a0c; }
+    .btn-run:hover { background: #e09820; }
+    .btn-run:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-outline { background: none; border: 1px solid var(--border); color: var(--text-dim); }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Result panel ── */
+    .result-panel { margin-top: 12px; display: none; border-top: 1px solid var(--border); padding-top: 4px; }
+    .result-panel.visible { display: block; }
+    .result-panel-hdr { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; cursor: pointer; user-select: none; }
+    .result-panel-hdr:hover .result-hdr-summary { opacity: 0.85; }
+    .result-hdr-summary { font-size: 11px; font-weight: 700; letter-spacing: .02em; }
+    .result-hdr-summary.ok  { color: var(--green); }
+    .result-hdr-summary.err { color: var(--red); }
+    .result-hdr-right { display: flex; align-items: center; gap: 4px; }
+    .result-toggle-btn { font-size: 11px; padding: 3px 10px; height: 24px; line-height: 1; color: var(--text-dim); background: var(--surface-2); border: 1px solid var(--border); border-radius: 5px; cursor: pointer; white-space: nowrap; }
+    .result-toggle-btn:hover { color: var(--text); background: #22222a; }
+    .result-clear-btn { display: flex; align-items: center; justify-content: center; background: none; border: none; cursor: pointer; color: var(--text-dim); min-width: 28px; min-height: 28px; font-size: 14px; padding: 4px 6px; line-height: 1; border-radius: 5px; }
+    .result-clear-btn:hover { color: var(--red); background: var(--red-dim); }
+    .result-body { padding-top: 4px; }
+    .result-hdr-badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 5px; flex-shrink: 0; background: var(--green-dim); color: var(--green); margin-left: 8px; }
+    .result-status { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+    .status-ok { color: var(--green); }
+    .status-err { color: var(--red); }
+    .result-table-wrap { overflow-x: auto; }
+    .result-table { width: 100%; border-collapse: collapse; font-size: 12px; font-family: 'JetBrains Mono', monospace; }
+    .result-table th { text-align: left; padding: 6px 10px; background: var(--surface-2); border-bottom: 1px solid var(--border); color: var(--text-dim); font-size: 11px; white-space: nowrap; }
+    .result-table td { padding: 6px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .result-table tr:last-child td { border-bottom: none; }
+    .result-text { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text); background: #0d0d10; border: 1px solid var(--border); border-radius: 6px; padding: 11px; white-space: pre-wrap; word-break: break-all; max-height: 280px; overflow-y: auto; }
+
+    /* ── Clear-all bar ── */
+    #clear-all-bar { display: flex; align-items: center; justify-content: space-between; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 7px 14px; margin-bottom: 14px; font-size: 12px; }
+    .clear-all-count { color: var(--text-dim); }
+    .btn-clear-all { background: none; border: 1px solid var(--border); color: var(--text-dim); font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; cursor: pointer; }
+    .btn-clear-all:hover { color: var(--red); border-color: var(--red); }
+
+    /* ── Service Status cards ── */
+    .svc-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .svc-section-title { font-size: 13px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: .07em; }
+    .svc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; margin-bottom: 14px; }
+    .svc-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; transition: border-color 0.15s; }
     .svc-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
     .svc-name { font-size: 13px; font-weight: 600; }
-    .svc-badge {
-      display: inline-flex; align-items: center; gap: 4px;
-      padding: 2px 8px; border-radius: 5px; font-size: 10px; font-weight: 700;
-      text-transform: uppercase; letter-spacing: .04em; flex-shrink: 0;
-    }
+    .svc-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 5px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; flex-shrink: 0; }
     .svc-badge.ok       { background: var(--green-dim); color: var(--green); }
     .svc-badge.warning  { background: var(--yellow-dim); color: var(--yellow); }
     .svc-badge.critical { background: var(--red-dim); color: var(--red); }
     .svc-badge.unknown  { background: var(--surface-2); color: var(--text-dim); border: 1px solid var(--border); }
     .svc-detail { font-size: 11px; color: var(--text-dim); line-height: 1.4; }
-    .svc-checked { font-size: 10px; color: var(--text-dim); margin-top: 6px; }
-
     .svc-loading { display: flex; align-items: center; gap: 10px; padding: 16px 0; color: var(--text-dim); font-size: 13px; }
     .svc-no-data { padding: 14px 0; font-size: 13px; color: var(--text-dim); }
-
-    /* ── System Resources sub-section ── */
     .svc-resources-section { margin-top: 14px; }
     .svc-resources-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); margin-bottom: 8px; }
-    .svc-resources-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px;
-    }
-    .svc-resource-item {
-      background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
-      padding: 10px 12px; display: flex; flex-direction: column; gap: 3px;
-    }
+    .svc-resources-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; }
+    .svc-resource-item { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; }
     .svc-resource-label { font-size: 11px; font-weight: 600; color: var(--text-dim); }
     .svc-resource-val { font-size: 12px; color: var(--text); }
-    .svc-resource-item.svc-resource-ok     { border-left: 3px solid var(--green); }
+    .svc-resource-item.svc-resource-ok       { border-left: 3px solid var(--green); }
     .svc-resource-item.svc-resource-warning  { border-left: 3px solid var(--yellow); }
     .svc-resource-item.svc-resource-critical { border-left: 3px solid var(--red); }
 
-    /* ── Quick links grid ── */
-    .quick-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px;
-    }
-    .quick-card {
-      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
-      padding: 18px; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s;
-      text-decoration: none; color: var(--text);
-      display: flex; align-items: flex-start; gap: 14px;
-    }
-    .quick-card:hover {
-      border-color: rgba(240,168,48,0.4);
-      box-shadow: 0 4px 16px rgba(240,168,48,0.07);
-    }
-    .quick-icon {
-      width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center; font-size: 18px;
-    }
-    .quick-body { flex: 1; min-width: 0; }
-    .quick-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
-    .quick-desc { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
-    .quick-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
-    .qtag {
-      padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 700;
-      text-transform: uppercase; letter-spacing: .04em;
-    }
-    .qtag-ssh    { background: var(--blue-dim); color: var(--blue); }
-    .qtag-sql    { background: var(--green-dim); color: var(--green); }
-    .qtag-live   { background: var(--accent-dim); color: var(--accent); }
-    .qtag-sse    { background: var(--purple-dim); color: var(--purple); }
+    /* ── Link cards ── */
+    .link-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+    .link-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; text-decoration: none; color: var(--text); display: flex; align-items: flex-start; gap: 14px; }
+    .link-card:hover { border-color: rgba(240,168,48,0.4); box-shadow: 0 4px 16px rgba(240,168,48,0.07); }
+    .link-icon { width: 38px; height: 38px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0; }
+    .link-body { flex: 1; min-width: 0; }
+    .link-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+    .link-desc { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+    .link-tag { margin-top: 8px; display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; background: var(--surface-2); color: var(--text-dim); border: 1px solid var(--border); }
+    .link-arrow { font-size: 16px; color: var(--accent); margin-left: auto; transition: transform 0.15s; flex-shrink: 0; align-self: center; }
+    .link-card:hover .link-arrow { transform: translateX(4px); }
 
-    /* ── Category picker grid ── */
-    .cat-picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-bottom: 36px; }
-    .cat-card {
-      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-      padding: 14px 16px; cursor: pointer; transition: all 0.15s;
-      display: flex; flex-direction: column; gap: 6px; user-select: none;
-    }
-    .cat-card:hover { border-color: rgba(240,168,48,0.35); background: rgba(240,168,48,0.04); }
-    .cat-card.active { border-color: var(--accent); background: var(--accent-dim); }
-    .cat-card-top { display: flex; align-items: center; gap: 9px; }
-    .cat-icon {
-      width: 30px; height: 30px; border-radius: 7px; display: flex; align-items: center;
-      justify-content: center; font-size: 14px; flex-shrink: 0; background: var(--surface-2);
-    }
-    .cat-name { font-size: 13px; font-weight: 600; line-height: 1.2; }
-    .cat-count { font-size: 11px; color: var(--text-dim); font-weight: 500; }
-    .cat-card.active .cat-count { color: rgba(240,168,48,0.7); }
+    /* ── Section sub-header ── */
+    .sub-header { display: flex; align-items: center; gap: 10px; margin: 24px 0 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+    .sub-header:first-child { margin-top: 0; }
+    .sub-header-icon { width: 26px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+    .sub-header-label { font-size: 13px; font-weight: 700; }
+    .sub-header-desc { font-size: 11px; color: var(--text-dim); margin-left: 4px; }
 
-    /* ── Section header (category view) ── */
-    .section-header {
-      display: flex; align-items: center; gap: 12px; margin-bottom: 24px;
-      padding-bottom: 14px; border-bottom: 1px solid var(--border);
-    }
-    .section-icon { width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
-    .section-title { font-size: 17px; font-weight: 700; }
-    .section-desc { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
-    .section-back {
-      margin-left: auto; font-size: 12px; color: var(--text-dim); cursor: pointer;
-      padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border);
-      background: none; font-family: inherit; transition: all 0.15s;
-    }
-    .section-back:hover { color: var(--accent); border-color: var(--accent); }
-
-    /* ── Hub card grid ── */
-    .hub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
-    .hub-card {
-      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
-      padding: 20px 20px 16px; text-decoration: none; color: var(--text);
-      transition: border-color 0.15s, box-shadow 0.15s;
-      display: flex; flex-direction: column; gap: 10px;
-    }
-    .hub-card:hover { border-color: rgba(240,168,48,0.4); box-shadow: 0 4px 20px rgba(240,168,48,0.07); }
-    .hub-card-top { display: flex; align-items: flex-start; gap: 14px; }
-    .hub-icon {
-      width: 40px; height: 40px; border-radius: 10px;
-      display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;
-    }
-    .hub-icon-amber  { background: var(--accent-dim); }
-    .hub-icon-green  { background: var(--green-dim); }
-    .hub-icon-blue   { background: var(--blue-dim); }
-    .hub-icon-purple { background: var(--purple-dim); }
-    .hub-icon-red    { background: var(--red-dim); }
-    .hub-title { font-size: 15px; font-weight: 700; }
-    .hub-subtitle { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
-    .hub-desc { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
-    .hub-tags { display: flex; gap: 6px; flex-wrap: wrap; }
-    .hub-tag {
-      padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600;
-      text-transform: uppercase; letter-spacing: .04em;
-    }
-    .tag-ssh    { background: var(--blue-dim); color: var(--blue); }
-    .tag-sql    { background: var(--green-dim); color: var(--green); }
-    .tag-live   { background: var(--accent-dim); color: var(--accent); }
-    .tag-ssh12  { background: var(--purple-dim); color: var(--purple); }
-    .tag-control { background: var(--red-dim); color: var(--red); }
-    .hub-footer {
-      display: flex; align-items: center; justify-content: space-between;
-      padding-top: 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-dim);
-    }
-    .hub-btn {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 5px 12px; border-radius: 7px; font-size: 12px; font-weight: 600;
-      border: 1px solid var(--accent); color: var(--accent); background: var(--accent-dim);
-      cursor: pointer; transition: all 0.15s; text-decoration: none; font-family: inherit;
-    }
-    .hub-btn:hover { background: rgba(240,168,48,0.2); }
-    .hub-btn.locked { opacity: 0.35; cursor: not-allowed; pointer-events: none; border-color: var(--border); color: var(--text-dim); background: transparent; }
-    .hub-arrow { font-size: 16px; color: var(--accent); transition: transform 0.15s; }
-    .hub-card:hover .hub-arrow { transform: translateX(4px); }
-
-    /* ── Search ── */
-    .search-wrap { display: flex; gap: 10px; margin-bottom: 24px; align-items: center; flex-wrap: wrap; }
-    .search-input {
-      flex: 1; min-width: 220px; max-width: 400px;
-      background: var(--surface); border: 1px solid var(--border); color: var(--text);
-      font-family: inherit; font-size: 13px; padding: 8px 14px 8px 38px; border-radius: 8px;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238888a0' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
-      background-repeat: no-repeat; background-position: 12px center;
-    }
-    .search-input:focus { outline: none; border-color: var(--accent); }
-    .search-input::placeholder { color: var(--text-dim); }
-    .search-count { font-size: 12px; color: var(--text-dim); }
-
-    /* ── Group divider ── */
-    .group-divider {
-      margin: 28px 0 12px; display: flex; align-items: center; gap: 10px;
-    }
-    .group-divider-label {
-      font-size: 12px; font-weight: 700; color: var(--text-dim);
-      letter-spacing: .07em; text-transform: uppercase; white-space: nowrap;
-    }
-    .group-divider-line { flex: 1; height: 1px; background: var(--border); }
-    .group-divider-desc { font-size: 11px; color: var(--text-dim); white-space: nowrap; font-style: italic; }
-
-    /* ── Empty / spinner ── */
-    .empty-state { text-align: center; padding: 48px; color: var(--text-dim); }
+    /* ── Spinner / empty ── */
+    .spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(255,255,255,0.2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty-state { text-align: center; padding: 48px 0; color: var(--text-dim); }
     .empty-state .icon { font-size: 36px; margin-bottom: 10px; }
     .empty-state h3 { font-size: 15px; color: var(--text); margin-bottom: 6px; }
-    .spinner {
-      display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(255,255,255,0.2);
-      border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
 
     @media (max-width: 768px) {
-      .cat-picker { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
-      .hub-grid { grid-template-columns: 1fr; }
-      .quick-grid { grid-template-columns: 1fr; }
+      .ops-grid { grid-template-columns: 1fr; }
+      .link-grid { grid-template-columns: 1fr; }
       .svc-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
       .conn-select { min-width: 0; width: 100%; }
+      .tab { padding: 8px 12px; font-size: 12px; }
     }
   </style>
 </head>
@@ -315,12 +189,11 @@
 
 <div class="page-wrap">
 
-  <!-- ADOP banner -->
   <div id="adopBannerRoot" style="display:none;"></div>
 
   <!-- Toolbar -->
   <div class="toolbar">
-    <h1>🏗️ EBS Ops</h1>
+    <h1>🏗️ EBS Operations Center</h1>
     <div class="conn-row">
       <select class="conn-select" id="conn-select" onchange="onConnChange()">
         <option value="">— Select EBS connection —</option>
@@ -344,233 +217,174 @@
     </div>
   </div>
 
-  <!-- Service Status section -->
-  <div id="svc-section" style="display:none">
-    <div class="section-label">
-      📊 Service Status
-      <span id="svc-checked-at" class="sl-count"></span>
-    </div>
-    <div id="svc-grid-wrap">
-      <div class="svc-loading"><div class="spinner"></div> Loading service status…</div>
-    </div>
+  <!-- Clear all results bar -->
+  <div id="clear-all-bar" style="display:none">
+    <span class="clear-all-count"></span>
+    <button class="btn-clear-all" onclick="clearAllResults()">✕ Clear all</button>
   </div>
 
-  <!-- Quick Links -->
-  <div class="section-label" style="margin-top:32px">🔗 Quick Links</div>
-  <div class="quick-grid" style="margin-bottom:32px">
-    <a class="quick-card" href="/ebs-middleware">
-      <div class="quick-icon" style="background:var(--blue-dim)">🌐</div>
-      <div class="quick-body">
-        <div class="quick-title">Middleware Control</div>
-        <div class="quick-desc">WLS AdminServer, Apache/OHS, Apps Listener — status, start, stop, rolling bounce.</div>
-        <div class="quick-tags">
-          <span class="qtag qtag-ssh">SSH</span>
-          <span class="qtag qtag-sse">SSE</span>
-        </div>
-      </div>
-    </a>
-    <a class="quick-card" href="/ebs-concurrent">
-      <div class="quick-icon" style="background:var(--accent-dim)">⚙️</div>
-      <div class="quick-body">
-        <div class="quick-title">Concurrent Processing</div>
-        <div class="quick-desc">Live concurrent requests, start/stop all nodes via adstrtal.sh / adstpall.sh.</div>
-        <div class="quick-tags">
-          <span class="qtag qtag-sql">SQL</span>
-          <span class="qtag qtag-ssh">SSH</span>
-        </div>
-      </div>
-    </a>
-    <a class="quick-card" href="/ebs-deep">
-      <div class="quick-icon" style="background:var(--green-dim)">🔬</div>
-      <div class="quick-body">
-        <div class="quick-title">Deep EBS Health</div>
-        <div class="quick-desc">30+ live checks — CM, WF, security, performance, ADOP, functional, SSH deep analysis.</div>
-        <div class="quick-tags">
-          <span class="qtag qtag-live">Live</span>
-          <span class="qtag qtag-sql">SQL</span>
-          <span class="qtag qtag-ssh">SSH</span>
-        </div>
-      </div>
-    </a>
-  </div>
-
-  <!-- Search + all operations -->
-  <div class="section-label">📋 All Operations</div>
-  <div class="search-wrap">
-    <input type="text" class="search-input" id="search-input" placeholder="Search EBS operations…"
-      oninput="onSearchChange()" autocomplete="off">
-    <span class="search-count" id="search-count"></span>
-  </div>
-
+  <!-- Main content -->
   <div id="main-content"></div>
 
 </div>
 
+<script src="/connection-state.js"></script>
+<script>
+  (function() {
+    var urlConn = new URLSearchParams(window.location.search).get('conn');
+    if (urlConn) tvConn.save(urlConn);
+  }());
+</script>
 <script src="/nav-component.js"></script>
 <script>
 window.tvNav.init('ebs-ops');
 
 // ── State ────────────────────────────────────────────────────────────────────
-var ebsLocked = false;
-var ebsConns = [];
-var selectedEbsConn = null;
-var activeCategory = null;
-var searchQuery = '';
+let connections = [];
+let selectedConn = null;
+let activeTab = 'service_status';
+const resultStore = new Map(); // opKey → { summaryText, bodyHtml, collapsed, isOk }
 
-const PRIORITY_GROUPS = [
-  { label: '🔴 Critical / Daily',           desc: 'Check these every day',                         catIds: ['concurrent', 'apptier'] },
-  { label: '🟡 Operations',                  desc: 'Patching, migration, service control',           catIds: ['adop', 'migration'] },
-  { label: '🔵 Monitoring & Analysis',       desc: 'Reports, deep checks, patch status',            catIds: ['reports', 'ssh', 'patches'] },
-  { label: '🟢 Housekeeping',               desc: 'Periodic cleanup and maintenance',               catIds: ['housekeeping'] },
-  { label: '⚪ Infrastructure',              desc: 'Clone, scale, environment management',           catIds: ['clone'] },
-];
-
-const CATEGORIES = [
-  { id: 'concurrent', label: 'Concurrent Processing', icon: '⚙️', color: 'amber',  desc: 'CM status, OPP, running requests, start/stop nodes' },
-  { id: 'apptier',    label: 'App Tier Health',        icon: '🌐', color: 'blue',   desc: 'WLS, Apache/OHS, Apps Listener, post-bounce sanity' },
-  { id: 'adop',       label: 'ADOP & Patching',        icon: '📦', color: 'purple', desc: 'ADOP sessions, patch advisor, gap analysis' },
-  { id: 'reports',    label: 'Reports & Analysis',     icon: '📊', color: 'green',  desc: 'EBS full health report, security, performance, control catalog' },
-  { id: 'ssh',        label: 'SSH & Deep Checks',      icon: '🔬', color: 'purple', desc: '30 SSH checks for EBS 12.2: topology, JVM, filesystem, logs' },
-  { id: 'patches',    label: 'EBS Patches',            icon: '🩹', color: 'amber',  desc: 'All Oracle Homes: FMW, WLS, 10.1.2, Apps, AD/TXK, ETCC' },
-  { id: 'clone',      label: 'Clone & Scale',          icon: '🔁', color: 'purple', desc: 'Rapid Clone wizard, recipe management, clone history' },
-  { id: 'migration',  label: 'Setup Migration',        icon: '📤', color: 'green',  desc: 'FNDLOAD object migration between EBS instances' },
-  { id: 'housekeeping', label: 'Housekeeping',         icon: '🧹', color: 'blue',   desc: 'Request purge, WF cleanup, cache invalidation, edition compare' },
-];
-
-const COLOR_MAP = {
-  amber:  { icon: 'rgba(240,168,48,0.15)',  text: 'var(--accent)' },
-  blue:   { icon: 'rgba(96,165,250,0.15)',  text: 'var(--blue)' },
-  green:  { icon: 'rgba(52,211,153,0.15)',  text: 'var(--green)' },
-  purple: { icon: 'rgba(167,139,250,0.15)', text: 'var(--purple)' },
-  red:    { icon: 'rgba(248,113,113,0.15)', text: 'var(--red)' },
-};
-
-const CARDS = [
-  // Concurrent
-  { id: 'cm-status',         section: 'concurrent', title: 'Concurrent Managers',        subtitle: 'ebs-deep · Live',      desc: 'Real-time CM status — RUNNING/INACTIVE/ERROR, queue depth, activate/deactivate controls, OPP queues.', tags: [{cls:'tag-live',label:'Live'},{cls:'tag-sql',label:'SQL'}],     href: '/ebs-deep#monitor',    checkCount: '5 monitors', icon: '⚙️', iconCls: 'hub-icon-amber' },
-  { id: 'wf-mailer',         section: 'concurrent', title: 'Workflow Mailer',             subtitle: 'ebs-deep · Live',      desc: 'WF Notification Mailer status, queue depth, error log tail, restart controls.',                         tags: [{cls:'tag-live',label:'Live'},{cls:'tag-sql',label:'SQL'}],     href: '/ebs-deep#monitor',    checkCount: '3 monitors', icon: '✉️', iconCls: 'hub-icon-amber' },
-  { id: 'running-requests',  section: 'concurrent', title: 'Running Requests',            subtitle: 'ebs-concurrent',       desc: 'Live view of active concurrent requests — SQL query of FND_CONCURRENT_REQUESTS.',                       tags: [{cls:'tag-sql',label:'SQL'}],                                   href: '/ebs-concurrent',      checkCount: '1 query',    icon: '📋', iconCls: 'hub-icon-green' },
-  { id: 'start-stop-nodes',  section: 'concurrent', title: 'Start / Stop All Nodes',      subtitle: 'ebs-concurrent · SSH', desc: 'Run adstrtal.sh or adstpall.sh -mode=allnodes across all EBS app tier nodes.',                          tags: [{cls:'tag-ssh',label:'SSH'},{cls:'tag-control',label:'Control'}],href: '/ebs-concurrent',      checkCount: '2 ops',      icon: '🔄', iconCls: 'hub-icon-red' },
-  // App Tier
-  { id: 'wls-admin',         section: 'apptier',    title: 'WLS Admin Server',            subtitle: 'ebs-middleware · SSH', desc: 'WebLogic AdminServer + managed servers — status, start, stop, rolling bounce. SSE-streamed sequential ops.', tags: [{cls:'tag-ssh',label:'SSH'},{cls:'tag-live',label:'SSE'}],     href: '/ebs-middleware',      checkCount: '6 ops',      icon: '🌐', iconCls: 'hub-icon-blue' },
-  { id: 'apache-ohs',        section: 'apptier',    title: 'Apache / OHS',                subtitle: 'ebs-middleware · SSH', desc: 'R12.2 OHS and R12.1 Apache/OPMN — status, start, stop. Adapts to your EBS version automatically.',     tags: [{cls:'tag-ssh',label:'SSH'}],                                   href: '/ebs-middleware',      checkCount: '4 ops',      icon: '🔧', iconCls: 'hub-icon-blue' },
-  { id: 'apps-listener',     section: 'apptier',    title: 'Apps Listener',               subtitle: 'ebs-middleware · SSH', desc: 'Apps-tier TNS listener — lsnrctl status, start, stop for the EBS app tier service.',                  tags: [{cls:'tag-ssh',label:'SSH'}],                                   href: '/ebs-middleware',      checkCount: '3 ops',      icon: '📡', iconCls: 'hub-icon-blue' },
-  { id: 'sanity-check',      section: 'apptier',    title: 'Post-Bounce Sanity Check',    subtitle: 'sanity-check',         desc: 'After a bounce, verify all services came back — TNS, EBS HTTP, DB connectivity, file ownership, permissions.', tags: [{cls:'tag-ssh',label:'SSH'},{cls:'tag-sql',label:'SQL'}],  href: '/sanity-check',        checkCount: '8 checks',   icon: '✅', iconCls: 'hub-icon-green' },
-  // ADOP
-  { id: 'adop-deep',         section: 'adop',       title: 'ADOP Session Health',         subtitle: 'ebs-deep · Live',      desc: 'Patch cycle status, compilation errors, active workers, apply/finalize controls. Alerts on stalled ADOP sessions.', tags: [{cls:'tag-live',label:'Live'},{cls:'tag-sql',label:'SQL'}], href: '/ebs-deep#sanity',  checkCount: '4 checks',   icon: '🔬', iconCls: 'hub-icon-purple' },
-  { id: 'patch-advisor',     section: 'adop',       title: 'Patch Advisor',               subtitle: 'patches · AI',         desc: 'CPU/PSU patch gap analysis — detect missing patches, generate adop apply runbook, compare installed vs current.', tags: [{cls:'tag-sql',label:'SQL'}],                          href: '/patches',             checkCount: 'Gap analysis',icon: '🛡️', iconCls: 'hub-icon-purple' },
-  { id: 'ebs-ssh-adop',      section: 'adop',       title: 'ADOP SSH Checks',             subtitle: 'SSH checks · EBS 12.2',desc: 'SSH-based ADOP health: patch staging size, failed workers, stale sessions, cutover status.',              tags: [{cls:'tag-ssh',label:'SSH'},{cls:'tag-ssh12',label:'EBS 12.2'}],href: '/ebs-deep',           checkCount: '5 checks',   icon: '📦', iconCls: 'hub-icon-purple' },
-  // Reports
-  { id: 'ebs-full-report',   section: 'reports',    title: 'EBS Full Health Report',      subtitle: 'ebs-deep · AI',        desc: 'Deep EBS health report — all live status monitors, SSH checks, and AI analysis in a single exportable view.',  tags: [{cls:'tag-live',label:'Live'},{cls:'tag-sql',label:'SQL'}],    href: '/ebs-deep',            checkCount: '30+ checks', icon: '📊', iconCls: 'hub-icon-amber' },
-  { id: 'ebs-security',      section: 'reports',    title: 'EBS Security Checks',         subtitle: 'ebs-deep · SQL',       desc: 'CPU patch cadence, APPS password age, sign-on audit, SYSADMIN hygiene, guest lockdown, ICX timeout, SSL/TLS.', tags: [{cls:'tag-sql',label:'SQL'}],                                 href: '/ebs-deep',            checkCount: '8 checks',   icon: '🔒', iconCls: 'hub-icon-red' },
-  { id: 'ebs-performance',   section: 'reports',    title: 'EBS Performance Checks',      subtitle: 'ebs-deep · SQL',       desc: 'Concurrent throughput, WF notification backlog, Forms concurrency, OACore indicators, Apache saturation.',    tags: [{cls:'tag-sql',label:'SQL'}],                                 href: '/ebs-deep',            checkCount: '6 checks',   icon: '⚡', iconCls: 'hub-icon-amber' },
-  { id: 'ebs-control',       section: 'reports',    title: 'EBS Control Exec',            subtitle: 'ebs-control-exec',     desc: 'CM start/stop/status, OPMNCTL, ADOP status, Listener — executed via TuneVault Agent tunnel (HTTPS). No SSH required.', tags: [{cls:'tag-control',label:'Control'},{cls:'tag-live',label:'Proxy'}], href: '/ebs-control-exec', checkCount: '5 ops', icon: '⚡', iconCls: 'hub-icon-red' },
-  // SSH
-  { id: 'ebs-12-2-checks',   section: 'ssh',        title: 'EBS 12.2 Deep Checks',        subtitle: 'SSH · EBS 12.2',       desc: '30 SSH-based checks: topology, JVM heap, OS metrics, code levels (AD/TXK), ETCC validation. Requires EBS 12.2.', tags: [{cls:'tag-ssh',label:'SSH'},{cls:'tag-ssh12',label:'EBS 12.2'}],href: '/ebs-12-2-checks',   checkCount: '30 checks',  icon: '🔬', iconCls: 'hub-icon-purple' },
-  { id: 'fs-checks',         section: 'ssh',        title: 'Filesystem Checks',           subtitle: 'SSH checks',           desc: 'App tier + DB tier disk usage: $APPL_TOP, $INST_TOP, $ORACLE_HOME, /tmp, concurrent logs, ADOP staging.',       tags: [{cls:'tag-ssh',label:'SSH'}],                                   href: '/ebs-deep',            checkCount: '10 checks',  icon: '💾', iconCls: 'hub-icon-green' },
-  { id: 'wls-checks',        section: 'ssh',        title: 'WebLogic SSH Checks',         subtitle: 'SSH checks',           desc: 'WLS AdminServer JVM heap, server state, managed server count, access log tail.',                              tags: [{cls:'tag-ssh',label:'SSH'}],                                   href: '/ebs-deep',            checkCount: '4 checks',   icon: '🌐', iconCls: 'hub-icon-blue' },
-  { id: 'logs-checks',       section: 'ssh',        title: 'Log Analysis',                subtitle: 'SSH checks',           desc: 'CM log tail, WLS error count from access logs, ADOP log tail, AutoPatch log scan.',                           tags: [{cls:'tag-ssh',label:'SSH'}],                                   href: '/ebs-deep',            checkCount: '4 checks',   icon: '📄', iconCls: 'hub-icon-green' },
-  { id: 'ssh-targets',       section: 'ssh',        title: 'SSH Targets',                 subtitle: 'settings',             desc: 'Manage SSH credentials for EBS ops — apps_tier and db_tier targets, AES-256-GCM encrypted vault.',             tags: [],                                                              href: '/settings/ssh-targets',checkCount: 'Settings',   icon: '🔑', iconCls: 'hub-icon-amber' },
-  // Patches
-  { id: 'ebs-patches',       section: 'patches',    title: 'EBS Patch Advisor',           subtitle: 'ebs-patches · Multi',  desc: 'Full EBS patch inventory across all Oracle Homes: FMW, WLS, 10.1.2, Apps, AD/TXK codelevels, ETCC compliance.', tags: [{cls:'tag-ssh',label:'SSH'},{cls:'tag-sql',label:'SQL'}],     href: '/ebs-patches',         checkCount: '7 Homes',    icon: '🩹', iconCls: 'hub-icon-purple' },
-  { id: 'ebs-patches-fmw',   section: 'patches',    title: 'FMW Patches',                 subtitle: 'OPatch',               desc: 'Two FMW Oracle Homes patched independently: oracle_common (OPSS, MDS, JRF) and webtier (OHS, mod_wl_ohs).',    tags: [{cls:'tag-ssh',label:'SSH'}],                                   href: '/ebs-patches#fmw',     checkCount: '2 homes',    icon: '🏗️', iconCls: 'hub-icon-blue' },
-  { id: 'ebs-patches-apps',  section: 'patches',    title: 'Apps Patches (adpatch/adop)', subtitle: 'SQL',                  desc: 'Applied patch history from AD_APPLIED_PATCHES and AD_BUGS. ADOP session history, current cycle/phase status.',   tags: [{cls:'tag-sql',label:'SQL'}],                                   href: '/ebs-patches#apps',    checkCount: 'AD_APPLIED',  icon: '📦', iconCls: 'hub-icon-amber' },
-  { id: 'ebs-patches-etcc',  section: 'patches',    title: 'ETCC Compliance',             subtitle: 'SSH',                  desc: 'Enterprise Technology Codelevel Checker — checkDBpatch.sh (DB) and checkMTpatch.sh (middle tier) pass/fail.',  tags: [{cls:'tag-ssh',label:'SSH'},{cls:'tag-ssh12',label:'EBS 12.2'}],href: '/ebs-patches#etcc',  checkCount: '2 ETCC',     icon: '✅', iconCls: 'hub-icon-green' },
-  // Clone
-  { id: 'clone-wizard',      section: 'clone',      title: 'Rapid Clone Wizard',          subtitle: 'ebs-clone · SSH',      desc: 'Step-by-step adpreclone/adcfgclone wizard with pre-checks, recipe recording, and auto-replay.',                tags: [{cls:'tag-ssh',label:'SSH'},{cls:'tag-control',label:'Clone'}], href: '/ebs-clone',           checkCount: '5 steps',    icon: '🔁', iconCls: 'hub-icon-purple' },
-  { id: 'clone-history',     section: 'clone',      title: 'Clone History',               subtitle: 'ebs-clone',            desc: 'All EBS clone operations: source, target, recipe, duration, who, when, success/fail. Full audit trail.',        tags: [{cls:'tag-sql',label:'Log'}],                                   href: '/ebs-clone',           checkCount: 'History',    icon: '📋', iconCls: 'hub-icon-green' },
-  // Migration
-  { id: 'fndload-wizard',    section: 'migration',  title: 'FNDLOAD Object Migration',    subtitle: 'fndload · AI Diff',    desc: 'Migrate Concurrent Programs, Value Sets, Lookups, Menus between instances. 5-step guided wizard with audit trail.', tags: [{cls:'tag-sql',label:'SQL'},{cls:'tag-ssh',label:'SSH'},{cls:'tag-live',label:'AI'}], href: '/fndload', checkCount: '10 types',   icon: '📦', iconCls: 'hub-icon-purple' },
-  // Housekeeping
-  { id: 'wf-notifications',  section: 'housekeeping', title: 'Stuck WF Notifications Cleanup', subtitle: 'SQL',            desc: 'Cancel stuck Workflow notifications — WF_NOTIFICATIONS in OPEN status with no active user process.',             tags: [{cls:'tag-sql',label:'SQL'},{cls:'tag-control',label:'Control'}],href: '/ebs-deep#functional', checkCount: 'Functional', icon: '🔔', iconCls: 'hub-icon-amber' },
-  { id: 'request-purge',     section: 'housekeeping', title: 'Concurrent Request Purge',    subtitle: 'SQL',               desc: 'Purge old completed/cancelled requests from FND_CONCURRENT_REQUESTS. Reduces table bloat and speeds CM queries.',  tags: [{cls:'tag-sql',label:'SQL'},{cls:'tag-control',label:'Control'}],href: '/ebs-deep#functional', checkCount: 'Functional', icon: '🗑️', iconCls: 'hub-icon-amber' },
-  { id: 'cache-invalidation', section: 'housekeeping', title: 'Cache Invalidation',        subtitle: 'SQL',               desc: 'Force ICX session cache purge and FND_PROFILE option cache clear after profile changes or personalizations.',       tags: [{cls:'tag-sql',label:'SQL'}],                                   href: '/ebs-deep#functional', checkCount: 'Functional', icon: '♻️', iconCls: 'hub-icon-blue' },
-  { id: 'edition-compare',   section: 'housekeeping', title: 'Edition Comparison (RUN vs PATCH)', subtitle: 'SQL',        desc: 'Compare RUN and PATCH editions — object counts, invalid objects per edition, active edition pointer.',              tags: [{cls:'tag-sql',label:'SQL'}],                                   href: '/ebs-deep#functional', checkCount: 'Functional', icon: '🔍', iconCls: 'hub-icon-purple' },
-  { id: 'wf-agent-restart',  section: 'housekeeping', title: 'WF Agent Restart',           subtitle: 'Control',           desc: 'Restart the Workflow Agent Listener and Deferred Agent Listener from ICM when WF queues are stalled.',              tags: [{cls:'tag-control',label:'Control'}],                            href: '/ebs-deep#monitor',    checkCount: 'Control',    icon: '▶️', iconCls: 'hub-icon-amber' },
-];
-
-// Service check_ids that render as service status cards
+// ── Service check mappings ────────────────────────────────────────────────────
 const SERVICE_CHECK_IDS = new Set([
-  'apache_status', 'apache', 'apache_ohs',
-  'opmn_status', 'opmn',
-  'admin_server', 'wls_admin_server', 'wls_admin',
-  'managed_servers', 'oacore_servers', 'oacore', 'forms_servers', 'forms', 'oafm_servers', 'oafm',
-  'node_manager',
-  'apps_listener',
-  'cm_status', 'cm', 'adcmctl',
-  'wf_mailer', 'wf_mailer_status',
-  'adop_status', 'adop',
+  'apache_status','apache','apache_ohs','opmn_status','opmn',
+  'admin_server','wls_admin_server','wls_admin',
+  'managed_servers','oacore_servers','oacore','forms_servers','forms','oafm_servers','oafm',
+  'node_manager','apps_listener','cm_status','cm','adcmctl',
+  'wf_mailer','wf_mailer_status','adop_status','adop',
 ]);
-
-// System resource check_ids — shown in a separate panel
 const RESOURCE_CHECK_IDS = new Set([
-  'disk_usage', 'disk', 'memory_usage', 'memory', 'cpu_load', 'io_wait',
-  'ts_usage', 'tablespace_usage', 'invalid_objects',
+  'disk_usage','disk','memory_usage','memory','cpu_load','io_wait',
+  'ts_usage','tablespace_usage','invalid_objects',
 ]);
-
-// Display names for service check_ids
 const SVC_LABELS = {
-  apache: 'Apache / OHS', apache_ohs: 'Apache / OHS', apache_status: 'Apache / OHS',
-  opmn: 'OPMN', opmn_status: 'OPMN',
-  apps_listener: 'Apps Listener',
-  admin_server: 'WLS Admin', wls_admin_server: 'WLS Admin', wls_admin: 'WLS Admin',
-  managed_servers: 'Managed Servers', oacore_servers: 'OACore Servers', oacore: 'OACore',
-  forms_servers: 'Forms Servers', forms: 'Forms', oafm_servers: 'OAFM', oafm: 'OAFM',
-  node_manager: 'Node Manager',
-  cm_status: 'Concurrent Manager', cm: 'Concurrent Manager', adcmctl: 'Concurrent Manager',
-  wf_mailer: 'WF Mailer', wf_mailer_status: 'WF Mailer',
-  adop_status: 'ADOP', adop: 'ADOP',
+  apache:'Apache / OHS',apache_ohs:'Apache / OHS',apache_status:'Apache / OHS',
+  opmn:'OPMN',opmn_status:'OPMN',apps_listener:'Apps Listener',
+  admin_server:'WLS Admin',wls_admin_server:'WLS Admin',wls_admin:'WLS Admin',
+  managed_servers:'Managed Servers',oacore_servers:'OACore Servers',oacore:'OACore',
+  forms_servers:'Forms Servers',forms:'Forms',oafm_servers:'OAFM',oafm:'OAFM',
+  node_manager:'Node Manager',
+  cm_status:'Concurrent Manager',cm:'Concurrent Manager',adcmctl:'Concurrent Manager',
+  wf_mailer:'WF Mailer',wf_mailer_status:'WF Mailer',
+  adop_status:'ADOP',adop:'ADOP',
+};
+const RESOURCE_LABELS = {
+  disk_usage:'Disk Usage',disk:'Disk Usage',memory_usage:'Memory',memory:'Memory',
+  cpu_load:'CPU Load',io_wait:'I/O Wait',ts_usage:'Tablespace',
+  tablespace_usage:'Tablespace',invalid_objects:'Invalid Objects',
 };
 
-const RESOURCE_LABELS = {
-  disk_usage: 'Disk Usage', disk: 'Disk Usage',
-  memory_usage: 'Memory', memory: 'Memory',
-  cpu_load: 'CPU Load', io_wait: 'I/O Wait',
-  ts_usage: 'Tablespace', tablespace_usage: 'Tablespace',
-  invalid_objects: 'Invalid Objects',
-};
+// ── SQL ops catalog (frontend copy for display + copy-SQL) ────────────────────
+const CONCURRENT_OPS = [
+  { key: 'running_requests', label: 'Running Requests', icon: '🟢', desc: 'Live running concurrent requests with start time and status code.',
+    sql: `SELECT request_id, concurrent_program_name, requested_by,
+       actual_start_date, phase_code, status_code
+FROM fnd_concurrent_requests
+WHERE phase_code='R' ORDER BY actual_start_date` },
+  { key: 'long_running', label: 'Long Running (>30 min)', icon: '⏱️', desc: 'Requests running more than 30 minutes — potential hangs.',
+    sql: `SELECT request_id, concurrent_program_name, requested_by,
+       ROUND((SYSDATE-actual_start_date)*24*60,1) AS running_minutes
+FROM fnd_concurrent_requests
+WHERE phase_code='R' AND actual_start_date < SYSDATE-30/1440
+ORDER BY actual_start_date` },
+  { key: 'pending_requests', label: 'Pending Requests', icon: '⏳', desc: 'Queued requests waiting to run, ordered by priority.',
+    sql: `SELECT request_id, concurrent_program_name, requested_by,
+       requested_start_date, priority
+FROM fnd_concurrent_requests
+WHERE phase_code='P' ORDER BY priority, requested_start_date
+FETCH FIRST 50 ROWS ONLY` },
+  { key: 'failed_requests', label: 'Failed Requests (24h)', icon: '❌', desc: 'Requests that failed in the last 24 hours with completion text.',
+    sql: `SELECT request_id, concurrent_program_name, requested_by,
+       actual_completion_date, completion_text
+FROM fnd_concurrent_requests
+WHERE phase_code='C' AND status_code='E'
+AND actual_completion_date > SYSDATE-1
+ORDER BY actual_completion_date DESC
+FETCH FIRST 50 ROWS ONLY` },
+  { key: 'cm_managers', label: 'CM Manager Status', icon: '🏭', desc: 'Enabled Concurrent Managers with process counts.',
+    sql: `SELECT concurrent_queue_name, manager_type,
+       running_processes, target_processes, max_processes
+FROM fnd_concurrent_queues_vl
+WHERE enabled_flag='Y'
+ORDER BY running_processes DESC` },
+  { key: 'opp_queue', label: 'OPP Queue Depth', icon: '📊', desc: 'Output Post Processor pending queue depth.',
+    sql: `SELECT COUNT(*) AS pending_count,
+       MIN(actual_completion_date) AS oldest_request
+FROM fnd_concurrent_requests
+WHERE phase_code='P' AND concurrent_program_name LIKE '%OPP%'` },
+];
+
+const PATCHING_OPS = [
+  { key: 'adop_status', label: 'ADOP Session Status', icon: '🔧', desc: 'Current and recent ADOP patch session state — phase, status, node.',
+    sql: `SELECT session_id, phase, status, start_date, end_date,
+       applied_on_node
+FROM ad_adop_sessions
+ORDER BY start_date DESC FETCH FIRST 10 ROWS ONLY` },
+  { key: 'applied_patches', label: 'Recent Patches (90 days)', icon: '🩹', desc: 'AD_APPLIED_PATCHES — patches applied in the last 90 days.',
+    sql: `SELECT patch_name, patch_type, creation_date, last_update_date
+FROM ad_applied_patches
+WHERE creation_date > SYSDATE-90
+ORDER BY creation_date DESC
+FETCH FIRST 50 ROWS ONLY` },
+  { key: 'invalid_objects', label: 'APPS Invalid Objects', icon: '🔴', desc: 'Invalid objects owned by APPS schema users (FND_ORACLE_USERID).',
+    sql: `SELECT owner, object_type, COUNT(*) AS invalid_count
+FROM dba_objects
+WHERE status='INVALID' AND owner IN (
+  SELECT oracle_username FROM fnd_oracle_userid
+  WHERE read_only_flag='U'
+)
+GROUP BY owner, object_type
+ORDER BY invalid_count DESC` },
+];
 
 // ── Bootstrap ────────────────────────────────────────────────────────────────
-(function() {
-  fetch('/api/connections', { credentials: 'include' })
-    .then(r => r.ok ? r.json() : [])
-    .then(conns => {
-      ebsConns = conns.filter(c => !c.removed_connection && (c.server_type === 'apps' || c.server_type === 'both'));
-      const hasEbs = ebsConns.length > 0;
-      if (!hasEbs) {
-        ebsLocked = true;
-        document.getElementById('no-conn-banner').classList.add('visible');
-        renderMain();
-        return;
-      }
-      const sel = document.getElementById('conn-select');
-      ebsConns.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c.id;
-        opt.textContent = c.name || (c.host + ':' + (c.port || 1521));
-        sel.appendChild(opt);
-      });
-      // Restore saved selection
-      const saved = localStorage.getItem('tv_conn');
-      if (saved && ebsConns.some(c => String(c.id) === saved)) sel.value = saved;
-      else if (ebsConns.length > 0) sel.value = ebsConns[0].id;
-      onConnChange();
-    })
-    .catch(() => {
-      document.getElementById('status-label').textContent = 'Failed to load connections';
-      renderMain();
+(async function init() {
+  try {
+    const r = await fetch('/api/connections', { credentials: 'include' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    connections = tvConn.parseList(data).filter(c =>
+      c.server_type === 'apps' || c.server_type === 'both'
+    );
+
+    const hasConns = connections.length > 0;
+    document.getElementById('no-conn-banner').classList.toggle('visible', !hasConns);
+
+    if (!hasConns) { renderMain(); return; }
+
+    const sel = document.getElementById('conn-select');
+    connections.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name || (c.host + ':' + (c.port || 1521));
+      sel.appendChild(opt);
     });
+    tvConn.bind(sel, connections);
+    if (sel.value) {
+      onConnChange();
+    } else if (connections.length === 1) {
+      sel.value = connections[0].id;
+      tvConn.save(connections[0].id);
+      onConnChange();
+    } else {
+      renderMain();
+    }
+  } catch (err) {
+    document.getElementById('status-label').textContent = 'Failed to load connections';
+    renderMain();
+  }
 })();
 
+// ── Connection change ─────────────────────────────────────────────────────────
 function onConnChange() {
   const sel = document.getElementById('conn-select');
   const connId = sel.value;
-  if (connId) localStorage.setItem('tv_conn', connId);
-  selectedEbsConn = ebsConns.find(c => String(c.id) === connId) || null;
+  if (connId) tvConn.save(connId);
+  selectedConn = connections.find(c => String(c.id) === connId) || null;
 
   const bcName = document.getElementById('bc-conn-name');
-  if (selectedEbsConn) {
-    bcName.textContent = selectedEbsConn.name || (selectedEbsConn.host + ':' + (selectedEbsConn.port || 1521));
+  if (selectedConn) {
+    bcName.textContent = selectedConn.name || (selectedConn.host + ':' + (selectedConn.port || 1521));
     bcName.style.color = 'var(--text)';
   } else {
     bcName.textContent = '—'; bcName.style.color = 'var(--text-dim)';
@@ -579,14 +393,9 @@ function onConnChange() {
   setStatusDot('');
   document.getElementById('status-label').textContent = '';
 
-  if (!selectedEbsConn) {
-    document.getElementById('svc-section').style.display = 'none';
-    renderMain();
-    return;
-  }
+  if (!selectedConn) { renderMain(); return; }
 
-  // Status dot — non-blocking
-  if (selectedEbsConn.connection_type === 'proxy') {
+  if (selectedConn.connection_type === 'proxy') {
     setStatusDot('checking');
     document.getElementById('status-label').textContent = 'Checking…';
     fetch('/api/connections/' + connId + '/agent-status', { credentials: 'include' })
@@ -602,10 +411,6 @@ function onConnChange() {
     document.getElementById('status-label').textContent = 'Direct TCP';
   }
 
-  // Service status
-  document.getElementById('svc-section').style.display = 'block';
-  loadServiceStatus(connId);
-
   renderMain();
 }
 
@@ -614,12 +419,75 @@ function setStatusDot(state) {
   dot.className = 'status-dot' + (state ? ' ' + state : '');
 }
 
-// ── Service Status ─────────────────────────────────────────────────────────
+// ── Main render ───────────────────────────────────────────────────────────────
+function renderMain() {
+  const content = document.getElementById('main-content');
+  content.innerHTML = '';
+
+  const tabBarEl = document.createElement('div');
+  tabBarEl.className = 'tab-bar';
+
+  const TABS = [
+    { key: 'service_status', label: 'Service Status',                     icon: '📊' },
+    { key: 'concurrent',     label: 'Concurrent Processing',               icon: '⚙️' },
+    { key: 'middleware',     label: 'Fusion Middleware & WebLogic',         icon: '🌐' },
+    { key: 'patching',       label: 'Patching & ADOP',                     icon: '📦' },
+    { key: 'reports',        label: 'Reports',                             icon: '📋' },
+  ];
+
+  TABS.forEach(tab => {
+    const btn = document.createElement('button');
+    btn.className = 'tab' + (activeTab === tab.key ? ' active' : '');
+    btn.textContent = tab.icon + ' ' + tab.label;
+    btn.onclick = () => { activeTab = tab.key; renderMain(); };
+    tabBarEl.appendChild(btn);
+  });
+
+  const tabContent = document.createElement('div');
+
+  if (activeTab === 'service_status')  renderServiceStatusTab(tabContent);
+  else if (activeTab === 'concurrent') renderConcurrentTab(tabContent);
+  else if (activeTab === 'middleware') renderMiddlewareTab(tabContent);
+  else if (activeTab === 'patching')   renderPatchingTab(tabContent);
+  else if (activeTab === 'reports')    renderReportsTab(tabContent);
+
+  content.appendChild(tabBarEl);
+  content.appendChild(tabContent);
+  restoreResults();
+}
+
+// ── Tab 1: Service Status ─────────────────────────────────────────────────────
+function renderServiceStatusTab(container) {
+  const connId = selectedConn ? selectedConn.id : null;
+
+  const hdr = document.createElement('div');
+  hdr.className = 'svc-section-header';
+  hdr.innerHTML = `
+    <span class="svc-section-title">Service Status</span>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span id="svc-checked-at" style="font-size:11px;color:var(--text-dim)"></span>
+      <button class="btn btn-outline" style="font-size:11px;padding:4px 10px" onclick="loadServiceStatus(${connId || 'null'})">↺ Refresh</button>
+    </div>`;
+  container.appendChild(hdr);
+
+  const wrap = document.createElement('div');
+  wrap.id = 'svc-grid-wrap';
+  container.appendChild(wrap);
+
+  if (!connId) {
+    wrap.innerHTML = '<div class="svc-no-data">Select an EBS connection to see service status.</div>';
+    return;
+  }
+  loadServiceStatus(connId);
+}
+
 async function loadServiceStatus(connId) {
+  if (!connId) return;
   const wrap = document.getElementById('svc-grid-wrap');
   const checkedAt = document.getElementById('svc-checked-at');
+  if (!wrap) return;
   wrap.innerHTML = '<div class="svc-loading"><div class="spinner"></div> Loading service status…</div>';
-  checkedAt.textContent = '';
+  if (checkedAt) checkedAt.textContent = '';
 
   try {
     const r = await fetch('/api/connections/' + connId + '/latest-hc-status', { credentials: 'include' });
@@ -629,21 +497,17 @@ async function loadServiceStatus(connId) {
       wrap.innerHTML = '<div class="svc-no-data">No health check data yet — run a health check to see service status here.</div>';
       return;
     }
-
     const keys = Object.keys(d.components);
     if (keys.length === 0) {
       wrap.innerHTML = '<div class="svc-no-data">No component status in last health check.</div>';
       return;
     }
-
-    if (d.checked_at) {
-      const ago = timeAgo(new Date(d.checked_at));
-      checkedAt.textContent = 'Last checked ' + ago;
+    if (d.checked_at && checkedAt) {
+      checkedAt.textContent = 'Last checked ' + timeAgo(new Date(d.checked_at));
     }
 
     const svcKeys = keys.filter(k => SERVICE_CHECK_IDS.has(k));
     const resKeys = keys.filter(k => RESOURCE_CHECK_IDS.has(k));
-
     const frag = document.createDocumentFragment();
 
     if (svcKeys.length > 0) {
@@ -651,7 +515,7 @@ async function loadServiceStatus(connId) {
       grid.className = 'svc-grid';
       svcKeys.forEach(key => {
         const comp = d.components[key];
-        const label = SVC_LABELS[key] || (comp.title || key);
+        const label = SVC_LABELS[key] || comp.title || key;
         const status = comp.passed ? 'ok' : (comp.status || 'warning');
         const badgeLabel = status === 'ok' ? 'Running' : status === 'critical' ? 'Down' : status === 'warning' ? 'Warning' : 'Unknown';
         const details = comp.details ? String(comp.details).slice(0, 80) : '';
@@ -667,21 +531,21 @@ async function loadServiceStatus(connId) {
       });
       frag.appendChild(grid);
     } else {
-      const empty = document.createElement('div');
-      empty.className = 'svc-no-data';
-      empty.textContent = 'No service status in last health check.';
-      frag.appendChild(empty);
+      const el = document.createElement('div');
+      el.className = 'svc-no-data';
+      el.textContent = 'No service status in last health check.';
+      frag.appendChild(el);
     }
 
     if (resKeys.length > 0) {
-      const resSection = document.createElement('div');
-      resSection.className = 'svc-resources-section';
-      resSection.innerHTML = '<div class="svc-resources-title">System Resources</div>';
+      const sec = document.createElement('div');
+      sec.className = 'svc-resources-section';
+      sec.innerHTML = '<div class="svc-resources-title">System Resources</div>';
       const resGrid = document.createElement('div');
       resGrid.className = 'svc-resources-grid';
       resKeys.forEach(key => {
         const comp = d.components[key];
-        const label = RESOURCE_LABELS[key] || (comp.title || key);
+        const label = RESOURCE_LABELS[key] || comp.title || key;
         const status = comp.passed ? 'ok' : (comp.status || 'warning');
         const details = comp.details ? String(comp.details).slice(0, 80) : '';
         const item = document.createElement('div');
@@ -691,14 +555,14 @@ async function loadServiceStatus(connId) {
           ${details ? `<span class="svc-resource-val">${escHtml(details)}</span>` : ''}`;
         resGrid.appendChild(item);
       });
-      resSection.appendChild(resGrid);
-      frag.appendChild(resSection);
+      sec.appendChild(resGrid);
+      frag.appendChild(sec);
     }
 
     wrap.innerHTML = '';
     wrap.appendChild(frag);
   } catch (err) {
-    wrap.innerHTML = `<div class="svc-no-data" style="color:var(--red)">Failed to load status: ${escHtml(err.message)}</div>`;
+    if (wrap) wrap.innerHTML = `<div class="svc-no-data" style="color:var(--red)">Failed to load status: ${escHtml(err.message)}</div>`;
   }
 }
 
@@ -710,152 +574,288 @@ function timeAgo(date) {
   return Math.floor(diff / 86400) + 'd ago';
 }
 
-// ── Search ────────────────────────────────────────────────────────────────────
-function onSearchChange() {
-  searchQuery = document.getElementById('search-input').value.toLowerCase().trim();
-  document.getElementById('search-count').textContent = '';
-  renderMain();
+// ── Tab 2: Concurrent Processing ──────────────────────────────────────────────
+function renderConcurrentTab(container) {
+  const grid = document.createElement('div');
+  grid.className = 'ops-grid';
+  CONCURRENT_OPS.forEach(op => renderOpCard(op, grid));
+  container.appendChild(grid);
 }
 
-// ── Main render ───────────────────────────────────────────────────────────────
-function renderMain() {
-  const content = document.getElementById('main-content');
-  const countEl = document.getElementById('search-count');
+// ── Tab 3: Fusion Middleware & WebLogic ───────────────────────────────────────
+function renderMiddlewareTab(container) {
+  const connParam = selectedConn ? '?conn=' + selectedConn.id : '';
+  const cards = [
+    { title: 'WLS & Managed Servers', desc: 'Start/Stop AdminServer and managed servers (OACore, Forms, OAFM). Rolling bounce support with SSE-streamed sequential ops.', icon: '🌐', bg: 'var(--blue-dim)', href: '/ebs-middleware' + connParam, tag: 'SSH · SSE' },
+    { title: 'Apache / OHS', desc: 'OHS/Apache control for R12.2 — status, start, stop. Adapts to your EBS version automatically.', icon: '🔧', bg: 'var(--blue-dim)', href: '/ebs-middleware' + connParam, tag: 'SSH' },
+    { title: 'Apps Listener', desc: 'EBS TNS listener control — lsnrctl status, start, stop for the apps-tier service.', icon: '📡', bg: 'var(--blue-dim)', href: '/ebs-middleware' + connParam, tag: 'SSH' },
+    { title: 'EBS 12.2 Deep Checks', desc: '30 SSH-based checks: topology, JVM heap, OS metrics, AD/TXK code levels, ETCC validation.', icon: '🔬', bg: 'var(--purple-dim)', href: '/ebs-12-2-checks' + connParam, tag: 'SSH · EBS 12.2' },
+    { title: 'Post-Bounce Sanity', desc: 'Verify all services came back after a bounce — TNS, EBS HTTP, DB connectivity, file ownership.', icon: '✅', bg: 'var(--green-dim)', href: '/sanity-check' + connParam, tag: 'SSH · SQL' },
+  ];
+  renderLinkGrid(container, cards);
+}
 
-  if (searchQuery) {
-    const matching = CARDS.filter(card => {
-      const hay = (card.title + ' ' + card.subtitle + ' ' + card.desc + ' ' + card.tags.map(t => t.label).join(' ')).toLowerCase();
-      return hay.includes(searchQuery);
-    });
-    countEl.textContent = matching.length + ' result' + (matching.length !== 1 ? 's' : '');
-    content.innerHTML = '';
-    if (matching.length === 0) {
-      content.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><h3>No results</h3><p>Try a different search term.</p></div>';
-    } else {
-      const grid = document.createElement('div');
-      grid.className = 'hub-grid';
-      matching.forEach(card => grid.appendChild(buildHubCard(card)));
-      content.appendChild(grid);
-    }
-    return;
-  }
+// ── Tab 4: Patching & ADOP ────────────────────────────────────────────────────
+function renderPatchingTab(container) {
+  const opsHdr = document.createElement('div');
+  opsHdr.className = 'sub-header';
+  opsHdr.innerHTML = `
+    <div class="sub-header-icon" style="background:var(--purple-dim);color:var(--purple)">📊</div>
+    <span class="sub-header-label">SQL Queries</span>
+    <span class="sub-header-desc">— live data from APPS schema</span>`;
+  container.appendChild(opsHdr);
 
-  if (activeCategory) {
-    const catMeta = CATEGORIES.find(c => c.id === activeCategory);
-    const cards = CARDS.filter(c => c.section === activeCategory);
-    const col = COLOR_MAP[catMeta.color] || COLOR_MAP.amber;
+  const grid = document.createElement('div');
+  grid.className = 'ops-grid';
+  PATCHING_OPS.forEach(op => renderOpCard(op, grid));
+  container.appendChild(grid);
 
-    content.innerHTML = '';
-    const header = document.createElement('div');
-    header.className = 'section-header';
-    header.innerHTML = `
-      <div class="section-icon" style="background:${col.icon};color:${col.text}">${catMeta.icon}</div>
-      <div>
-        <div class="section-title">${escHtml(catMeta.label)}</div>
-        <div class="section-desc">${escHtml(catMeta.desc)}</div>
+  const connParam = selectedConn ? '?conn=' + selectedConn.id : '';
+  const linksHdr = document.createElement('div');
+  linksHdr.className = 'sub-header';
+  linksHdr.innerHTML = `
+    <div class="sub-header-icon" style="background:var(--accent-dim);color:var(--accent)">🔗</div>
+    <span class="sub-header-label">Patch Tools</span>
+    <span class="sub-header-desc">— full patch analysis</span>`;
+  container.appendChild(linksHdr);
+
+  const linkCards = [
+    { title: 'EBS Patch Advisor', desc: 'Full patch inventory across all Oracle Homes: FMW, WLS, 10.1.2, Apps, AD/TXK codelevels, ETCC compliance.', icon: '🩹', bg: 'var(--purple-dim)', href: '/ebs-patches' + connParam, tag: 'AI · SQL · SSH' },
+    { title: 'FNDLOAD Migration', desc: 'Migrate Concurrent Programs, Value Sets, Lookups, Menus between EBS instances. 5-step guided wizard with audit trail.', icon: '📦', bg: 'var(--green-dim)', href: '/fndload' + connParam, tag: 'SQL · SSH' },
+  ];
+  renderLinkGrid(container, linkCards);
+}
+
+// ── Tab 5: Reports ────────────────────────────────────────────────────────────
+function renderReportsTab(container) {
+  const connParam = selectedConn ? '?conn=' + selectedConn.id : '';
+  const cards = [
+    { title: 'EBS Full Health Report', desc: '30+ live monitors, SSH checks, and AI analysis in a single exportable view. Full Deep EBS suite.', icon: '📊', bg: 'var(--accent-dim)', href: '/ebs-deep' + connParam, tag: 'AI · Live' },
+    { title: 'Deep EBS Reports', desc: 'View and export saved Deep EBS health reports with AI analysis and PDF export.', icon: '📋', bg: 'var(--accent-dim)', href: '/ebs-deep' + connParam, tag: 'Reports · PDF' },
+    { title: 'Clone Wizard', desc: 'Step-by-step adpreclone/adcfgclone wizard with pre-checks, recipe recording, and auto-replay.', icon: '🔁', bg: 'var(--purple-dim)', href: '/ebs-clone' + connParam, tag: 'SSH · Clone' },
+    { title: 'EBS Control Panel', desc: 'CM start/stop/status, ADOP status, OPMNCTL — executed via TuneVault Agent tunnel (HTTPS). No SSH required.', icon: '⚡', bg: 'var(--red-dim)', href: '/ebs-control-exec' + connParam, tag: 'Control · Proxy' },
+  ];
+  renderLinkGrid(container, cards);
+}
+
+// ── Link card helpers ─────────────────────────────────────────────────────────
+function renderLinkGrid(container, cards) {
+  const grid = document.createElement('div');
+  grid.className = 'link-grid';
+  cards.forEach(c => grid.appendChild(buildLinkCard(c)));
+  container.appendChild(grid);
+}
+
+function buildLinkCard(card) {
+  const a = document.createElement('a');
+  a.className = 'link-card';
+  a.href = card.href;
+  a.innerHTML = `
+    <div class="link-icon" style="background:${card.bg}">${card.icon}</div>
+    <div class="link-body">
+      <div class="link-title">${escHtml(card.title)}</div>
+      <div class="link-desc">${escHtml(card.desc)}</div>
+      <span class="link-tag">${escHtml(card.tag)}</span>
+    </div>
+    <span class="link-arrow">→</span>`;
+  return a;
+}
+
+// ── Op card ───────────────────────────────────────────────────────────────────
+function renderOpCard(op, container) {
+  const card = document.createElement('div');
+  card.className = 'op-card';
+  card.id = 'card-' + op.key;
+  const noConn = !selectedConn;
+
+  card.innerHTML = `
+    <div class="op-card-header">
+      <div class="op-icon">${op.icon || '📋'}</div>
+      <div style="flex:1;min-width:0">
+        <div class="op-title">${escHtml(op.label)}</div>
+        <div class="op-meta">EBS · SQL</div>
       </div>
-      <button class="section-back" onclick="clearCategory()">← All Operations</button>`;
-    content.appendChild(header);
+      <span class="result-hdr-badge" id="result-hdr-badge-${op.key}" style="display:none"></span>
+    </div>
+    <div class="op-preview" id="preview-${op.key}">${escHtml(op.sql)}</div>
+    <div class="op-actions">
+      <button class="btn btn-run" id="run-${op.key}"
+        onclick="${noConn ? '' : `runEbsOp('${op.key}')`}"
+        ${noConn ? 'disabled' : ''}
+        title="${noConn ? 'Select a connection first' : ''}">
+        ▶ Run
+      </button>
+      <button class="btn btn-outline" onclick="copyEbsSql('${op.key}', this)">Copy SQL</button>
+    </div>
+    <div class="result-panel" id="result-${op.key}"></div>`;
 
-    const grid = document.createElement('div');
-    grid.className = 'hub-grid';
-    cards.forEach(card => grid.appendChild(buildHubCard(card)));
-    content.appendChild(grid);
-    return;
-  }
-
-  // Default: category picker with priority groups
-  renderCategoryPicker(content);
+  container.appendChild(card);
 }
 
-function clearCategory() {
-  activeCategory = null;
-  searchQuery = '';
-  const si = document.getElementById('search-input');
-  if (si) si.value = '';
-  document.getElementById('search-count').textContent = '';
-  renderMain();
-}
+// ── Run EBS op ────────────────────────────────────────────────────────────────
+async function runEbsOp(opKey) {
+  if (!selectedConn) return;
+  const btn = document.getElementById('run-' + opKey);
+  const resultEl = document.getElementById('result-' + opKey);
 
-function selectCategory(id) {
-  activeCategory = id;
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-  renderMain();
-}
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Running…';
+  resultEl.classList.add('visible');
+  resultEl.innerHTML = '<div class="result-panel-hdr"><span class="result-hdr-summary ok" style="opacity:.5">Running…</span></div>';
 
-function renderCategoryPicker(container) {
-  container.innerHTML = '';
-  const catMap = {};
-  CATEGORIES.forEach(c => { catMap[c.id] = c; });
-
-  PRIORITY_GROUPS.forEach(group => {
-    const groupCats = group.catIds
-      .map(id => catMap[id])
-      .filter(cat => cat && CARDS.some(c => c.section === cat.id));
-    if (groupCats.length === 0) return;
-
-    const divider = document.createElement('div');
-    divider.className = 'group-divider';
-    divider.innerHTML = `
-      <span class="group-divider-label">${escHtml(group.label)}</span>
-      <div class="group-divider-line"></div>
-      <span class="group-divider-desc">${escHtml(group.desc)}</span>`;
-    container.appendChild(divider);
-
-    const picker = document.createElement('div');
-    picker.className = 'cat-picker';
-
-    groupCats.forEach(cat => {
-      const col = COLOR_MAP[cat.color] || COLOR_MAP.amber;
-      const el = document.createElement('div');
-      el.className = 'cat-card';
-      el.onclick = () => selectCategory(cat.id);
-      el.innerHTML = `
-        <div class="cat-card-top">
-          <div class="cat-icon" style="background:${col.icon};color:${col.text}">${cat.icon}</div>
-          <div class="cat-name">${escHtml(cat.label)}</div>
-        </div>
-        <div class="cat-count">${escHtml(cat.desc)}</div>`;
-      picker.appendChild(el);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 35000);
+  try {
+    const r = await fetch('/api/ebs-ops/run', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ connection_id: selectedConn.id, op_key: opKey }),
+      signal: ctrl.signal,
     });
-    container.appendChild(picker);
-  });
+    clearTimeout(timer);
+    const data = await r.json();
+    if (data.ok) {
+      storeAndRenderResult(opKey, data, true);
+    } else {
+      storeAndRenderResult(opKey, { error: data.error || data.detail || 'Operation failed' }, false);
+    }
+  } catch (err) {
+    clearTimeout(timer);
+    const msg = err.name === 'AbortError' ? 'Request timed out (35s)' : err.message;
+    storeAndRenderResult(opKey, { error: msg }, false);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '▶ Run'; }
+  }
 }
 
-function buildHubCard(card) {
-  const wrapper = document.createElement('div');
-  wrapper.className = 'hub-card';
-  wrapper.dataset.id = card.id;
-
-  const tagHtml = card.tags.map(t => `<span class="hub-tag ${t.cls}">${escHtml(t.label)}</span>`).join('');
-
-  wrapper.innerHTML = `
-    <div class="hub-card-top">
-      <div class="hub-icon ${card.iconCls}">${escHtml(card.icon)}</div>
-      <div>
-        <div class="hub-title">${escHtml(card.title)}</div>
-        <div class="hub-subtitle">${escHtml(card.subtitle)}</div>
+// ── Result store helpers ──────────────────────────────────────────────────────
+function buildResultPanelHtml(opKey, stored) {
+  const toggleLabel = stored.collapsed ? 'Show Results' : 'Hide Results';
+  const bodyStyle = stored.collapsed ? 'style="display:none"' : '';
+  return `
+    <div class="result-panel-hdr" onclick="toggleResult('${opKey}')">
+      <span class="result-hdr-summary ${stored.isOk ? 'ok' : 'err'}">${escHtml(stored.summaryText)}</span>
+      <div class="result-hdr-right">
+        <button class="result-toggle-btn" id="result-chevron-${opKey}" onclick="toggleResult('${opKey}');event.stopPropagation()">${toggleLabel}</button>
+        <button class="result-clear-btn" onclick="clearResult('${opKey}', event)" title="Dismiss">✕</button>
       </div>
     </div>
-    <div class="hub-desc">${escHtml(card.desc)}</div>
-    ${tagHtml ? '<div class="hub-tags">' + tagHtml + '</div>' : ''}
-    <div class="hub-footer">
-      <span>${escHtml(card.checkCount)}</span>
-      ${ebsLocked
-        ? '<span class="hub-btn locked" aria-disabled="true">Open →</span>'
-        : `<a class="hub-btn" href="${escHtml(card.href + (selectedEbsConn ? '?conn=' + selectedEbsConn.id : ''))}">Open →</a>`}
-    </div>`;
-
-  if (!ebsLocked) {
-    const href = card.href + (selectedEbsConn ? '?conn=' + selectedEbsConn.id : '');
-    wrapper.style.cursor = 'pointer';
-    wrapper.addEventListener('click', e => {
-      if (!e.target.closest('.hub-btn')) window.location.href = href;
-    });
-  }
-  return wrapper;
+    <div class="result-body" id="result-body-${opKey}" ${bodyStyle}>${stored.bodyHtml}</div>`;
 }
 
+function toggleResult(opKey) {
+  const stored = resultStore.get(opKey);
+  if (!stored) return;
+  stored.collapsed = !stored.collapsed;
+  const body = document.getElementById('result-body-' + opKey);
+  const btn  = document.getElementById('result-chevron-' + opKey);
+  if (body) body.style.display = stored.collapsed ? 'none' : '';
+  if (btn)  btn.textContent = stored.collapsed ? 'Show Results' : 'Hide Results';
+}
+
+function clearResult(opKey, event) {
+  if (event) event.stopPropagation();
+  resultStore.delete(opKey);
+  const panel = document.getElementById('result-' + opKey);
+  const badge = document.getElementById('result-hdr-badge-' + opKey);
+  if (panel) { panel.innerHTML = ''; panel.classList.remove('visible'); }
+  if (badge) { badge.style.display = 'none'; badge.textContent = ''; }
+  updateClearAllBar();
+}
+
+function clearAllResults() {
+  for (const opKey of [...resultStore.keys()]) clearResult(opKey, null);
+}
+
+function updateClearAllBar() {
+  const bar = document.getElementById('clear-all-bar');
+  if (!bar) return;
+  const n = resultStore.size;
+  bar.style.display = n > 0 ? '' : 'none';
+  const lbl = bar.querySelector('.clear-all-count');
+  if (lbl) lbl.textContent = n + ' result' + (n !== 1 ? 's' : '') + ' showing';
+}
+
+function restoreResults() {
+  for (const [opKey, stored] of resultStore.entries()) {
+    const panel = document.getElementById('result-' + opKey);
+    const badge = document.getElementById('result-hdr-badge-' + opKey);
+    if (panel) { panel.classList.add('visible'); panel.innerHTML = buildResultPanelHtml(opKey, stored); }
+    if (badge) { badge.textContent = stored.summaryText; badge.style.display = ''; }
+  }
+  updateClearAllBar();
+}
+
+function buildResultBodyHtml(data, isOk) {
+  if (!isOk) {
+    return `<div class="result-status status-err">✗ ${friendlyError(data.error || 'Operation failed')}</div>`;
+  }
+  let html = '';
+  if (data.rows && data.rows.length > 0) {
+    const cols = data.columns || [];
+    html += '<div class="result-table-wrap"><table class="result-table"><thead><tr>';
+    cols.forEach(c => { html += `<th>${escHtml(c)}</th>`; });
+    html += '</tr></thead><tbody>';
+    data.rows.forEach(row => {
+      html += '<tr>';
+      row.forEach(cell => { html += `<td title="${escHtml(String(cell ?? ''))}">${escHtml(String(cell ?? ''))}</td>`; });
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+    html += `<div style="font-size:11px;color:var(--text-dim);margin-top:6px">${data.rows.length} row${data.rows.length !== 1 ? 's' : ''}</div>`;
+  } else {
+    html += '<div style="font-size:12px;color:var(--text-dim);margin-top:4px">No rows returned.</div>';
+  }
+  return html;
+}
+
+function friendlyError(msg) {
+  if (!msg) return String(msg);
+  if (/not connected|agent.*offline|agent check failed/i.test(msg)) {
+    return 'Agent is not connected — check agent status or wait for it to reconnect.';
+  }
+  if (/direct tcp.*not.*supported|proxy.*connection/i.test(msg)) {
+    return 'This operation requires a proxy (agent) connection, not Direct TCP.';
+  }
+  if (/ORA-\d+/i.test(msg)) return escHtml(msg);
+  return escHtml(msg);
+}
+
+function storeAndRenderResult(opKey, data, isOk) {
+  const rowCount = isOk && data.rows ? data.rows.length : 0;
+  let summaryText;
+  if (isOk) {
+    summaryText = '✓ ' + rowCount + ' row' + (rowCount !== 1 ? 's' : '');
+    if (data.durationMs) summaryText += ' · ' + data.durationMs + 'ms';
+  } else {
+    summaryText = '✗ Error';
+  }
+  const stored = { summaryText, bodyHtml: buildResultBodyHtml(data, isOk), collapsed: false, isOk };
+  resultStore.set(opKey, stored);
+
+  const panel = document.getElementById('result-' + opKey);
+  const badge = document.getElementById('result-hdr-badge-' + opKey);
+  if (panel) { panel.classList.add('visible'); panel.innerHTML = buildResultPanelHtml(opKey, stored); }
+  if (badge) {
+    badge.textContent = summaryText;
+    badge.style.display = '';
+    badge.style.background = isOk ? 'var(--green-dim)' : 'var(--red-dim)';
+    badge.style.color = isOk ? 'var(--green)' : 'var(--red)';
+  }
+  updateClearAllBar();
+}
+
+// ── Copy SQL ──────────────────────────────────────────────────────────────────
+function copyEbsSql(opKey, btn) {
+  const el = document.getElementById('preview-' + opKey);
+  const sql = el ? el.textContent.trim() : '';
+  if (!sql) return;
+  navigator.clipboard.writeText(sql)
+    .then(() => { const orig = btn.textContent; btn.textContent = '✓ Copied'; setTimeout(() => { btn.textContent = orig; }, 1500); })
+    .catch(() => { btn.textContent = 'Failed'; setTimeout(() => { btn.textContent = 'Copy SQL'; }, 1500); });
+}
+
+// ── Util ──────────────────────────────────────────────────────────────────────
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
@@ -863,9 +863,7 @@ function escHtml(s) {
 // Initial render
 renderMain();
 </script>
-<script>
-AdopBanner.init({ fleet: true });
-</script>
+<script>AdopBanner.init({ fleet: true });</script>
 <div style="text-align:center;padding:24px 16px 16px;border-top:1px solid rgba(255,255,255,0.05);margin-top:32px;">
   <span style="font-size:12px;color:#9898a8;">Need help? <a href="mailto:support@tunevault.app" style="color:#f0a830;text-decoration:none;">support@tunevault.app</a></span>
 </div>
