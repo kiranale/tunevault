@@ -301,7 +301,8 @@ const OP_CATALOG = {
     label: 'Archive Log Status',
     category: 'archive',
     type: 'sql',
-    sql: `SELECT name, log_mode, archiver FROM v$database
+    sql: `SELECT d.name, d.log_mode, i.archiver
+          FROM v$database d CROSS JOIN v$instance i
           UNION ALL
           SELECT dest_id||' '||dest_name, status, target FROM v$archive_dest WHERE status != 'INACTIVE'`,
     destructive: false,
@@ -849,13 +850,11 @@ const OP_CATALOG = {
     category: 'fra',
     type: 'sql',
     sql: `SELECT file_type,
-                 COUNT(*) AS file_count,
-                 ROUND(SUM(space_used)/1073741824,2) AS used_gb,
-                 ROUND(SUM(space_reclaimable)/1073741824,2) AS reclaimable_gb,
-                 PERCENT_SPACE_USED AS pct_used
+                 number_of_files AS file_count,
+                 ROUND(percent_space_used,1) AS pct_used,
+                 ROUND(percent_space_reclaimable,1) AS pct_reclaimable
           FROM v$flash_recovery_area_usage
-          GROUP BY file_type, percent_space_used
-          ORDER BY used_gb DESC NULLS LAST`,
+          ORDER BY percent_space_used DESC NULLS LAST`,
     destructive: false,
   },
   'fra.delete_obsolete': {
@@ -928,13 +927,15 @@ const OP_CATALOG = {
     label: 'Top Growing Segments (AWR)',
     category: 'segments',
     type: 'sql',
-    sql: `SELECT owner, object_name, object_type, tablespace_name,
-                 ROUND(space_used_delta/1048576,1) AS growth_mb,
-                 ROUND(space_used_total/1048576,1) AS total_mb
-          FROM dba_hist_seg_stat_obj
-          WHERE snap_id = (SELECT MAX(snap_id) FROM dba_hist_snapshot)
-            AND space_used_delta > 0
-          ORDER BY space_used_delta DESC
+    sql: `SELECT o.owner, o.object_name, o.object_type, o.tablespace_name,
+                 ROUND(s.space_used_delta/1048576,1) AS growth_mb,
+                 ROUND(s.space_used_total/1048576,1) AS total_mb
+          FROM dba_hist_seg_stat s
+          JOIN dba_hist_seg_stat_obj o
+            ON s.obj# = o.obj# AND s.dataobj# = o.dataobj# AND s.ts# = o.ts#
+          WHERE s.snap_id = (SELECT MAX(snap_id) FROM dba_hist_snapshot)
+            AND s.space_used_delta > 0
+          ORDER BY s.space_used_delta DESC
           FETCH FIRST 30 ROWS ONLY`,
     destructive: false,
   },

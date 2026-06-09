@@ -208,8 +208,44 @@
     .btn-danger:hover { border-color: var(--red); }
 
     /* ── Result panel ── */
-    .result-panel { margin-top: 12px; display: none; border-top: 1px solid var(--border); padding-top: 12px; }
+    .result-panel { margin-top: 12px; display: none; border-top: 1px solid var(--border); padding-top: 4px; }
     .result-panel.visible { display: block; }
+    .result-panel-hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 6px 0 6px; cursor: pointer; user-select: none;
+    }
+    .result-panel-hdr:hover .result-hdr-summary { opacity: 0.85; }
+    .result-hdr-summary { font-size: 11px; font-weight: 700; letter-spacing: .02em; }
+    .result-hdr-summary.ok  { color: var(--green); }
+    .result-hdr-summary.err { color: var(--red); }
+    .result-hdr-right { display: flex; align-items: center; gap: 6px; }
+    .result-chevron { font-size: 11px; color: var(--text-dim); }
+    .result-clear-btn {
+      background: none; border: none; cursor: pointer; color: var(--text-dim);
+      font-size: 13px; padding: 0 3px; line-height: 1; border-radius: 3px;
+    }
+    .result-clear-btn:hover { color: var(--red); }
+    .result-body { padding-top: 4px; }
+
+    /* Badge in card header after run */
+    .result-hdr-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 5px; flex-shrink: 0;
+      background: var(--green-dim); color: var(--green); margin-left: 8px;
+    }
+
+    /* ── Clear-all bar ── */
+    #clear-all-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      padding: 7px 14px; margin-bottom: 14px; font-size: 12px;
+    }
+    .clear-all-count { color: var(--text-dim); }
+    .btn-clear-all {
+      background: none; border: 1px solid var(--border); color: var(--text-dim);
+      font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 5px; cursor: pointer;
+    }
+    .btn-clear-all:hover { color: var(--red); border-color: var(--red); }
+
     .result-status { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
     .status-ok { color: var(--green); }
     .status-err { color: var(--red); }
@@ -342,6 +378,12 @@
     <span class="search-result-count" id="search-result-count"></span>
   </div>
 
+  <!-- Clear all results bar -->
+  <div id="clear-all-bar" style="display:none">
+    <span class="clear-all-count"></span>
+    <button class="btn-clear-all" onclick="clearAllResults()">✕ Clear all</button>
+  </div>
+
   <!-- Tab bar + content -->
   <div id="main-content"></div>
 
@@ -396,6 +438,7 @@ let capsLoaded = false;
 let searchQuery = '';
 let activeTab = 'critical';
 let pendingConfirm = null;
+const resultStore = new Map(); // opKey → { summaryText, bodyHtml, collapsed, isOk }
 
 const EXCLUDED_CATS = new Set(['wls', 'apache', 'apps_listener', 'ebs_concurrent']);
 
@@ -607,6 +650,74 @@ function onSearchChange() {
   renderMain();
 }
 
+// ── Result store helpers ──────────────────────────────────────────────────────
+function buildResultPanelHtml(opKey, stored) {
+  const k = opKey.replace(/\./g, '-');
+  const chevron = stored.collapsed ? '▸' : '▾';
+  const bodyStyle = stored.collapsed ? 'style="display:none"' : '';
+  return `
+    <div class="result-panel-hdr" onclick="toggleResult('${opKey}')">
+      <span class="result-hdr-summary ${stored.isOk ? 'ok' : 'err'}">${escHtml(stored.summaryText)}</span>
+      <div class="result-hdr-right">
+        <span class="result-chevron" id="result-chevron-${k}">${chevron}</span>
+        <button class="result-clear-btn" onclick="clearResult('${opKey}', event)" title="Dismiss">✕</button>
+      </div>
+    </div>
+    <div class="result-body" id="result-body-${k}" ${bodyStyle}>${stored.bodyHtml}</div>`;
+}
+
+function toggleResult(opKey) {
+  const stored = resultStore.get(opKey);
+  if (!stored) return;
+  stored.collapsed = !stored.collapsed;
+  const k = opKey.replace(/\./g, '-');
+  const body = document.getElementById('result-body-' + k);
+  const chevron = document.getElementById('result-chevron-' + k);
+  if (body) body.style.display = stored.collapsed ? 'none' : '';
+  if (chevron) chevron.textContent = stored.collapsed ? '▸' : '▾';
+}
+
+function clearResult(opKey, event) {
+  if (event) event.stopPropagation();
+  resultStore.delete(opKey);
+  const k = opKey.replace(/\./g, '-');
+  const panel = document.getElementById('result-' + k);
+  const badge = document.getElementById('result-hdr-badge-' + k);
+  if (panel) { panel.innerHTML = ''; panel.classList.remove('visible'); }
+  if (badge) { badge.style.display = 'none'; badge.textContent = ''; }
+  updateClearAllBar();
+}
+
+function clearAllResults() {
+  for (const opKey of [...resultStore.keys()]) clearResult(opKey, null);
+}
+
+function updateClearAllBar() {
+  const bar = document.getElementById('clear-all-bar');
+  if (!bar) return;
+  const n = resultStore.size;
+  bar.style.display = n > 0 ? '' : 'none';
+  const lbl = bar.querySelector('.clear-all-count');
+  if (lbl) lbl.textContent = n + ' result' + (n !== 1 ? 's' : '') + ' showing';
+}
+
+function restoreResults() {
+  for (const [opKey, stored] of resultStore.entries()) {
+    const k = opKey.replace(/\./g, '-');
+    const panel = document.getElementById('result-' + k);
+    const badge = document.getElementById('result-hdr-badge-' + k);
+    if (panel) {
+      panel.classList.add('visible');
+      panel.innerHTML = buildResultPanelHtml(opKey, stored);
+    }
+    if (badge) {
+      badge.textContent = stored.summaryText;
+      badge.style.display = '';
+    }
+  }
+  updateClearAllBar();
+}
+
 // ── Main render ───────────────────────────────────────────────────────────────
 function renderMain() {
   const content = document.getElementById('main-content');
@@ -630,6 +741,7 @@ function renderMain() {
       matching.forEach(op => renderOpCard(op, grid));
       content.appendChild(grid);
     }
+    restoreResults();
     return;
   }
   countEl.textContent = '';
@@ -680,6 +792,7 @@ function renderMain() {
   content.innerHTML = '';
   content.appendChild(tabBarEl);
   content.appendChild(tabContent);
+  restoreResults();
 }
 
 // ── Tools tab ────────────────────────────────────────────────────────────────
@@ -758,10 +871,11 @@ function renderOpCard(op, container) {
   card.innerHTML = `
     <div class="op-card-header">
       <div class="op-icon">${meta.icon}</div>
-      <div>
+      <div style="flex:1;min-width:0">
         <div class="op-title">${escHtml(op.label)}</div>
         <div class="op-meta">${escHtml(op.category)} · ${op.type.toUpperCase()}</div>
       </div>
+      <span class="result-hdr-badge" id="result-hdr-badge-${op.key.replace(/\./g,'-')}" style="display:none"></span>
     </div>
     <div class="op-badges">${badges.join('')}</div>
     ${gateBanner}
@@ -800,8 +914,8 @@ async function runOp(opKey, confirmed) {
 
   btn.disabled = true;
   btn.innerHTML = '<div class="spinner"></div> Running…';
-  resultEl.innerHTML = '';
   resultEl.classList.add('visible');
+  resultEl.innerHTML = '<div class="result-panel-hdr"><span class="result-hdr-summary ok" style="opacity:.5">Running…</span></div>';
 
   const params = {};
   document.querySelectorAll(`[id^="param-${cardKey}-"]`).forEach(inp => {
@@ -828,27 +942,30 @@ async function runOp(opKey, confirmed) {
       document.getElementById('modal-cmd').textContent = data.commandPreview;
       document.getElementById('modal-backdrop').classList.add('open');
       resultEl.classList.remove('visible');
+      resultEl.innerHTML = '';
     } else if (data.ok) {
-      renderResult(resultEl, data);
+      storeAndRenderResult(opKey, data, true);
     } else {
-      resultEl.innerHTML = `<div class="result-status status-err">✗ ${escHtml(data.error || data.detail || 'Operation failed')}</div>`;
+      const errMsg = data.error || data.detail || 'Operation failed';
+      storeAndRenderResult(opKey, { error: errMsg }, false);
     }
   } catch (err) {
     clearTimeout(timer);
     const msg = err.name === 'AbortError'
       ? 'Request timed out (2 min) — the operation may still be running on the server'
       : err.message;
-    resultEl.innerHTML = `<div class="result-status status-err">✗ ${escHtml(msg)}</div>`;
+    storeAndRenderResult(opKey, { error: msg }, false);
   } finally {
     btn.disabled = false;
     btn.innerHTML = '▶ Run';
   }
 }
 
-function renderResult(container, data) {
-  let html = '<div class="result-status status-ok">✓ Success';
-  if (data.durationMs) html += ` <span style="color:var(--text-dim);font-weight:400">(${data.durationMs}ms)</span>`;
-  html += '</div>';
+function buildResultBodyHtml(data, isOk) {
+  if (!isOk) {
+    return `<div class="result-status status-err">✗ ${escHtml(data.error || 'Operation failed')}</div>`;
+  }
+  let html = '';
   if (data.text) {
     html += `<div class="result-text">${escHtml(data.text)}</div>`;
   } else if (data.rows && data.rows.length > 0) {
@@ -866,7 +983,35 @@ function renderResult(container, data) {
   } else {
     html += '<div style="font-size:12px;color:var(--text-dim);margin-top:4px">No rows returned.</div>';
   }
-  container.innerHTML = html;
+  return html;
+}
+
+function storeAndRenderResult(opKey, data, isOk) {
+  const rowCount = isOk && data.rows ? data.rows.length : 0;
+  let summaryText;
+  if (isOk) {
+    summaryText = '✓ ' + (data.rows ? rowCount + ' row' + (rowCount !== 1 ? 's' : '') : 'OK');
+    if (data.durationMs) summaryText += ' · ' + data.durationMs + 'ms';
+  } else {
+    summaryText = '✗ Error';
+  }
+  const stored = { summaryText, bodyHtml: buildResultBodyHtml(data, isOk), collapsed: false, isOk };
+  resultStore.set(opKey, stored);
+
+  const k = opKey.replace(/\./g, '-');
+  const panel = document.getElementById('result-' + k);
+  const badge = document.getElementById('result-hdr-badge-' + k);
+  if (panel) {
+    panel.classList.add('visible');
+    panel.innerHTML = buildResultPanelHtml(opKey, stored);
+  }
+  if (badge) {
+    badge.textContent = summaryText;
+    badge.style.display = '';
+    badge.style.background = isOk ? 'var(--green-dim)' : 'var(--red-dim)';
+    badge.style.color = isOk ? 'var(--green)' : 'var(--red)';
+  }
+  updateClearAllBar();
 }
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
