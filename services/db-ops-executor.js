@@ -1194,7 +1194,7 @@ async function runOp({ opKey, connParams, targetId = null, initiatedBy, confirme
   if (op.type === 'sql') {
     return runSqlOp(op, connParams, params, initiatedBy);
   } else if (op.type === 'ssh') {
-    if (!targetId) return { ok: false, error: 'SSH target required for this operation' };
+    if (!targetId) return { ok: false, error: 'Requires SSH target — Configure SSH Access to enable (/admin/ssh-targets)' };
     // Build GI substitution vars from connection params + caller params
     const extraVars = {};
     if (connParams.giOsUser)    extraVars.GI_OS_USER    = connParams.giOsUser;

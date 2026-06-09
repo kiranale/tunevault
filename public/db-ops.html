@@ -218,13 +218,20 @@
     .result-hdr-summary { font-size: 11px; font-weight: 700; letter-spacing: .02em; }
     .result-hdr-summary.ok  { color: var(--green); }
     .result-hdr-summary.err { color: var(--red); }
-    .result-hdr-right { display: flex; align-items: center; gap: 6px; }
-    .result-chevron { font-size: 11px; color: var(--text-dim); }
-    .result-clear-btn {
-      background: none; border: none; cursor: pointer; color: var(--text-dim);
-      font-size: 13px; padding: 0 3px; line-height: 1; border-radius: 3px;
+    .result-hdr-right { display: flex; align-items: center; gap: 4px; }
+    .result-toggle {
+      display: flex; align-items: center; justify-content: center;
+      min-width: 28px; min-height: 28px; padding: 4px 8px;
+      font-size: 16px; cursor: pointer; color: var(--text-dim); border-radius: 5px;
     }
-    .result-clear-btn:hover { color: var(--red); }
+    .result-panel-hdr:hover .result-toggle { background: var(--surface-2); }
+    .result-clear-btn {
+      display: flex; align-items: center; justify-content: center;
+      background: none; border: none; cursor: pointer; color: var(--text-dim);
+      min-width: 28px; min-height: 28px; font-size: 14px; padding: 4px 6px;
+      line-height: 1; border-radius: 5px;
+    }
+    .result-clear-btn:hover { color: var(--red); background: var(--red-dim); }
     .result-body { padding-top: 4px; }
 
     /* Badge in card header after run */
@@ -659,7 +666,7 @@ function buildResultPanelHtml(opKey, stored) {
     <div class="result-panel-hdr" onclick="toggleResult('${opKey}')">
       <span class="result-hdr-summary ${stored.isOk ? 'ok' : 'err'}">${escHtml(stored.summaryText)}</span>
       <div class="result-hdr-right">
-        <span class="result-chevron" id="result-chevron-${k}">${chevron}</span>
+        <span class="result-toggle" id="result-chevron-${k}">${chevron}</span>
         <button class="result-clear-btn" onclick="clearResult('${opKey}', event)" title="Dismiss">✕</button>
       </div>
     </div>
@@ -963,7 +970,7 @@ async function runOp(opKey, confirmed) {
 
 function buildResultBodyHtml(data, isOk) {
   if (!isOk) {
-    return `<div class="result-status status-err">✗ ${escHtml(data.error || 'Operation failed')}</div>`;
+    return `<div class="result-status status-err">✗ ${friendlyError(data.error || 'Operation failed')}</div>`;
   }
   let html = '';
   if (data.text) {
@@ -984,6 +991,17 @@ function buildResultBodyHtml(data, isOk) {
     html += '<div style="font-size:12px;color:var(--text-dim);margin-top:4px">No rows returned.</div>';
   }
   return html;
+}
+
+function friendlyError(msg) {
+  if (!msg) return msg;
+  if (/SSH target required|Configure SSH/i.test(msg)) {
+    return 'Requires SSH target — <a href="/admin/ssh-targets" style="color:var(--accent)">Configure SSH Access →</a>';
+  }
+  if (/ORA-01031|insufficient.?privilege|privilege.*not.*granted|SYSDBA.*required|requires.*sysdba/i.test(msg)) {
+    return 'Requires SYSDBA privilege — not available in Standard (reader) mode';
+  }
+  return escHtml(msg);
 }
 
 function storeAndRenderResult(opKey, data, isOk) {

@@ -354,8 +354,11 @@
         var vh = window.innerHeight;
         if (parsed && typeof parsed.left === 'number' && typeof parsed.top === 'number' &&
             parsed.left >= 0 && parsed.left < vw - 40 &&
-            parsed.top >= 0 && parsed.top < vh - 40) {
+            parsed.top >= 70 && parsed.top < vh - 40) {
           tbWidgetPos = parsed;
+        } else if (parsed && typeof parsed.left === 'number' && typeof parsed.top === 'number') {
+          // Clamp a saved position that violates the nav constraint
+          tbWidgetPos = { left: Math.max(0, parsed.left), top: Math.max(70, parsed.top) };
         }
       }
     } catch (e) { /* localStorage unavailable */ }
@@ -1006,7 +1009,7 @@
       panelStyles.push('transition:opacity 0.3s ease,transform 0.3s cubic-bezier(0.32,0.72,0,1)');
     } else {
       // Desktop: floating panel anchored near the FAB
-      panelStyles.push('width:390px', 'max-width:calc(100vw - 28px)', 'max-height:72vh');
+      panelStyles.push('width:390px', 'max-width:calc(100vw - 28px)', 'max-height:calc(100vh - 80px)');
       panelStyles.push('border-radius:20px');
       panelStyles.push('transform:translateY(20px) scale(0.95)');
       panelStyles.push('transition:opacity 0.25s ease,transform 0.25s cubic-bezier(0.34,1.56,0.64,1)');
@@ -1014,7 +1017,7 @@
       if (tbWidgetPos) {
         // Stored position — panel appears above/beside FAB at the same left
         var panelLeft = Math.min(tbWidgetPos.left, window.innerWidth - 400);
-        var panelTop = Math.max(8, tbWidgetPos.top - 570);
+        var panelTop = Math.max(80, tbWidgetPos.top - 570);
         panelStyles.push('left:' + panelLeft + 'px', 'top:' + panelTop + 'px');
       } else if (isPricingPage) {
         // On /pricing FAB is bottom-left — panel opens above it on the left side
@@ -1402,8 +1405,9 @@
         // Move FAB — purge any residual bottom/right anchors so left/top take effect
         var fw = fabEl.offsetWidth;
         var fh = fabEl.offsetHeight;
+        var navHeight = 70; // keep FAB below sticky nav
         var newFabLeft = Math.max(margin, Math.min(tbDragState.startFabLeft + dx, vw - fw - margin));
-        var newFabTop  = Math.max(margin, Math.min(tbDragState.startFabTop  + dy, vh - fh - margin));
+        var newFabTop  = Math.max(navHeight, Math.min(tbDragState.startFabTop  + dy, vh - fh - margin));
         fabEl.style.removeProperty('bottom');
         fabEl.style.removeProperty('right');
         fabEl.style.left = newFabLeft + 'px';
@@ -1415,7 +1419,7 @@
           var pw = panelEl.offsetWidth;
           var ph = panelEl.offsetHeight;
           var newPanelLeft = Math.max(margin, Math.min(tbDragState.startPanelLeft + dx, vw - pw - margin));
-          var newPanelTop  = Math.max(margin, Math.min(tbDragState.startPanelTop  + dy, vh - ph - margin));
+          var newPanelTop  = Math.max(navHeight, Math.min(tbDragState.startPanelTop  + dy, vh - ph - margin));
           panelEl.style.removeProperty('bottom');
           panelEl.style.removeProperty('right');
           panelEl.style.left = newPanelLeft + 'px';
