@@ -1908,6 +1908,40 @@ app.get('/api/connections/:id/runs', requireAuth, requireConnectionOwner, async 
   }
 });
 
+// GET /api/connections/:id/latest-hc-status — per-component status from most recent completed HC
+app.get('/api/connections/:id/latest-hc-status', requireAuth, requireConnectionOwner, async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  const connId = parseInt(req.params.id, 10);
+  try {
+    const { rows } = await pool.query(
+      `SELECT metrics, overall_score, created_at
+       FROM health_checks
+       WHERE connection_id = $1 AND status = 'completed'
+       ORDER BY created_at DESC LIMIT 1`,
+      [connId]
+    );
+    if (!rows[0]) return res.json({ status: 'no_data' });
+    const metrics = rows[0].metrics || {};
+    const findings = metrics.findings || [];
+    const checksOk = metrics.checks_ok || [];
+    const components = {};
+    findings.forEach(f => {
+      const key = f.check_id || f.title;
+      if (key) components[key] = { title: f.title, status: f.severity || 'warning', details: f.details, passed: false };
+    });
+    checksOk.forEach(c => {
+      const key = c.check_id || c.title;
+      if (key && !components[key]) {
+        components[key] = { title: c.title, status: 'ok', details: c.details, passed: true };
+      }
+    });
+    res.json({ status: 'ok', score: rows[0].overall_score, checked_at: rows[0].created_at, components });
+  } catch (err) {
+    console.error('[latest-hc-status]', err.message);
+    res.status(500).json({ error: 'Failed to load HC status' });
+  }
+});
+
 // DELETE /api/connections/:id/health-history/:runId — remove a single run's check_results rows
 app.delete('/api/connections/:id/health-history/:runId', requireAuth, requireConnectionOwner, async (req, res) => {
   try {
