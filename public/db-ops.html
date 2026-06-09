@@ -533,7 +533,7 @@
     let capTimedOut = false;
     {
       const capCtrl = new AbortController();
-      const capTimer = setTimeout(() => { capCtrl.abort(); capTimedOut = true; }, 10000);
+      const capTimer = setTimeout(() => { capCtrl.abort(); capTimedOut = true; }, 30000);
       try {
         const capR = await fetch('/api/db-ops/capabilities', {
           method: 'POST', credentials: 'include',
@@ -911,7 +911,7 @@
     const targetId = sshTargets.length > 0 ? sshTargets[0].id : null;
 
     const runCtrl = new AbortController();
-    const runTimer = setTimeout(() => runCtrl.abort(), 60000);
+    const runTimer = setTimeout(() => runCtrl.abort(), 120000);
     try {
       const r = await fetch('/api/db-ops/run', {
         method: 'POST', credentials: 'include',

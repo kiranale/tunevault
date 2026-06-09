@@ -108,6 +108,7 @@ async function getBatchRestartCounts(connIds) {
 // Includes a `health` sub-object per row derived from the most recent connection_health_runs row.
 // Uninstalled connections are returned separately in `removed` array (30-day window, then hidden).
 router.get('/connections', requireAuth, async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   try {
     const _connQuery = async (withNewCols) => pool.query(
       `SELECT oc.id, oc.name, oc.host, oc.port, oc.service_name, oc.username, oc.oracle_version,

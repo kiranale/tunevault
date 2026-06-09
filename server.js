@@ -963,6 +963,7 @@ app.post('/api/auth/logout', (req, res) => {
 
 // GET /api/auth/me — validate token and return user (includes manager_role for nav gating)
 app.get('/api/auth/me', requireAuth, async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   const userEmail = (req.user.email || '').toLowerCase();
   const isAdmin   = ADMIN_EMAILS.has(userEmail);
   try {
@@ -2178,6 +2179,7 @@ app.post('/api/connections/test', requireAuth, async (req, res) => {
 // Individual accounts (not on a team) return role: null, meaning full access (admin-equivalent).
 // Used by frontend to gate action buttons.
 app.get('/api/me/role', requireAuth, async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   try {
     const { rows } = await pool.query(
       `SELECT tm.role

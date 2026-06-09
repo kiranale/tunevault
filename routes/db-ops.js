@@ -70,6 +70,7 @@ router.get('/db-ops', requireAuth, (req, res) => {
 // junior_dba+ can view the catalog (read-only list of ops)
 
 router.get('/api/db-ops/catalog', requireAuth, requireRole('junior_dba'), (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.json({ catalog: executor.getOpCatalog() });
 });
 
