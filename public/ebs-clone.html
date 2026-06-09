@@ -489,6 +489,12 @@
 </div>
 
 <script src="/connection-state.js"></script>
+<script>
+  (function() {
+    var urlConn = new URLSearchParams(window.location.search).get('conn');
+    if (urlConn) tvConn.save(urlConn);
+  }());
+</script>
 <script src="/nav-component.js"></script>
 <script>
 'use strict';

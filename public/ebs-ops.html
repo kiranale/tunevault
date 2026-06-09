@@ -843,13 +843,14 @@ function buildHubCard(card) {
       <span>${escHtml(card.checkCount)}</span>
       ${ebsLocked
         ? '<span class="hub-btn locked" aria-disabled="true">Open →</span>'
-        : `<a class="hub-btn" href="${escHtml(card.href)}">Open →</a>`}
+        : `<a class="hub-btn" href="${escHtml(card.href + (selectedEbsConn ? '?conn=' + selectedEbsConn.id : ''))}">Open →</a>`}
     </div>`;
 
   if (!ebsLocked) {
+    const href = card.href + (selectedEbsConn ? '?conn=' + selectedEbsConn.id : '');
     wrapper.style.cursor = 'pointer';
     wrapper.addEventListener('click', e => {
-      if (!e.target.closest('.hub-btn')) window.location.href = card.href;
+      if (!e.target.closest('.hub-btn')) window.location.href = href;
     });
   }
   return wrapper;

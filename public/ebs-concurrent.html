@@ -271,6 +271,8 @@
       sel.appendChild(opt);
     });
     // Restore saved connection from global state + wire persistence
+    const urlConn = new URLSearchParams(window.location.search).get('conn');
+    if (urlConn) tvConn.save(urlConn);
     tvConn.bind(sel, connections);
     if (sel.value) {
       await onConnChange();

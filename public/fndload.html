@@ -363,6 +363,14 @@
     document.getElementById('tgt-conn').innerHTML = '<option value="">— Select target —</option>' + opts;
     document.getElementById('src-conn').onchange = updateConnMeta;
     document.getElementById('tgt-conn').onchange = updateConnMeta;
+    const urlConn = new URLSearchParams(window.location.search).get('conn');
+    if (urlConn) {
+      const srcEl = document.getElementById('src-conn');
+      if (srcEl && Array.from(srcEl.options).some(o => o.value === String(urlConn))) {
+        srcEl.value = urlConn;
+        updateConnMeta();
+      }
+    }
   }
 
   function updateConnMeta() {

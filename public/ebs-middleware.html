@@ -447,6 +447,8 @@
       opt.textContent = (c.name || c.host + ':' + c.port) + (c.is_ebs ? ' · EBS' : '');
       sel.appendChild(opt);
     });
+    const urlConn = new URLSearchParams(window.location.search).get('conn');
+    if (urlConn) tvConn.save(urlConn);
     tvConn.bind(sel, connections);
     if (sel.value) {
       await onConnChange();

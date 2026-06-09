@@ -668,6 +668,8 @@
       opt.textContent = c.name || (c.host + ':' + c.port);
       sel.appendChild(opt);
     });
+    const urlConn = new URLSearchParams(window.location.search).get('conn');
+    if (urlConn) tvConn.save(urlConn);
     tvConn.bind(sel, connections);
     if (sel.value) await onConnChange();
     else if (connections.length === 1) { sel.value = connections[0].id; tvConn.save(connections[0].id); await onConnChange(); }

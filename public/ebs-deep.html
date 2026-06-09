@@ -2031,6 +2031,8 @@
         // Restore persisted connection selection and wire save-on-change
         var sel = document.getElementById('connSelect');
         if (sel && _connections.length > 0) {
+          var urlConn = new URLSearchParams(window.location.search).get('conn');
+          if (urlConn) tvConn.save(urlConn);
           tvConn.bind(sel, _connections);
         }
         if (_connections.length > 0) {
