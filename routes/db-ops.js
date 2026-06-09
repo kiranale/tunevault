@@ -214,7 +214,18 @@ router.post('/api/db-ops/run', requireAuth, requireRole('junior_dba'), async (re
     if (!opEntry || opEntry.type !== 'sql') {
       return res.status(400).json({ error: 'Only SQL operations are supported on proxy connections (SSH ops require a direct connection).' });
     }
-    if (!await channel.isAgentConnected(connParams.id)) {
+    let agentOnline = false;
+    try {
+      agentOnline = await Promise.race([
+        channel.isAgentConnected(connParams.id),
+        new Promise(resolve => setTimeout(() => resolve(false), 5000)),
+      ]);
+    } catch (err) {
+      console.error('[db-ops/run] isAgentConnected error:', err.message);
+      return res.status(500).json({ error: 'Agent check failed: ' + err.message });
+    }
+    console.log('[db-ops/run] conn=%d agentOnline=%s', connParams.id, agentOnline);
+    if (!agentOnline) {
       return res.status(503).json({ error: 'Agent is not connected. Wait up to 30 seconds for the agent to check in, then retry.' });
     }
     // Build SQL from the op — render template substitutions

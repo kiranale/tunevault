@@ -985,7 +985,7 @@ app.get('/api/debug/agent/:id', requireAuth, async (req, res) => {
   const start = Date.now();
   try {
     const result = await Promise.race([
-      channel.isAgentConnected(connId),
+      agentChannel.isAgentConnected(connId),
       new Promise(resolve => setTimeout(() => resolve('TIMEOUT'), 3000)),
     ]);
     res.json({ result, ms: Date.now() - start });
