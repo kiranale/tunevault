@@ -33,8 +33,8 @@ const router = express.Router();
 
 async function getConnParams(connectionId, userId) {
   const { rows } = await pool.query(
-    `SELECT id, host, port, service_name, username, encrypted_password, connection_type,
-            is_asm, is_rac, gi_os_user, gi_oracle_home, asm_sid, cx_oracle_version
+    `SELECT id, host, port, service_name, username, encrypted_password,
+            connection_type, cx_oracle_version
      FROM oracle_connections WHERE id = $1 AND user_id = $2`,
     [connectionId, userId]
   );
@@ -48,14 +48,11 @@ async function getConnParams(connectionId, userId) {
     username: conn.username,
     password: decrypt(conn.encrypted_password),
     connectionType: conn.connection_type,
-    isAsm: !!conn.is_asm,
-    isRac: !!conn.is_rac,
-    // Grid Infrastructure credentials (optional — null when not configured)
-    giOsUser: conn.gi_os_user || null,
-    giOracleHome: conn.gi_oracle_home || null,
-    asmSid: conn.asm_sid || null,
-    // Oracle driver version reported by the agent on last heartbeat — non-null means
-    // oracledb/cx_Oracle is installed on the proxy and can execute SQL via /api/run_sql
+    isAsm: false,
+    isRac: false,
+    giOsUser: null,
+    giOracleHome: null,
+    asmSid: null,
     cxOracleVersion: conn.cx_oracle_version || null,
   };
 }
@@ -83,7 +80,13 @@ router.post('/api/db-ops/capabilities', requireAuth, requireRole('junior_dba'), 
   const connId = parseInt(req.body.connection_id, 10);
   if (!connId) return res.status(400).json({ error: 'connection_id required' });
 
-  const connParams = await getConnParams(connId, req.user.id);
+  let connParams;
+  try {
+    connParams = await getConnParams(connId, req.user.id);
+  } catch (err) {
+    console.error('[db-ops/capabilities] getConnParams error:', err.message);
+    return res.status(500).json({ error: 'Failed to load connection', detail: err.message });
+  }
   if (!connParams) return res.status(404).json({ error: 'Connection not found' });
 
   // hasGi is true when all three GI credential fields are populated
@@ -205,7 +208,13 @@ router.post('/api/db-ops/run', requireAuth, requireRole('junior_dba'), async (re
     return res.json({ success: true, output: demoOut, is_demo: true });
   }
 
-  const connParams = await getConnParams(parseInt(connection_id, 10), req.user.id);
+  let connParams;
+  try {
+    connParams = await getConnParams(parseInt(connection_id, 10), req.user.id);
+  } catch (err) {
+    console.error('[db-ops/run] getConnParams error:', err.message);
+    return res.status(500).json({ error: 'Failed to load connection', detail: err.message });
+  }
   if (!connParams) return res.status(404).json({ error: 'Connection not found' });
 
   // Proxy connections: route SQL ops through the agent channel → /api/run_sql on the proxy
