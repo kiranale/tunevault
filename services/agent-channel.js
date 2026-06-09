@@ -122,6 +122,7 @@ async function isAgentConnected(connectionId) {
  * @returns {Promise<{ statusCode: number, body: object }>}
  */
 async function sendToAgent(connectionId, request, timeoutMs = 120_000) {
+  console.log('[agent-channel] sendToAgent conn=%d path=%s timeout=%d', connectionId, request.path, timeoutMs);
   // 1. Enqueue the command in Postgres and get a stable requestId
   const { requestId } = await db.enqueueCommand(connectionId, {
     method: request.method || 'POST',

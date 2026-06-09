@@ -96,6 +96,7 @@ router.post('/api/db-ops/capabilities', requireAuth, requireRole('junior_dba'), 
     ]);
     const hasSqlOps = agentOnline;
     console.log('[db-ops/capabilities] conn=%d agentOnline=%s hasSqlOps=%s cxOracleVersion=%s', connId, agentOnline, hasSqlOps, connParams.cxOracleVersion);
+    console.log('[db-ops/capabilities] proxy path — returning immediately, hasSqlOps=%s', hasSqlOps);
     return res.json({
       hasAsm: connParams.isAsm,
       hasRac: connParams.isRac,
