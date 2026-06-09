@@ -79,6 +79,7 @@ router.get('/api/db-ops/catalog', requireAuth, requireRole('junior_dba'), (req, 
 // junior_dba+ can detect capabilities
 
 router.post('/api/db-ops/capabilities', requireAuth, requireRole('junior_dba'), async (req, res) => {
+  console.log('[db-ops/capabilities] called connId=%s', req.body?.connection_id);
   const connId = parseInt(req.body.connection_id, 10);
   if (!connId) return res.status(400).json({ error: 'connection_id required' });
 
@@ -89,9 +90,12 @@ router.post('/api/db-ops/capabilities', requireAuth, requireRole('junior_dba'), 
   const hasGi = !!(connParams.giOsUser && connParams.giOracleHome && connParams.asmSid);
 
   if (connParams.connectionType === 'proxy') {
-    const agentOnline = await channel.isAgentConnected(connId);
+    const agentOnline = await Promise.race([
+      channel.isAgentConnected(connId),
+      new Promise(resolve => setTimeout(() => resolve(false), 5000)),
+    ]);
     const hasSqlOps = agentOnline;
-    console.log('[db-ops/capabilities] conn=%d hasSqlOps=%s agentOnline=%s cxOracleVersion=%s', connId, hasSqlOps, agentOnline, connParams.cxOracleVersion);
+    console.log('[db-ops/capabilities] conn=%d agentOnline=%s hasSqlOps=%s cxOracleVersion=%s', connId, agentOnline, hasSqlOps, connParams.cxOracleVersion);
     return res.json({
       hasAsm: connParams.isAsm,
       hasRac: connParams.isRac,
