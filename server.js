@@ -1923,15 +1923,17 @@ app.get('/api/connections/:id/runs', requireAuth, requireConnectionOwner, async 
   }
 });
 
-// GET /api/connections/:id/latest-hc-status — per-component status from most recent completed HC
+// GET /api/connections/:id/latest-hc-status — per-component status from most recent HC
+// Accepts 'completed' and 'analyzing' so app-tier connections show service cards even
+// while AI analysis is still running (metrics.findings are stored before AI kicks off).
 app.get('/api/connections/:id/latest-hc-status', requireAuth, requireConnectionOwner, async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   const connId = parseInt(req.params.id, 10);
   try {
     const { rows } = await pool.query(
-      `SELECT metrics, overall_score, created_at
+      `SELECT metrics, overall_score, created_at, status AS hc_status
        FROM health_checks
-       WHERE connection_id = $1 AND status = 'completed'
+       WHERE connection_id = $1 AND status IN ('completed', 'analyzing')
        ORDER BY created_at DESC LIMIT 1`,
       [connId]
     );
@@ -3628,7 +3630,7 @@ async function runRealHealthCheckInner(healthCheckId, oracleConfig, t0) {
 }
 
 // Current canonical proxy version — bump this when oracle-proxy.py/oracle-proxy.js VERSION changes
-const LATEST_PROXY_VERSION = '3.20.35';
+const LATEST_PROXY_VERSION = '3.20.36';
 
 // ============================================================
 // Proxy Health Check Flow

@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.35"  # add /api/run_sql endpoint for DB Ops SQL execution via agent channel
+VERSION = "3.20.36"  # add /api/ebs-ctrl endpoint for inline EBS middleware status via agent channel
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -6214,6 +6214,104 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(json.dumps({"success": False, "error": str(_parse_err)}).encode())
                 return
+
+        # POST /api/ebs-ctrl — run a single whitelisted EBS app-tier admin script.
+        # Sources EBSapps.env and runs as the apps OS user (same pattern as /api/ebs-app-healthcheck).
+        # Accepts: { "op": "adapcctl_status|adopmnctl_status|adalnctl_status|adnodemgrctl_status" }
+        # Returns: { "success", "ok", "stdout", "exit_code" }
+        if self.path == "/api/ebs-ctrl":
+            if not self.check_auth():
+                return
+            try:
+                body = self.read_body()
+                params = json.loads(body)
+                op = str(params.get("op", "")).strip()
+
+                _CTRL_OPS = {
+                    "adapcctl_status":     ("$ADMIN_SCRIPTS_HOME/adapcctl.sh",    ["status"]),
+                    "adopmnctl_status":    ("$ADMIN_SCRIPTS_HOME/adopmnctl.sh",   ["status"]),
+                    "adalnctl_status":     ("$ADMIN_SCRIPTS_HOME/adalnctl.sh",    ["status"]),
+                    "adnodemgrctl_status": ("$ADMIN_SCRIPTS_HOME/adnodemgrctl.sh",["status"]),
+                }
+
+                if op not in _CTRL_OPS:
+                    self.send_json(400, {
+                        "success": False,
+                        "error": "Unknown op '%s'. Allowed: %s" % (op, ", ".join(_CTRL_OPS)),
+                    })
+                    return
+
+                env_file = _APPS_ENV_FILE
+                if not env_file:
+                    self.send_json(200, {
+                        "success": True,
+                        "ok": False,
+                        "stdout": "APPS_ENV_FILE not configured — reinstall agent with context file path.",
+                        "exit_code": 1,
+                    })
+                    return
+
+                script_bin, script_args = _CTRL_OPS[op]
+                _ef  = env_file.replace("'", "'\\''")
+                args_str = " ".join('"%s"' % a for a in script_args)
+                _script = (
+                    "#!/bin/bash\n"
+                    "source '%s' run >/dev/null 2>&1\n"
+                    "%s %s 2>&1\n"
+                    "exit $?\n" % (_ef, script_bin, args_str)
+                )
+
+                import tempfile as _tempfile
+                _tf = None
+                try:
+                    _fd, _tf = _tempfile.mkstemp(prefix=".tv_ctrl_", suffix=".sh", dir="/tmp")
+                    os.write(_fd, _script.encode())
+                    os.close(_fd)
+                    os.chmod(_tf, 0o755)
+
+                    _apps_user = _APPS_USER
+                    if not _apps_user and env_file and os.path.exists(env_file):
+                        try:
+                            import pwd as _pwd_ctrl
+                            _st = os.stat(env_file)
+                            _apps_user = _pwd_ctrl.getpwuid(_st.st_uid).pw_name
+                        except Exception:
+                            pass
+
+                    if os.geteuid() == 0 and _apps_user and _apps_user != "root":
+                        try:
+                            import pwd as _pwd_ctrl2
+                            _uid = _pwd_ctrl2.getpwnam(_apps_user).pw_uid
+                            os.chown(_tf, _uid, -1)
+                        except Exception:
+                            pass
+                        _stdout, _stderr, _exit, _dur = run_os_command(
+                            ["su", _apps_user, "-s", "/bin/bash", "-c",
+                             "bash %s; rm -f %s 2>/dev/null" % (_tf, _tf)],
+                            timeout=30, max_output=32768)
+                    else:
+                        _stdout, _stderr, _exit, _dur = run_os_command(
+                            ["bash", _tf], timeout=30, max_output=32768)
+                        try:
+                            os.unlink(_tf)
+                        except Exception:
+                            pass
+                except Exception as _exc:
+                    _stdout, _stderr, _exit, _dur = str(_exc), "", 1, 0
+
+                self.send_json(200, {
+                    "success":    True,
+                    "ok":         _exit == 0,
+                    "stdout":     _stdout,
+                    "stderr":     _stderr,
+                    "exit_code":  _exit,
+                    "duration_ms": _dur,
+                })
+                return
+            except Exception as _ctrl_err:
+                traceback.print_exc()
+                self.send_json(500, {"success": False, "error": str(_ctrl_err)})
+            return
 
         # POST /api/ssh/exec — execute a shell command on a remote host via SSH
         if self.path == "/api/ssh/exec":

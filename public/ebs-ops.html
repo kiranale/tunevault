@@ -582,17 +582,191 @@ function renderConcurrentTab(container) {
   container.appendChild(grid);
 }
 
+// ── Middleware ops catalog (frontend) ─────────────────────────────────────────
+const MIDDLEWARE_OPS = [
+  { key: 'adapcctl_status',     label: 'Apache / OHS Status',  icon: '🔧', desc: 'adapcctl.sh status — check if Apache/OHS is running on this app-tier node.' },
+  { key: 'adopmnctl_status',    label: 'OPMN Status',          icon: '🔁', desc: 'adopmnctl.sh status — check all OPMN-managed components (OC4J, HTTP, etc.).' },
+  { key: 'adalnctl_status',     label: 'Apps Listener Status', icon: '📡', desc: 'adalnctl.sh status — check the EBS TNS apps-tier listener.' },
+  { key: 'adnodemgrctl_status', label: 'Node Manager Status',  icon: '🌐', desc: 'adnodemgrctl.sh status — check if WebLogic Node Manager is running.' },
+];
+
 // ── Tab 3: Fusion Middleware & WebLogic ───────────────────────────────────────
 function renderMiddlewareTab(container) {
   const connParam = selectedConn ? '?conn=' + selectedConn.id : '';
-  const cards = [
-    { title: 'WLS & Managed Servers', desc: 'Start/Stop AdminServer and managed servers (OACore, Forms, OAFM). Rolling bounce support with SSE-streamed sequential ops.', icon: '🌐', bg: 'var(--blue-dim)', href: '/ebs-middleware' + connParam, tag: 'SSH · SSE' },
-    { title: 'Apache / OHS', desc: 'OHS/Apache control for R12.2 — status, start, stop. Adapts to your EBS version automatically.', icon: '🔧', bg: 'var(--blue-dim)', href: '/ebs-middleware' + connParam, tag: 'SSH' },
-    { title: 'Apps Listener', desc: 'EBS TNS listener control — lsnrctl status, start, stop for the apps-tier service.', icon: '📡', bg: 'var(--blue-dim)', href: '/ebs-middleware' + connParam, tag: 'SSH' },
+  const hasAgent = selectedConn && selectedConn.connection_type === 'proxy';
+
+  // ── Inline agent-based status ops ────────────────────────────────────────
+  const opsHdr = document.createElement('div');
+  opsHdr.className = 'sub-header';
+  opsHdr.innerHTML = `
+    <div class="sub-header-icon" style="background:var(--blue-dim);color:var(--blue)">⚡</div>
+    <span class="sub-header-label">Component Status</span>
+    <span class="sub-header-desc">— runs via agent tunnel, no SSH required</span>`;
+  container.appendChild(opsHdr);
+
+  const grid = document.createElement('div');
+  grid.className = 'ops-grid';
+  MIDDLEWARE_OPS.forEach(op => renderMiddlewareOpCard(op, grid));
+  container.appendChild(grid);
+
+  // ── Link cards for SSH-based ops (WLS rolling bounce, deep checks, sanity) ──
+  const linksHdr = document.createElement('div');
+  linksHdr.className = 'sub-header';
+  linksHdr.innerHTML = `
+    <div class="sub-header-icon" style="background:var(--purple-dim);color:var(--purple)">🔗</div>
+    <span class="sub-header-label">Advanced Operations</span>
+    <span class="sub-header-desc">— requires SSH access configured</span>`;
+  container.appendChild(linksHdr);
+
+  const linkCards = [
+    { title: 'WLS & Managed Servers', desc: 'Start/Stop AdminServer and managed servers (OACore, Forms, OAFM). Rolling bounce with SSE-streamed sequential ops.', icon: '🌐', bg: 'var(--blue-dim)', href: '/ebs-middleware' + connParam, tag: 'SSH · SSE' },
     { title: 'EBS 12.2 Deep Checks', desc: '30 SSH-based checks: topology, JVM heap, OS metrics, AD/TXK code levels, ETCC validation.', icon: '🔬', bg: 'var(--purple-dim)', href: '/ebs-12-2-checks' + connParam, tag: 'SSH · EBS 12.2' },
     { title: 'Post-Bounce Sanity', desc: 'Verify all services came back after a bounce — TNS, EBS HTTP, DB connectivity, file ownership.', icon: '✅', bg: 'var(--green-dim)', href: '/sanity-check' + connParam, tag: 'SSH · SQL' },
   ];
-  renderLinkGrid(container, cards);
+  renderLinkGrid(container, linkCards);
+}
+
+// ── Middleware op card (same structure as SQL op-cards; uses runMiddlewareOp) ──
+function renderMiddlewareOpCard(op, container) {
+  const card = document.createElement('div');
+  card.className = 'op-card';
+  card.id = 'mw-card-' + op.key;
+  const noConn = !selectedConn;
+
+  card.innerHTML = `
+    <div class="op-card-header">
+      <div class="op-icon">${op.icon || '⚙️'}</div>
+      <div style="flex:1;min-width:0">
+        <div class="op-title">${escHtml(op.label)}</div>
+        <div class="op-meta">EBS · Agent</div>
+      </div>
+      <span class="result-hdr-badge" id="result-hdr-badge-mw-${op.key}" style="display:none"></span>
+    </div>
+    <div class="op-preview" id="preview-mw-${op.key}">${escHtml(op.desc)}</div>
+    <div class="op-actions">
+      <button class="btn btn-run" id="run-mw-${op.key}"
+        onclick="${noConn ? '' : `runMiddlewareOp('${op.key}')`}"
+        ${noConn ? 'disabled' : ''}
+        title="${noConn ? 'Select a connection first' : ''}">
+        ▶ Run
+      </button>
+    </div>
+    <div class="result-panel" id="result-mw-${op.key}"></div>`;
+
+  container.appendChild(card);
+}
+
+// ── Run middleware op ─────────────────────────────────────────────────────────
+async function runMiddlewareOp(opKey) {
+  if (!selectedConn) return;
+  const btn      = document.getElementById('run-mw-' + opKey);
+  const resultEl = document.getElementById('result-mw-' + opKey);
+  const storeKey = 'mw-' + opKey;
+
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Running…';
+  resultEl.classList.add('visible');
+  resultEl.innerHTML = '<div class="result-panel-hdr"><span class="result-hdr-summary ok" style="opacity:.5">Running…</span></div>';
+
+  const ctrl  = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 38000);
+  try {
+    const r = await fetch('/api/ebs-ops/middleware-run', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ connection_id: selectedConn.id, op_key: opKey }),
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
+    const data = await r.json();
+    if (data.ok !== undefined) {
+      storeAndRenderMiddlewareResult(storeKey, data);
+    } else {
+      storeAndRenderMiddlewareResult(storeKey, { ok: false, error: data.error || data.detail || 'Operation failed' });
+    }
+  } catch (err) {
+    clearTimeout(timer);
+    const msg = err.name === 'AbortError' ? 'Request timed out (38s)' : err.message;
+    storeAndRenderMiddlewareResult(storeKey, { ok: false, error: msg });
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '▶ Run'; }
+  }
+}
+
+function storeAndRenderMiddlewareResult(storeKey, data) {
+  const isOk = !!(data.ok);
+  const exitCode = data.exit_code;
+  let summaryText;
+  if (data.error) {
+    summaryText = '✗ Error';
+  } else if (isOk) {
+    summaryText = '✓ OK' + (data.durationMs ? ' · ' + data.durationMs + 'ms' : '');
+  } else {
+    summaryText = '✗ Non-zero exit' + (exitCode !== undefined ? ' (' + exitCode + ')' : '');
+  }
+
+  let bodyHtml;
+  if (data.error) {
+    bodyHtml = `<div class="result-status status-err">✗ ${escHtml(friendlyError(data.error))}</div>`;
+  } else {
+    const stdout = (data.stdout || '').trim();
+    bodyHtml = `<div class="result-status ${isOk ? 'status-ok' : 'status-err'}">${isOk ? '✓ Running / OK' : '✗ Not running or failed'} (exit ${exitCode !== undefined ? exitCode : '?'})</div>`;
+    if (stdout) {
+      bodyHtml += `<div class="result-text">${escHtml(stdout)}</div>`;
+    }
+  }
+
+  const stored = { summaryText, bodyHtml, collapsed: false, isOk: isOk && !data.error };
+  resultStore.set(storeKey, stored);
+
+  const opKey   = storeKey.replace(/^mw-/, '');
+  const panel   = document.getElementById('result-mw-' + opKey);
+  const badge   = document.getElementById('result-hdr-badge-mw-' + opKey);
+  if (panel) { panel.classList.add('visible'); panel.innerHTML = buildMiddlewareResultPanelHtml(storeKey, stored); }
+  if (badge) {
+    badge.textContent = summaryText;
+    badge.style.display = '';
+    badge.style.background = stored.isOk ? 'var(--green-dim)' : 'var(--red-dim)';
+    badge.style.color      = stored.isOk ? 'var(--green)' : 'var(--red)';
+  }
+  updateClearAllBar();
+}
+
+function buildMiddlewareResultPanelHtml(storeKey, stored) {
+  const opKey      = storeKey.replace(/^mw-/, '');
+  const toggleLabel = stored.collapsed ? 'Show Results' : 'Hide Results';
+  const bodyStyle   = stored.collapsed ? 'style="display:none"' : '';
+  return `
+    <div class="result-panel-hdr" onclick="toggleMiddlewareResult('${storeKey}')">
+      <span class="result-hdr-summary ${stored.isOk ? 'ok' : 'err'}">${escHtml(stored.summaryText)}</span>
+      <div class="result-hdr-right">
+        <button class="result-toggle-btn" id="result-chevron-mw-${opKey}" onclick="toggleMiddlewareResult('${storeKey}');event.stopPropagation()">${toggleLabel}</button>
+        <button class="result-clear-btn" onclick="clearMiddlewareResult('${storeKey}', event)" title="Dismiss">✕</button>
+      </div>
+    </div>
+    <div class="result-body" id="result-body-mw-${opKey}" ${bodyStyle}>${stored.bodyHtml}</div>`;
+}
+
+function toggleMiddlewareResult(storeKey) {
+  const stored = resultStore.get(storeKey);
+  if (!stored) return;
+  stored.collapsed = !stored.collapsed;
+  const opKey = storeKey.replace(/^mw-/, '');
+  const body  = document.getElementById('result-body-mw-' + opKey);
+  const btn   = document.getElementById('result-chevron-mw-' + opKey);
+  if (body) body.style.display = stored.collapsed ? 'none' : '';
+  if (btn)  btn.textContent    = stored.collapsed ? 'Show Results' : 'Hide Results';
+}
+
+function clearMiddlewareResult(storeKey, event) {
+  if (event) event.stopPropagation();
+  resultStore.delete(storeKey);
+  const opKey = storeKey.replace(/^mw-/, '');
+  const panel = document.getElementById('result-mw-' + opKey);
+  const badge = document.getElementById('result-hdr-badge-mw-' + opKey);
+  if (panel) { panel.innerHTML = ''; panel.classList.remove('visible'); }
+  if (badge) { badge.style.display = 'none'; badge.textContent = ''; }
+  updateClearAllBar();
 }
 
 // ── Tab 4: Patching & ADOP ────────────────────────────────────────────────────
@@ -764,7 +938,10 @@ function clearResult(opKey, event) {
 }
 
 function clearAllResults() {
-  for (const opKey of [...resultStore.keys()]) clearResult(opKey, null);
+  for (const storeKey of [...resultStore.keys()]) {
+    if (storeKey.startsWith('mw-')) clearMiddlewareResult(storeKey, null);
+    else clearResult(storeKey, null);
+  }
 }
 
 function updateClearAllBar() {
@@ -777,11 +954,21 @@ function updateClearAllBar() {
 }
 
 function restoreResults() {
-  for (const [opKey, stored] of resultStore.entries()) {
-    const panel = document.getElementById('result-' + opKey);
-    const badge = document.getElementById('result-hdr-badge-' + opKey);
-    if (panel) { panel.classList.add('visible'); panel.innerHTML = buildResultPanelHtml(opKey, stored); }
-    if (badge) { badge.textContent = stored.summaryText; badge.style.display = ''; }
+  for (const [storeKey, stored] of resultStore.entries()) {
+    if (storeKey.startsWith('mw-')) {
+      // Middleware op result
+      const opKey = storeKey.replace(/^mw-/, '');
+      const panel = document.getElementById('result-mw-' + opKey);
+      const badge = document.getElementById('result-hdr-badge-mw-' + opKey);
+      if (panel) { panel.classList.add('visible'); panel.innerHTML = buildMiddlewareResultPanelHtml(storeKey, stored); }
+      if (badge) { badge.textContent = stored.summaryText; badge.style.display = ''; }
+    } else {
+      // SQL op result
+      const panel = document.getElementById('result-' + storeKey);
+      const badge = document.getElementById('result-hdr-badge-' + storeKey);
+      if (panel) { panel.classList.add('visible'); panel.innerHTML = buildResultPanelHtml(storeKey, stored); }
+      if (badge) { badge.textContent = stored.summaryText; badge.style.display = ''; }
+    }
   }
   updateClearAllBar();
 }

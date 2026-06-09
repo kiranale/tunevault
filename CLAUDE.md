@@ -126,33 +126,45 @@ Node.js + Express, PostgreSQL (Neon), Render deployment. Vanilla JS frontend (no
 
 All Add Connection links in the app MUST point to `/connections/new` — the single canonical v6 wizard (routes/ssh-install.js). `/setup/fresh` is a 301 permanent redirect to it as of 2026-05-22. Adding a new entry point? Verify it points to `/connections/new`, not `/setup/fresh`.
 
-## Known Issues (as of 2026-06-09)
+## Known Issues (as of 2026-06-10)
+
+🔴 Critical:
+- Render auto-deploy broken — GitHub webhook disconnected, every push needs Manual Deploy from Render dashboard
 
 🟡 High:
-- AI summary not showing on EBS app tier health checks — runAIAnalysis() is called (3.20.7+, verified by [ai] log), but summary text not surfacing in report UI. Needs investigation on live HC run with ebs12212-app-dev.
-- apex-lab (192.168.56.101, OEL 8.10, Oracle 23ai) — agent never installed.
-- EBS Ops cards — need full redesign and wiring (service control panel, start/stop per component). NOT started — review/design required before implementation.
-- forms-c4ws_server1 showing as critical — optional server, should be warning or skipped.
-- App tier score showing 30 instead of 15 — investigate scoring logic for EBS app tier.
+- EBS Ops Concurrent Processing SQL — still returning "Oracle driver not available" — ebs_instance_name pairing fix deployed but needs Render manual deploy to take effect
+- EBS Ops Service Status tab — empty, loadServiceStatus() not rendering component cards — needs fix to read from metrics.findings[] for app tier HCs
+- Deep EBS Mode — "No EBS Connections Found" — db/ebs-deep.js getEbsConnections() only finds is_ebs=true, needs OR server_type IN ('apps','both')
+- EBS App Tier report — EBS PDF and EBS XLSX export buttons not showing in toolbar
+- apex-lab (192.168.56.101, OEL 8.10, Oracle 23ai) — agent never installed
 
 🟢 Low:
-- Blog articles need seeding to DB — run `node scripts/seed-blog.js` in Render shell, or POST /api/admin/seed-blog. AWR/ASH, 19c upgrade, tablespace mgmt are now full articles; 5 stubs remain.
-- ~20 debug/fix/verify scripts in repo root — move to scripts/debug/ or delete.
-- README.md CI badge URLs point to Polsia-Inc/tunevault — should be kiranale/tunevault.
-- OPP check not yet added to EBS app tier checks.
+- Blog articles need seeding — run POST /api/admin/seed-blog
+- ~20 debug scripts in repo root — move to scripts/debug/ or delete
+- README.md CI badge URLs point to Polsia-Inc/tunevault
+- OPP check not yet added to EBS app tier checks
+- Privacy Policy + ToS pages not created yet
+
+## Key Configuration
+- `ebs_instance_name`: both conn 134 (ebs12212-db-dev) and conn 140 (ebs12212-app-dev) set to `EBS12212` for EBS Ops SQL pairing via `findPairedDbConn()`
+- Render manual deploy required until GitHub webhook re-authorized (Settings → Build & Deploy → GitHub)
 
 ## Recent changes
 
-- 2026-06-09: FIX — HC completion email Impact column: f.detail → f.details (plural) for EBS app tier findings. The field is `details` in the proxy findings structure; f.detail was always undefined so Impact showed "—".
-- 2026-06-09: FIX — DB Ops Run endpoint: removed stale cxOracleVersion pre-check that blocked runs when oracle_connections.cx_oracle_version was null (stale metadata). The proxy's /api/run_sql already handles no-driver case. Consistent with hasSqlOps=agentOnline from capabilities.
-- 2026-06-09: FIX — PDF export: all PDF generators (generateDbPDF, generateEbsPDF, generateCombinedPDF in reports.js; buildExportPDF in health-check-export.js) called doc.end() before pipe(res) — wrong Node.js stream order causing the HTTP response to hang. Fixed by piping inside the generator functions (before end) for reports.js, and pdfDoc.pipe(res) then pdfDoc.end() for health-check-export.js.
-- 2026-06-09: FEAT — 3 full blog articles: oracle-awr-ash-analysis, oracle-19c-upgrade-from-12c, oracle-tablespace-management. DB Time analysis, AWR wait tables, ASH drill-down SQL; AutoUpgrade config + post-upgrade tasks; autoextend framework, growth trend SQL, UNDO formula. Run seed-blog to publish.
-- 2026-06-08: FIX — HC completion email for EBS app tier: counts were 0/0, now correctly reads from metrics.findings[] JSONB. DB tier email also fixed (hc.score → hc.overall_score, connection_name → name).
+- 2026-06-10: FEAT — EBS Ops inline middleware: oracle-proxy.py v3.20.36 adds /api/ebs-ctrl endpoint (4 whitelisted ops: adapcctl_status, adopmnctl_status, adalnctl_status, adnodemgrctl_status — sources EBSapps.env, runs as apps OS user). routes/ebs-ops.js adds POST /api/ebs-ops/middleware-run (agent channel → /api/ebs-ctrl). ebs-ops.html Fusion Middleware tab redesigned: 4 inline op-cards (Apache/OHS, OPMN, Apps Listener, Node Manager) + link-cards for WLS rolling bounce / deep checks / sanity. Same collapsible result panel UX as SQL op-cards. latest-hc-status endpoint now accepts status IN ('completed','analyzing') so Service Status tab shows data while AI analysis is pending.
+- 2026-06-09: FEAT — EBS Ops full redesign: 5-tab layout (Service Status, Concurrent Processing, Fusion Middleware & WebLogic, Patching & ADOP, Reports). Inline collapsible SQL results matching DB Ops UX. routes/ebs-ops.js added POST /api/ebs-ops/run with agent channel SQL execution. EBS SQL ops route through paired DB agent (conn 134) using ebs_instance_name pairing when app tier has no Oracle driver.
+- 2026-06-09: FEAT — DB Ops fully working: 5 tabs, SQL queries via agent channel, inline collapsible results, Hide/Show Results buttons, Clear all bar, friendly error messages. Fixed getConnParams() removing non-existent columns (is_asm, is_rac etc). Fixed isAgentConnected timeout with Promise.race 5s.
+- 2026-06-09: FIX — Render auto-deploy broken — GitHub webhook disconnected. Every push needs Manual Deploy from Render dashboard until re-authorized.
+- 2026-06-09: FIX — connection_schedules ebs_instance_name: conn 134 (ebs12212-db-dev) updated to EBS12212 to match conn 140 (ebs12212-app-dev) for EBS Ops SQL pairing.
 
 ## Pending Tasks (immediate — before go-live)
-1. EBS Ops — full redesign (service control panel, start/stop per component, JVM heap, concurrent requests) — NEEDS DESIGN REVIEW FIRST
-2. Support agent setup — Claude API + Intercom/Crisp
-3. Outreach email templates
-4. Blog articles — 5 remaining stubs (adop-patching, rac-troubleshooting, data-guard, ebs-performance-tuning, ebs-oci-cloning, security-hardening)
-5. apex-lab agent install (Oracle 23ai)
-6. Autonomous monitoring UI — "Run now" button, status display after save
+1. Fix Render auto-deploy — re-authorize GitHub webhook in Render Settings → Build
+2. Fix EBS Ops Service Status tab — read from metrics.findings[] for app tier
+3. Fix EBS Ops Concurrent Processing SQL — verify pairing fix works after deploy
+4. Fix Deep EBS Mode — add server_type IN ('apps','both') to getEbsConnections()
+5. Fix EBS App Tier report export buttons
+6. Privacy Policy + ToS pages
+7. Support agent setup — Claude API + Intercom/Crisp
+8. Outreach email templates
+9. Blog articles — POST /api/admin/seed-blog + 5 remaining stubs
+10. apex-lab agent install (Oracle 23ai)

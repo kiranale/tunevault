@@ -101,7 +101,8 @@ const EBS_OPS_CATALOG = {
 
 async function getConnParams(connectionId, userId) {
   const { rows } = await pool.query(
-    `SELECT id, host, port, service_name, username, encrypted_password, connection_type
+    `SELECT id, host, port, service_name, username, encrypted_password, connection_type,
+            server_type, ebs_instance_name, apps_pwd_enc
      FROM oracle_connections WHERE id = $1 AND user_id = $2`,
     [connectionId, userId]
   );
@@ -113,9 +114,33 @@ async function getConnParams(connectionId, userId) {
     port: c.port || 1521,
     serviceName: c.service_name,
     username: c.username,
-    password: decrypt(c.encrypted_password),
+    password: c.encrypted_password ? decrypt(c.encrypted_password) : null,
     connectionType: c.connection_type,
+    serverType: c.server_type,
+    ebsInstanceName: c.ebs_instance_name,
+    appsPwd: c.apps_pwd_enc ? decrypt(c.apps_pwd_enc) : null,
   };
+}
+
+// ── Helper: find paired DB connection for an apps-tier connection ─────────────
+// Returns { id, host, port, serviceName } or null.
+
+async function findPairedDbConn(ebsInstanceName, userId) {
+  if (!ebsInstanceName) return null;
+  const { rows } = await pool.query(
+    `SELECT id, host, port, service_name
+     FROM oracle_connections
+     WHERE ebs_instance_name = $1
+       AND user_id = $2
+       AND server_type IN ('db', 'both')
+       AND connection_type = 'proxy'
+     ORDER BY server_type   -- 'both' sorts after 'db'; prefer plain 'db'
+     LIMIT 1`,
+    [ebsInstanceName, userId]
+  );
+  if (!rows.length) return null;
+  const r = rows[0];
+  return { id: r.id, host: r.host, port: r.port || 1521, serviceName: r.service_name };
 }
 
 // ── GET /ebs-ops ─────────────────────────────────────────────────────────────
@@ -151,10 +176,41 @@ router.post('/api/ebs-ops/run', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'Direct TCP connections are not yet supported for EBS SQL ops. Use a proxy (agent) connection.' });
   }
 
+  // ── Resolve target agent: for apps-tier connections, route SQL to the paired DB agent ──
+  let targetConnId   = connParams.id;
+  let sqlUsername    = connParams.username || '';
+  let sqlPassword    = connParams.password || '';
+  let sqlServiceName = connParams.serviceName || '';
+  let sqlHost        = connParams.host || 'localhost';
+  let sqlPort        = connParams.port || 1521;
+
+  if (connParams.serverType === 'apps') {
+    const paired = await findPairedDbConn(connParams.ebsInstanceName, req.user.id).catch(() => null);
+    if (!paired) {
+      return res.status(503).json({
+        error: connParams.ebsInstanceName
+          ? `No paired DB agent found for EBS instance "${connParams.ebsInstanceName}". Make sure a DB-type connection with the same EBS Instance Name is added and its agent is installed.`
+          : 'This connection has no EBS Instance Name set. Edit the connection and set an EBS Instance Name that matches a DB-type connection so SQL can be routed to the DB agent.',
+      });
+    }
+    targetConnId   = paired.id;
+    sqlUsername    = 'APPS';
+    sqlPassword    = connParams.appsPwd || '';
+    sqlServiceName = paired.serviceName || '';
+    sqlHost        = paired.host || 'localhost';
+    sqlPort        = paired.port || 1521;
+
+    if (!sqlPassword) {
+      return res.status(503).json({
+        error: 'APPS password not set. Edit the connection and enter the APPS schema password to enable EBS SQL queries.',
+      });
+    }
+  }
+
   let agentOnline = false;
   try {
     agentOnline = await Promise.race([
-      channel.isAgentConnected(connParams.id),
+      channel.isAgentConnected(targetConnId),
       new Promise(resolve => setTimeout(() => resolve(false), 5000)),
     ]);
   } catch (err) {
@@ -163,20 +219,23 @@ router.post('/api/ebs-ops/run', requireAuth, async (req, res) => {
   }
 
   if (!agentOnline) {
-    return res.status(503).json({ error: 'Agent is not connected. Wait for the agent to check in, then retry.' });
+    const hint = connParams.serverType === 'apps'
+      ? 'The paired DB agent (same EBS instance) is not connected. Start the DB server agent and retry.'
+      : 'Agent is not connected. Wait for the agent to check in, then retry.';
+    return res.status(503).json({ error: hint });
   }
 
   try {
-    const proxyResp = await channel.sendToAgent(connParams.id, {
+    const proxyResp = await channel.sendToAgent(targetConnId, {
       method: 'POST',
       path: '/api/run_sql',
       body: {
         sql: opDef.sql,
-        service_name: connParams.serviceName || '',
-        username: connParams.username || '',
-        password: connParams.password || '',
-        host: connParams.host || 'localhost',
-        port: connParams.port || 1521,
+        service_name: sqlServiceName,
+        username: sqlUsername,
+        password: sqlPassword,
+        host: sqlHost,
+        port: sqlPort,
       },
     }, 30000);
     const body = proxyResp.body || {};
@@ -192,6 +251,74 @@ router.post('/api/ebs-ops/run', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[ebs-ops/run] proxy error:', err.message);
     return res.status(500).json({ error: 'Proxy SQL execution failed', detail: err.message });
+  }
+});
+
+// ── Middleware op catalog (maps op_key → proxy op string) ─────────────────────
+const MIDDLEWARE_OPS_CATALOG = {
+  adapcctl_status:     { label: 'Apache / OHS Status',   proxyOp: 'adapcctl_status'     },
+  adopmnctl_status:    { label: 'OPMN Status',           proxyOp: 'adopmnctl_status'    },
+  adalnctl_status:     { label: 'Apps Listener Status',  proxyOp: 'adalnctl_status'     },
+  adnodemgrctl_status: { label: 'Node Manager Status',   proxyOp: 'adnodemgrctl_status' },
+};
+
+// ── POST /api/ebs-ops/middleware-run ──────────────────────────────────────────
+// Body: { connection_id, op_key }
+// Routes to the app-tier agent's /api/ebs-ctrl endpoint.
+
+router.post('/api/ebs-ops/middleware-run', requireAuth, async (req, res) => {
+  const { connection_id, op_key } = req.body || {};
+  if (!connection_id || !op_key) {
+    return res.status(400).json({ error: 'connection_id and op_key required' });
+  }
+
+  const opDef = MIDDLEWARE_OPS_CATALOG[op_key];
+  if (!opDef) {
+    return res.status(400).json({ error: `Unknown middleware op_key: ${op_key}` });
+  }
+
+  let conn;
+  try {
+    conn = await getConnParams(parseInt(connection_id, 10), req.user.id);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to load connection', detail: err.message });
+  }
+  if (!conn) return res.status(404).json({ error: 'Connection not found' });
+  if (conn.connectionType !== 'proxy') {
+    return res.status(400).json({ error: 'Middleware ops require a proxy (agent) connection.' });
+  }
+
+  let agentOnline = false;
+  try {
+    agentOnline = await Promise.race([
+      channel.isAgentConnected(conn.id),
+      new Promise(resolve => setTimeout(() => resolve(false), 5000)),
+    ]);
+  } catch (_) { /* falls through to offline check */ }
+
+  if (!agentOnline) {
+    return res.status(503).json({ error: 'App-tier agent is not connected. Wait for the agent to check in, then retry.' });
+  }
+
+  try {
+    const proxyResp = await channel.sendToAgent(conn.id, {
+      method: 'POST',
+      path: '/api/ebs-ctrl',
+      body: { op: opDef.proxyOp },
+    }, 35000);
+    const body = proxyResp.body || {};
+    if (proxyResp.statusCode !== 200 || !body.success) {
+      return res.json({ ok: false, error: body.error || `Proxy returned HTTP ${proxyResp.statusCode}` });
+    }
+    return res.json({
+      ok:         body.ok,
+      stdout:     body.stdout || '',
+      exit_code:  body.exit_code,
+      durationMs: body.duration_ms,
+    });
+  } catch (err) {
+    console.error('[ebs-ops/middleware-run] error:', err.message);
+    return res.status(500).json({ error: 'Middleware run failed', detail: err.message });
   }
 });
 
