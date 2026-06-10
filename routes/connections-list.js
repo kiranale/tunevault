@@ -47,7 +47,7 @@ const MIN_AGENT_VERSION = '3.5.5';
 
 // Latest proxy installer version (legacy v3/v4/v5 python-with-oracle-client agents).
 // Connections running older versions show a yellow "Upgrade available" badge.
-const LATEST_PROXY_VERSION = '3.20.41';
+const LATEST_PROXY_VERSION = '3.20.42';
 
 // Latest agent version (v7 series). Bump alongside install.sh VERSION on each release.
 // Used to compute agent_upgrade_available for the /connections Version column.

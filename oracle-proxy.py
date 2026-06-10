@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.41"  # ebs-ctrl: add start/stop ops for adapcctl/adopmnctl/adalnctl/adnodemgrctl/wls_admin/managed_server + adcmctl_*
+VERSION = "3.20.42"  # fix adcmctl arg format (apps/$APPS_PWD); adalnctl TNS-12541 ok=False detection
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -6361,7 +6361,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         '    echo "NO_APPS_PWD"',
                         '    exit 0',
                         'fi',
-                        'timeout 110 "$ADMIN_SCRIPTS_HOME/adcmctl.sh" %s apps "$APPS_PWD" 2>&1' % _action,
+                        'timeout 110 "$ADMIN_SCRIPTS_HOME/adcmctl.sh" %s "apps/$APPS_PWD" 2>&1' % _action,
                         "exit $?",
                     ]
                     _timeout = 30 if _action == "status" else 120
@@ -6456,6 +6456,12 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         _ok = False
                     else:
                         _ok = _exit == 0 or any(kw in _stdout for kw in ("is running", "started successfully", "start has been requested"))
+                elif op in ("adalnctl_status", "adalnctl_start", "adalnctl_stop"):
+                    # adalnctl.sh exits 0 even when the listener is not running;
+                    # the failure is reported via TNS-12541 in stdout.
+                    _ok = _exit == 0
+                    if "TNS-12541" in _stdout or "no listener" in _stdout.lower():
+                        _ok = False
                 elif op in ("adcmctl_status", "adcmctl_start", "adcmctl_stop"):
                     if "NO_APPS_PWD" in _stdout:
                         _ok = True  # neutral — no password configured, not a critical failure
