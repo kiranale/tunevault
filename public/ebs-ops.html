@@ -258,6 +258,8 @@ let connections = [];
 let selectedConn = null;
 let activeTab = 'middleware';
 const resultStore = new Map(); // opKey → { summaryText, bodyHtml, collapsed, isOk }
+let isRefreshing = false;      // true while sequential auto-run / Refresh is in progress
+let lastRefreshAt = 0;         // ms timestamp of last completed Refresh kick-off (for 10s debounce)
 
 // ── SQL ops catalog (frontend copy for display + copy-SQL) ────────────────────
 const CONCURRENT_OPS = [
@@ -490,7 +492,7 @@ function renderMiddlewareTab(container) {
     <div class="sub-header-icon" style="background:var(--blue-dim);color:var(--blue)">⚡</div>
     <span style="font-size:14px;font-weight:600;flex:1">Component Status</span>
     <span style="font-size:12px;color:var(--text-dim)">runs via agent tunnel, no SSH required</span>
-    <button class="btn btn-outline" style="font-size:11px;padding:4px 10px" onclick="refreshMiddlewareOps()">↺ Refresh</button>`;
+    <button id="mw-refresh-btn" class="btn btn-outline" style="font-size:11px;padding:4px 10px" onclick="refreshMiddlewareOps()">↺ Refresh</button>`;
   container.appendChild(tabHdr);
 
   const grid = document.createElement('div');
@@ -513,15 +515,38 @@ function renderMiddlewareTab(container) {
   ];
   renderLinkGrid(container, linkCards);
 
-  // Auto-run all 6 ops on first load if no results exist yet
+  // Auto-run all ops sequentially on first load if no results exist yet and not already running
   const hasAnyResult = MIDDLEWARE_OPS.some(op => resultStore.has('mw-' + op.key));
-  if (!hasAnyResult && selectedConn) {
-    setTimeout(() => MIDDLEWARE_OPS.forEach(op => runMiddlewareOp(op.key)), 50);
+  if (!hasAnyResult && selectedConn && !isRefreshing) {
+    setTimeout(() => runAllMiddlewareOpsSequential(), 50);
   }
 }
 
-// ── Refresh all Service Status ops ───────────────────────────────────────────
+// ── Sequential runner — runs all middleware ops one at a time ─────────────────
+async function runAllMiddlewareOpsSequential() {
+  if (isRefreshing) return;
+  isRefreshing = true;
+  lastRefreshAt = Date.now();
+
+  const refreshBtn = document.getElementById('mw-refresh-btn');
+  if (refreshBtn) { refreshBtn.disabled = true; refreshBtn.textContent = '⏳ Running…'; }
+
+  try {
+    for (const op of MIDDLEWARE_OPS) {
+      await runMiddlewareOp(op.key);
+    }
+  } finally {
+    isRefreshing = false;
+    if (refreshBtn) { refreshBtn.disabled = false; refreshBtn.textContent = '↺ Refresh'; }
+  }
+}
+
+// ── Refresh all Service Status ops (debounced, sequential) ───────────────────
 function refreshMiddlewareOps() {
+  if (isRefreshing) return;
+  const elapsed = Date.now() - lastRefreshAt;
+  if (elapsed < 10000) return; // 10-second debounce
+
   MIDDLEWARE_OPS.forEach(op => {
     const storeKey = 'mw-' + op.key;
     resultStore.delete(storeKey);
@@ -531,7 +556,7 @@ function refreshMiddlewareOps() {
     if (badge) { badge.style.display = 'none'; badge.textContent = ''; }
   });
   updateClearAllBar();
-  MIDDLEWARE_OPS.forEach(op => runMiddlewareOp(op.key));
+  runAllMiddlewareOpsSequential();
 }
 
 // ── Middleware op card (same structure as SQL op-cards; uses runMiddlewareOp) ──
