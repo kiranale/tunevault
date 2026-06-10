@@ -1070,9 +1070,12 @@ function storeAndRenderMiddlewareResult(storeKey, data) {
   const isSkipAdmin     = !data.error && stdout.includes('SKIP_ADMIN_HOST');
   const isNoServers     = !data.error && stdout.includes('NO_SERVERS_FOUND');
   const isNoWlsPwd      = !data.error && stdout.includes('NO_WLS_PWD');
-  // adalnctl exits 0 even when listener is not running; TNS-12541 in stdout = down
+  // adalnctl exits 0 even when listener is not running; TNS-12541 in stdout = down.
+  // LISTENER_PROCESS_RUNNING (from pgrep in proxy script) overrides TNS-12541 when
+  // lsnrctl fails due to hostname/TNS_ADMIN mismatch in the proxy environment.
   const isAlnDown       = !data.error && (storeKey.includes('adalnctl')) &&
-                          (stdout.includes('TNS-12541') || stdout.toLowerCase().includes('no listener'));
+                          (stdout.includes('TNS-12541') || stdout.toLowerCase().includes('no listener')) &&
+                          !stdout.includes('LISTENER_PROCESS_RUNNING');
 
   let summaryText;
   if (data.error) {
