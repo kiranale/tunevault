@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.40"  # ebs-ctrl: HC-path server state parsing for managed ops — c4ws/oaea exempt from critical; TV_SUMMARY line
+VERSION = "3.20.41"  # ebs-ctrl: add start/stop ops for adapcctl/adopmnctl/adalnctl/adnodemgrctl/wls_admin/managed_server + adcmctl_*
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -6232,12 +6232,25 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 op           = str(params.get("op", "")).strip()
                 weblogic_pwd = str(params.get("weblogic_pwd", "") or "").strip()
                 apps_pwd     = str(params.get("apps_pwd",     "") or "").strip()
+                server_name  = str(params.get("server_name",  "") or "").strip()
 
                 _CTRL_ALLOWED = {
-                    "adapcctl_status", "adopmnctl_status", "adalnctl_status",
-                    "adnodemgrctl_status", "wls_admin_status",
+                    "adapcctl_status",  "adapcctl_start",  "adapcctl_stop",
+                    "adopmnctl_status", "adopmnctl_start", "adopmnctl_stop",
+                    "adalnctl_status",  "adalnctl_start",  "adalnctl_stop",
+                    "adnodemgrctl_status", "adnodemgrctl_start", "adnodemgrctl_stop",
+                    "wls_admin_status",    "wls_admin_start",    "wls_admin_stop",
                     "oacore_status", "forms_status", "oafm_status", "managed_servers_status",
+                    "managed_server_start", "managed_server_stop",
+                    "adcmctl_status", "adcmctl_start", "adcmctl_stop",
                 }
+                if op in ("managed_server_start", "managed_server_stop"):
+                    if not server_name or not re.match(r'^[a-zA-Z0-9_-]{1,64}$', server_name):
+                        self.send_json(400, {
+                            "success": False,
+                            "error": "server_name required for %s and must match ^[a-zA-Z0-9_-]{1,64}$" % op,
+                        })
+                        return
                 if op not in _CTRL_ALLOWED:
                     self.send_json(400, {
                         "success": False,
@@ -6262,35 +6275,40 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 _ap  = _sh(apps_pwd)
 
                 # Build bash script matching HC path patterns exactly (lines 5418-5515).
-                if op in ("adapcctl_status", "adopmnctl_status", "adalnctl_status"):
-                    _cmd = {
-                        "adapcctl_status":  '"$ADMIN_SCRIPTS_HOME/adapcctl.sh"  status',
-                        "adopmnctl_status": '"$ADMIN_SCRIPTS_HOME/adopmnctl.sh" status',
-                        "adalnctl_status":  '"$ADMIN_SCRIPTS_HOME/adalnctl.sh"  status',
-                    }[op]
+                if op in ("adapcctl_status", "adapcctl_start", "adapcctl_stop",
+                          "adopmnctl_status", "adopmnctl_start", "adopmnctl_stop",
+                          "adalnctl_status",  "adalnctl_start",  "adalnctl_stop"):
+                    _script_base = op.rsplit("_", 1)[0]   # adapcctl / adopmnctl / adalnctl
+                    _action      = op.rsplit("_", 1)[1]   # status / start / stop
+                    _ctl_file    = {"adapcctl": "adapcctl.sh", "adopmnctl": "adopmnctl.sh", "adalnctl": "adalnctl.sh"}[_script_base]
                     _lines = [
                         "#!/bin/bash",
                         "source '%s' run >/dev/null 2>&1" % _ef,
-                        "%s 2>&1" % _cmd,
+                        '"$ADMIN_SCRIPTS_HOME/%s" %s 2>&1' % (_ctl_file, _action),
                         "exit $?",
                     ]
-                    _timeout = 20
+                    _timeout = {
+                        "adapcctl_status": 20,  "adapcctl_start": 60,  "adapcctl_stop": 60,
+                        "adopmnctl_status": 20, "adopmnctl_start": 60, "adopmnctl_stop": 60,
+                        "adalnctl_status": 20,  "adalnctl_start": 30,  "adalnctl_stop": 30,
+                    }[op]
 
-                elif op == "adnodemgrctl_status":
-                    # Heredoc passes WLS_PWD — same pattern as HC path.
+                elif op in ("adnodemgrctl_status", "adnodemgrctl_start", "adnodemgrctl_stop"):
+                    _action = op[len("adnodemgrctl_"):]
                     _lines = [
                         "#!/bin/bash",
                         "export WLS_PWD='%s'" % _wp,
                         "source '%s' run >/dev/null 2>&1" % _ef,
-                        '"$ADMIN_SCRIPTS_HOME/adnodemgrctl.sh" status 2>&1 <<NMEOF',
+                        '"$ADMIN_SCRIPTS_HOME/adnodemgrctl.sh" %s 2>&1 <<NMEOF' % _action,
                         "$WLS_PWD",
                         "NMEOF",
                         "exit $?",
                     ]
-                    _timeout = 35
+                    _timeout = 35 if _action == "status" else 60
 
-                elif op == "wls_admin_status":
-                    # Two-line heredoc (WLS_PWD then APPS_PWD) + admin host guard — same as HC path.
+                elif op in ("wls_admin_status", "wls_admin_start", "wls_admin_stop"):
+                    _action = op[len("wls_admin_"):]
+                    _ti = 60 if _action == "status" else 110
                     _lines = [
                         "#!/bin/bash",
                         "export CONTEXT_FILE='%s'" % _ctx,
@@ -6307,13 +6325,46 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         '    echo "SKIP_ADMIN_HOST:$_ADMIN_HOST"',
                         '    exit 0',
                         'fi',
-                        'timeout 60 "$ADMIN_SCRIPTS_HOME/adadminsrvctl.sh" status 2>&1 <<ADMEOF',
+                        'timeout %d "$ADMIN_SCRIPTS_HOME/adadminsrvctl.sh" %s 2>&1 <<ADMEOF' % (_ti, _action),
                         "$WLS_PWD",
                         "$APPS_PWD",
                         "ADMEOF",
                         "exit $?",
                     ]
-                    _timeout = 70
+                    _timeout = 70 if _action == "status" else 120
+
+                elif op in ("managed_server_start", "managed_server_stop"):
+                    _action  = op[len("managed_server_"):]
+                    _sv_safe = _sh(server_name)
+                    _lines = [
+                        "#!/bin/bash",
+                        "export WLS_PWD='%s'" % _wp,
+                        "source '%s' run >/dev/null 2>&1" % _ef,
+                        'if [ -z "$WLS_PWD" ]; then',
+                        '    echo "NO_WLS_PWD"',
+                        '    exit 0',
+                        'fi',
+                        "timeout 110 \"$ADMIN_SCRIPTS_HOME/admanagedsrvctl.sh\" %s '%s' 2>&1 <<WLSEOF" % (_action, _sv_safe),
+                        "$WLS_PWD",
+                        "WLSEOF",
+                        "exit $?",
+                    ]
+                    _timeout = 120
+
+                elif op in ("adcmctl_status", "adcmctl_start", "adcmctl_stop"):
+                    _action = op[len("adcmctl_"):]
+                    _lines = [
+                        "#!/bin/bash",
+                        "export APPS_PWD='%s'" % _ap,
+                        "source '%s' run >/dev/null 2>&1" % _ef,
+                        'if [ -z "$APPS_PWD" ]; then',
+                        '    echo "NO_APPS_PWD"',
+                        '    exit 0',
+                        'fi',
+                        'timeout 110 "$ADMIN_SCRIPTS_HOME/adcmctl.sh" %s apps "$APPS_PWD" 2>&1' % _action,
+                        "exit $?",
+                    ]
+                    _timeout = 30 if _action == "status" else 120
 
                 else:
                     # oacore_status, forms_status, oafm_status, managed_servers_status:
@@ -6395,9 +6446,19 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 _ok = _exit == 0
                 if op == "adnodemgrctl_status":
                     _ok = _exit == 0 and "The Node Manager is not up" not in _stdout
-                elif op == "wls_admin_status":
+                elif op in ("wls_admin_status", "wls_admin_start", "wls_admin_stop"):
                     if "NO_PASSWORDS" in _stdout or "SKIP_ADMIN_HOST" in _stdout:
                         _ok = True
+                    else:
+                        _ok = _exit == 0
+                elif op in ("managed_server_start", "managed_server_stop"):
+                    if "NO_WLS_PWD" in _stdout:
+                        _ok = False
+                    else:
+                        _ok = _exit == 0 or any(kw in _stdout for kw in ("is running", "started successfully", "start has been requested"))
+                elif op in ("adcmctl_status", "adcmctl_start", "adcmctl_stop"):
+                    if "NO_APPS_PWD" in _stdout:
+                        _ok = True  # neutral — no password configured, not a critical failure
                     else:
                         _ok = _exit == 0
                 elif op in ("oacore_status", "forms_status", "oafm_status", "managed_servers_status"):
@@ -6454,7 +6515,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         if _down:     _sum.append("DOWN (critical): %s" % ", ".join(_down))
                         _stdout = _stdout.rstrip("\n") + "\nTV_SUMMARY: " + (" | ".join(_sum) if _sum else "no server status parsed")
 
-                print("[ebs-ctrl] op=%s exit=%d ok=%s stdout=%r" % (op, _exit, _ok, _stdout[:200]))
+                print("[ebs-ctrl] op=%s server=%s exit=%d ok=%s stdout=%.200s" % (op, server_name or '-', _exit, _ok, _stdout))
 
                 self.send_json(200, {
                     "success":    True,

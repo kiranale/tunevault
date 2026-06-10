@@ -313,6 +313,12 @@ WHERE a.REQUEST_ID IN (
     FROM FND_CONC_PP_ACTIONS
     WHERE ACTION_TYPE >= 6 AND PROCESSOR_ID IS NULL
 ) ORDER BY 1` },
+  { key: 'opp_manager_status', label: 'OPP Manager Status', icon: '📊', desc: 'FND_CONCURRENT_QUEUES_VL for FNDCPOPP — running vs target processes.',
+    sql: `SELECT USER_CONCURRENT_QUEUE_NAME AS manager_name,
+       CONCURRENT_QUEUE_NAME, MANAGER_TYPE,
+       RUNNING_PROCESSES, TARGET_PROCESSES, MAX_PROCESSES, ENABLED_FLAG
+FROM FND_CONCURRENT_QUEUES_VL
+WHERE CONCURRENT_QUEUE_NAME = 'FNDCPOPP'` },
   { key: 'opp_heap_size', label: 'OPP Heap Size', icon: '🔬', desc: 'OPP JVM heap size configuration from FND_CP_SERVICES.',
     sql: `SELECT DEVELOPER_PARAMETERS
 FROM FND_CP_SERVICES
@@ -320,6 +326,18 @@ WHERE SERVICE_ID = (
     SELECT MANAGER_TYPE FROM FND_CONCURRENT_QUEUES
     WHERE CONCURRENT_QUEUE_NAME = 'FNDCPOPP'
 )` },
+];
+
+// ── WF Mailer ops catalog (frontend) ─────────────────────────────────────────
+const WF_MAILER_OPS = [
+  { key: 'mailer_status',          label: 'WF Mailer Status',              icon: '📬', desc: 'FND_SVC_COMPONENTS — WF Mailer component status, startup mode, last error.' },
+  { key: 'stuck_notifications',    label: 'Stuck Notifications (>1h)',     icon: '⏰', desc: 'WF_NOTIFICATIONS with mail_status MAIL/INVALID and begin_date > 1h ago.' },
+  { key: 'wf_errors_24h',         label: 'WF Errors (24h)',               icon: '❌', desc: 'WF_ITEM_ACTIVITY_STATUSES — activities in ERROR state in the last 24 hours.' },
+  { key: 'wf_errors_7d',          label: 'WF Errors (7 days)',            icon: '🗓️',  desc: 'WF_ITEM_ACTIVITY_STATUSES — activities in ERROR state in the last 7 days.' },
+  { key: 'mailer_queue',           label: 'WF Mailer Queues',              icon: '📋', desc: 'DBA_QUEUES — AQ queues used by WF Mailer (WF% normal queues).' },
+  { key: 'wf_open_count',         label: 'Open Notifications by Status',  icon: '📈', desc: 'WF_NOTIFICATIONS open count grouped by mail_status.' },
+  { key: 'notification_by_id',    label: 'Notification by ID',            icon: '🔍', desc: 'Look up a specific WF notification by NOTIFICATION_ID.',
+    paramDef: { notification_id: { type: 'integer', label: 'Notification ID', placeholder: '12345' } } },
 ];
 
 const PATCHING_OPS = [
@@ -443,8 +461,9 @@ function renderMain() {
   tabBarEl.className = 'tab-bar';
 
   const TABS = [
-    { key: 'middleware',  label: 'Service Status',       icon: '🌐' },
+    { key: 'middleware',  label: 'Service Status',        icon: '🌐' },
     { key: 'concurrent',  label: 'Concurrent Processing', icon: '⚙️' },
+    { key: 'wf_mailer',   label: 'WF Mailer',             icon: '📬' },
     { key: 'patching',    label: 'Patching & ADOP',       icon: '📦' },
     { key: 'reports',     label: 'Reports',               icon: '📋' },
   ];
@@ -461,6 +480,7 @@ function renderMain() {
 
   if (activeTab === 'middleware')       renderMiddlewareTab(tabContent);
   else if (activeTab === 'concurrent') renderConcurrentTab(tabContent);
+  else if (activeTab === 'wf_mailer')  renderWfMailerTab(tabContent);
   else if (activeTab === 'patching')   renderPatchingTab(tabContent);
   else if (activeTab === 'reports')    renderReportsTab(tabContent);
 
@@ -471,23 +491,249 @@ function renderMain() {
 
 // ── Tab 2: Concurrent Processing ──────────────────────────────────────────────
 function renderConcurrentTab(container) {
+  // ── CM control section ───────────────────────────────────────────────────
+  const cmHdr = document.createElement('div');
+  cmHdr.className = 'sub-header';
+  cmHdr.innerHTML = `
+    <div class="sub-header-icon" style="background:var(--accent-dim);color:var(--accent)">🏭</div>
+    <span class="sub-header-label">Concurrent Manager Control</span>
+    <span class="sub-header-desc">— adcmctl.sh via agent tunnel</span>`;
+  container.appendChild(cmHdr);
+
+  const cmGrid = document.createElement('div');
+  cmGrid.className = 'ops-grid';
+  CM_CTRL_OPS.forEach(op => renderMiddlewareOpCard(op, cmGrid));
+  container.appendChild(cmGrid);
+
+  // ── SQL queries section ──────────────────────────────────────────────────
+  const sqlHdr = document.createElement('div');
+  sqlHdr.className = 'sub-header';
+  sqlHdr.innerHTML = `
+    <div class="sub-header-icon" style="background:var(--blue-dim);color:var(--blue)">📊</div>
+    <span class="sub-header-label">SQL Queries</span>
+    <span class="sub-header-desc">— live data from APPS schema</span>`;
+  container.appendChild(sqlHdr);
+
   const grid = document.createElement('div');
   grid.className = 'ops-grid';
   CONCURRENT_OPS.forEach(op => renderOpCard(op, grid));
   container.appendChild(grid);
 }
 
+// ── Tab 3: WF Mailer ──────────────────────────────────────────────────────────
+function renderWfMailerTab(container) {
+  // ── WF Mailer control ────────────────────────────────────────────────────
+  const ctrlHdr = document.createElement('div');
+  ctrlHdr.className = 'sub-header';
+  ctrlHdr.innerHTML = `
+    <div class="sub-header-icon" style="background:var(--accent-dim);color:var(--accent)">⚡</div>
+    <span class="sub-header-label">Mailer Control</span>
+    <span class="sub-header-desc">— PL/SQL via APPS schema · requires APPS password</span>`;
+  container.appendChild(ctrlHdr);
+
+  const ctrlGrid = document.createElement('div');
+  ctrlGrid.className = 'ops-grid';
+  const wfCtrlOps = [
+    { key: 'wf_mailer_start', label: 'Start WF Mailer', icon: '▶️', desc: 'FND_SVC_COMPONENT.START_COMPONENT — starts all WF Mailer components.', destructive: true },
+    { key: 'wf_mailer_stop',  label: 'Stop WF Mailer',  icon: '⏹️', desc: 'FND_SVC_COMPONENT.STOP_COMPONENT — stops all WF Mailer components.',  destructive: true },
+  ];
+  wfCtrlOps.forEach(op => renderWfCtrlCard(op, ctrlGrid));
+  container.appendChild(ctrlGrid);
+
+  // ── SQL queries ──────────────────────────────────────────────────────────
+  const sqlHdr = document.createElement('div');
+  sqlHdr.className = 'sub-header';
+  sqlHdr.innerHTML = `
+    <div class="sub-header-icon" style="background:var(--blue-dim);color:var(--blue)">📊</div>
+    <span class="sub-header-label">SQL Queries</span>
+    <span class="sub-header-desc">— live data from APPS schema</span>`;
+  container.appendChild(sqlHdr);
+
+  const grid = document.createElement('div');
+  grid.className = 'ops-grid';
+  WF_MAILER_OPS.forEach(op => renderWfMailerOpCard(op, grid));
+  container.appendChild(grid);
+}
+
+// ── WF Mailer control card (Start/Stop PL/SQL with inline CONFIRM) ────────────
+function renderWfCtrlCard(op, container) {
+  const card = document.createElement('div');
+  card.className = 'op-card';
+  card.id = 'card-' + op.key;
+  const noConn = !selectedConn;
+  const isStop = op.key.endsWith('_stop');
+  const col = isStop ? 'var(--red)' : 'var(--green)';
+
+  card.innerHTML = `
+    <div class="op-card-header">
+      <div class="op-icon">${op.icon || '⚙️'}</div>
+      <div style="flex:1;min-width:0">
+        <div class="op-title">${escHtml(op.label)}</div>
+        <div class="op-meta">EBS · SQL · Control</div>
+      </div>
+      <span class="result-hdr-badge" id="result-hdr-badge-${op.key}" style="display:none"></span>
+    </div>
+    <div class="op-preview">${escHtml(op.desc)}</div>
+    <div class="op-actions" id="op-actions-${op.key}">
+      <button class="btn btn-outline" style="color:${col};border-color:${isStop ? 'rgba(248,113,113,0.4)' : 'rgba(52,211,153,0.4)'}"
+        id="run-wf-ctrl-${op.key}"
+        onclick="${noConn ? '' : `showWfCtrlConfirm('${op.key}','${escHtml(op.label)}')`}"
+        ${noConn ? 'disabled' : ''}>${op.icon} ${escHtml(op.label)}</button>
+    </div>
+    <div id="wf-ctrl-confirm-${op.key}" style="display:none;margin-top:8px;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;font-size:12px"></div>
+    <div class="result-panel" id="result-${op.key}"></div>`;
+
+  container.appendChild(card);
+}
+
+function showWfCtrlConfirm(opKey, label) {
+  const el = document.getElementById('wf-ctrl-confirm-' + opKey);
+  if (!el) return;
+  const isStop = opKey.endsWith('_stop');
+  el.style.display = '';
+  el.innerHTML = `
+    <div style="color:var(--yellow);font-weight:600;margin-bottom:5px">⚠ ${escHtml(label)}</div>
+    <div style="color:var(--text-dim);margin-bottom:8px">This affects all WF Mailer components. Type <strong>CONFIRM</strong> to proceed:</div>
+    <div style="display:flex;gap:7px;align-items:center">
+      <input id="wf-ctrl-inp-${opKey}" type="text" placeholder="CONFIRM"
+        style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:12px;padding:5px 9px;border-radius:6px"
+        onkeydown="if(event.key==='Enter')commitWfCtrlConfirm('${opKey}')">
+      <button class="btn btn-run" style="background:var(--${isStop ? 'red' : 'green'})"
+        onclick="commitWfCtrlConfirm('${opKey}')">Confirm</button>
+      <button class="btn btn-outline" onclick="cancelWfCtrlConfirm('${opKey}')">Cancel</button>
+    </div>`;
+  setTimeout(() => document.getElementById('wf-ctrl-inp-' + opKey)?.focus(), 50);
+}
+
+function cancelWfCtrlConfirm(opKey) {
+  const el = document.getElementById('wf-ctrl-confirm-' + opKey);
+  if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+}
+
+async function commitWfCtrlConfirm(opKey) {
+  const inp = document.getElementById('wf-ctrl-inp-' + opKey);
+  if (!inp || inp.value.trim().toUpperCase() !== 'CONFIRM') {
+    if (inp) { inp.style.borderColor = 'var(--red)'; setTimeout(() => { inp.style.borderColor = ''; }, 1500); }
+    return;
+  }
+  cancelWfCtrlConfirm(opKey);
+  await runEbsOp(opKey);
+  // Auto-run mailer status after start/stop
+  setTimeout(() => runEbsOp('mailer_status'), 1000);
+}
+
+// ── WF Mailer SQL op card (supports paramDef) ─────────────────────────────────
+function renderWfMailerOpCard(op, container) {
+  const card = document.createElement('div');
+  card.className = 'op-card';
+  card.id = 'card-' + op.key;
+  const noConn = !selectedConn;
+  const hasParam = !!op.paramDef;
+
+  let paramHtml = '';
+  if (hasParam) {
+    for (const [name, def] of Object.entries(op.paramDef)) {
+      paramHtml += `
+        <div style="margin:8px 0 4px;font-size:11px;color:var(--text-dim)">${escHtml(def.label)}:</div>
+        <input id="param-${op.key}-${name}" type="text" placeholder="${escHtml(def.placeholder || '')}"
+          style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:12px;padding:5px 9px;border-radius:6px;margin-bottom:6px">`;
+    }
+  }
+
+  const previewText = hasParam ? op.desc : (op.sql || op.desc);
+
+  card.innerHTML = `
+    <div class="op-card-header">
+      <div class="op-icon">${op.icon || '📊'}</div>
+      <div style="flex:1;min-width:0">
+        <div class="op-title">${escHtml(op.label)}</div>
+        <div class="op-meta">EBS · SQL</div>
+      </div>
+      <span class="result-hdr-badge" id="result-hdr-badge-${op.key}" style="display:none"></span>
+    </div>
+    <div class="op-preview">${escHtml(op.desc)}</div>
+    ${paramHtml}
+    <div class="op-actions">
+      <button class="btn btn-run" id="run-${op.key}"
+        onclick="${noConn ? '' : `runWfMailerOp('${op.key}')`}"
+        ${noConn ? 'disabled' : ''}>▶ Run</button>
+    </div>
+    <div class="result-panel" id="result-${op.key}"></div>`;
+
+  container.appendChild(card);
+}
+
+async function runWfMailerOp(opKey) {
+  if (!selectedConn) return;
+  const btn = document.getElementById('run-' + opKey);
+  const resultEl = document.getElementById('result-' + opKey);
+  const op = WF_MAILER_OPS.find(o => o.key === opKey);
+
+  // Collect params if any
+  let opParams = {};
+  if (op && op.paramDef) {
+    for (const [name, def] of Object.entries(op.paramDef)) {
+      const inp = document.getElementById('param-' + opKey + '-' + name);
+      const val = inp ? inp.value.trim() : '';
+      if (def.type === 'integer') {
+        if (!val || isNaN(parseInt(val, 10))) {
+          if (inp) { inp.style.borderColor = 'var(--red)'; setTimeout(() => { inp.style.borderColor = ''; }, 1500); }
+          return;
+        }
+      }
+      opParams[name] = val;
+    }
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Running…';
+  resultEl.classList.add('visible');
+  resultEl.innerHTML = '<div class="result-panel-hdr"><span class="result-hdr-summary ok" style="opacity:.5">Running…</span></div>';
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 35000);
+  try {
+    const body = { connection_id: selectedConn.id, op_key: opKey };
+    if (Object.keys(opParams).length) body.params = opParams;
+    const r = await fetch('/api/ebs-ops/run', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
+    const data = await r.json();
+    if (data.ok) {
+      storeAndRenderResult(opKey, data, true);
+    } else {
+      storeAndRenderResult(opKey, { error: data.error || data.detail || 'Operation failed' }, false);
+    }
+  } catch (err) {
+    clearTimeout(timer);
+    storeAndRenderResult(opKey, { error: err.name === 'AbortError' ? 'Request timed out (35s)' : err.message }, false);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '▶ Run'; }
+  }
+}
+
 // ── Middleware ops catalog (frontend) ─────────────────────────────────────────
+// controlPrefix: op has Start/Stop siblings (adapcctl_start/stop etc.)
+// perServerControl: result panel adds per-server Start/Stop via managed_server_start/stop
 const MIDDLEWARE_OPS = [
-  { key: 'adapcctl_status',        label: 'Apache / OHS Status',   icon: '🔧', desc: 'adapcctl.sh status — check if Apache/OHS is running on this app-tier node.' },
-  { key: 'adopmnctl_status',       label: 'OPMN Status',           icon: '🔁', desc: 'adopmnctl.sh status — check all OPMN-managed components (OC4J, HTTP, etc.).' },
-  { key: 'adalnctl_status',        label: 'Apps Listener Status',  icon: '📡', desc: 'adalnctl.sh status — check the EBS TNS apps-tier listener.' },
-  { key: 'adnodemgrctl_status',    label: 'Node Manager Status',   icon: '🌐', desc: 'adnodemgrctl.sh status — check if WebLogic Node Manager is running.' },
-  { key: 'wls_admin_status',       label: 'WLS Admin Server',      icon: '⚙️',  desc: 'adadminsrvctl.sh status — check if WebLogic AdminServer is running (admin host only).' },
-  { key: 'oacore_status',          label: 'OACore Servers',        icon: '🟦', desc: 'admanagedsrvctl.sh status per OACore managed server from context file.' },
-  { key: 'forms_status',           label: 'Forms Servers',         icon: '🟩', desc: 'admanagedsrvctl.sh status per Forms managed server from context file.' },
-  { key: 'oafm_status',            label: 'OAFM Servers',          icon: '🟨', desc: 'admanagedsrvctl.sh status per OAFM managed server from context file.' },
-  { key: 'managed_servers_status', label: 'All Managed Servers',   icon: '🖥️',  desc: 'admanagedsrvctl.sh status — all managed servers (OACore + Forms + OAFM).' },
+  { key: 'adapcctl_status',        label: 'Apache / OHS',         icon: '🔧', desc: 'adapcctl.sh status — check if Apache/OHS is running on this app-tier node.',             controlPrefix: 'adapcctl'     },
+  { key: 'adopmnctl_status',       label: 'OPMN',                 icon: '🔁', desc: 'adopmnctl.sh status — check all OPMN-managed components (OC4J, HTTP, etc.).',             controlPrefix: 'adopmnctl'    },
+  { key: 'adalnctl_status',        label: 'Apps Listener',        icon: '📡', desc: 'adalnctl.sh status — check the EBS TNS apps-tier listener.',                              controlPrefix: 'adalnctl'     },
+  { key: 'adnodemgrctl_status',    label: 'Node Manager',         icon: '🌐', desc: 'adnodemgrctl.sh status — check if WebLogic Node Manager is running.',                     controlPrefix: 'adnodemgrctl' },
+  { key: 'wls_admin_status',       label: 'WLS Admin Server',     icon: '⚙️',  desc: 'adadminsrvctl.sh status — check if WebLogic AdminServer is running (admin host only).',  controlPrefix: 'wls_admin'    },
+  { key: 'oacore_status',          label: 'OACore Servers',       icon: '🟦', desc: 'admanagedsrvctl.sh status per OACore managed server from context file.',                  perServerControl: true        },
+  { key: 'forms_status',           label: 'Forms Servers',        icon: '🟩', desc: 'admanagedsrvctl.sh status per Forms managed server from context file.',                   perServerControl: true        },
+  { key: 'oafm_status',            label: 'OAFM Servers',         icon: '🟨', desc: 'admanagedsrvctl.sh status per OAFM managed server from context file.',                   perServerControl: true        },
+  { key: 'managed_servers_status', label: 'All Managed Servers',  icon: '🖥️',  desc: 'admanagedsrvctl.sh status — all managed servers (OACore + Forms + OAFM).',              perServerControl: true        },
+];
+
+// ── CM control ops for Concurrent Processing tab ─────────────────────────────
+const CM_CTRL_OPS = [
+  { key: 'adcmctl_status', label: 'Concurrent Manager', icon: '🏭', desc: 'adcmctl.sh status / start / stop — Concurrent Manager control via agent tunnel.', controlPrefix: 'adcmctl' },
 ];
 
 // ── Tab 1: Service Status ─────────────────────────────────────────────────────
@@ -526,50 +772,194 @@ function renderMiddlewareTab(container) {
 }
 
 
-// ── Middleware op card (same structure as SQL op-cards; uses runMiddlewareOp) ──
+// ── Inline confirm state (opKey → { showing, pendingAction, serverName? }) ────
+const _confirmState = new Map();
+
+// ── Middleware op card ────────────────────────────────────────────────────────
 function renderMiddlewareOpCard(op, container) {
   const card = document.createElement('div');
   card.className = 'op-card';
   card.id = 'mw-card-' + op.key;
   const noConn = !selectedConn;
+  const hasCtrl = !!op.controlPrefix;
+  const metaLabel = hasCtrl ? 'EBS · Agent · Control' : 'EBS · Agent';
+
+  let actionBtns = '';
+  if (hasCtrl) {
+    const p = op.controlPrefix;
+    actionBtns = `
+      <button class="btn btn-run" id="run-mw-${op.key}"
+        onclick="${noConn ? '' : `runMiddlewareOp('${op.key}')`}"
+        ${noConn ? 'disabled' : ''}>▶ Status</button>
+      <button class="btn btn-outline" style="color:var(--green);border-color:rgba(52,211,153,0.4)"
+        id="start-mw-${p}" onclick="${noConn ? '' : `showMwConfirm('${op.key}','${p}_start','Start','${escHtml(op.label)}')`}"
+        ${noConn ? 'disabled' : ''}>▶ Start</button>
+      <button class="btn btn-outline" style="color:var(--red);border-color:rgba(248,113,113,0.4)"
+        id="stop-mw-${p}" onclick="${noConn ? '' : `showMwConfirm('${op.key}','${p}_stop','Stop','${escHtml(op.label)}')`}"
+        ${noConn ? 'disabled' : ''}>▶ Stop</button>`;
+  } else {
+    actionBtns = `
+      <button class="btn btn-run" id="run-mw-${op.key}"
+        onclick="${noConn ? '' : `runMiddlewareOp('${op.key}')`}"
+        ${noConn ? 'disabled' : ''}>▶ Run</button>`;
+  }
 
   card.innerHTML = `
     <div class="op-card-header">
       <div class="op-icon">${op.icon || '⚙️'}</div>
       <div style="flex:1;min-width:0">
         <div class="op-title">${escHtml(op.label)}</div>
-        <div class="op-meta">EBS · Agent</div>
+        <div class="op-meta">${metaLabel}</div>
       </div>
       <span class="result-hdr-badge" id="result-hdr-badge-mw-${op.key}" style="display:none"></span>
     </div>
     <div class="op-preview" id="preview-mw-${op.key}">${escHtml(op.desc)}</div>
-    <div class="op-actions">
-      <button class="btn btn-run" id="run-mw-${op.key}"
-        onclick="${noConn ? '' : `runMiddlewareOp('${op.key}')`}"
-        ${noConn ? 'disabled' : ''}
-        title="${noConn ? 'Select a connection first' : ''}">
-        ▶ Run
-      </button>
-    </div>
+    <div class="op-actions" id="op-actions-mw-${op.key}">${actionBtns}</div>
+    <div id="mw-confirm-${op.key}" style="display:none;margin-top:8px;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;font-size:12px"></div>
     <div class="result-panel" id="result-mw-${op.key}"></div>`;
 
   container.appendChild(card);
 }
 
+// ── Show inline CONFIRM for middleware Start/Stop ─────────────────────────────
+function showMwConfirm(statusKey, ctrlOpKey, action, svcLabel) {
+  if (!selectedConn) return;
+  const confirmEl = document.getElementById('mw-confirm-' + statusKey);
+  if (!confirmEl) return;
+  _confirmState.set(statusKey, { action, ctrlOpKey });
+  confirmEl.style.display = '';
+  confirmEl.innerHTML = `
+    <div style="margin-bottom:6px;color:var(--yellow);font-weight:600">⚠ ${escHtml(action)} ${escHtml(svcLabel)}</div>
+    <div style="color:var(--text-dim);margin-bottom:8px">Type <strong>CONFIRM</strong> to proceed:</div>
+    <div style="display:flex;gap:7px;align-items:center">
+      <input id="mw-confirm-input-${statusKey}" type="text" placeholder="CONFIRM"
+        style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:12px;padding:5px 9px;border-radius:6px"
+        onkeydown="if(event.key==='Enter')commitMwConfirm('${statusKey}','${statusKey}')">
+      <button class="btn btn-run" style="background:var(--${action === 'Start' ? 'green' : 'red'})"
+        onclick="commitMwConfirm('${statusKey}','${statusKey}')">Confirm</button>
+      <button class="btn btn-outline" onclick="cancelMwConfirm('${statusKey}')">Cancel</button>
+    </div>`;
+  setTimeout(() => document.getElementById('mw-confirm-input-' + statusKey)?.focus(), 50);
+}
+
+function cancelMwConfirm(statusKey) {
+  _confirmState.delete(statusKey);
+  const confirmEl = document.getElementById('mw-confirm-' + statusKey);
+  if (confirmEl) { confirmEl.style.display = 'none'; confirmEl.innerHTML = ''; }
+}
+
+async function commitMwConfirm(statusKey, confirmKey) {
+  const inp = document.getElementById('mw-confirm-input-' + confirmKey);
+  if (!inp || inp.value.trim().toUpperCase() !== 'CONFIRM') {
+    if (inp) { inp.style.borderColor = 'var(--red)'; setTimeout(() => { inp.style.borderColor = ''; }, 1500); }
+    return;
+  }
+  const state = _confirmState.get(statusKey);
+  if (!state) return;
+  cancelMwConfirm(statusKey);
+  await runMiddlewareOp(state.ctrlOpKey);
+  // Auto-run status after control op
+  const statusOpKey = statusKey.replace(/^mw-/, '');  // 'adapcctl_status'
+  const mwOp = MIDDLEWARE_OPS.find(o => o.key === statusKey) || CM_CTRL_OPS.find(o => o.key === statusKey);
+  if (mwOp && mwOp.controlPrefix) {
+    setTimeout(() => runMiddlewareOp(mwOp.key), 500);
+  }
+}
+
+// ── Show inline CONFIRM for per-server Start/Stop ─────────────────────────────
+function _srvKey(name) { return name.replace(/[^a-zA-Z0-9_-]/g, '_'); }
+
+function showServerConfirm(serverName, action, parentOpKey) {
+  if (!selectedConn) return;
+  const sk = _srvKey(serverName);
+  const el = document.getElementById('srv-confirm-' + sk);
+  if (!el) return;
+  el.style.display = '';
+  const ctrlOp = action === 'Start' ? 'managed_server_start' : 'managed_server_stop';
+  const col = action === 'Start' ? 'var(--green)' : 'var(--red)';
+  el.innerHTML = `
+    <div style="padding:8px;background:var(--surface-2);border-top:1px solid var(--border);font-size:12px">
+      <div style="color:var(--yellow);font-weight:600;margin-bottom:5px">⚠ ${escHtml(action)} ${escHtml(serverName)}</div>
+      <div style="display:flex;gap:7px;align-items:center">
+        <input id="srv-inp-${sk}" type="text" placeholder="CONFIRM"
+          style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:12px;padding:4px 8px;border-radius:5px"
+          onkeydown="if(event.key==='Enter')commitServerConfirm('${sk}','${escHtml(serverName)}','${ctrlOp}','${parentOpKey}')">
+        <button class="btn btn-run" style="background:${col};padding:4px 10px;font-size:11px"
+          onclick="commitServerConfirm('${sk}','${escHtml(serverName)}','${ctrlOp}','${parentOpKey}')">Confirm</button>
+        <button class="btn btn-outline" style="padding:4px 10px;font-size:11px"
+          onclick="cancelServerConfirm('${sk}')">Cancel</button>
+      </div>
+    </div>`;
+  setTimeout(() => document.getElementById('srv-inp-' + sk)?.focus(), 50);
+}
+
+function cancelServerConfirm(sk) {
+  const el = document.getElementById('srv-confirm-' + sk);
+  if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+}
+
+async function commitServerConfirm(sk, serverName, ctrlOpKey, parentOpKey) {
+  const inp = document.getElementById('srv-inp-' + sk);
+  if (!inp || inp.value.trim().toUpperCase() !== 'CONFIRM') {
+    if (inp) { inp.style.borderColor = 'var(--red)'; setTimeout(() => { inp.style.borderColor = ''; }, 1500); }
+    return;
+  }
+  cancelServerConfirm(sk);
+  await runMiddlewareOpWithServerName(ctrlOpKey, serverName);
+  setTimeout(() => runMiddlewareOp(parentOpKey), 500);
+}
+
+// ── Run middleware op with server_name (for per-server start/stop) ────────────
+async function runMiddlewareOpWithServerName(opKey, serverName) {
+  if (!selectedConn) return;
+  const storeKey = 'mw-' + opKey + '-' + serverName;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 135000);
+  try {
+    const r = await fetch('/api/ebs-ops/middleware-run', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ connection_id: selectedConn.id, op_key: opKey, server_name: serverName }),
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
+    const data = await r.json();
+    storeAndRenderMiddlewareResult(storeKey, data);
+  } catch (err) {
+    clearTimeout(timer);
+    storeAndRenderMiddlewareResult(storeKey, { ok: false, error: err.name === 'AbortError' ? 'Request timed out' : err.message });
+  }
+}
+
 // ── Run middleware op ─────────────────────────────────────────────────────────
+const _MW_TIMEOUTS = {
+  adapcctl_start: 68000,  adapcctl_stop: 68000,
+  adopmnctl_start: 68000, adopmnctl_stop: 68000,
+  adalnctl_start: 38000,  adalnctl_stop: 38000,
+  adnodemgrctl_start: 68000, adnodemgrctl_stop: 68000,
+  wls_admin_start: 135000, wls_admin_stop: 135000,
+  managed_server_start: 135000, managed_server_stop: 135000,
+  adcmctl_start: 135000, adcmctl_stop: 135000,
+};
+
 async function runMiddlewareOp(opKey) {
   if (!selectedConn) return;
-  const btn      = document.getElementById('run-mw-' + opKey);
-  const resultEl = document.getElementById('result-mw-' + opKey);
-  const storeKey = 'mw-' + opKey;
+  // For control ops, the "status" run btn still shows ▶ Status; for others, ▶ Run
+  const isCtrlOp = opKey.endsWith('_start') || opKey.endsWith('_stop');
+  const statusKey = isCtrlOp ? opKey.replace(/_start$|_stop$/, '_status') : opKey;
+  const btn      = document.getElementById('run-mw-' + (isCtrlOp ? statusKey : opKey));
+  const resultEl = document.getElementById('result-mw-' + (isCtrlOp ? statusKey : opKey));
+  const storeKey = 'mw-' + (isCtrlOp ? statusKey : opKey);
 
-  btn.disabled = true;
-  btn.innerHTML = '<div class="spinner"></div> Running…';
-  resultEl.classList.add('visible');
-  resultEl.innerHTML = '<div class="result-panel-hdr"><span class="result-hdr-summary ok" style="opacity:.5">Running…</span></div>';
+  if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Running…'; }
+  if (resultEl) {
+    resultEl.classList.add('visible');
+    resultEl.innerHTML = '<div class="result-panel-hdr"><span class="result-hdr-summary ok" style="opacity:.5">Running…</span></div>';
+  }
 
+  const timeoutMs = _MW_TIMEOUTS[opKey] || 38000;
   const ctrl  = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 38000);
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const r = await fetch('/api/ebs-ops/middleware-run', {
       method: 'POST', credentials: 'include',
@@ -586,10 +976,14 @@ async function runMiddlewareOp(opKey) {
     }
   } catch (err) {
     clearTimeout(timer);
-    const msg = err.name === 'AbortError' ? 'Request timed out (38s)' : err.message;
+    const msg = err.name === 'AbortError' ? 'Request timed out (' + Math.round(timeoutMs / 1000) + 's)' : err.message;
     storeAndRenderMiddlewareResult(storeKey, { ok: false, error: msg });
   } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = '▶ Run'; }
+    if (btn) {
+      btn.disabled = false;
+      const mwOp = MIDDLEWARE_OPS.find(o => o.key === (isCtrlOp ? statusKey : opKey)) || CM_CTRL_OPS.find(o => o.key === (isCtrlOp ? statusKey : opKey));
+      btn.innerHTML = (mwOp && mwOp.controlPrefix) ? '▶ Status' : '▶ Run';
+    }
   }
 }
 
@@ -626,7 +1020,7 @@ function parseServerBlocks(stdout) {
   return blocks;
 }
 
-function renderServerBlocks(blocks) {
+function renderServerBlocks(blocks, parentOpKey) {
   if (!blocks.length) return '';
   let html = '<div class="server-blocks">';
   for (const b of blocks) {
@@ -637,14 +1031,26 @@ function renderServerBlocks(blocks) {
     } else if (b.state === 'NOT_DEPLOYED') {
       blockCls = 'server-na';  badgeCls = 'na';   badgeLabel = '— Not deployed';
     } else if (b.state === 'DOWN' && isOptional) {
-      blockCls = 'server-warn'; badgeCls = 'warn'; badgeLabel = '⚠ Optional / not running';
+      blockCls = 'server-warn'; badgeCls = 'warn'; badgeLabel = isOptional ? '⚠ Optional' : '✗ Stopped';
     } else if (b.state === 'DOWN') {
       blockCls = 'server-err';  badgeCls = 'err';  badgeLabel = '✗ Stopped';
     } else {
       blockCls = 'server-na';  badgeCls = 'na';   badgeLabel = '? Unknown';
     }
+    const canCtrl = parentOpKey && b.state !== 'NOT_DEPLOYED' && selectedConn;
+    const srvKey = b.name.replace(/[^a-zA-Z0-9_-]/g, '_');
     html += `<div class="server-block ${blockCls}">`;
-    html += `<div class="server-block-hdr"><span class="server-name">${escHtml(b.name)}</span><span class="server-badge ${badgeCls}">${badgeLabel}</span></div>`;
+    html += `<div class="server-block-hdr">`;
+    html += `<span class="server-name">${escHtml(b.name)}</span>`;
+    html += `<span class="server-badge ${badgeCls}">${badgeLabel}</span>`;
+    if (canCtrl) {
+      html += `<span style="margin-left:auto;display:flex;gap:5px;padding-left:8px">`;
+      html += `<button class="btn btn-outline" style="padding:2px 8px;font-size:10px;color:var(--green);border-color:rgba(52,211,153,0.4)" onclick="showServerConfirm('${escHtml(b.name)}','Start','${parentOpKey}')">▶ Start</button>`;
+      html += `<button class="btn btn-outline" style="padding:2px 8px;font-size:10px;color:var(--red);border-color:rgba(248,113,113,0.4)" onclick="showServerConfirm('${escHtml(b.name)}','Stop','${parentOpKey}')">▶ Stop</button>`;
+      html += `</span>`;
+    }
+    html += `</div>`;
+    html += `<div id="srv-confirm-${escHtml(srvKey)}" style="display:none"></div>`;
     if (b.output.trim()) {
       html += `<details class="server-raw"><summary>Raw output</summary><pre>${escHtml(b.output.trim())}</pre></details>`;
     }
@@ -697,9 +1103,11 @@ function storeAndRenderMiddlewareResult(storeKey, data) {
       bodyHtml += `<div class="result-text">Servers in context file: ${escHtml(known.join(', '))}</div>`;
     }
   } else {
+    const _srcOp = MIDDLEWARE_OPS.find(o => 'mw-' + o.key === storeKey) || CM_CTRL_OPS.find(o => 'mw-' + o.key === storeKey);
+    const _parentKey = (_srcOp && _srcOp.perServerControl) ? _srcOp.key : null;
     const serverBlocks = parseServerBlocks(stdout);
     if (serverBlocks.length > 0) {
-      bodyHtml = renderServerBlocks(serverBlocks);
+      bodyHtml = renderServerBlocks(serverBlocks, _parentKey);
       // Show TV_SUMMARY line (appended by proxy for managed-server ops)
       const sumMatch = stdout.match(/^TV_SUMMARY: (.+)$/m);
       if (sumMatch) {
@@ -1014,8 +1422,12 @@ function storeAndRenderResult(opKey, data, isOk) {
   const rowCount = isOk && data.rows ? data.rows.length : 0;
   let summaryText;
   if (isOk) {
-    summaryText = '✓ ' + rowCount + ' row' + (rowCount !== 1 ? 's' : '');
-    if (data.durationMs) summaryText += ' · ' + data.durationMs + 'ms';
+    if (rowCount === 0 && (!data.columns || !data.columns.length)) {
+      summaryText = '✓ Done' + (data.durationMs ? ' · ' + data.durationMs + 'ms' : '');
+    } else {
+      summaryText = '✓ ' + rowCount + ' row' + (rowCount !== 1 ? 's' : '');
+      if (data.durationMs) summaryText += ' · ' + data.durationMs + 'ms';
+    }
   } else {
     summaryText = '✗ Error';
   }

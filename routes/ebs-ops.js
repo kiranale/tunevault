@@ -120,6 +120,14 @@ const EBS_OPS_CATALOG = {
             AND PROCESSOR_ID IS NULL
         ) ORDER BY 1`,
   },
+  opp_manager_status: {
+    label: 'OPP Manager Status',
+    sql: `SELECT USER_CONCURRENT_QUEUE_NAME AS manager_name,
+               CONCURRENT_QUEUE_NAME, MANAGER_TYPE,
+               RUNNING_PROCESSES, TARGET_PROCESSES, MAX_PROCESSES, ENABLED_FLAG
+        FROM FND_CONCURRENT_QUEUES_VL
+        WHERE CONCURRENT_QUEUE_NAME = 'FNDCPOPP'`,
+  },
   opp_heap_size: {
     label: 'OPP Heap Size',
     sql: `SELECT DEVELOPER_PARAMETERS
@@ -163,6 +171,97 @@ const EBS_OPS_CATALOG = {
         )
         GROUP BY OWNER, OBJECT_TYPE
         ORDER BY invalid_count DESC`,
+  },
+  // ── WF Mailer control (PL/SQL) ────────────────────────────────────────────
+  wf_mailer_start: {
+    label: 'Start WF Mailer',
+    destructive: true,
+    sql: `BEGIN
+  FOR c IN (SELECT component_id FROM fnd_svc_components WHERE component_type LIKE 'WF%' AND UPPER(component_name) LIKE '%MAILER%') LOOP
+    fnd_svc_component.start_component(c.component_id);
+  END LOOP;
+  COMMIT;
+END;`,
+  },
+  wf_mailer_stop: {
+    label: 'Stop WF Mailer',
+    destructive: true,
+    sql: `BEGIN
+  FOR c IN (SELECT component_id FROM fnd_svc_components WHERE component_type LIKE 'WF%' AND UPPER(component_name) LIKE '%MAILER%') LOOP
+    fnd_svc_component.stop_component(c.component_id);
+  END LOOP;
+  COMMIT;
+END;`,
+  },
+  // ── WF Mailer query ops ────────────────────────────────────────────────────
+  mailer_status: {
+    label: 'WF Mailer Status',
+    sql: `SELECT COMPONENT_ID, COMPONENT_NAME, COMPONENT_STATUS,
+               STARTUP_MODE, COMPONENT_TYPE, INBOUND_AGENT_NAME, OUTBOUND_AGENT_NAME,
+               LAST_ERROR_MESSAGE, LAST_ERROR_DATE
+        FROM FND_SVC_COMPONENTS
+        WHERE COMPONENT_TYPE LIKE 'WF%'
+        ORDER BY COMPONENT_TYPE, COMPONENT_NAME`,
+  },
+  stuck_notifications: {
+    label: 'Stuck Notifications (>1h)',
+    sql: `SELECT NOTIFICATION_ID, STATUS, MAIL_STATUS,
+               BEGIN_DATE, SUBJECT, FROM_USER, TO_USER, RECIPIENT_ROLE
+        FROM WF_NOTIFICATIONS
+        WHERE STATUS = 'OPEN'
+        AND MAIL_STATUS IN ('MAIL', 'INVALID')
+        AND BEGIN_DATE < SYSDATE - 1/24
+        ORDER BY BEGIN_DATE
+        FETCH FIRST 50 ROWS ONLY`,
+  },
+  wf_errors_24h: {
+    label: 'WF Errors (24h)',
+    sql: `SELECT ITEM_TYPE, ITEM_KEY, ACTIVITY_STATUS,
+               ERROR_NAME, ERROR_MESSAGE, ERROR_STACK, ERROR_DATE
+        FROM WF_ITEM_ACTIVITY_STATUSES
+        WHERE ACTIVITY_STATUS = 'ERROR'
+        AND ERROR_DATE > SYSDATE - 1
+        ORDER BY ERROR_DATE DESC
+        FETCH FIRST 100 ROWS ONLY`,
+  },
+  wf_errors_7d: {
+    label: 'WF Errors (7 days)',
+    sql: `SELECT ITEM_TYPE, ITEM_KEY, ACTIVITY_STATUS,
+               ERROR_NAME, ERROR_MESSAGE, ERROR_STACK, ERROR_DATE
+        FROM WF_ITEM_ACTIVITY_STATUSES
+        WHERE ACTIVITY_STATUS = 'ERROR'
+        AND ERROR_DATE > SYSDATE - 7
+        ORDER BY ERROR_DATE DESC
+        FETCH FIRST 100 ROWS ONLY`,
+  },
+  mailer_queue: {
+    label: 'WF Mailer Queues',
+    sql: `SELECT NAME, QUEUE_TYPE, ENQUEUE_ENABLED, DEQUEUE_ENABLED,
+               RETENTION, NETWORK_NAME
+        FROM DBA_QUEUES
+        WHERE QUEUE_TYPE = 'NORMAL_QUEUE'
+        AND NAME LIKE 'WF%'
+        ORDER BY NAME`,
+  },
+  wf_open_count: {
+    label: 'Open Notifications by Mail Status',
+    sql: `SELECT MAIL_STATUS, COUNT(*) AS notification_count
+        FROM WF_NOTIFICATIONS
+        WHERE STATUS = 'OPEN'
+        GROUP BY MAIL_STATUS
+        ORDER BY notification_count DESC`,
+  },
+  notification_by_id: {
+    label: 'Notification by ID',
+    paramDef: { notification_id: 'integer' },
+    buildSql: (params) => {
+      const nid = parseInt(params.notification_id, 10);
+      return `SELECT NOTIFICATION_ID, STATUS, MAIL_STATUS, SENT_DATE,
+               BEGIN_DATE, END_DATE, SUBJECT, FROM_USER, TO_USER,
+               RECIPIENT_ROLE, MESSAGE_TYPE, MESSAGE_NAME, PRIORITY
+        FROM WF_NOTIFICATIONS
+        WHERE NOTIFICATION_ID = ${nid}`;
+    },
   },
 };
 
@@ -222,10 +321,10 @@ router.get('/ebs-ops', requireAuth, (req, res) => {
 });
 
 // ── POST /api/ebs-ops/run ─────────────────────────────────────────────────────
-// Body: { connection_id, op_key }
+// Body: { connection_id, op_key, params? }
 
 router.post('/api/ebs-ops/run', requireAuth, async (req, res) => {
-  const { connection_id, op_key } = req.body || {};
+  const { connection_id, op_key, params: opParams } = req.body || {};
   if (!connection_id || !op_key) {
     return res.status(400).json({ error: 'connection_id and op_key required' });
   }
@@ -233,6 +332,21 @@ router.post('/api/ebs-ops/run', requireAuth, async (req, res) => {
   const opDef = EBS_OPS_CATALOG[op_key];
   if (!opDef) {
     return res.status(400).json({ error: `Unknown op_key: ${op_key}` });
+  }
+
+  // Validate and build SQL for parameterised ops
+  let sql;
+  if (opDef.paramDef) {
+    const p = opParams || {};
+    for (const [name, type] of Object.entries(opDef.paramDef)) {
+      if (type === 'integer') {
+        const val = parseInt(p[name], 10);
+        if (isNaN(val)) return res.status(400).json({ error: `${name} must be an integer` });
+      }
+    }
+    sql = opDef.buildSql(p);
+  } else {
+    sql = opDef.sql;
   }
 
   let connParams;
@@ -305,7 +419,7 @@ router.post('/api/ebs-ops/run', requireAuth, async (req, res) => {
       method: 'POST',
       path: '/api/run_sql',
       body: {
-        sql: opDef.sql,
+        sql,
         service_name: sqlServiceName,
         username: sqlUsername,
         password: sqlPassword,
@@ -332,22 +446,39 @@ router.post('/api/ebs-ops/run', requireAuth, async (req, res) => {
 // ── Middleware op catalog (maps op_key → proxy op string) ─────────────────────
 const MIDDLEWARE_OPS_CATALOG = {
   adapcctl_status:        { label: 'Apache / OHS Status',     proxyOp: 'adapcctl_status'        },
+  adapcctl_start:         { label: 'Apache / OHS Start',      proxyOp: 'adapcctl_start',        destructive: true },
+  adapcctl_stop:          { label: 'Apache / OHS Stop',       proxyOp: 'adapcctl_stop',         destructive: true },
   adopmnctl_status:       { label: 'OPMN Status',             proxyOp: 'adopmnctl_status'       },
+  adopmnctl_start:        { label: 'OPMN Start',              proxyOp: 'adopmnctl_start',       destructive: true },
+  adopmnctl_stop:         { label: 'OPMN Stop',               proxyOp: 'adopmnctl_stop',        destructive: true },
   adalnctl_status:        { label: 'Apps Listener Status',    proxyOp: 'adalnctl_status'        },
+  adalnctl_start:         { label: 'Apps Listener Start',     proxyOp: 'adalnctl_start',        destructive: true },
+  adalnctl_stop:          { label: 'Apps Listener Stop',      proxyOp: 'adalnctl_stop',         destructive: true },
   adnodemgrctl_status:    { label: 'Node Manager Status',     proxyOp: 'adnodemgrctl_status'    },
+  adnodemgrctl_start:     { label: 'Node Manager Start',      proxyOp: 'adnodemgrctl_start',    destructive: true },
+  adnodemgrctl_stop:      { label: 'Node Manager Stop',       proxyOp: 'adnodemgrctl_stop',     destructive: true },
   wls_admin_status:       { label: 'WLS Admin Server',        proxyOp: 'wls_admin_status'       },
+  wls_admin_start:        { label: 'WLS Admin Start',         proxyOp: 'wls_admin_start',       destructive: true },
+  wls_admin_stop:         { label: 'WLS Admin Stop',          proxyOp: 'wls_admin_stop',        destructive: true },
   oacore_status:          { label: 'OACore Servers',          proxyOp: 'oacore_status'          },
   forms_status:           { label: 'Forms Servers',           proxyOp: 'forms_status'           },
   oafm_status:            { label: 'OAFM Servers',            proxyOp: 'oafm_status'            },
   managed_servers_status: { label: 'All Managed Servers',     proxyOp: 'managed_servers_status' },
+  managed_server_start:   { label: 'Managed Server Start',    proxyOp: 'managed_server_start',  destructive: true, requiresServerName: true },
+  managed_server_stop:    { label: 'Managed Server Stop',     proxyOp: 'managed_server_stop',   destructive: true, requiresServerName: true },
+  adcmctl_status:         { label: 'CM Status',               proxyOp: 'adcmctl_status'         },
+  adcmctl_start:          { label: 'CM Start All',            proxyOp: 'adcmctl_start',         destructive: true },
+  adcmctl_stop:           { label: 'CM Stop All',             proxyOp: 'adcmctl_stop',          destructive: true },
 };
 
 // ── POST /api/ebs-ops/middleware-run ──────────────────────────────────────────
-// Body: { connection_id, op_key }
+// Body: { connection_id, op_key, server_name? }
 // Routes to the app-tier agent's /api/ebs-ctrl endpoint.
 
+const _SERVER_NAME_RE = /^[a-zA-Z0-9_-]{1,64}$/;
+
 router.post('/api/ebs-ops/middleware-run', requireAuth, async (req, res) => {
-  const { connection_id, op_key } = req.body || {};
+  const { connection_id, op_key, server_name } = req.body || {};
   if (!connection_id || !op_key) {
     return res.status(400).json({ error: 'connection_id and op_key required' });
   }
@@ -355,6 +486,12 @@ router.post('/api/ebs-ops/middleware-run', requireAuth, async (req, res) => {
   const opDef = MIDDLEWARE_OPS_CATALOG[op_key];
   if (!opDef) {
     return res.status(400).json({ error: `Unknown middleware op_key: ${op_key}` });
+  }
+
+  if (opDef.requiresServerName) {
+    if (!server_name || !_SERVER_NAME_RE.test(server_name)) {
+      return res.status(400).json({ error: 'server_name required and must match ^[a-zA-Z0-9_-]{1,64}$' });
+    }
   }
 
   let conn;
@@ -381,12 +518,24 @@ router.post('/api/ebs-ops/middleware-run', requireAuth, async (req, res) => {
   }
 
   try {
-    const managedServerOps = new Set(['oacore_status', 'forms_status', 'oafm_status', 'managed_servers_status']);
-    const ctrlTimeout = managedServerOps.has(op_key) ? 130000 : op_key === 'wls_admin_status' ? 75000 : 35000;
+    const _ctrlTimeoutMap = {
+      adapcctl_status: 25000,    adapcctl_start: 65000,     adapcctl_stop: 65000,
+      adopmnctl_status: 25000,   adopmnctl_start: 65000,    adopmnctl_stop: 65000,
+      adalnctl_status: 25000,    adalnctl_start: 35000,     adalnctl_stop: 35000,
+      adnodemgrctl_status: 40000, adnodemgrctl_start: 65000, adnodemgrctl_stop: 65000,
+      wls_admin_status: 75000,   wls_admin_start: 130000,   wls_admin_stop: 130000,
+      oacore_status: 130000,     forms_status: 130000,      oafm_status: 130000,
+      managed_servers_status: 130000,
+      managed_server_start: 130000, managed_server_stop: 130000,
+      adcmctl_status: 35000,     adcmctl_start: 130000,     adcmctl_stop: 130000,
+    };
+    const ctrlTimeout = _ctrlTimeoutMap[op_key] || 40000;
+    const proxyBody = { op: opDef.proxyOp, weblogic_pwd: conn.weblogicPwd || '', apps_pwd: conn.appsPwd || '' };
+    if (opDef.requiresServerName && server_name) proxyBody.server_name = server_name;
     const proxyResp = await channel.sendToAgent(conn.id, {
       method: 'POST',
       path: '/api/ebs-ctrl',
-      body: { op: opDef.proxyOp, weblogic_pwd: conn.weblogicPwd || '', apps_pwd: conn.appsPwd || '' },
+      body: proxyBody,
     }, ctrlTimeout);
     const body = proxyResp.body || {};
     if (proxyResp.statusCode !== 200 || !body.success) {
