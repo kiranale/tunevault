@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.48"  # wf_mailer_start/stop/reset via adcmctl.sh; CM_PROCESSES block in adcmctl_status
+VERSION = "3.20.49"  # wf_mailer_start/stop: targeted fnd_svc_component PL/SQL (not adcmctl); CM_PROCESSES in adcmctl_status
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -6376,9 +6376,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     ]
                     _timeout = 120
 
-                elif op in ("adcmctl_status", "adcmctl_start", "adcmctl_stop", "wf_mailer_start", "wf_mailer_stop"):
-                    _action = {"adcmctl_status": "status", "adcmctl_start": "start", "adcmctl_stop": "stop",
-                               "wf_mailer_start": "start", "wf_mailer_stop": "stop"}.get(op, "status")
+                elif op in ("adcmctl_status", "adcmctl_start", "adcmctl_stop"):
+                    _action = op[len("adcmctl_"):]
                     if _action == "status":
                         _lines = [
                             "#!/bin/bash",
@@ -6408,6 +6407,42 @@ class ProxyHandler(BaseHTTPRequestHandler):
                             "exit $?",
                         ]
                         _timeout = 120
+
+                elif op in ("wf_mailer_start", "wf_mailer_stop"):
+                    # Targeted: only affects WF Notification Mailer via fnd_svc_component PL/SQL.
+                    # Does NOT touch other Concurrent Managers.
+                    _plsql_action = "start_component" if op == "wf_mailer_start" else "stop_component"
+                    _sentinel     = "WF_MAILER_STARTED" if op == "wf_mailer_start" else "WF_MAILER_STOPPED"
+                    _lines = [
+                        "#!/bin/bash",
+                        "export APPS_PWD='%s'" % _ap,
+                        "source '%s' run >/dev/null 2>&1" % _ef,
+                        'if [ -z "$APPS_PWD" ]; then',
+                        '    echo "NO_APPS_PWD"',
+                        '    exit 0',
+                        'fi',
+                        "timeout 55 sqlplus -s \"apps/$APPS_PWD\" 2>&1 <<'SQLEOF'",
+                        'SET SERVEROUTPUT ON',
+                        'DECLARE',
+                        '  l_id NUMBER;',
+                        'BEGIN',
+                        '  SELECT component_id INTO l_id',
+                        '  FROM fnd_svc_components',
+                        "  WHERE component_type = 'WF_MAILER'",
+                        '  AND ROWNUM = 1;',
+                        '  fnd_svc_component.%s(l_id);' % _plsql_action,
+                        '  COMMIT;',
+                        "  DBMS_OUTPUT.PUT_LINE('%s');" % _sentinel,
+                        'EXCEPTION',
+                        '  WHEN NO_DATA_FOUND THEN',
+                        "    DBMS_OUTPUT.PUT_LINE('WF_MAILER_NOT_FOUND');",
+                        'END;',
+                        '/',
+                        'EXIT;',
+                        'SQLEOF',
+                        'exit $?',
+                    ]
+                    _timeout = 60
 
                 elif op == "wf_mailer_reset":
                     _lines = [
@@ -6538,12 +6573,18 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     else:
                         # start/stop use adalnctl.sh; exit code is the primary signal.
                         _ok = _exit == 0
-                elif op in ("adcmctl_status", "adcmctl_start", "adcmctl_stop",
-                             "wf_mailer_start", "wf_mailer_stop", "wf_mailer_reset"):
+                elif op in ("adcmctl_status", "adcmctl_start", "adcmctl_stop", "wf_mailer_reset"):
                     if "NO_APPS_PWD" in _stdout:
                         _ok = True  # neutral — no password configured, not a critical failure
                     else:
                         _ok = _exit == 0
+                elif op in ("wf_mailer_start", "wf_mailer_stop"):
+                    if "NO_APPS_PWD" in _stdout:
+                        _ok = True
+                    elif "WF_MAILER_NOT_FOUND" in _stdout:
+                        _ok = False
+                    else:
+                        _ok = _exit == 0 and ("WF_MAILER_STARTED" in _stdout or "WF_MAILER_STOPPED" in _stdout)
                 elif op in ("oacore_status", "forms_status", "oafm_status", "managed_servers_status"):
                     if "NO_SERVERS_FOUND" in _stdout:
                         _ok = True

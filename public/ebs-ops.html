@@ -525,21 +525,21 @@ function renderConcurrentTab(container) {
 
 // ── Tab 3: WF Mailer ──────────────────────────────────────────────────────────
 function renderWfMailerTab(container) {
-  // ── WF Mailer control (agent ops via adcmctl.sh) ─────────────────────────
+  // ── WF Mailer control ─────────────────────────────────────────────────────
   const ctrlHdr = document.createElement('div');
   ctrlHdr.className = 'sub-header';
   ctrlHdr.innerHTML = `
     <div class="sub-header-icon" style="background:var(--accent-dim);color:var(--accent)">⚡</div>
     <span class="sub-header-label">Mailer Control</span>
-    <span class="sub-header-desc">— adcmctl.sh via agent tunnel · requires APPS password</span>`;
+    <span class="sub-header-desc">— fnd_svc_component PL/SQL via agent tunnel · requires APPS password</span>`;
   container.appendChild(ctrlHdr);
 
   const ctrlGrid = document.createElement('div');
   ctrlGrid.className = 'ops-grid';
   const wfCtrlOps = [
-    { key: 'wf_mailer_stop',  label: 'Stop WF Mailer',  icon: '⏹',  desc: 'adcmctl.sh stop — stops the Concurrent Manager (and WF Mailer services).',  destructive: true },
-    { key: 'wf_mailer_start', label: 'Start WF Mailer', icon: '▶',  desc: 'adcmctl.sh start — starts the Concurrent Manager (and WF Mailer services).', destructive: true },
-    { key: 'wf_mailer_reset', label: 'Reset & Restart', icon: '🔄', desc: 'Clears DEACTIVATED_SYSTEM status via SQL, then stops + starts CM. Use when mailer is stuck due to repeated outbound mail errors.', destructive: true },
+    { key: 'wf_mailer_stop',  label: 'Stop WF Mailer',      icon: '⏹',  desc: 'fnd_svc_component.stop_component — stops only the WF Notification Mailer, leaves other CMs running.',  destructive: true },
+    { key: 'wf_mailer_start', label: 'Start WF Mailer',     icon: '▶',  desc: 'fnd_svc_component.start_component — starts only the WF Notification Mailer.',                           destructive: true },
+    { key: 'wf_mailer_reset', label: 'Reset & Restart All CM', icon: '🔄', desc: 'adcmctl stop/start — restarts ALL Concurrent Managers. Use only for DEACTIVATED_SYSTEM state when WF Mailer has hit max restart limit. This affects all CM queues.', destructive: true, confirmWord: 'RESET-ALL-CM' },
   ];
   wfCtrlOps.forEach(op => renderWfMailerMwCard(op, ctrlGrid));
   container.appendChild(ctrlGrid);
@@ -559,11 +559,12 @@ function renderWfMailerTab(container) {
   container.appendChild(grid);
 }
 
-// ── WF Mailer middleware control card (Stop/Start/Reset via adcmctl.sh) ────────
+// ── WF Mailer middleware control card (Stop/Start/Reset) ─────────────────────
 function renderWfMailerMwCard(op, container) {
   const card = document.createElement('div');
   card.className = 'op-card';
   card.id = 'mw-card-' + op.key;
+  card.dataset.confirmWord = op.confirmWord || 'CONFIRM';
   const noConn = !selectedConn;
   const isStop  = op.key.endsWith('_stop');
   const isReset = op.key.endsWith('_reset');
@@ -595,15 +596,20 @@ function renderWfMailerMwCard(op, container) {
 function showWfMwConfirm(opKey, label) {
   const el = document.getElementById('wf-mw-confirm-' + opKey);
   if (!el) return;
+  const card        = document.getElementById('mw-card-' + opKey);
+  const confirmWord = (card && card.dataset.confirmWord) || 'CONFIRM';
   const isStop  = opKey.endsWith('_stop');
   const isReset = opKey.endsWith('_reset');
   const col = isStop ? 'red' : isReset ? 'yellow' : 'green';
+  const scopeNote = isReset
+    ? 'This restarts <strong>ALL Concurrent Managers</strong> (adcmctl stop/start). All CM queues will be interrupted.'
+    : 'This affects only the WF Notification Mailer component.';
   el.style.display = '';
   el.innerHTML = `
     <div style="color:var(--yellow);font-weight:600;margin-bottom:5px">⚠ ${escHtml(label)}</div>
-    <div style="color:var(--text-dim);margin-bottom:8px">This affects the Concurrent Manager and WF Mailer. Type <strong>CONFIRM</strong> to proceed:</div>
+    <div style="color:var(--text-dim);margin-bottom:8px">${scopeNote} Type <strong>${escHtml(confirmWord)}</strong> to proceed:</div>
     <div style="display:flex;gap:7px;align-items:center">
-      <input id="wf-mw-inp-${opKey}" type="text" placeholder="CONFIRM"
+      <input id="wf-mw-inp-${opKey}" type="text" placeholder="${escHtml(confirmWord)}"
         style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:12px;padding:5px 9px;border-radius:6px"
         onkeydown="if(event.key==='Enter')commitWfMwConfirm('${opKey}')">
       <button class="btn btn-run" style="background:var(--${col})"
@@ -620,7 +626,9 @@ function cancelWfMwConfirm(opKey) {
 
 async function commitWfMwConfirm(opKey) {
   const inp = document.getElementById('wf-mw-inp-' + opKey);
-  if (!inp || inp.value.trim().toUpperCase() !== 'CONFIRM') {
+  const card        = document.getElementById('mw-card-' + opKey);
+  const confirmWord = (card && card.dataset.confirmWord) || 'CONFIRM';
+  if (!inp || inp.value.trim().toUpperCase() !== confirmWord.toUpperCase()) {
     if (inp) { inp.style.borderColor = 'var(--red)'; setTimeout(() => { inp.style.borderColor = ''; }, 1500); }
     return;
   }
@@ -741,7 +749,9 @@ const MIDDLEWARE_OPS = [
 
 // ── CM control ops for Concurrent Processing tab ─────────────────────────────
 const CM_CTRL_OPS = [
-  { key: 'adcmctl_status', label: 'Concurrent Manager', icon: '🏭', desc: 'adcmctl.sh status / start / stop — Concurrent Manager control via agent tunnel.', controlPrefix: 'adcmctl' },
+  { key: 'adcmctl_status', label: 'Concurrent Manager', icon: '🏭',
+    desc: 'adcmctl.sh status/start/stop — controls ALL Concurrent Managers and GSM services. Stop also stops WF Mailer.',
+    controlPrefix: 'adcmctl' },
 ];
 
 // ── Tab 1: Service Status ─────────────────────────────────────────────────────
@@ -948,7 +958,7 @@ const _MW_TIMEOUTS = {
   wls_admin_start: 135000, wls_admin_stop: 135000,
   managed_server_start: 135000, managed_server_stop: 135000,
   adcmctl_start: 135000, adcmctl_stop: 135000,
-  wf_mailer_start: 135000, wf_mailer_stop: 135000, wf_mailer_reset: 200000,
+  wf_mailer_start: 65000,  wf_mailer_stop: 65000,  wf_mailer_reset: 200000,
 };
 
 async function runMiddlewareOp(opKey) {
