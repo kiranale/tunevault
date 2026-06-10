@@ -123,6 +123,9 @@
     .result-table th { text-align: left; padding: 6px 10px; background: var(--surface-2); border-bottom: 1px solid var(--border); color: var(--text-dim); font-size: 11px; white-space: nowrap; }
     .result-table td { padding: 6px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text); max-width: 400px; white-space: normal; word-break: break-word; overflow: visible; text-overflow: unset; }
     .result-table tr:last-child td { border-bottom: none; }
+    .result-table td details.cell-expand summary { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text); cursor: pointer; list-style: none; white-space: pre-wrap; word-break: break-all; }
+    .result-table td details.cell-expand summary::-webkit-details-marker { display: none; }
+    .result-table td details.cell-expand pre { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text); background: #0d0d10; border: 1px solid var(--border); border-radius: 4px; padding: 8px; white-space: pre-wrap; word-break: break-all; margin: 4px 0 0; max-height: 200px; overflow-y: auto; }
     .result-text { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text); background: #0d0d10; border: 1px solid var(--border); border-radius: 6px; padding: 11px; white-space: pre-wrap; word-break: break-all; max-height: 280px; overflow-y: auto; }
 
     /* ── Clear-all bar ── */
@@ -1391,9 +1394,14 @@ function buildResultBodyHtml(data, isOk) {
       html += '<tr>';
       row.forEach(cell => {
         const cellVal = String(cell ?? '');
-        const cellHtml = cellVal.length > 100
-          ? `<td><div style="font-family:monospace;font-size:11px;white-space:pre-wrap;word-break:break-all;max-width:500px;padding:4px">${escHtml(cellVal)}</div></td>`
-          : `<td title="${escHtml(cellVal)}">${escHtml(cellVal)}</td>`;
+        let cellHtml;
+        if (cellVal.length > 80) {
+          const preview = escHtml(cellVal.slice(0, 80));
+          const full    = escHtml(cellVal);
+          cellHtml = `<td><details class="cell-expand"><summary>${preview}…</summary><pre>${full}</pre></details></td>`;
+        } else {
+          cellHtml = `<td title="${escHtml(cellVal)}">${escHtml(cellVal)}</td>`;
+        }
         html += cellHtml;
       });
       html += '</tr>';
