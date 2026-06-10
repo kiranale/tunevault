@@ -20,79 +20,118 @@ const router = express.Router();
 
 // ── Server-side EBS SQL catalog ───────────────────────────────────────────────
 // Keyed by op_key so the client never sends raw SQL.
+// FND_CONCURRENT_REQUESTS does not have CONCURRENT_PROGRAM_NAME — join to
+// FND_CONCURRENT_PROGRAMS_VL via CONCURRENT_PROGRAM_ID + PROGRAM_APPLICATION_ID.
 const EBS_OPS_CATALOG = {
   running_requests: {
     label: 'Running Requests',
-    sql: `SELECT request_id, concurrent_program_name, requested_by,
-               actual_start_date, phase_code, status_code
-        FROM fnd_concurrent_requests
-        WHERE phase_code='R' ORDER BY actual_start_date`,
+    sql: `SELECT r.REQUEST_ID,
+               p.USER_CONCURRENT_PROGRAM_NAME AS program_name,
+               r.REQUESTED_BY,
+               r.ACTUAL_START_DATE,
+               r.PHASE_CODE,
+               r.STATUS_CODE
+        FROM FND_CONCURRENT_REQUESTS r
+        JOIN FND_CONCURRENT_PROGRAMS_VL p
+            ON r.CONCURRENT_PROGRAM_ID = p.CONCURRENT_PROGRAM_ID
+            AND p.APPLICATION_ID = r.PROGRAM_APPLICATION_ID
+        WHERE r.PHASE_CODE = 'R'
+        ORDER BY r.ACTUAL_START_DATE`,
   },
   long_running: {
     label: 'Long Running (>30 min)',
-    sql: `SELECT request_id, concurrent_program_name, requested_by,
-               ROUND((SYSDATE-actual_start_date)*24*60,1) AS running_minutes
-        FROM fnd_concurrent_requests
-        WHERE phase_code='R' AND actual_start_date < SYSDATE-30/1440
-        ORDER BY actual_start_date`,
+    sql: `SELECT r.REQUEST_ID,
+               p.USER_CONCURRENT_PROGRAM_NAME AS program_name,
+               r.REQUESTED_BY,
+               ROUND((SYSDATE - r.ACTUAL_START_DATE) * 24 * 60, 1) AS running_minutes
+        FROM FND_CONCURRENT_REQUESTS r
+        JOIN FND_CONCURRENT_PROGRAMS_VL p
+            ON r.CONCURRENT_PROGRAM_ID = p.CONCURRENT_PROGRAM_ID
+            AND p.APPLICATION_ID = r.PROGRAM_APPLICATION_ID
+        WHERE r.PHASE_CODE = 'R'
+        AND r.ACTUAL_START_DATE < SYSDATE - 30/1440
+        ORDER BY r.ACTUAL_START_DATE`,
   },
   pending_requests: {
     label: 'Pending Requests',
-    sql: `SELECT request_id, concurrent_program_name, requested_by,
-               requested_start_date, priority
-        FROM fnd_concurrent_requests
-        WHERE phase_code='P' ORDER BY priority, requested_start_date
+    sql: `SELECT r.REQUEST_ID,
+               p.USER_CONCURRENT_PROGRAM_NAME AS program_name,
+               r.REQUESTED_BY,
+               r.REQUESTED_START_DATE,
+               r.PRIORITY
+        FROM FND_CONCURRENT_REQUESTS r
+        JOIN FND_CONCURRENT_PROGRAMS_VL p
+            ON r.CONCURRENT_PROGRAM_ID = p.CONCURRENT_PROGRAM_ID
+            AND p.APPLICATION_ID = r.PROGRAM_APPLICATION_ID
+        WHERE r.PHASE_CODE = 'P'
+        ORDER BY r.PRIORITY, r.REQUESTED_START_DATE
         FETCH FIRST 50 ROWS ONLY`,
   },
   failed_requests: {
     label: 'Failed Requests (24h)',
-    sql: `SELECT request_id, concurrent_program_name, requested_by,
-               actual_completion_date, completion_text
-        FROM fnd_concurrent_requests
-        WHERE phase_code='C' AND status_code='E'
-        AND actual_completion_date > SYSDATE-1
-        ORDER BY actual_completion_date DESC
+    sql: `SELECT r.REQUEST_ID,
+               p.USER_CONCURRENT_PROGRAM_NAME AS program_name,
+               r.REQUESTED_BY,
+               r.ACTUAL_COMPLETION_DATE,
+               r.COMPLETION_TEXT
+        FROM FND_CONCURRENT_REQUESTS r
+        JOIN FND_CONCURRENT_PROGRAMS_VL p
+            ON r.CONCURRENT_PROGRAM_ID = p.CONCURRENT_PROGRAM_ID
+            AND p.APPLICATION_ID = r.PROGRAM_APPLICATION_ID
+        WHERE r.PHASE_CODE = 'C'
+        AND r.STATUS_CODE = 'E'
+        AND r.ACTUAL_COMPLETION_DATE > SYSDATE - 1
+        ORDER BY r.ACTUAL_COMPLETION_DATE DESC
         FETCH FIRST 50 ROWS ONLY`,
   },
   cm_managers: {
     label: 'CM Manager Status',
-    sql: `SELECT concurrent_queue_name, manager_type,
-               running_processes, target_processes, max_processes
-        FROM fnd_concurrent_queues_vl
-        WHERE enabled_flag='Y'
-        ORDER BY running_processes DESC`,
+    sql: `SELECT USER_CONCURRENT_QUEUE_NAME AS manager_name,
+               CONCURRENT_QUEUE_NAME,
+               MANAGER_TYPE,
+               RUNNING_PROCESSES,
+               TARGET_PROCESSES,
+               MAX_PROCESSES
+        FROM FND_CONCURRENT_QUEUES_VL
+        WHERE ENABLED_FLAG = 'Y'
+        ORDER BY RUNNING_PROCESSES DESC`,
   },
   opp_queue: {
     label: 'OPP Queue Depth',
     sql: `SELECT COUNT(*) AS pending_count,
-               MIN(actual_completion_date) AS oldest_request
-        FROM fnd_concurrent_requests
-        WHERE phase_code='P' AND concurrent_program_name LIKE '%OPP%'`,
+               MIN(r.REQUESTED_START_DATE) AS oldest_request
+        FROM FND_CONCURRENT_REQUESTS r
+        JOIN FND_CONCURRENT_PROGRAMS_VL p
+            ON r.CONCURRENT_PROGRAM_ID = p.CONCURRENT_PROGRAM_ID
+            AND p.APPLICATION_ID = r.PROGRAM_APPLICATION_ID
+        WHERE r.PHASE_CODE = 'P'
+        AND UPPER(p.CONCURRENT_PROGRAM_NAME) LIKE '%OPP%'`,
   },
   adop_status: {
     label: 'ADOP Session Status',
-    sql: `SELECT session_id, phase, status, start_date, end_date,
-               applied_on_node
-        FROM ad_adop_sessions
-        ORDER BY start_date DESC FETCH FIRST 10 ROWS ONLY`,
+    sql: `SELECT SESSION_ID, PHASE, STATUS, START_DATE, END_DATE,
+               APPLIED_ON_NODE
+        FROM AD_ADOP_SESSIONS
+        ORDER BY START_DATE DESC FETCH FIRST 10 ROWS ONLY`,
   },
   applied_patches: {
     label: 'Recent Patches (90 days)',
-    sql: `SELECT patch_name, patch_type, creation_date, last_update_date
-        FROM ad_applied_patches
-        WHERE creation_date > SYSDATE-90
-        ORDER BY creation_date DESC
+    sql: `SELECT PATCH_NAME, PATCH_TYPE, CREATION_DATE, LAST_UPDATE_DATE
+        FROM AD_APPLIED_PATCHES
+        WHERE CREATION_DATE > SYSDATE - 90
+        ORDER BY CREATION_DATE DESC
         FETCH FIRST 50 ROWS ONLY`,
   },
   invalid_objects: {
     label: 'APPS Invalid Objects',
     sql: `SELECT owner, object_type, COUNT(*) AS invalid_count
-        FROM dba_objects
-        WHERE status='INVALID' AND owner IN (
-          SELECT oracle_username FROM fnd_oracle_userid
-          WHERE read_only_flag='U'
+        FROM DBA_OBJECTS
+        WHERE STATUS = 'INVALID'
+        AND OWNER IN (
+            SELECT ORACLE_USERNAME FROM FND_ORACLE_USERID
+            WHERE READ_ONLY_FLAG = 'U'
         )
-        GROUP BY owner, object_type
+        GROUP BY OWNER, OBJECT_TYPE
         ORDER BY invalid_count DESC`,
   },
 };
