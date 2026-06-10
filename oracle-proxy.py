@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.44"  # adalnctl pgrep: derive listener name from $TWO_TASK; drop hardcoded APPS_EBSDB
+VERSION = "3.20.45"  # unset Oracle-client env vars before EBSapps.env source in all generated scripts
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5440,6 +5440,12 @@ class ProxyHandler(BaseHTTPRequestHandler):
     
                     _script_lines = [
                         "#!/bin/bash",
+                        # Clear any Oracle-client env inherited from the proxy process.
+                        # su applmgr -s /bin/bash -c (no dash) keeps the caller's env,
+                        # so ORACLE_HOME/TNS_ADMIN etc. from the proxy pollute lsnrctl.
+                        # EBSapps.env then sets every one of these to the correct EBS values.
+                        "unset ORACLE_HOME ORACLE_SID ORACLE_BASE TNS_ADMIN TWO_TASK",
+                        "unset LD_LIBRARY_PATH ORA_NLS10 NLS_LANG",
                         "export CONTEXT_FILE='%s'" % _ctx,
                         "export APPS_PWD='%s'"     % _apwd,
                         "export WLS_PWD='%s'"      % _wpwd,
@@ -6427,6 +6433,13 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     ]
                     _timeout = 120
 
+                # Prepend env cleanup after shebang — covers every _lines branch above.
+                # su (no dash) preserves the proxy's Oracle-client env; unset before
+                # EBSapps.env source so lsnrctl and all EBS scripts start from a clean slate.
+                _lines[1:1] = [
+                    "unset ORACLE_HOME ORACLE_SID ORACLE_BASE TNS_ADMIN TWO_TASK",
+                    "unset LD_LIBRARY_PATH ORA_NLS10 NLS_LANG",
+                ]
                 _script = "\n".join(_lines) + "\n"
 
                 import tempfile as _tempfile
