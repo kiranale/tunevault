@@ -399,6 +399,14 @@ function setTargetDropdown(tier, targets) {
   var sel = document.getElementById(selId);
   var defaultLabel = tier === 'db' ? '— None (skip listener check) —' : '— No SSH targets —';
   sel.innerHTML = '<option value="">' + defaultLabel + '</option>';
+  if (tier === 'ebs') {
+    var hintEl = document.getElementById('ebs-target-hint');
+    if (hintEl) {
+      hintEl.innerHTML = targets.length === 0
+        ? 'No SSH targets configured — <a href="/settings/ssh-targets" style="color:var(--accent)">Configure SSH access</a> to enable sanity checks.'
+        : '';
+    }
+  }
   targets.forEach(function(t) {
     var opt = document.createElement('option');
     opt.value = t.id;

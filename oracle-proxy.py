@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.37"  # ebs-ctrl: add wls_admin/managed_servers ops; fix adalnctl ok-detection; adnodemgrctl weblogic_pwd pipe
+VERSION = "3.20.38"  # ebs-ctrl: adalnctl exit code is authoritative (no TNS string gating); add per-op diagnostic print
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -6314,17 +6314,15 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 except Exception as _exc:
                     _stdout, _stderr, _exit, _dur = str(_exc), "", 1, 0
 
-                # Per-op ok: exit code is primary signal; output heuristics for scripts
-                # where exit code alone is unreliable.
+                # Per-op ok: exit code is authoritative for all EBS admin scripts.
+                # adalnctl.sh may print TNS- strings in verbose output even when the
+                # listener is up — do NOT gate on output text; trust the exit code only.
                 _ok = _exit == 0
-                if op == "adalnctl_status":
-                    # adalnctl.sh may print TNS-12541 in verbose output even when listener is up;
-                    # treat as down only when both error text is present.
-                    has_tnserr = "TNS-12541" in _stdout or "no listener" in _stdout.lower()
-                    _ok = _exit == 0 and not has_tnserr
-                elif op == "adnodemgrctl_status":
-                    # Node Manager script prints "The Node Manager is not up" on failure
+                if op == "adnodemgrctl_status":
+                    # adnodemgrctl.sh exits 0 but prints this when NM is down
                     _ok = _exit == 0 and "The Node Manager is not up" not in _stdout
+
+                print("[ebs-ctrl] op=%s exit=%d ok=%s stdout=%r" % (op, _exit, _ok, _stdout[:200]))
 
                 self.send_json(200, {
                     "success":    True,

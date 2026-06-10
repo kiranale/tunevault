@@ -128,13 +128,8 @@ All Add Connection links in the app MUST point to `/connections/new` — the sin
 
 ## Known Issues (as of 2026-06-10)
 
-🔴 Critical:
-- Render auto-deploy broken — GitHub webhook disconnected, every push needs Manual Deploy from Render dashboard
-
 🟡 High:
-- EBS Ops Concurrent Processing SQL — still returning "Oracle driver not available" — ebs_instance_name pairing fix deployed but needs Render manual deploy to take effect
-- EBS Ops Service Status tab — empty, loadServiceStatus() not rendering component cards — needs fix to read from metrics.findings[] for app tier HCs
-- Deep EBS Mode — "No EBS Connections Found" — db/ebs-deep.js getEbsConnections() only finds is_ebs=true, needs OR server_type IN ('apps','both')
+- EBS Ops Service Status tab — empty; needs live HC on conn 140 with app-tier proxy ≥3.20.38 to produce findings[] / checks_ok[] that loadServiceStatus() maps to cards
 - EBS App Tier report — EBS PDF and EBS XLSX export buttons not showing in toolbar
 - apex-lab (192.168.56.101, OEL 8.10, Oracle 23ai) — agent never installed
 
@@ -142,29 +137,16 @@ All Add Connection links in the app MUST point to `/connections/new` — the sin
 - Blog articles need seeding — run POST /api/admin/seed-blog
 - ~20 debug scripts in repo root — move to scripts/debug/ or delete
 - README.md CI badge URLs point to Polsia-Inc/tunevault
-- OPP check not yet added to EBS app tier checks
 - Privacy Policy + ToS pages not created yet
 
 ## Key Configuration
 - `ebs_instance_name`: both conn 134 (ebs12212-db-dev) and conn 140 (ebs12212-app-dev) set to `EBS12212` for EBS Ops SQL pairing via `findPairedDbConn()`
-- Render manual deploy required until GitHub webhook re-authorized (Settings → Build & Deploy → GitHub)
+- Render auto-deploy is ON — GitHub webhook reconnected as of 2026-06-09
 
 ## Recent changes
 
-- 2026-06-10: FEAT — EBS Ops inline middleware: oracle-proxy.py v3.20.36 adds /api/ebs-ctrl endpoint (4 whitelisted ops: adapcctl_status, adopmnctl_status, adalnctl_status, adnodemgrctl_status — sources EBSapps.env, runs as apps OS user). routes/ebs-ops.js adds POST /api/ebs-ops/middleware-run (agent channel → /api/ebs-ctrl). ebs-ops.html Fusion Middleware tab redesigned: 4 inline op-cards (Apache/OHS, OPMN, Apps Listener, Node Manager) + link-cards for WLS rolling bounce / deep checks / sanity. Same collapsible result panel UX as SQL op-cards. latest-hc-status endpoint now accepts status IN ('completed','analyzing') so Service Status tab shows data while AI analysis is pending.
-- 2026-06-09: FEAT — EBS Ops full redesign: 5-tab layout (Service Status, Concurrent Processing, Fusion Middleware & WebLogic, Patching & ADOP, Reports). Inline collapsible SQL results matching DB Ops UX. routes/ebs-ops.js added POST /api/ebs-ops/run with agent channel SQL execution. EBS SQL ops route through paired DB agent (conn 134) using ebs_instance_name pairing when app tier has no Oracle driver.
-- 2026-06-09: FEAT — DB Ops fully working: 5 tabs, SQL queries via agent channel, inline collapsible results, Hide/Show Results buttons, Clear all bar, friendly error messages. Fixed getConnParams() removing non-existent columns (is_asm, is_rac etc). Fixed isAgentConnected timeout with Promise.race 5s.
-- 2026-06-09: FIX — Render auto-deploy broken — GitHub webhook disconnected. Every push needs Manual Deploy from Render dashboard until re-authorized.
-- 2026-06-09: FIX — connection_schedules ebs_instance_name: conn 134 (ebs12212-db-dev) updated to EBS12212 to match conn 140 (ebs12212-app-dev) for EBS Ops SQL pairing.
-
-## Pending Tasks (immediate — before go-live)
-1. Fix Render auto-deploy — re-authorize GitHub webhook in Render Settings → Build
-2. Fix EBS Ops Service Status tab — read from metrics.findings[] for app tier
-3. Fix EBS Ops Concurrent Processing SQL — verify pairing fix works after deploy
-4. Fix Deep EBS Mode — add server_type IN ('apps','both') to getEbsConnections()
-5. Fix EBS App Tier report export buttons
-6. Privacy Policy + ToS pages
-7. Support agent setup — Claude API + Intercom/Crisp
-8. Outreach email templates
-9. Blog articles — POST /api/admin/seed-blog + 5 remaining stubs
-10. apex-lab agent install (Oracle 23ai)
+- 2026-06-10: FIX — oracle-proxy.py 3.20.38: adalnctl_status ok detection now pure exit-code only (removed TNS- string gating that incorrectly flagged listener as down when exit=0). Added per-op diagnostic print: `[ebs-ctrl] op= exit= ok= stdout=`. LATEST_PROXY_VERSION → 3.20.38.
+- 2026-06-10: FIX — ebs-12-2-checks.html: loadConnections() now reads ?conn= URL param to pre-select connection (overrides localStorage). EBS Ops deep-checks link card passes ?conn= so the right connection auto-selects on arrival.
+- 2026-06-10: FIX — sanity-check.html: setTargetDropdown('ebs') now populates #ebs-target-hint with "No SSH targets configured — Configure SSH access to enable sanity checks." + link to /settings/ssh-targets when no apps_tier SSH targets exist.
+- 2026-06-10: FEAT — EBS Ops inline middleware: oracle-proxy.py 3.20.37 adds /api/ebs-ctrl with 6 ops (adapcctl/adopmnctl/adalnctl/adnodemgrctl/wls_admin/managed_servers). routes/ebs-ops.js POST /api/ebs-ops/middleware-run. ebs-ops.html Fusion Middleware tab: 6 inline op-cards + link cards for deep checks + sanity.
+- 2026-06-09: FEAT — EBS Ops full redesign: 5-tab layout, inline SQL results, agent channel pairing conn 140 → conn 134, FND table JOIN fixes, OPP queue via fnd_conc_pp_actions.

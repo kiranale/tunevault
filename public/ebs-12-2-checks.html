@@ -217,6 +217,12 @@ async function loadConnections() {
       sel.appendChild(opt);
     });
     tvConn.bind(sel, conns);
+    // ?conn=<id> from ebs-ops deep-checks link overrides localStorage
+    const urlConn = new URLSearchParams(window.location.search).get('conn');
+    if (urlConn) {
+      sel.value = urlConn;
+      if (sel.value) tvConn.save(urlConn);
+    }
     if (sel.value) {
       onConnChange();
     } else if (conns.length === 1) {
