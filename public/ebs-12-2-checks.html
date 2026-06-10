@@ -175,6 +175,8 @@
 // ── State ──────────────────────────────────────────────────────────────────────
 let allChecks = [];
 let currentCat = 'all';
+let allConns = [];
+let allSshTargets = [];
 
 const CATEGORY_LABELS = {
   topology:    'Topology & Sizing',
@@ -187,6 +189,7 @@ const CATEGORY_LABELS = {
 // ── Init ───────────────────────────────────────────────────────────────────────
 async function init() {
   await Promise.all([loadConnections(), loadSshTargets()]);
+  filterSshTargets();
   loadCatalog();
 
   document.getElementById('connSelect').addEventListener('change', onConnChange);
@@ -209,6 +212,7 @@ async function loadConnections() {
     if (!r.ok) return;
     const data = await r.json();
     const conns = tvConn.parseList(data);
+    allConns = conns;
     const sel = document.getElementById('connSelect');
     conns.forEach(c => {
       const opt = document.createElement('option');
@@ -238,15 +242,33 @@ async function loadSshTargets() {
     const r = await fetch('/api/user/ssh/targets');
     if (!r.ok) return;
     const data = await r.json();
-    const targets = data.targets || data || [];
-    const sel = document.getElementById('sshSelect');
-    targets.forEach(t => {
-      const opt = document.createElement('option');
-      opt.value = t.id;
-      opt.textContent = `${t.host} (${t.role})`;
-      sel.appendChild(opt);
-    });
+    allSshTargets = data.targets || data || [];
   } catch {}
+}
+
+// Populate SSH target select filtered to the selected connection's server_type
+function filterSshTargets() {
+  const connId = document.getElementById('connSelect').value;
+  const conn = allConns.find(c => String(c.id) === String(connId));
+  const serverType = conn ? (conn.server_type || '') : '';
+  let filtered;
+  if (serverType === 'apps')       filtered = allSshTargets.filter(t => t.role === 'apps_tier');
+  else if (serverType === 'db')    filtered = allSshTargets.filter(t => t.role === 'db_tier');
+  else                             filtered = allSshTargets;
+
+  const sel = document.getElementById('sshSelect');
+  sel.innerHTML = '';
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = filtered.length ? '— Select SSH target —' : '— No SSH targets —';
+  sel.appendChild(placeholder);
+  filtered.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = `${t.host} (${t.role})`;
+    sel.appendChild(opt);
+  });
+  if (filtered.length === 1) sel.value = filtered[0].id;
 }
 
 async function loadCatalog() {
@@ -263,6 +285,7 @@ function onConnChange() {
   const val = document.getElementById('connSelect').value;
   if (val) tvConn.save(val);
   document.getElementById('runBtn').disabled = !val;
+  filterSshTargets();
 }
 
 // ── Run checks ─────────────────────────────────────────────────────────────────
