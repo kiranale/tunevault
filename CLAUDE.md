@@ -129,7 +129,6 @@ All Add Connection links in the app MUST point to `/connections/new` — the sin
 ## Known Issues (as of 2026-06-10)
 
 🟡 High:
-- EBS Ops Service Status tab — empty; needs live HC on conn 140 with app-tier proxy ≥3.20.38 to produce findings[] / checks_ok[] that loadServiceStatus() maps to cards
 - EBS App Tier report — EBS PDF and EBS XLSX export buttons not showing in toolbar
 - apex-lab (192.168.56.101, OEL 8.10, Oracle 23ai) — agent never installed
 
@@ -145,6 +144,8 @@ All Add Connection links in the app MUST point to `/connections/new` — the sin
 
 ## Recent changes
 
+- 2026-06-10: FEAT — EBS Ops tab restructure: delete blank Service Status tab; rename "Fusion Middleware & WebLogic" to "Service Status" (tab 1, default). Auto-runs all 6 agent op-cards on load; ↺ Refresh button top-right. Final 4-tab order: Service Status | Concurrent Processing | Patching & ADOP | Reports.
+- 2026-06-10: FIX — ebs-12-2-checks.html: SSH Target dropdown now filters by connection server_type (apps → apps_tier only, db → db_tier only). Auto-selects single matching target. filterSshTargets() runs on init and on connection change.
 - 2026-06-10: FIX — oracle-proxy.py 3.20.38: adalnctl_status ok detection now pure exit-code only (removed TNS- string gating that incorrectly flagged listener as down when exit=0). Added per-op diagnostic print: `[ebs-ctrl] op= exit= ok= stdout=`. LATEST_PROXY_VERSION → 3.20.38.
 - 2026-06-10: FIX — ebs-12-2-checks.html: loadConnections() now reads ?conn= URL param to pre-select connection (overrides localStorage). EBS Ops deep-checks link card passes ?conn= so the right connection auto-selects on arrival.
 - 2026-06-10: FIX — sanity-check.html: setTargetDropdown('ebs') now populates #ebs-target-hint with "No SSH targets configured — Configure SSH access to enable sanity checks." + link to /settings/ssh-targets when no apps_tier SSH targets exist.
