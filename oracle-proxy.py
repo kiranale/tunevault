@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.46"  # TEMP diagnostic in adalnctl_status to capture env/hostname/listener.ora state
+VERSION = "3.20.47"  # adalnctl_status: TCP lsnrctl direct; port from listener.ora; drop pgrep+diag
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5463,16 +5463,13 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         'echo "TV_EXIT $?"',
                         "echo TV_END opmn_status",
                         "",
-                        # 3. Apps Listener
-                        # pgrep supplements lsnrctl: when proxy TNS_ADMIN/hostname differs from
-                        # applmgr's interactive env, lsnrctl returns TNS-12541 even if the listener
-                        # process is running. LISTENER_PROCESS_RUNNING overrides the false-down.
+                        # 3. Apps Listener — TCP direct to bypass PrivateTmp Unix socket isolation.
+                        # Port extracted from listener.ora; falls back to EBS default 1647.
                         "echo TV_START apps_listener",
-                        '"$ADMIN_SCRIPTS_HOME/adalnctl.sh" status 2>&1',
-                        "_aln_exit=$?",
-                        "[ -n \"$TWO_TASK\" ] && pgrep -f \"tnslsnr APPS_${TWO_TASK}\" > /dev/null 2>&1 && echo 'LISTENER_PROCESS_RUNNING'",
-                        "[ -z \"$TWO_TASK\" ] && pgrep -f 'tnslsnr APPS_' > /dev/null 2>&1 && echo 'LISTENER_PROCESS_RUNNING'",
-                        'echo "TV_EXIT $_aln_exit"',
+                        "ALN_PORT=$(grep -i 'Port=' \"$TNS_ADMIN/listener.ora\" 2>/dev/null | head -5 | grep -i '[0-9]' | head -1 | sed 's/.*Port=[ ]*\\([0-9]*\\).*/\\1/')",
+                        "ALN_PORT=${ALN_PORT:-1647}",
+                        'lsnrctl status "(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=$ALN_PORT)))" 2>&1',
+                        'echo "TV_EXIT $?"',
                         "echo TV_END apps_listener",
                         "",
                         # 4. Node Manager — WLS password via heredoc (same as managed servers)
@@ -5714,20 +5711,13 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         _ok("opmn_status", "OPMN Status", "All OPMN components are Alive.", _out)
     
                     # ── 3. Apps Listener ──────────────────────────────────────────
-                    # adalnctl.sh exits 0 even when listener is down (TNS-12541 in stdout).
-                    # LISTENER_PROCESS_RUNNING sentinel (pgrep in script) overrides TNS-12541
-                    # when lsnrctl fails due to hostname/TNS_ADMIN mismatch in the proxy env.
+                    # TCP lsnrctl: exit 0 + "STATUS of the LISTENER" in output = running.
                     _out, _exit = _secs.get("apps_listener", ("", 1))
-                    _aln_proc = "LISTENER_PROCESS_RUNNING" in _out
-                    _aln_tns  = "TNS-12541" in _out or "no listener" in _out.lower()
-                    if _aln_tns and not _aln_proc:
-                        _finding("apps_listener", "Apps Listener Not Running", "warning",
-                                 "Apps Listener is not running: TNS-12541 in adalnctl output.", _out)
-                    elif _exit != 0 and not _aln_proc:
-                        _finding("apps_listener", "Apps Listener Status Check Failed", "warning",
-                                 "adalnctl.sh exited with code %d." % _exit, _out)
-                    else:
+                    if _exit == 0 and "STATUS of the LISTENER" in _out:
                         _ok("apps_listener", "Apps Listener Status", "Apps Listener is running.", _out)
+                    else:
+                        _finding("apps_listener", "Apps Listener Not Running", "warning",
+                                 "Apps Listener is not running or lsnrctl TCP check failed.", _out)
     
                     # ── 4. Node Manager ───────────────────────────────────────────
                     _out, _exit = _secs.get("node_manager", ("", 1))
@@ -6310,30 +6300,16 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     # in the proxy environment doesn't cause a false "listener down" result.
                     # lsnrctl may connect to short-hostname:1647 while listener binds to FQDN:1647.
                     if op == "adalnctl_status":
+                        # TCP direct — bypasses the Unix socket in /var/tmp/.oracle which is
+                        # hidden when PrivateTmp=true in the proxy's systemd unit. Port is
+                        # read from listener.ora so no hardcoding; falls back to EBS default 1647.
                         _lines = [
                             "#!/bin/bash",
                             "source '%s' run >/dev/null 2>&1" % _ef,
-                            # TEMPORARY DIAGNOSTIC — remove after root-cause confirmed (3.20.46)
-                            'echo "=== TV_DIAG START ==="',
-                            'id',
-                            'echo "TNS_ADMIN=$TNS_ADMIN"',
-                            'echo "ORACLE_HOME=$ORACLE_HOME"',
-                            'echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"',
-                            'echo "TWO_TASK=$TWO_TASK"',
-                            'echo "HOSTALIASES=$HOSTALIASES"',
-                            'echo "--- resolution ---"',
-                            'getent hosts ebs12212-app-dev',
-                            'getent ahosts ebs12212-app-dev | head -4',
-                            'echo "--- listener.ora APPS entry ---"',
-                            'grep -i -A4 \'APPS_\' "$TNS_ADMIN/listener.ora" 2>/dev/null | head -10',
-                            'echo "--- oracle sockets ---"',
-                            'ls -la /var/tmp/.oracle/ 2>/dev/null | head -6',
-                            'echo "=== TV_DIAG END ==="',
-                            # END TEMPORARY DIAGNOSTIC
-                            '"$ADMIN_SCRIPTS_HOME/adalnctl.sh" status 2>&1',
-                            "[ -n \"$TWO_TASK\" ] && pgrep -f \"tnslsnr APPS_${TWO_TASK}\" > /dev/null 2>&1 && echo 'LISTENER_PROCESS_RUNNING'",
-                            "[ -z \"$TWO_TASK\" ] && pgrep -f 'tnslsnr APPS_' > /dev/null 2>&1 && echo 'LISTENER_PROCESS_RUNNING'",
-                            "exit 0",
+                            "ALN_PORT=$(grep -i 'Port=' \"$TNS_ADMIN/listener.ora\" 2>/dev/null | head -5 | grep -i '[0-9]' | head -1 | sed 's/.*Port=[ ]*\\([0-9]*\\).*/\\1/')",
+                            "ALN_PORT=${ALN_PORT:-1647}",
+                            'lsnrctl status "(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=$ALN_PORT)))" 2>&1',
+                            "exit $?",
                         ]
                     _timeout = {
                         "adapcctl_status": 20,  "adapcctl_start": 60,  "adapcctl_stop": 60,
@@ -6512,15 +6488,12 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     else:
                         _ok = _exit == 0 or any(kw in _stdout for kw in ("is running", "started successfully", "start has been requested"))
                 elif op in ("adalnctl_status", "adalnctl_start", "adalnctl_stop"):
-                    # adalnctl.sh exits 0 even when listener is not running (TNS-12541 in stdout).
-                    # LISTENER_PROCESS_RUNNING sentinel (from pgrep in status script) overrides
-                    # TNS-12541 when lsnrctl fails due to hostname/TNS_ADMIN mismatch in proxy env.
-                    _ok = _exit == 0
-                    if "TNS-12541" in _stdout or "no listener" in _stdout.lower():
-                        if "LISTENER_PROCESS_RUNNING" in _stdout:
-                            _ok = True   # process is up; lsnrctl hostname mismatch, not a real failure
-                        else:
-                            _ok = False
+                    if op == "adalnctl_status":
+                        # TCP lsnrctl: exit 0 + STATUS block is the authoritative signal.
+                        _ok = _exit == 0 and "STATUS of the LISTENER" in _stdout
+                    else:
+                        # start/stop use adalnctl.sh; exit code is the primary signal.
+                        _ok = _exit == 0
                 elif op in ("adcmctl_status", "adcmctl_start", "adcmctl_stop"):
                     if "NO_APPS_PWD" in _stdout:
                         _ok = True  # neutral — no password configured, not a critical failure
