@@ -164,7 +164,7 @@ const EBS_OPS_CATALOG = {
 async function getConnParams(connectionId, userId) {
   const { rows } = await pool.query(
     `SELECT id, host, port, service_name, username, encrypted_password, connection_type,
-            server_type, ebs_instance_name, apps_pwd_enc
+            server_type, ebs_instance_name, apps_pwd_enc, weblogic_pwd_enc
      FROM oracle_connections WHERE id = $1 AND user_id = $2`,
     [connectionId, userId]
   );
@@ -181,6 +181,7 @@ async function getConnParams(connectionId, userId) {
     serverType: c.server_type,
     ebsInstanceName: c.ebs_instance_name,
     appsPwd: c.apps_pwd_enc ? decrypt(c.apps_pwd_enc) : null,
+    weblogicPwd: c.weblogic_pwd_enc ? decrypt(c.weblogic_pwd_enc) : null,
   };
 }
 
@@ -323,10 +324,12 @@ router.post('/api/ebs-ops/run', requireAuth, async (req, res) => {
 
 // ── Middleware op catalog (maps op_key → proxy op string) ─────────────────────
 const MIDDLEWARE_OPS_CATALOG = {
-  adapcctl_status:     { label: 'Apache / OHS Status',   proxyOp: 'adapcctl_status'     },
-  adopmnctl_status:    { label: 'OPMN Status',           proxyOp: 'adopmnctl_status'    },
-  adalnctl_status:     { label: 'Apps Listener Status',  proxyOp: 'adalnctl_status'     },
-  adnodemgrctl_status: { label: 'Node Manager Status',   proxyOp: 'adnodemgrctl_status' },
+  adapcctl_status:        { label: 'Apache / OHS Status',     proxyOp: 'adapcctl_status'        },
+  adopmnctl_status:       { label: 'OPMN Status',             proxyOp: 'adopmnctl_status'       },
+  adalnctl_status:        { label: 'Apps Listener Status',    proxyOp: 'adalnctl_status'        },
+  adnodemgrctl_status:    { label: 'Node Manager Status',     proxyOp: 'adnodemgrctl_status'    },
+  wls_admin_status:       { label: 'WLS Admin Server',        proxyOp: 'wls_admin_status'       },
+  managed_servers_status: { label: 'WLS Managed Servers',     proxyOp: 'managed_servers_status' },
 };
 
 // ── POST /api/ebs-ops/middleware-run ──────────────────────────────────────────
@@ -371,7 +374,7 @@ router.post('/api/ebs-ops/middleware-run', requireAuth, async (req, res) => {
     const proxyResp = await channel.sendToAgent(conn.id, {
       method: 'POST',
       path: '/api/ebs-ctrl',
-      body: { op: opDef.proxyOp },
+      body: { op: opDef.proxyOp, weblogic_pwd: conn.weblogicPwd || '' },
     }, 35000);
     const body = proxyResp.body || {};
     if (proxyResp.statusCode !== 200 || !body.success) {

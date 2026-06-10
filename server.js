@@ -1955,7 +1955,9 @@ app.get('/api/connections/:id/latest-hc-status', requireAuth, requireConnectionO
         components[key] = { title: c.title, status: 'ok', details: c.details, passed: true };
       }
     });
-    res.json({ status: 'ok', score: rows[0].overall_score, checked_at: rows[0].created_at, components });
+    const result = { status: 'ok', score: rows[0].overall_score, checked_at: rows[0].created_at, components };
+    console.log('[latest-hc-status] connId=%d result=%j', connId, result);
+    res.json(result);
   } catch (err) {
     console.error('[latest-hc-status]', err.message);
     res.status(500).json({ error: 'Failed to load HC status' });
@@ -3633,7 +3635,7 @@ async function runRealHealthCheckInner(healthCheckId, oracleConfig, t0) {
 }
 
 // Current canonical proxy version — bump this when oracle-proxy.py/oracle-proxy.js VERSION changes
-const LATEST_PROXY_VERSION = '3.20.36';
+const LATEST_PROXY_VERSION = '3.20.37';
 
 // ============================================================
 // Proxy Health Check Flow

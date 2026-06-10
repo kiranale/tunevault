@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.36"  # add /api/ebs-ctrl endpoint for inline EBS middleware status via agent channel
+VERSION = "3.20.37"  # ebs-ctrl: add wls_admin/managed_servers ops; fix adalnctl ok-detection; adnodemgrctl weblogic_pwd pipe
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -6217,7 +6217,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
 
         # POST /api/ebs-ctrl — run a single whitelisted EBS app-tier admin script.
         # Sources EBSapps.env and runs as the apps OS user (same pattern as /api/ebs-app-healthcheck).
-        # Accepts: { "op": "adapcctl_status|adopmnctl_status|adalnctl_status|adnodemgrctl_status" }
+        # Accepts: { "op": "adapcctl_status|adopmnctl_status|adalnctl_status|adnodemgrctl_status|wls_admin_status|managed_servers_status",
+        #            "weblogic_pwd": "<optional WLS password for adnodemgrctl>" }
         # Returns: { "success", "ok", "stdout", "exit_code" }
         if self.path == "/api/ebs-ctrl":
             if not self.check_auth():
@@ -6226,12 +6227,15 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 body = self.read_body()
                 params = json.loads(body)
                 op = str(params.get("op", "")).strip()
+                weblogic_pwd = str(params.get("weblogic_pwd", "") or "").strip()
 
                 _CTRL_OPS = {
-                    "adapcctl_status":     ("$ADMIN_SCRIPTS_HOME/adapcctl.sh",    ["status"]),
-                    "adopmnctl_status":    ("$ADMIN_SCRIPTS_HOME/adopmnctl.sh",   ["status"]),
-                    "adalnctl_status":     ("$ADMIN_SCRIPTS_HOME/adalnctl.sh",    ["status"]),
-                    "adnodemgrctl_status": ("$ADMIN_SCRIPTS_HOME/adnodemgrctl.sh",["status"]),
+                    "adapcctl_status":        ("$ADMIN_SCRIPTS_HOME/adapcctl.sh",     ["status"]),
+                    "adopmnctl_status":       ("$ADMIN_SCRIPTS_HOME/adopmnctl.sh",    ["status"]),
+                    "adalnctl_status":        ("$ADMIN_SCRIPTS_HOME/adalnctl.sh",     ["status"]),
+                    "adnodemgrctl_status":    ("$ADMIN_SCRIPTS_HOME/adnodemgrctl.sh", ["status"]),
+                    "wls_admin_status":       ("$ADMIN_SCRIPTS_HOME/adadminsrvctl.sh",["status"]),
+                    "managed_servers_status": ("$ADMIN_SCRIPTS_HOME/admanagedsrvctl.sh",["status"]),
                 }
 
                 if op not in _CTRL_OPS:
@@ -6254,12 +6258,23 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 script_bin, script_args = _CTRL_OPS[op]
                 _ef  = env_file.replace("'", "'\\''")
                 args_str = " ".join('"%s"' % a for a in script_args)
-                _script = (
-                    "#!/bin/bash\n"
-                    "source '%s' run >/dev/null 2>&1\n"
-                    "%s %s 2>&1\n"
-                    "exit $?\n" % (_ef, script_bin, args_str)
-                )
+
+                # adnodemgrctl.sh status may require WLS password via stdin
+                if op == "adnodemgrctl_status" and weblogic_pwd:
+                    _pwd_esc = weblogic_pwd.replace("'", "'\\''")
+                    _script = (
+                        "#!/bin/bash\n"
+                        "source '%s' run >/dev/null 2>&1\n"
+                        "printf '%%s\\n' '%s' | %s %s 2>&1\n"
+                        "exit \"${PIPESTATUS[1]}\"\n" % (_ef, _pwd_esc, script_bin, args_str)
+                    )
+                else:
+                    _script = (
+                        "#!/bin/bash\n"
+                        "source '%s' run >/dev/null 2>&1\n"
+                        "%s %s 2>&1\n"
+                        "exit $?\n" % (_ef, script_bin, args_str)
+                    )
 
                 import tempfile as _tempfile
                 _tf = None
@@ -6299,9 +6314,21 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 except Exception as _exc:
                     _stdout, _stderr, _exit, _dur = str(_exc), "", 1, 0
 
+                # Per-op ok: exit code is primary signal; output heuristics for scripts
+                # where exit code alone is unreliable.
+                _ok = _exit == 0
+                if op == "adalnctl_status":
+                    # adalnctl.sh may print TNS-12541 in verbose output even when listener is up;
+                    # treat as down only when both error text is present.
+                    has_tnserr = "TNS-12541" in _stdout or "no listener" in _stdout.lower()
+                    _ok = _exit == 0 and not has_tnserr
+                elif op == "adnodemgrctl_status":
+                    # Node Manager script prints "The Node Manager is not up" on failure
+                    _ok = _exit == 0 and "The Node Manager is not up" not in _stdout
+
                 self.send_json(200, {
                     "success":    True,
-                    "ok":         _exit == 0,
+                    "ok":         _ok,
                     "stdout":     _stdout,
                     "stderr":     _stderr,
                     "exit_code":  _exit,

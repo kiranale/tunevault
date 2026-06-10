@@ -511,6 +511,7 @@ async function loadServiceStatus(connId) {
   try {
     const r = await fetch('/api/connections/' + connId + '/latest-hc-status', { credentials: 'include' });
     const d = await r.json();
+    console.log('[ebs-ops] hc-status data:', JSON.stringify(d).slice(0, 500));
 
     if (d.status === 'no_data' || !d.components) {
       wrap.innerHTML = '<div class="svc-no-data">No health check data yet — run a health check to see service status here.</div>';
@@ -603,10 +604,12 @@ function renderConcurrentTab(container) {
 
 // ── Middleware ops catalog (frontend) ─────────────────────────────────────────
 const MIDDLEWARE_OPS = [
-  { key: 'adapcctl_status',     label: 'Apache / OHS Status',  icon: '🔧', desc: 'adapcctl.sh status — check if Apache/OHS is running on this app-tier node.' },
-  { key: 'adopmnctl_status',    label: 'OPMN Status',          icon: '🔁', desc: 'adopmnctl.sh status — check all OPMN-managed components (OC4J, HTTP, etc.).' },
-  { key: 'adalnctl_status',     label: 'Apps Listener Status', icon: '📡', desc: 'adalnctl.sh status — check the EBS TNS apps-tier listener.' },
-  { key: 'adnodemgrctl_status', label: 'Node Manager Status',  icon: '🌐', desc: 'adnodemgrctl.sh status — check if WebLogic Node Manager is running.' },
+  { key: 'adapcctl_status',        label: 'Apache / OHS Status',   icon: '🔧', desc: 'adapcctl.sh status — check if Apache/OHS is running on this app-tier node.' },
+  { key: 'adopmnctl_status',       label: 'OPMN Status',           icon: '🔁', desc: 'adopmnctl.sh status — check all OPMN-managed components (OC4J, HTTP, etc.).' },
+  { key: 'adalnctl_status',        label: 'Apps Listener Status',  icon: '📡', desc: 'adalnctl.sh status — check the EBS TNS apps-tier listener.' },
+  { key: 'adnodemgrctl_status',    label: 'Node Manager Status',   icon: '🌐', desc: 'adnodemgrctl.sh status — check if WebLogic Node Manager is running.' },
+  { key: 'wls_admin_status',       label: 'WLS Admin Server',      icon: '⚙️',  desc: 'adadminsrvctl.sh status — check if WebLogic AdminServer is running.' },
+  { key: 'managed_servers_status', label: 'WLS Managed Servers',   icon: '🖥️',  desc: 'admanagedsrvctl.sh status — check OACore, Forms, and OAFM managed servers.' },
 ];
 
 // ── Tab 3: Fusion Middleware & WebLogic ───────────────────────────────────────
@@ -628,19 +631,18 @@ function renderMiddlewareTab(container) {
   MIDDLEWARE_OPS.forEach(op => renderMiddlewareOpCard(op, grid));
   container.appendChild(grid);
 
-  // ── Link cards for SSH-based ops (WLS rolling bounce, deep checks, sanity) ──
+  // ── Link cards for SSH-only ops (deep checks, sanity — need SSH configured) ──
   const linksHdr = document.createElement('div');
   linksHdr.className = 'sub-header';
   linksHdr.innerHTML = `
     <div class="sub-header-icon" style="background:var(--purple-dim);color:var(--purple)">🔗</div>
     <span class="sub-header-label">Advanced Operations</span>
-    <span class="sub-header-desc">— requires SSH access configured</span>`;
+    <span class="sub-header-desc">— requires SSH access configured in Settings → SSH Targets</span>`;
   container.appendChild(linksHdr);
 
   const linkCards = [
-    { title: 'WLS & Managed Servers', desc: 'Start/Stop AdminServer and managed servers (OACore, Forms, OAFM). Rolling bounce with SSE-streamed sequential ops.', icon: '🌐', bg: 'var(--blue-dim)', href: '/ebs-middleware' + connParam, tag: 'SSH · SSE' },
-    { title: 'EBS 12.2 Deep Checks', desc: '30 SSH-based checks: topology, JVM heap, OS metrics, AD/TXK code levels, ETCC validation.', icon: '🔬', bg: 'var(--purple-dim)', href: '/ebs-12-2-checks' + connParam, tag: 'SSH · EBS 12.2' },
-    { title: 'Post-Bounce Sanity', desc: 'Verify all services came back after a bounce — TNS, EBS HTTP, DB connectivity, file ownership.', icon: '✅', bg: 'var(--green-dim)', href: '/sanity-check' + connParam, tag: 'SSH · SQL' },
+    { title: 'EBS 12.2 Deep Checks', desc: '30 SSH-based checks: topology, JVM heap, OS metrics, AD/TXK code levels, ETCC validation. Requires SSH target configured.', icon: '🔬', bg: 'var(--purple-dim)', href: '/ebs-12-2-checks' + connParam, tag: 'SSH · EBS 12.2' },
+    { title: 'Post-Bounce Sanity', desc: 'Verify all services came back after a bounce — TNS, EBS HTTP, DB connectivity, file ownership. Requires SSH target configured.', icon: '✅', bg: 'var(--green-dim)', href: '/sanity-check' + connParam, tag: 'SSH · SQL' },
   ];
   renderLinkGrid(container, linkCards);
 }
