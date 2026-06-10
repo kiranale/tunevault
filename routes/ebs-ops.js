@@ -98,14 +98,37 @@ const EBS_OPS_CATALOG = {
   },
   opp_queue: {
     label: 'OPP Queue Depth',
-    sql: `SELECT COUNT(*) AS pending_count,
-               MIN(r.REQUESTED_START_DATE) AS oldest_request
-        FROM FND_CONCURRENT_REQUESTS r
-        JOIN FND_CONCURRENT_PROGRAMS_VL p
-            ON r.CONCURRENT_PROGRAM_ID = p.CONCURRENT_PROGRAM_ID
-            AND p.APPLICATION_ID = r.PROGRAM_APPLICATION_ID
-        WHERE r.PHASE_CODE = 'P'
-        AND UPPER(p.CONCURRENT_PROGRAM_NAME) LIKE '%OPP%'`,
+    sql: `SELECT COUNT(*) AS pending_opp_requests
+        FROM FND_CONCURRENT_REQUESTS
+        WHERE REQUEST_ID IN (
+            SELECT CONCURRENT_REQUEST_ID
+            FROM FND_CONC_PP_ACTIONS
+            WHERE ACTION_TYPE >= 6
+            AND PROCESSOR_ID IS NULL
+        ) AND PHASE_CODE != 'C'`,
+  },
+  opp_programs: {
+    label: 'OPP Pending Programs',
+    sql: `SELECT DISTINCT b.USER_CONCURRENT_PROGRAM_NAME AS program_name
+        FROM FND_CONCURRENT_REQUESTS a
+        JOIN FND_CONCURRENT_PROGRAMS_TL b
+            ON a.CONCURRENT_PROGRAM_ID = b.CONCURRENT_PROGRAM_ID
+        WHERE a.REQUEST_ID IN (
+            SELECT CONCURRENT_REQUEST_ID
+            FROM FND_CONC_PP_ACTIONS
+            WHERE ACTION_TYPE >= 6
+            AND PROCESSOR_ID IS NULL
+        ) ORDER BY 1`,
+  },
+  opp_heap_size: {
+    label: 'OPP Heap Size',
+    sql: `SELECT DEVELOPER_PARAMETERS
+        FROM FND_CP_SERVICES
+        WHERE SERVICE_ID = (
+            SELECT MANAGER_TYPE
+            FROM FND_CONCURRENT_QUEUES
+            WHERE CONCURRENT_QUEUE_NAME = 'FNDCPOPP'
+        )`,
   },
   adop_status: {
     label: 'ADOP Session Status',

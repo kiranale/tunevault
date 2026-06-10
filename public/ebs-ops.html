@@ -307,11 +307,30 @@ FETCH FIRST 50 ROWS ONLY` },
 FROM fnd_concurrent_queues_vl
 WHERE enabled_flag='Y'
 ORDER BY running_processes DESC` },
-  { key: 'opp_queue', label: 'OPP Queue Depth', icon: '📊', desc: 'Output Post Processor pending queue depth.',
-    sql: `SELECT COUNT(*) AS pending_count,
-       MIN(actual_completion_date) AS oldest_request
-FROM fnd_concurrent_requests
-WHERE phase_code='P' AND concurrent_program_name LIKE '%OPP%'` },
+  { key: 'opp_queue', label: 'OPP Queue Depth', icon: '📊', desc: 'Output Post Processor pending queue depth — counts requests awaiting OPP post-processing.',
+    sql: `SELECT COUNT(*) AS pending_opp_requests
+FROM FND_CONCURRENT_REQUESTS
+WHERE REQUEST_ID IN (
+    SELECT CONCURRENT_REQUEST_ID
+    FROM FND_CONC_PP_ACTIONS
+    WHERE ACTION_TYPE >= 6 AND PROCESSOR_ID IS NULL
+) AND PHASE_CODE != 'C'` },
+  { key: 'opp_programs', label: 'OPP Pending Programs', icon: '📋', desc: 'Programs with requests currently waiting for OPP post-processing.',
+    sql: `SELECT DISTINCT b.USER_CONCURRENT_PROGRAM_NAME AS program_name
+FROM FND_CONCURRENT_REQUESTS a
+JOIN FND_CONCURRENT_PROGRAMS_TL b ON a.CONCURRENT_PROGRAM_ID = b.CONCURRENT_PROGRAM_ID
+WHERE a.REQUEST_ID IN (
+    SELECT CONCURRENT_REQUEST_ID
+    FROM FND_CONC_PP_ACTIONS
+    WHERE ACTION_TYPE >= 6 AND PROCESSOR_ID IS NULL
+) ORDER BY 1` },
+  { key: 'opp_heap_size', label: 'OPP Heap Size', icon: '🔬', desc: 'OPP JVM heap size configuration from FND_CP_SERVICES.',
+    sql: `SELECT DEVELOPER_PARAMETERS
+FROM FND_CP_SERVICES
+WHERE SERVICE_ID = (
+    SELECT MANAGER_TYPE FROM FND_CONCURRENT_QUEUES
+    WHERE CONCURRENT_QUEUE_NAME = 'FNDCPOPP'
+)` },
 ];
 
 const PATCHING_OPS = [
