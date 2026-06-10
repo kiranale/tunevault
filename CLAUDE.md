@@ -130,27 +130,149 @@ All Add Connection links in the app MUST point to `/connections/new` — the sin
 
 🟡 High:
 - apex-lab (192.168.56.101, OEL 8.10, Oracle 23ai) — agent never installed
+- EBS App Tier report — EBS PDF/XLSX export buttons not showing in toolbar
+  on report-ebs.html (injectToolbarExportButtons() / #toolbar-export-slot)
+- Deep EBS Mode — db/ebs-deep.js getEbsConnections() only finds is_ebs=true;
+  fix: WHERE (is_ebs=true OR server_type IN ('apps','both'))
+- install.sh systemd unit template — tunevault-agent.service needs 
+  PrivateTmp=no (or BindPaths=-/var/tmp/.oracle) baked in. Current installs 
+  need a manual drop-in: systemctl edit tunevault-agent → [Service] 
+  PrivateTmp=no. Lab box (ebs12212-app-dev) has this applied manually.
+- WF Notification Mailer — DEACTIVATED_SYSTEM on conn 140 due to mail server
+  config error (OUTBOUND_SERVER unreachable). Not a TuneVault bug — needs 
+  EBS mail config fix before Start/Reset will work.
 
 🟢 Low:
-- Blog articles need seeding — run POST /api/admin/seed-blog
+- Blog articles need seeding — run POST /api/admin/seed-blog; 5 stubs remain
+  (adop-patching, rac-troubleshooting, data-guard, ebs-performance-tuning,
+  ebs-oci-cloning)
 - ~20 debug scripts in repo root — move to scripts/debug/ or delete
 - README.md CI badge URLs point to Polsia-Inc/tunevault
-- Privacy Policy + ToS pages not created yet
+- Privacy Policy + ToS pages not created yet (needed before go-live)
+- Outreach email templates not written yet
+- Result persistence — EBS Ops and DB Ops cards load blank on navigate-back;
+  fix: localStorage last-run cache with timestamp, no auto-run
+- Long-running job model — start/stop ops >30s have no persist-across-nav;
+  design: ebs_jobs table (id, connection_id, op_key, status, stdout, etc.)
+- OPP Queue query may need tuning for some EBS versions
+- adalnctl start/stop: pgrep sentinel kept as defense-in-depth; TCP lsnrctl
+  is the primary status path (3.20.47+). TWO_TASK-based pgrep may miss 
+  multi-node balance aliases — revisit if customer reports listener anomalies
 
 ## Key Configuration
-- `ebs_instance_name`: both conn 134 (ebs12212-db-dev) and conn 140 (ebs12212-app-dev) set to `EBS12212` for EBS Ops SQL pairing via `findPairedDbConn()`
-- Render auto-deploy is ON — GitHub webhook reconnected as of 2026-06-09
+- `ebs_instance_name`: conn 134 (ebs12212-db-dev) and conn 140 
+  (ebs12212-app-dev) both set to `EBS12212`. EBS Ops SQL routes conn 140 → 
+  conn 134 via findPairedDbConn() using this value. APPS password stored in 
+  apps_pwd_enc on conn 140. WebLogic password in weblogic_pwd_enc on conn 140.
+- Current proxy version: 3.20.52 on both conn 134 and conn 140
+- Render auto-deploy: ON (GitHub webhook active)
+- SKIP_TIER_LIMITS=true in Render env vars
+
+## EBS Ops architecture (as of 2026-06-10)
+
+### Transport
+All EBS Ops run through the agent on the target server — no SSH from 
+TuneVault. Two paths:
+- **Shell ops** (Service Status, CM control): POST /api/ebs-ops/middleware-run
+  → agent-channel → /api/ebs-ctrl on the app-tier agent (conn 140). Scripts 
+  source EBSapps.env, run as applmgr via su, return stdout + exit code.
+- **SQL ops** (Concurrent, WF Mailer, Patching): POST /api/ebs-ops/run →
+  findPairedDbConn() pairs conn 140 → conn 134 via ebs_instance_name → 
+  agent-channel → /api/run_sql on DB agent (conn 134) as APPS user.
+
+### /api/ebs-ctrl whitelisted ops (oracle-proxy.py)
+Status: adapcctl_status, adopmnctl_status, adalnctl_status (TCP lsnrctl),
+adnodemgrctl_status, wls_admin_status, oacore_status, forms_status, 
+oafm_status, managed_servers_status, adcmctl_status, fnd_svc_ctrl_start,
+fnd_svc_ctrl_stop
+Start/Stop: adapcctl_start/stop, adopmnctl_start/stop, adalnctl_start/stop,
+adnodemgrctl_start/stop, wls_admin_start/stop, managed_server_start/stop 
+(requires server_name param, validated ^[a-zA-Z0-9_-]{1,64}$),
+adcmctl_start/stop, wf_mailer_start/stop/reset (all PL/SQL via sqlplus)
+
+### adalnctl special handling
+adalnctl_status uses TCP lsnrctl directly (bypasses Unix socket in 
+/var/tmp/.oracle which is hidden when PrivateTmp=true in systemd unit):
+  ALN_PORT=$(grep -i 'Port=' "$TNS_ADMIN/listener.ora" | head -1 | sed ...)
+  lsnrctl status "(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=$ALN_PORT)))"
+ok = exit==0 AND "STATUS of the LISTENER" in stdout.
+
+### WF Mailer PL/SQL signature (confirmed on EBS 12.2)
+fnd_svc_component.start_component(p_component_id=>N, p_retcode=>OUT, p_errbuf=>OUT)
+fnd_svc_component.stop_component — same signature.
+DEACTIVATED_SYSTEM reset: UPDATE fnd_svc_components SET 
+component_status='STOPPED', component_status_info=NULL WHERE component_id=N
+then call start_component. Cannot reset via restart_count (column does not 
+exist). If DEACTIVATED_SYSTEM persists after reset, use CM Stop All + 
+Start All (adcmctl) to fully restart the GSM framework.
+
+### EBS Ops tabs (5 tabs)
+1. Service Status — inline agent cards: Apache/OHS, OPMN, Apps Listener, 
+   Node Manager, WLS Admin Server, OACore/Forms/OAFM/All Managed Servers.
+   Each card has ▶ Status + ▶ Start + ▶ Stop (CONFIRM gate on destructive).
+   Per-server Start/Stop appears inside the result panel after status runs.
+2. Concurrent Processing — CM Control (adcmctl status/start/stop) + SQL 
+   cards: Running/Long-running/Pending/Failed requests, CM Managers, OPP 
+   Queue/Programs/Manager/Heap.
+3. WF Mailer — PL/SQL control (Stop/Start/Reset WF Mailer) + SQL cards: 
+   Mailer Status (with per-component inline Start/Stop), Stuck Notifications,
+   WF Errors 24h/7d, Mailer Queues, Open Notification count, Notification 
+   by ID (parameterised).
+4. Patching & ADOP — ADOP Session Status, Recent Patches (90 days via 
+   AD_ADOP_SESSION_PATCHES), APPS Invalid Objects.
+5. Reports — existing report links.
 
 ## Recent changes
 
-- 2026-06-10: FEAT — oracle-proxy.py 3.20.39: rewrite /api/ebs-ctrl with HC-path commands — proper bash heredoc for adnodemgrctl (WLS_PWD), adadminsrvctl (WLS_PWD+APPS_PWD + admin host guard), per-server admanagedsrvctl loop (WLS_PWD heredoc). Add oacore_status/forms_status/oafm_status ops (grep context file by server type). Accept apps_pwd from request body. Per-op timeouts (20–120s). LATEST_PROXY_VERSION → 3.20.39.
-- 2026-06-10: FEAT — routes/ebs-ops.js: add oacore_status/forms_status/oafm_status to MIDDLEWARE_OPS_CATALOG; rename managed_servers_status label to "All Managed Servers"; pass apps_pwd in body; per-op timeout (35s/75s/130s).
-- 2026-06-10: FEAT — ebs-ops.html: split WLS Managed Servers card into OACore Servers / Forms Servers / OAFM Servers / All Managed Servers. Per-server TV_SERVER_NAME/EXIT parsing; NO_PASSWORDS/SKIP_ADMIN_HOST/NO_SERVERS_FOUND/NO_WLS_PWD sentinel rendering. Server block cards with per-server running/stopped badge.
-- 2026-06-10: FEAT — App Tier PDF/XLSX export: routes/reports.js adds generateAppTierPDF + generateAppTierXLSX (renders findings[]/checks_ok[] arrays from app-tier HC). /ebs endpoint now accepts app-tier connections (server_type='apps') and routes to app-tier generators. report.html exportIsAppTier branch replaced: shows blue "App Tier PDF" + "App Tier XLSX" buttons via /api/reports/:connectionId/ebs.
-- 2026-06-10: FEAT — EBS Ops tab restructure: delete blank Service Status tab; rename "Fusion Middleware & WebLogic" to "Service Status" (tab 1, default). Auto-runs all 6 agent op-cards on load; ↺ Refresh button top-right. Final 4-tab order: Service Status | Concurrent Processing | Patching & ADOP | Reports.
-- 2026-06-10: FIX — ebs-12-2-checks.html: SSH Target dropdown now filters by connection server_type (apps → apps_tier only, db → db_tier only). Auto-selects single matching target. filterSshTargets() runs on init and on connection change.
-- 2026-06-10: FIX — oracle-proxy.py 3.20.38: adalnctl_status ok detection now pure exit-code only (removed TNS- string gating that incorrectly flagged listener as down when exit=0). Added per-op diagnostic print: `[ebs-ctrl] op= exit= ok= stdout=`. LATEST_PROXY_VERSION → 3.20.38.
-- 2026-06-10: FIX — ebs-12-2-checks.html: loadConnections() now reads ?conn= URL param to pre-select connection (overrides localStorage). EBS Ops deep-checks link card passes ?conn= so the right connection auto-selects on arrival.
-- 2026-06-10: FIX — sanity-check.html: setTargetDropdown('ebs') now populates #ebs-target-hint with "No SSH targets configured — Configure SSH access to enable sanity checks." + link to /settings/ssh-targets when no apps_tier SSH targets exist.
-- 2026-06-10: FEAT — EBS Ops inline middleware: oracle-proxy.py 3.20.37 adds /api/ebs-ctrl with 6 ops (adapcctl/adopmnctl/adalnctl/adnodemgrctl/wls_admin/managed_servers). routes/ebs-ops.js POST /api/ebs-ops/middleware-run. ebs-ops.html Fusion Middleware tab: 6 inline op-cards + link cards for deep checks + sanity.
-- 2026-06-09: FEAT — EBS Ops full redesign: 5-tab layout, inline SQL results, agent channel pairing conn 140 → conn 134, FND table JOIN fixes, OPP queue via fnd_conc_pp_actions.
+- 2026-06-10: docs — rewrote all EBS Ops card descriptions to plain English
+- 2026-06-10: FEAT — oracle-proxy.py 3.20.52: fnd_svc_ctrl_start/stop ops 
+  (start/stop any GSM component by component_id); wf_mailer_reset pre-checks 
+  DEACTIVATED_SYSTEM and shows advisory instead of silently failing. 
+  ebs-ops.html: WF Mailer Status table shows per-component Start/Stop/⚠ 
+  inline buttons; fixed column order (COMPONENT_NAME first), colored status 
+  badges, 60-char truncation on COMPONENT_STATUS_INFO.
+- 2026-06-10: FIX — oracle-proxy.py 3.20.51: wf_mailer_start/stop/reset all 
+  use correct fnd_svc_component PL/SQL signature with named params 
+  (p_component_id, p_retcode OUT, p_errbuf OUT). DEACTIVATED_SYSTEM reset 
+  uses UPDATE component_status='STOPPED', component_status_info=NULL 
+  (restart_count column does not exist on EBS 12.2).
+- 2026-06-10: FEAT — oracle-proxy.py 3.20.50: all three WF Mailer control 
+  ops (start/stop/reset) use fnd_svc_component PL/SQL only — no adcmctl. 
+  Scoped to WF Mailer component only, does not affect other CMs.
+- 2026-06-10: FEAT — oracle-proxy.py 3.20.48/49: CM Status card shows 
+  FNDLIBR/FNDSM process list (CM_PROCESSES block) after adcmctl status. 
+  WF Mailer Start/Stop use targeted fnd_svc_component PL/SQL. CM control 
+  cards (adcmctl) correctly documented as affecting ALL CMs + GSM.
+- 2026-06-10: FEAT — oracle-proxy.py 3.20.41: full start/stop controls for 
+  all service components — adapcctl/adopmnctl/adalnctl/adnodemgrctl/
+  wls_admin start+stop; managed_server_start/stop (per-server, requires 
+  server_name validated ^[a-zA-Z0-9_-]{1,64}$); adcmctl_start/stop. 
+  WF Mailer tab added (5th tab): PL/SQL stop/start/reset + 7 SQL cards. 
+  CONFIRM gate on all destructive ops; post-control auto-refresh.
+- 2026-06-10: FIX — oracle-proxy.py 3.20.47: adalnctl_status rewritten to 
+  use TCP lsnrctl directly (bypasses PrivateTmp Unix socket isolation). 
+  Port read from listener.ora dynamically. ok = exit==0 AND "STATUS of 
+  the LISTENER" in stdout. Fixes persistent TNS-12541 false-down.
+- 2026-06-10: FIX — oracle-proxy.py 3.20.44: hardcoded APPS_EBSDB removed 
+  from pgrep; replaced with $TWO_TASK-based dynamic listener name. 
+  ready-to-test.js lab SSH fallback nulled.
+- 2026-06-10: FIX — oracle-proxy.py 3.20.45: unset ORACLE_HOME/TNS_ADMIN/
+  LD_LIBRARY_PATH before sourcing EBSapps.env in all generated scripts — 
+  prevents proxy's Oracle instant-client env leaking into EBS scripts.
+- 2026-06-10: FIX — oracle-proxy.py 3.20.42: adcmctl.sh credential format 
+  fixed to "apps/$APPS_PWD" (single slash-joined arg, not two args). 
+  ADOP/patch queries fixed for EBS 12.2 schema (no APPLIED_ON_NODE; 
+  use AD_ADOP_SESSION_PATCHES). WF Mailer query fixed (no LAST_ERROR_DATE; 
+  use COMPONENT_STATUS_INFO). WF Errors query uses ASSIGNED_DATE not 
+  ERROR_DATE. Managed server state classified from output text (NOT_DEPLOYED,
+  RUNNING, DOWN, optional c4ws/oaea).
+- 2026-06-10: FEAT — oracle-proxy.py 3.20.40: per-server managed server 
+  start/stop added. Server name validated in both proxy and Node route.
+  Service Status tab: per-server Start/Stop buttons render inside result 
+  panels after status runs.
+- 2026-06-09: FEAT — DB Ops and EBS Ops inline collapsible results matching 
+  pattern across all cards. result-panel / result-panel-hdr / result-toggle.
+- 2026-06-09: FIX — PDF export: all generators fixed (doc.end before pipe 
+  was hanging HTTP response). HC completion email: f.detail → f.details.
+- 2026-06-09: FIX — DB Ops Run endpoint: removed stale cx_oracle_version 
+  pre-check that blocked runs when field was null.
