@@ -531,7 +531,7 @@ function renderWfMailerTab(container) {
   ctrlHdr.innerHTML = `
     <div class="sub-header-icon" style="background:var(--accent-dim);color:var(--accent)">⚡</div>
     <span class="sub-header-label">Mailer Control</span>
-    <span class="sub-header-desc">— fnd_svc_component PL/SQL via agent tunnel · requires APPS password</span>`;
+    <span class="sub-header-desc">— fnd_svc_component PL/SQL · scoped to WF Mailer only · requires APPS password</span>`;
   container.appendChild(ctrlHdr);
 
   const ctrlGrid = document.createElement('div');
@@ -539,7 +539,7 @@ function renderWfMailerTab(container) {
   const wfCtrlOps = [
     { key: 'wf_mailer_stop',  label: 'Stop WF Mailer',      icon: '⏹',  desc: 'fnd_svc_component.stop_component — stops only the WF Notification Mailer, leaves other CMs running.',  destructive: true },
     { key: 'wf_mailer_start', label: 'Start WF Mailer',     icon: '▶',  desc: 'fnd_svc_component.start_component — starts only the WF Notification Mailer.',                           destructive: true },
-    { key: 'wf_mailer_reset', label: 'Reset & Restart All CM', icon: '🔄', desc: 'adcmctl stop/start — restarts ALL Concurrent Managers. Use only for DEACTIVATED_SYSTEM state when WF Mailer has hit max restart limit. This affects all CM queues.', destructive: true, confirmWord: 'RESET-ALL-CM' },
+    { key: 'wf_mailer_reset', label: 'Reset & Restart',        icon: '🔄', desc: 'Clears DEACTIVATED_SYSTEM state then stops + starts the WF Notification Mailer via fnd_svc_component PL/SQL. Scoped to WF Mailer only — does not affect other CMs.', destructive: true },
   ];
   wfCtrlOps.forEach(op => renderWfMailerMwCard(op, ctrlGrid));
   container.appendChild(ctrlGrid);
