@@ -210,6 +210,8 @@ router.post('/api/ebs-ops/run', requireAuth, async (req, res) => {
     }
   }
 
+  console.log('[ebs-ops/run] targetConnId=%d sqlUsername=%s hasPwd=%s', targetConnId, sqlUsername, !!sqlPassword);
+
   let agentOnline = false;
   try {
     agentOnline = await Promise.race([
