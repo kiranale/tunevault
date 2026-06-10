@@ -514,12 +514,6 @@ function renderMiddlewareTab(container) {
     { title: 'Post-Bounce Sanity', desc: 'Verify all services came back after a bounce — TNS, EBS HTTP, DB connectivity, file ownership. Requires SSH target configured.', icon: '✅', bg: 'var(--green-dim)', href: '/sanity-check' + connParam, tag: 'SSH · SQL' },
   ];
   renderLinkGrid(container, linkCards);
-
-  // Auto-run all ops sequentially on first load if no results exist yet and not already running
-  const hasAnyResult = MIDDLEWARE_OPS.some(op => resultStore.has('mw-' + op.key));
-  if (!hasAnyResult && selectedConn && !isRefreshing) {
-    setTimeout(() => runAllMiddlewareOpsSequential(), 50);
-  }
 }
 
 // ── Sequential runner — runs all middleware ops one at a time ─────────────────
