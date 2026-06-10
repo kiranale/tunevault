@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.50"  # wf_mailer_reset: fnd_svc_component PL/SQL stop+clear+start (not adcmctl); all wf_mailer ops now PL/SQL-only
+VERSION = "3.20.51"  # wf_mailer start/stop/reset: correct fnd_svc_component signature (p_component_id/p_retcode/p_errbuf); no restart_count
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -6409,10 +6409,10 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         _timeout = 120
 
                 elif op in ("wf_mailer_start", "wf_mailer_stop"):
-                    # Targeted: only affects WF Notification Mailer via fnd_svc_component PL/SQL.
-                    # Does NOT touch other Concurrent Managers.
-                    _plsql_action = "start_component" if op == "wf_mailer_start" else "stop_component"
-                    _sentinel     = "WF_MAILER_STARTED" if op == "wf_mailer_start" else "WF_MAILER_STOPPED"
+                    # Exact signature from dba_arguments: start/stop_component(
+                    #   p_component_id IN NUMBER, p_retcode OUT NUMBER, p_errbuf OUT VARCHAR2)
+                    _proc     = "start_component" if op == "wf_mailer_start" else "stop_component"
+                    _sentinel = "WF_MAILER_STARTED" if op == "wf_mailer_start" else "WF_MAILER_STOPPED"
                     _lines = [
                         "#!/bin/bash",
                         "export APPS_PWD='%s'" % _ap,
@@ -6424,15 +6424,25 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         "timeout 55 sqlplus -s \"apps/$APPS_PWD\" 2>&1 <<'SQLEOF'",
                         'SET SERVEROUTPUT ON',
                         'DECLARE',
-                        '  l_id NUMBER;',
+                        '  l_id     NUMBER;',
+                        '  l_ret    NUMBER;',
+                        '  l_errbuf VARCHAR2(2000);',
                         'BEGIN',
                         '  SELECT component_id INTO l_id',
                         '  FROM fnd_svc_components',
                         "  WHERE component_type = 'WF_MAILER'",
                         '  AND ROWNUM = 1;',
-                        '  fnd_svc_component.%s(l_id);' % _plsql_action,
+                        '  fnd_svc_component.%s(' % _proc,
+                        '    p_component_id => l_id,',
+                        '    p_retcode      => l_ret,',
+                        '    p_errbuf       => l_errbuf',
+                        '  );',
                         '  COMMIT;',
-                        "  DBMS_OUTPUT.PUT_LINE('%s');" % _sentinel,
+                        '  IF l_ret = 0 THEN',
+                        "    DBMS_OUTPUT.PUT_LINE('%s');" % _sentinel,
+                        '  ELSE',
+                        "    DBMS_OUTPUT.PUT_LINE('WF_MAILER_ERROR: ' || NVL(l_errbuf,'unknown'));",
+                        '  END IF;',
                         'EXCEPTION',
                         '  WHEN NO_DATA_FOUND THEN',
                         "    DBMS_OUTPUT.PUT_LINE('WF_MAILER_NOT_FOUND');",
@@ -6445,8 +6455,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     _timeout = 60
 
                 elif op == "wf_mailer_reset":
-                    # stop_component + clear DEACTIVATED_SYSTEM state + start_component,
-                    # all via fnd_svc_component PL/SQL — scoped to WF Mailer only.
+                    # Clear DEACTIVATED_SYSTEM state (COMPONENT_STATUS + COMPONENT_STATUS_INFO;
+                    # no restart_count column exists), then start_component with correct signature.
                     _lines = [
                         "#!/bin/bash",
                         "export APPS_PWD='%s'" % _ap,
@@ -6458,21 +6468,31 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         "timeout 55 sqlplus -s \"apps/$APPS_PWD\" 2>&1 <<'SQLEOF'",
                         'SET SERVEROUTPUT ON',
                         'DECLARE',
-                        '  l_id NUMBER;',
+                        '  l_id     NUMBER;',
+                        '  l_ret    NUMBER;',
+                        '  l_errbuf VARCHAR2(2000);',
                         'BEGIN',
                         '  SELECT component_id INTO l_id',
                         '  FROM fnd_svc_components',
                         "  WHERE component_type = 'WF_MAILER'",
                         '  AND ROWNUM = 1;',
-                        '  fnd_svc_component.stop_component(l_id);',
-                        '  COMMIT;',
                         '  UPDATE fnd_svc_components',
-                        "  SET component_status = 'STOPPED', restart_count = 0, last_update_date = SYSDATE",
+                        "  SET component_status      = 'STOPPED',",
+                        '      component_status_info = NULL,',
+                        '      last_update_date      = SYSDATE',
                         '  WHERE component_id = l_id;',
                         '  COMMIT;',
-                        '  fnd_svc_component.start_component(l_id);',
+                        '  fnd_svc_component.start_component(',
+                        '    p_component_id => l_id,',
+                        '    p_retcode      => l_ret,',
+                        '    p_errbuf       => l_errbuf',
+                        '  );',
                         '  COMMIT;',
-                        "  DBMS_OUTPUT.PUT_LINE('WF_MAILER_RESET_DONE');",
+                        '  IF l_ret = 0 THEN',
+                        "    DBMS_OUTPUT.PUT_LINE('WF_MAILER_RESET_DONE');",
+                        '  ELSE',
+                        "    DBMS_OUTPUT.PUT_LINE('WF_MAILER_ERROR: ' || NVL(l_errbuf,'unknown'));",
+                        '  END IF;',
                         'EXCEPTION',
                         '  WHEN NO_DATA_FOUND THEN',
                         "    DBMS_OUTPUT.PUT_LINE('WF_MAILER_NOT_FOUND');",
@@ -6596,7 +6616,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 elif op in ("wf_mailer_start", "wf_mailer_stop", "wf_mailer_reset"):
                     if "NO_APPS_PWD" in _stdout:
                         _ok = True
-                    elif "WF_MAILER_NOT_FOUND" in _stdout:
+                    elif "WF_MAILER_NOT_FOUND" in _stdout or "WF_MAILER_ERROR" in _stdout:
                         _ok = False
                     else:
                         _ok = _exit == 0 and any(kw in _stdout for kw in (
