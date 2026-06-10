@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.45"  # unset Oracle-client env vars before EBSapps.env source in all generated scripts
+VERSION = "3.20.46"  # TEMP diagnostic in adalnctl_status to capture env/hostname/listener.ora state
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -6313,6 +6313,23 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         _lines = [
                             "#!/bin/bash",
                             "source '%s' run >/dev/null 2>&1" % _ef,
+                            # TEMPORARY DIAGNOSTIC — remove after root-cause confirmed (3.20.46)
+                            'echo "=== TV_DIAG START ==="',
+                            'id',
+                            'echo "TNS_ADMIN=$TNS_ADMIN"',
+                            'echo "ORACLE_HOME=$ORACLE_HOME"',
+                            'echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"',
+                            'echo "TWO_TASK=$TWO_TASK"',
+                            'echo "HOSTALIASES=$HOSTALIASES"',
+                            'echo "--- resolution ---"',
+                            'getent hosts ebs12212-app-dev',
+                            'getent ahosts ebs12212-app-dev | head -4',
+                            'echo "--- listener.ora APPS entry ---"',
+                            'grep -i -A4 \'APPS_\' "$TNS_ADMIN/listener.ora" 2>/dev/null | head -10',
+                            'echo "--- oracle sockets ---"',
+                            'ls -la /var/tmp/.oracle/ 2>/dev/null | head -6',
+                            'echo "=== TV_DIAG END ==="',
+                            # END TEMPORARY DIAGNOSTIC
                             '"$ADMIN_SCRIPTS_HOME/adalnctl.sh" status 2>&1',
                             "[ -n \"$TWO_TASK\" ] && pgrep -f \"tnslsnr APPS_${TWO_TASK}\" > /dev/null 2>&1 && echo 'LISTENER_PROCESS_RUNNING'",
                             "[ -z \"$TWO_TASK\" ] && pgrep -f 'tnslsnr APPS_' > /dev/null 2>&1 && echo 'LISTENER_PROCESS_RUNNING'",
