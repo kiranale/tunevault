@@ -319,16 +319,23 @@ WHERE SERVICE_ID = (
 ];
 
 const PATCHING_OPS = [
-  { key: 'adop_status', label: 'ADOP Session Status', icon: '🔧', desc: 'Current and recent ADOP patch session state — phase, status, node.',
-    sql: `SELECT session_id, phase, status, start_date, end_date,
-       applied_on_node
-FROM ad_adop_sessions
-ORDER BY start_date DESC FETCH FIRST 10 ROWS ONLY` },
-  { key: 'applied_patches', label: 'Recent Patches (90 days)', icon: '🩹', desc: 'AD_APPLIED_PATCHES — patches applied in the last 90 days.',
-    sql: `SELECT patch_name, patch_type, creation_date, last_update_date
-FROM ad_applied_patches
-WHERE creation_date > SYSDATE-90
-ORDER BY creation_date DESC
+  { key: 'adop_status', label: 'ADOP Session Status', icon: '🔧', desc: 'Current and recent ADOP patch session state — phase, status, per-node.',
+    sql: `SELECT ADOP_SESSION_ID, NODE_NAME, NODE_TYPE, STATUS,
+       PREPARE_STATUS, APPLY_STATUS, FINALIZE_STATUS,
+       CUTOVER_STATUS, CLEANUP_STATUS, ABORT_STATUS,
+       PREPARE_START_DATE, APPLY_START_DATE, CUTOVER_START_DATE,
+       CLEANUP_START_DATE
+FROM AD_ADOP_SESSIONS
+ORDER BY ADOP_SESSION_ID DESC
+FETCH FIRST 10 ROWS ONLY` },
+  { key: 'applied_patches', label: 'Recent Patches (90 days)', icon: '🩹', desc: 'AD_ADOP_SESSION_PATCHES joined to AD_ADOP_SESSIONS — patches applied in the last 90 days.',
+    sql: `SELECT s.ADOP_SESSION_ID, p.BUG_NUMBER, p.STATUS,
+       p.NODE_NAME, p.START_DATE, p.END_DATE,
+       p.APPLIED_FILE_SYSTEM_BASE
+FROM AD_ADOP_SESSION_PATCHES p
+JOIN AD_ADOP_SESSIONS s ON s.ADOP_SESSION_ID = p.ADOP_SESSION_ID
+WHERE p.START_DATE > SYSDATE - 90
+ORDER BY p.START_DATE DESC
 FETCH FIRST 50 ROWS ONLY` },
   { key: 'invalid_objects', label: 'APPS Invalid Objects', icon: '🔴', desc: 'Invalid objects owned by APPS schema users (FND_ORACLE_USERID).',
     sql: `SELECT owner, object_type, COUNT(*) AS invalid_count
