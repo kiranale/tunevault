@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.47"  # adalnctl_status: TCP lsnrctl direct; port from listener.ora; drop pgrep+diag
+VERSION = "3.20.48"  # wf_mailer_start/stop/reset via adcmctl.sh; CM_PROCESSES block in adcmctl_status
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -6252,6 +6252,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     "oacore_status", "forms_status", "oafm_status", "managed_servers_status",
                     "managed_server_start", "managed_server_stop",
                     "adcmctl_status", "adcmctl_start", "adcmctl_stop",
+                    "wf_mailer_start", "wf_mailer_stop", "wf_mailer_reset",
                 }
                 if op in ("managed_server_start", "managed_server_stop"):
                     if not server_name or not re.match(r'^[a-zA-Z0-9_-]{1,64}$', server_name):
@@ -6375,8 +6376,40 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     ]
                     _timeout = 120
 
-                elif op in ("adcmctl_status", "adcmctl_start", "adcmctl_stop"):
-                    _action = op[len("adcmctl_"):]
+                elif op in ("adcmctl_status", "adcmctl_start", "adcmctl_stop", "wf_mailer_start", "wf_mailer_stop"):
+                    _action = {"adcmctl_status": "status", "adcmctl_start": "start", "adcmctl_stop": "stop",
+                               "wf_mailer_start": "start", "wf_mailer_stop": "stop"}.get(op, "status")
+                    if _action == "status":
+                        _lines = [
+                            "#!/bin/bash",
+                            "export APPS_PWD='%s'" % _ap,
+                            "source '%s' run >/dev/null 2>&1" % _ef,
+                            'if [ -z "$APPS_PWD" ]; then',
+                            '    echo "NO_APPS_PWD"',
+                            '    exit 0',
+                            'fi',
+                            'timeout 110 "$ADMIN_SCRIPTS_HOME/adcmctl.sh" status "apps/$APPS_PWD" 2>&1',
+                            '_CM_EXIT=$?',
+                            'echo "=== CM_PROCESSES ==="',
+                            "ps -eo user,pid,command --no-headers 2>/dev/null | grep -E '(FNDLIBR|FNDSM)' | grep -v grep | head -20",
+                            'exit $_CM_EXIT',
+                        ]
+                        _timeout = 35
+                    else:
+                        _lines = [
+                            "#!/bin/bash",
+                            "export APPS_PWD='%s'" % _ap,
+                            "source '%s' run >/dev/null 2>&1" % _ef,
+                            'if [ -z "$APPS_PWD" ]; then',
+                            '    echo "NO_APPS_PWD"',
+                            '    exit 0',
+                            'fi',
+                            'timeout 110 "$ADMIN_SCRIPTS_HOME/adcmctl.sh" %s "apps/$APPS_PWD" 2>&1' % _action,
+                            "exit $?",
+                        ]
+                        _timeout = 120
+
+                elif op == "wf_mailer_reset":
                     _lines = [
                         "#!/bin/bash",
                         "export APPS_PWD='%s'" % _ap,
@@ -6385,10 +6418,21 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         '    echo "NO_APPS_PWD"',
                         '    exit 0',
                         'fi',
-                        'timeout 110 "$ADMIN_SCRIPTS_HOME/adcmctl.sh" %s "apps/$APPS_PWD" 2>&1' % _action,
-                        "exit $?",
+                        'echo "=== RESET: Clearing DEACTIVATED_SYSTEM status ==="',
+                        "sqlplus -S \"apps/$APPS_PWD\" 2>&1 <<'SQLEOF'",
+                        'SET ECHO OFF FEEDBACK OFF HEADING OFF PAGESIZE 0',
+                        "UPDATE fnd_svc_components SET component_status='STOPPED', restart_count=0, last_update_date=SYSDATE WHERE component_type LIKE 'WF%' AND UPPER(component_name) LIKE '%MAILER%';",
+                        'COMMIT;',
+                        "SELECT component_name || ': ' || component_status FROM fnd_svc_components WHERE component_type LIKE 'WF%' AND UPPER(component_name) LIKE '%MAILER%';",
+                        'EXIT 0;',
+                        'SQLEOF',
+                        'echo "=== RESET: Stopping CM ==="',
+                        'timeout 110 "$ADMIN_SCRIPTS_HOME/adcmctl.sh" stop "apps/$APPS_PWD" 2>&1',
+                        'echo "=== RESET: Starting CM ==="',
+                        'timeout 110 "$ADMIN_SCRIPTS_HOME/adcmctl.sh" start "apps/$APPS_PWD" 2>&1',
+                        'exit $?',
                     ]
-                    _timeout = 30 if _action == "status" else 120
+                    _timeout = 180
 
                 else:
                     # oacore_status, forms_status, oafm_status, managed_servers_status:
@@ -6494,7 +6538,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     else:
                         # start/stop use adalnctl.sh; exit code is the primary signal.
                         _ok = _exit == 0
-                elif op in ("adcmctl_status", "adcmctl_start", "adcmctl_stop"):
+                elif op in ("adcmctl_status", "adcmctl_start", "adcmctl_stop",
+                             "wf_mailer_start", "wf_mailer_stop", "wf_mailer_reset"):
                     if "NO_APPS_PWD" in _stdout:
                         _ok = True  # neutral — no password configured, not a critical failure
                     else:

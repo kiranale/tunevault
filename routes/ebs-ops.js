@@ -172,27 +172,6 @@ const EBS_OPS_CATALOG = {
         GROUP BY OWNER, OBJECT_TYPE
         ORDER BY invalid_count DESC`,
   },
-  // ── WF Mailer control (PL/SQL) ────────────────────────────────────────────
-  wf_mailer_start: {
-    label: 'Start WF Mailer',
-    destructive: true,
-    sql: `BEGIN
-  FOR c IN (SELECT component_id FROM fnd_svc_components WHERE component_type LIKE 'WF%' AND UPPER(component_name) LIKE '%MAILER%') LOOP
-    fnd_svc_component.start_component(c.component_id);
-  END LOOP;
-  COMMIT;
-END;`,
-  },
-  wf_mailer_stop: {
-    label: 'Stop WF Mailer',
-    destructive: true,
-    sql: `BEGIN
-  FOR c IN (SELECT component_id FROM fnd_svc_components WHERE component_type LIKE 'WF%' AND UPPER(component_name) LIKE '%MAILER%') LOOP
-    fnd_svc_component.stop_component(c.component_id);
-  END LOOP;
-  COMMIT;
-END;`,
-  },
   // ── WF Mailer query ops ────────────────────────────────────────────────────
   mailer_status: {
     label: 'WF Mailer Status',
@@ -470,6 +449,9 @@ const MIDDLEWARE_OPS_CATALOG = {
   adcmctl_status:         { label: 'CM Status',               proxyOp: 'adcmctl_status'         },
   adcmctl_start:          { label: 'CM Start All',            proxyOp: 'adcmctl_start',         destructive: true },
   adcmctl_stop:           { label: 'CM Stop All',             proxyOp: 'adcmctl_stop',          destructive: true },
+  wf_mailer_stop:         { label: 'Stop WF Mailer',         proxyOp: 'wf_mailer_stop',         destructive: true },
+  wf_mailer_start:        { label: 'Start WF Mailer',        proxyOp: 'wf_mailer_start',        destructive: true },
+  wf_mailer_reset:        { label: 'Reset & Restart',        proxyOp: 'wf_mailer_reset',        destructive: true },
 };
 
 // ── POST /api/ebs-ops/middleware-run ──────────────────────────────────────────
@@ -529,6 +511,7 @@ router.post('/api/ebs-ops/middleware-run', requireAuth, async (req, res) => {
       managed_servers_status: 130000,
       managed_server_start: 130000, managed_server_stop: 130000,
       adcmctl_status: 35000,     adcmctl_start: 130000,     adcmctl_stop: 130000,
+      wf_mailer_start: 130000,   wf_mailer_stop: 130000,   wf_mailer_reset: 195000,
     };
     const ctrlTimeout = _ctrlTimeoutMap[op_key] || 40000;
     const proxyBody = { op: opDef.proxyOp, weblogic_pwd: conn.weblogicPwd || '', apps_pwd: conn.appsPwd || '' };

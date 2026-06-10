@@ -525,22 +525,23 @@ function renderConcurrentTab(container) {
 
 // ── Tab 3: WF Mailer ──────────────────────────────────────────────────────────
 function renderWfMailerTab(container) {
-  // ── WF Mailer control ────────────────────────────────────────────────────
+  // ── WF Mailer control (agent ops via adcmctl.sh) ─────────────────────────
   const ctrlHdr = document.createElement('div');
   ctrlHdr.className = 'sub-header';
   ctrlHdr.innerHTML = `
     <div class="sub-header-icon" style="background:var(--accent-dim);color:var(--accent)">⚡</div>
     <span class="sub-header-label">Mailer Control</span>
-    <span class="sub-header-desc">— PL/SQL via APPS schema · requires APPS password</span>`;
+    <span class="sub-header-desc">— adcmctl.sh via agent tunnel · requires APPS password</span>`;
   container.appendChild(ctrlHdr);
 
   const ctrlGrid = document.createElement('div');
   ctrlGrid.className = 'ops-grid';
   const wfCtrlOps = [
-    { key: 'wf_mailer_start', label: 'Start WF Mailer', icon: '▶️', desc: 'FND_SVC_COMPONENT.START_COMPONENT — starts all WF Mailer components.', destructive: true },
-    { key: 'wf_mailer_stop',  label: 'Stop WF Mailer',  icon: '⏹️', desc: 'FND_SVC_COMPONENT.STOP_COMPONENT — stops all WF Mailer components.',  destructive: true },
+    { key: 'wf_mailer_stop',  label: 'Stop WF Mailer',  icon: '⏹',  desc: 'adcmctl.sh stop — stops the Concurrent Manager (and WF Mailer services).',  destructive: true },
+    { key: 'wf_mailer_start', label: 'Start WF Mailer', icon: '▶',  desc: 'adcmctl.sh start — starts the Concurrent Manager (and WF Mailer services).', destructive: true },
+    { key: 'wf_mailer_reset', label: 'Reset & Restart', icon: '🔄', desc: 'Clears DEACTIVATED_SYSTEM status via SQL, then stops + starts CM. Use when mailer is stuck due to repeated outbound mail errors.', destructive: true },
   ];
-  wfCtrlOps.forEach(op => renderWfCtrlCard(op, ctrlGrid));
+  wfCtrlOps.forEach(op => renderWfMailerMwCard(op, ctrlGrid));
   container.appendChild(ctrlGrid);
 
   // ── SQL queries ──────────────────────────────────────────────────────────
@@ -558,71 +559,75 @@ function renderWfMailerTab(container) {
   container.appendChild(grid);
 }
 
-// ── WF Mailer control card (Start/Stop PL/SQL with inline CONFIRM) ────────────
-function renderWfCtrlCard(op, container) {
+// ── WF Mailer middleware control card (Stop/Start/Reset via adcmctl.sh) ────────
+function renderWfMailerMwCard(op, container) {
   const card = document.createElement('div');
   card.className = 'op-card';
-  card.id = 'card-' + op.key;
+  card.id = 'mw-card-' + op.key;
   const noConn = !selectedConn;
-  const isStop = op.key.endsWith('_stop');
-  const col = isStop ? 'var(--red)' : 'var(--green)';
+  const isStop  = op.key.endsWith('_stop');
+  const isReset = op.key.endsWith('_reset');
+  const col       = isStop ? 'var(--red)'    : isReset ? 'var(--yellow)' : 'var(--green)';
+  const borderCol = isStop ? 'rgba(248,113,113,0.4)' : isReset ? 'rgba(251,191,36,0.4)' : 'rgba(52,211,153,0.4)';
 
   card.innerHTML = `
     <div class="op-card-header">
       <div class="op-icon">${op.icon || '⚙️'}</div>
       <div style="flex:1;min-width:0">
         <div class="op-title">${escHtml(op.label)}</div>
-        <div class="op-meta">EBS · SQL · Control</div>
+        <div class="op-meta">EBS · Agent · Control</div>
       </div>
-      <span class="result-hdr-badge" id="result-hdr-badge-${op.key}" style="display:none"></span>
+      <span class="result-hdr-badge" id="result-hdr-badge-mw-${op.key}" style="display:none"></span>
     </div>
     <div class="op-preview">${escHtml(op.desc)}</div>
-    <div class="op-actions" id="op-actions-${op.key}">
-      <button class="btn btn-outline" style="color:${col};border-color:${isStop ? 'rgba(248,113,113,0.4)' : 'rgba(52,211,153,0.4)'}"
-        id="run-wf-ctrl-${op.key}"
-        onclick="${noConn ? '' : `showWfCtrlConfirm('${op.key}','${escHtml(op.label)}')`}"
+    <div class="op-actions" id="op-actions-mw-${op.key}">
+      <button class="btn btn-outline" style="color:${col};border-color:${borderCol}"
+        id="run-mw-${op.key}"
+        onclick="${noConn ? '' : `showWfMwConfirm('${op.key}','${escHtml(op.label)}')`}"
         ${noConn ? 'disabled' : ''}>${op.icon} ${escHtml(op.label)}</button>
     </div>
-    <div id="wf-ctrl-confirm-${op.key}" style="display:none;margin-top:8px;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;font-size:12px"></div>
-    <div class="result-panel" id="result-${op.key}"></div>`;
+    <div id="wf-mw-confirm-${op.key}" style="display:none;margin-top:8px;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;font-size:12px"></div>
+    <div class="result-panel" id="result-mw-${op.key}"></div>`;
 
   container.appendChild(card);
 }
 
-function showWfCtrlConfirm(opKey, label) {
-  const el = document.getElementById('wf-ctrl-confirm-' + opKey);
+function showWfMwConfirm(opKey, label) {
+  const el = document.getElementById('wf-mw-confirm-' + opKey);
   if (!el) return;
-  const isStop = opKey.endsWith('_stop');
+  const isStop  = opKey.endsWith('_stop');
+  const isReset = opKey.endsWith('_reset');
+  const col = isStop ? 'red' : isReset ? 'yellow' : 'green';
   el.style.display = '';
   el.innerHTML = `
     <div style="color:var(--yellow);font-weight:600;margin-bottom:5px">⚠ ${escHtml(label)}</div>
-    <div style="color:var(--text-dim);margin-bottom:8px">This affects all WF Mailer components. Type <strong>CONFIRM</strong> to proceed:</div>
+    <div style="color:var(--text-dim);margin-bottom:8px">This affects the Concurrent Manager and WF Mailer. Type <strong>CONFIRM</strong> to proceed:</div>
     <div style="display:flex;gap:7px;align-items:center">
-      <input id="wf-ctrl-inp-${opKey}" type="text" placeholder="CONFIRM"
+      <input id="wf-mw-inp-${opKey}" type="text" placeholder="CONFIRM"
         style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:12px;padding:5px 9px;border-radius:6px"
-        onkeydown="if(event.key==='Enter')commitWfCtrlConfirm('${opKey}')">
-      <button class="btn btn-run" style="background:var(--${isStop ? 'red' : 'green'})"
-        onclick="commitWfCtrlConfirm('${opKey}')">Confirm</button>
-      <button class="btn btn-outline" onclick="cancelWfCtrlConfirm('${opKey}')">Cancel</button>
+        onkeydown="if(event.key==='Enter')commitWfMwConfirm('${opKey}')">
+      <button class="btn btn-run" style="background:var(--${col})"
+        onclick="commitWfMwConfirm('${opKey}')">Confirm</button>
+      <button class="btn btn-outline" onclick="cancelWfMwConfirm('${opKey}')">Cancel</button>
     </div>`;
-  setTimeout(() => document.getElementById('wf-ctrl-inp-' + opKey)?.focus(), 50);
+  setTimeout(() => document.getElementById('wf-mw-inp-' + opKey)?.focus(), 50);
 }
 
-function cancelWfCtrlConfirm(opKey) {
-  const el = document.getElementById('wf-ctrl-confirm-' + opKey);
+function cancelWfMwConfirm(opKey) {
+  const el = document.getElementById('wf-mw-confirm-' + opKey);
   if (el) { el.style.display = 'none'; el.innerHTML = ''; }
 }
 
-async function commitWfCtrlConfirm(opKey) {
-  const inp = document.getElementById('wf-ctrl-inp-' + opKey);
+async function commitWfMwConfirm(opKey) {
+  const inp = document.getElementById('wf-mw-inp-' + opKey);
   if (!inp || inp.value.trim().toUpperCase() !== 'CONFIRM') {
     if (inp) { inp.style.borderColor = 'var(--red)'; setTimeout(() => { inp.style.borderColor = ''; }, 1500); }
     return;
   }
-  cancelWfCtrlConfirm(opKey);
-  await runEbsOp(opKey);
-  // Auto-run mailer status after start/stop
-  setTimeout(() => runEbsOp('mailer_status'), 1000);
+  cancelWfMwConfirm(opKey);
+  await runMiddlewareOp(opKey);
+  // Auto-run mailer status SQL after control op completes
+  setTimeout(() => runEbsOp('mailer_status'), 500);
 }
 
 // ── WF Mailer SQL op card (supports paramDef) ─────────────────────────────────
@@ -943,12 +948,13 @@ const _MW_TIMEOUTS = {
   wls_admin_start: 135000, wls_admin_stop: 135000,
   managed_server_start: 135000, managed_server_stop: 135000,
   adcmctl_start: 135000, adcmctl_stop: 135000,
+  wf_mailer_start: 135000, wf_mailer_stop: 135000, wf_mailer_reset: 200000,
 };
 
 async function runMiddlewareOp(opKey) {
   if (!selectedConn) return;
   // For control ops, the "status" run btn still shows ▶ Status; for others, ▶ Run
-  const isCtrlOp = opKey.endsWith('_start') || opKey.endsWith('_stop');
+  const isCtrlOp = (opKey.endsWith('_start') || opKey.endsWith('_stop')) && !opKey.startsWith('wf_mailer_');
   const statusKey = isCtrlOp ? opKey.replace(/_start$|_stop$/, '_status') : opKey;
   const btn      = document.getElementById('run-mw-' + (isCtrlOp ? statusKey : opKey));
   const resultEl = document.getElementById('result-mw-' + (isCtrlOp ? statusKey : opKey));
@@ -1118,7 +1124,17 @@ function storeAndRenderMiddlewareResult(storeKey, data) {
       }
     } else {
       bodyHtml = `<div class="result-status ${isOk ? 'status-ok' : 'status-err'}">${isOk ? '✓ Running / OK' : '✗ Not running or failed'} (exit ${exitCode !== undefined ? exitCode : '?'})</div>`;
-      if (stdout) bodyHtml += `<div class="result-text">${escHtml(stdout)}</div>`;
+      if (stdout) {
+        if (_baseKey === 'adcmctl_status' && stdout.includes('=== CM_PROCESSES ===')) {
+          const sep = stdout.indexOf('=== CM_PROCESSES ===');
+          const cmOut   = stdout.slice(0, sep).trim();
+          const procPart = stdout.slice(sep + '=== CM_PROCESSES ==='.length);
+          if (cmOut) bodyHtml += `<div class="result-text">${escHtml(cmOut)}</div>`;
+          bodyHtml += renderCmProcessTable(procPart);
+        } else {
+          bodyHtml += `<div class="result-text">${escHtml(stdout)}</div>`;
+        }
+      }
     }
   }
 
@@ -1137,6 +1153,25 @@ function storeAndRenderMiddlewareResult(storeKey, data) {
     badge.style.color      = isNeutral ? 'var(--text-dim)'  : (stored.isOk ? 'var(--green)' : 'var(--red)');
   }
   updateClearAllBar();
+}
+
+function renderCmProcessTable(procText) {
+  const lines = (procText || '').trim().split('\n').filter(l => l.trim());
+  if (!lines.length) {
+    return `<div style="font-size:12px;color:var(--text-dim);margin-top:6px">No CM worker processes running (FNDLIBR / FNDSM).</div>`;
+  }
+  let html = `<div style="margin-top:8px;font-size:11px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;margin-bottom:4px">CM Processes (FNDLIBR / FNDSM):</div>`;
+  html += `<div class="result-table-wrap"><table class="result-table"><thead><tr><th>USER</th><th>PID</th><th>CMD</th></tr></thead><tbody>`;
+  lines.forEach(line => {
+    const parts = line.trim().split(/\s+/);
+    const user = parts[0] || '';
+    const pid  = parts[1] || '';
+    const cmd  = parts.slice(2).join(' ');
+    const cmdDisplay = cmd.length > 60 ? cmd.slice(0, 60) + '…' : cmd;
+    html += `<tr><td>${escHtml(user)}</td><td>${escHtml(pid)}</td><td title="${escHtml(cmd)}">${escHtml(cmdDisplay)}</td></tr>`;
+  });
+  html += `</tbody></table></div>`;
+  return html;
 }
 
 function buildMiddlewareResultPanelHtml(storeKey, stored) {
