@@ -100,10 +100,10 @@
     .result-status { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
     .status-ok { color: var(--green); }
     .status-err { color: var(--red); }
-    .result-table-wrap { overflow-x: auto; }
+    .result-table-wrap { overflow-x: auto; max-width: 100%; }
     .result-table { width: 100%; border-collapse: collapse; font-size: 12px; font-family: 'JetBrains Mono', monospace; }
     .result-table th { text-align: left; padding: 6px 10px; background: var(--surface-2); border-bottom: 1px solid var(--border); color: var(--text-dim); font-size: 11px; white-space: nowrap; }
-    .result-table td { padding: 6px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .result-table td { padding: 6px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text); max-width: 400px; white-space: normal; word-break: break-word; overflow: visible; text-overflow: unset; }
     .result-table tr:last-child td { border-bottom: none; }
     .result-text { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text); background: #0d0d10; border: 1px solid var(--border); border-radius: 6px; padding: 11px; white-space: pre-wrap; word-break: break-all; max-height: 280px; overflow-y: auto; }
 
@@ -1004,7 +1004,13 @@ function buildResultBodyHtml(data, isOk) {
     html += '</tr></thead><tbody>';
     data.rows.forEach(row => {
       html += '<tr>';
-      row.forEach(cell => { html += `<td title="${escHtml(String(cell ?? ''))}">${escHtml(String(cell ?? ''))}</td>`; });
+      row.forEach(cell => {
+        const cellVal = String(cell ?? '');
+        const cellHtml = cellVal.length > 100
+          ? `<td><div style="font-family:monospace;font-size:11px;white-space:pre-wrap;word-break:break-all;max-width:500px;padding:4px">${escHtml(cellVal)}</div></td>`
+          : `<td title="${escHtml(cellVal)}">${escHtml(cellVal)}</td>`;
+        html += cellHtml;
+      });
       html += '</tr>';
     });
     html += '</tbody></table></div>';
