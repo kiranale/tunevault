@@ -27,7 +27,7 @@ const READY_TEST_TOKEN = process.env.READY_TEST_TOKEN || '';
 const DEFAULT_CONN = 'ebs12210-db-dev';
 
 // SSH host for the ebs12210-db-dev instance (for fix commands).
-const DEFAULT_SSH_HOST = process.env.READY_TEST_SSH_HOST || 'kiran@oracledb.kiranalelabs.com';
+const DEFAULT_SSH_HOST = process.env.READY_TEST_SSH_HOST || '';
 
 // Semver: is a >= b?
 function versionAtLeast(a, b) {

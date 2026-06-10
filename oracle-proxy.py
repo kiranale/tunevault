@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.43"  # adalnctl: pgrep process check supplements lsnrctl; fixes false-down when hostname mismatch
+VERSION = "3.20.44"  # adalnctl pgrep: derive listener name from $TWO_TASK; drop hardcoded APPS_EBSDB
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5464,7 +5464,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         "echo TV_START apps_listener",
                         '"$ADMIN_SCRIPTS_HOME/adalnctl.sh" status 2>&1',
                         "_aln_exit=$?",
-                        "pgrep -f 'tnslsnr APPS_EBSDB' > /dev/null 2>&1 && echo 'LISTENER_PROCESS_RUNNING'",
+                        "[ -n \"$TWO_TASK\" ] && pgrep -f \"tnslsnr APPS_${TWO_TASK}\" > /dev/null 2>&1 && echo 'LISTENER_PROCESS_RUNNING'",
+                        "[ -z \"$TWO_TASK\" ] && pgrep -f 'tnslsnr APPS_' > /dev/null 2>&1 && echo 'LISTENER_PROCESS_RUNNING'",
                         'echo "TV_EXIT $_aln_exit"',
                         "echo TV_END apps_listener",
                         "",
@@ -5715,12 +5716,12 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     _aln_tns  = "TNS-12541" in _out or "no listener" in _out.lower()
                     if _aln_tns and not _aln_proc:
                         _finding("apps_listener", "Apps Listener Not Running", "warning",
-                                 "Apps Listener (APPS_EBSDB) is not running: TNS-12541 in adalnctl output.", _out)
+                                 "Apps Listener is not running: TNS-12541 in adalnctl output.", _out)
                     elif _exit != 0 and not _aln_proc:
                         _finding("apps_listener", "Apps Listener Status Check Failed", "warning",
                                  "adalnctl.sh exited with code %d." % _exit, _out)
                     else:
-                        _ok("apps_listener", "Apps Listener Status", "Apps Listener (APPS_EBSDB) is running.", _out)
+                        _ok("apps_listener", "Apps Listener Status", "Apps Listener is running.", _out)
     
                     # ── 4. Node Manager ───────────────────────────────────────────
                     _out, _exit = _secs.get("node_manager", ("", 1))
@@ -6307,7 +6308,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
                             "#!/bin/bash",
                             "source '%s' run >/dev/null 2>&1" % _ef,
                             '"$ADMIN_SCRIPTS_HOME/adalnctl.sh" status 2>&1',
-                            "pgrep -f 'tnslsnr APPS_EBSDB' > /dev/null 2>&1 && echo 'LISTENER_PROCESS_RUNNING'",
+                            "[ -n \"$TWO_TASK\" ] && pgrep -f \"tnslsnr APPS_${TWO_TASK}\" > /dev/null 2>&1 && echo 'LISTENER_PROCESS_RUNNING'",
+                            "[ -z \"$TWO_TASK\" ] && pgrep -f 'tnslsnr APPS_' > /dev/null 2>&1 && echo 'LISTENER_PROCESS_RUNNING'",
                             "exit 0",
                         ]
                     _timeout = {
