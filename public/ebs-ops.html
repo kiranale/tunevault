@@ -276,24 +276,24 @@ const resultStore = new Map(); // opKey → { summaryText, bodyHtml, collapsed, 
 
 // ── SQL ops catalog (frontend copy for display + copy-SQL) ────────────────────
 const CONCURRENT_OPS = [
-  { key: 'running_requests', label: 'Running Requests', icon: '🟢', desc: 'Live running concurrent requests with start time and status code.',
+  { key: 'running_requests', label: 'Running Requests', icon: '🟢', desc: 'Live concurrent requests currently running — shows program name, requestor, start time, and elapsed time.',
     sql: `SELECT request_id, concurrent_program_name, requested_by,
        actual_start_date, phase_code, status_code
 FROM fnd_concurrent_requests
 WHERE phase_code='R' ORDER BY actual_start_date` },
-  { key: 'long_running', label: 'Long Running (>30 min)', icon: '⏱️', desc: 'Requests running more than 30 minutes — potential hangs.',
+  { key: 'long_running', label: 'Long Running (>30 min)', icon: '⏱️', desc: 'Concurrent requests running longer than 30 minutes — flag potential hangs or runaway jobs.',
     sql: `SELECT request_id, concurrent_program_name, requested_by,
        ROUND((SYSDATE-actual_start_date)*24*60,1) AS running_minutes
 FROM fnd_concurrent_requests
 WHERE phase_code='R' AND actual_start_date < SYSDATE-30/1440
 ORDER BY actual_start_date` },
-  { key: 'pending_requests', label: 'Pending Requests', icon: '⏳', desc: 'Queued requests waiting to run, ordered by priority.',
+  { key: 'pending_requests', label: 'Pending Requests', icon: '⏳', desc: 'Concurrent requests queued and waiting to run — shows priority, hold flag, and requested start time.',
     sql: `SELECT request_id, concurrent_program_name, requested_by,
        requested_start_date, priority
 FROM fnd_concurrent_requests
 WHERE phase_code='P' ORDER BY priority, requested_start_date
 FETCH FIRST 50 ROWS ONLY` },
-  { key: 'failed_requests', label: 'Failed Requests (24h)', icon: '❌', desc: 'Requests that failed in the last 24 hours with completion text.',
+  { key: 'failed_requests', label: 'Failed Requests (24h)', icon: '❌', desc: 'Requests that failed in the last 24 hours — shows completion text and phase for diagnosing failures.',
     sql: `SELECT request_id, concurrent_program_name, requested_by,
        actual_completion_date, completion_text
 FROM fnd_concurrent_requests
@@ -301,13 +301,13 @@ WHERE phase_code='C' AND status_code='E'
 AND actual_completion_date > SYSDATE-1
 ORDER BY actual_completion_date DESC
 FETCH FIRST 50 ROWS ONLY` },
-  { key: 'cm_managers', label: 'CM Manager Status', icon: '🏭', desc: 'Enabled Concurrent Managers with process counts.',
+  { key: 'cm_managers', label: 'CM Manager Status', icon: '🏭', desc: 'All enabled Concurrent Managers with their target vs actual running process counts.',
     sql: `SELECT concurrent_queue_name, manager_type,
        running_processes, target_processes, max_processes
 FROM fnd_concurrent_queues_vl
 WHERE enabled_flag='Y'
 ORDER BY running_processes DESC` },
-  { key: 'opp_queue', label: 'OPP Queue Depth', icon: '📊', desc: 'Output Post Processor pending queue depth — counts requests awaiting OPP post-processing.',
+  { key: 'opp_queue', label: 'OPP Queue Depth', icon: '📊', desc: 'Output Post Processor queue depth — counts requests waiting for OPP post-processing (fnd_conc_pp_actions).',
     sql: `SELECT COUNT(*) AS pending_opp_requests
 FROM FND_CONCURRENT_REQUESTS
 WHERE REQUEST_ID IN (
@@ -315,7 +315,7 @@ WHERE REQUEST_ID IN (
     FROM FND_CONC_PP_ACTIONS
     WHERE ACTION_TYPE >= 6 AND PROCESSOR_ID IS NULL
 ) AND PHASE_CODE != 'C'` },
-  { key: 'opp_programs', label: 'OPP Pending Programs', icon: '📋', desc: 'Programs with requests currently waiting for OPP post-processing.',
+  { key: 'opp_programs', label: 'OPP Pending Programs', icon: '📋', desc: 'Programs with requests currently waiting for OPP — identifies which programs are backing up the post-processing queue.',
     sql: `SELECT DISTINCT b.USER_CONCURRENT_PROGRAM_NAME AS program_name
 FROM FND_CONCURRENT_REQUESTS a
 JOIN FND_CONCURRENT_PROGRAMS_TL b ON a.CONCURRENT_PROGRAM_ID = b.CONCURRENT_PROGRAM_ID
@@ -324,13 +324,13 @@ WHERE a.REQUEST_ID IN (
     FROM FND_CONC_PP_ACTIONS
     WHERE ACTION_TYPE >= 6 AND PROCESSOR_ID IS NULL
 ) ORDER BY 1` },
-  { key: 'opp_manager_status', label: 'OPP Manager Status', icon: '📊', desc: 'FND_CONCURRENT_QUEUES_VL for FNDCPOPP — running vs target processes.',
+  { key: 'opp_manager_status', label: 'OPP Manager Status', icon: '📊', desc: 'OPP Manager (FNDCPOPP) running vs target process count — quick check if the Output Post Processor is alive.',
     sql: `SELECT USER_CONCURRENT_QUEUE_NAME AS manager_name,
        CONCURRENT_QUEUE_NAME, MANAGER_TYPE,
        RUNNING_PROCESSES, TARGET_PROCESSES, MAX_PROCESSES, ENABLED_FLAG
 FROM FND_CONCURRENT_QUEUES_VL
 WHERE CONCURRENT_QUEUE_NAME = 'FNDCPOPP'` },
-  { key: 'opp_heap_size', label: 'OPP Heap Size', icon: '🔬', desc: 'OPP JVM heap size configuration from FND_CP_SERVICES.',
+  { key: 'opp_heap_size', label: 'OPP Heap Size', icon: '🔬', desc: 'OPP JVM heap settings (Xms/Xmx) from FND_CP_SERVICES — verify OPP has adequate memory for large output volumes.',
     sql: `SELECT DEVELOPER_PARAMETERS
 FROM FND_CP_SERVICES
 WHERE SERVICE_ID = (
@@ -341,18 +341,18 @@ WHERE SERVICE_ID = (
 
 // ── WF Mailer ops catalog (frontend) ─────────────────────────────────────────
 const WF_MAILER_OPS = [
-  { key: 'mailer_status',          label: 'WF Mailer Status',              icon: '📬', desc: 'FND_SVC_COMPONENTS — WF Mailer component status, startup mode, last error.' },
-  { key: 'stuck_notifications',    label: 'Stuck Notifications (>1h)',     icon: '⏰', desc: 'WF_NOTIFICATIONS with mail_status MAIL/INVALID and begin_date > 1h ago.' },
-  { key: 'wf_errors_24h',         label: 'WF Errors (24h)',               icon: '❌', desc: 'WF_ITEM_ACTIVITY_STATUSES — activities in ERROR state in the last 24 hours.' },
-  { key: 'wf_errors_7d',          label: 'WF Errors (7 days)',            icon: '🗓️',  desc: 'WF_ITEM_ACTIVITY_STATUSES — activities in ERROR state in the last 7 days.' },
-  { key: 'mailer_queue',           label: 'WF Mailer Queues',              icon: '📋', desc: 'DBA_QUEUES — AQ queues used by WF Mailer (WF% normal queues).' },
-  { key: 'wf_open_count',         label: 'Open Notifications by Status',  icon: '📈', desc: 'WF_NOTIFICATIONS open count grouped by mail_status.' },
-  { key: 'notification_by_id',    label: 'Notification by ID',            icon: '🔍', desc: 'Look up a specific WF notification by NOTIFICATION_ID.',
+  { key: 'mailer_status',          label: 'WF Mailer Status',              icon: '📬', desc: 'All GSM service components — status, startup mode, and last error. Click ▶ Run to see per-component Start/Stop buttons inline.' },
+  { key: 'stuck_notifications',    label: 'Stuck Notifications (>1h)',     icon: '⏰', desc: 'Workflow notifications stuck in outbound queue for more than 1 hour — MAIL or INVALID mail_status, ordered by oldest first.' },
+  { key: 'wf_errors_24h',         label: 'WF Errors (24h)',               icon: '❌', desc: 'Workflow activities in ERROR state in the last 24 hours — shows item type, process, activity, and error message.' },
+  { key: 'wf_errors_7d',          label: 'WF Errors (7 days)',            icon: '🗓️',  desc: 'Workflow activities in ERROR state in the last 7 days — broader view for recurring or intermittent workflow failures.' },
+  { key: 'mailer_queue',           label: 'WF Mailer Queues',              icon: '📋', desc: 'AQ (Advanced Queuing) queue depth for WF Mailer queues — non-zero dequeue lag here indicates mailer processing delays.' },
+  { key: 'wf_open_count',         label: 'Open Notifications by Status',  icon: '📈', desc: 'Open workflow notifications grouped by mail status — quick summary of MAIL, SENT, INVALID, and other counts.' },
+  { key: 'notification_by_id',    label: 'Notification by ID',            icon: '🔍', desc: 'Look up a specific workflow notification by ID — shows recipient, status, mail status, subject, and timestamps.',
     paramDef: { notification_id: { type: 'integer', label: 'Notification ID', placeholder: '12345' } } },
 ];
 
 const PATCHING_OPS = [
-  { key: 'adop_status', label: 'ADOP Session Status', icon: '🔧', desc: 'Current and recent ADOP patch session state — phase, status, per-node.',
+  { key: 'adop_status', label: 'ADOP Session Status', icon: '🔧', desc: 'Current and recent ADOP patch sessions — phase, status, and per-node state. Flags active patching cycles.',
     sql: `SELECT ADOP_SESSION_ID, NODE_NAME, NODE_TYPE, STATUS,
        PREPARE_STATUS, APPLY_STATUS, FINALIZE_STATUS,
        CUTOVER_STATUS, CLEANUP_STATUS, ABORT_STATUS,
@@ -361,7 +361,7 @@ const PATCHING_OPS = [
 FROM AD_ADOP_SESSIONS
 ORDER BY ADOP_SESSION_ID DESC
 FETCH FIRST 10 ROWS ONLY` },
-  { key: 'applied_patches', label: 'Recent Patches (90 days)', icon: '🩹', desc: 'AD_ADOP_SESSION_PATCHES joined to AD_ADOP_SESSIONS — patches applied in the last 90 days.',
+  { key: 'applied_patches', label: 'Recent Patches (90 days)', icon: '🩹', desc: 'Patches applied in the last 90 days via ADOP — bug number, status, node, and file system base from AD_ADOP_SESSION_PATCHES.',
     sql: `SELECT s.ADOP_SESSION_ID, p.BUG_NUMBER, p.STATUS,
        p.NODE_NAME, p.START_DATE, p.END_DATE,
        p.APPLIED_FILE_SYSTEM_BASE
@@ -370,7 +370,7 @@ JOIN AD_ADOP_SESSIONS s ON s.ADOP_SESSION_ID = p.ADOP_SESSION_ID
 WHERE p.START_DATE > SYSDATE - 90
 ORDER BY p.START_DATE DESC
 FETCH FIRST 50 ROWS ONLY` },
-  { key: 'invalid_objects', label: 'APPS Invalid Objects', icon: '🔴', desc: 'Invalid objects owned by APPS schema users (FND_ORACLE_USERID).',
+  { key: 'invalid_objects', label: 'APPS Invalid Objects', icon: '🔴', desc: 'Invalid database objects in the APPS schema — should be zero after patching; any rows need investigation.',
     sql: `SELECT owner, object_type, COUNT(*) AS invalid_count
 FROM dba_objects
 WHERE status='INVALID' AND owner IN (
@@ -545,9 +545,9 @@ function renderWfMailerTab(container) {
   const ctrlGrid = document.createElement('div');
   ctrlGrid.className = 'ops-grid';
   const wfCtrlOps = [
-    { key: 'wf_mailer_stop',  label: 'Stop WF Mailer',      icon: '⏹',  desc: 'fnd_svc_component.stop_component — stops only the WF Notification Mailer, leaves other CMs running.',  destructive: true },
-    { key: 'wf_mailer_start', label: 'Start WF Mailer',     icon: '▶',  desc: 'fnd_svc_component.start_component — starts only the WF Notification Mailer.',                           destructive: true },
-    { key: 'wf_mailer_reset', label: 'Reset & Restart',        icon: '🔄', desc: 'Clears STOPPED/error state and restarts the WF Mailer. If component is DEACTIVATED_SYSTEM, use CM Stop All + CM Start All on the Concurrent tab instead.', destructive: true },
+    { key: 'wf_mailer_stop',  label: 'Stop WF Mailer',      icon: '⏹',  desc: 'Stop only the WF Notification Mailer via fnd_svc_component.stop_component — leaves all other Concurrent Managers and GSM components running.',  destructive: true },
+    { key: 'wf_mailer_start', label: 'Start WF Mailer',     icon: '▶',  desc: 'Start only the WF Notification Mailer via fnd_svc_component.start_component — use after fixing mail server configuration.',                           destructive: true },
+    { key: 'wf_mailer_reset', label: 'Reset & Restart',        icon: '🔄', desc: 'Clear error state (COMPONENT_STATUS → STOPPED, status info cleared) then restart the WF Mailer. Use when mailer is stuck after fixing mail config. If DEACTIVATED_SYSTEM, use CM Stop All + Start All on Concurrent tab first.', destructive: true },
   ];
   wfCtrlOps.forEach(op => renderWfMailerMwCard(op, ctrlGrid));
   container.appendChild(ctrlGrid);
@@ -744,21 +744,21 @@ async function runWfMailerOp(opKey) {
 // controlPrefix: op has Start/Stop siblings (adapcctl_start/stop etc.)
 // perServerControl: result panel adds per-server Start/Stop via managed_server_start/stop
 const MIDDLEWARE_OPS = [
-  { key: 'adapcctl_status',        label: 'Apache / OHS',         icon: '🔧', desc: 'adapcctl.sh status — check if Apache/OHS is running on this app-tier node.',             controlPrefix: 'adapcctl'     },
-  { key: 'adopmnctl_status',       label: 'OPMN',                 icon: '🔁', desc: 'adopmnctl.sh status — check all OPMN-managed components (OC4J, HTTP, etc.).',             controlPrefix: 'adopmnctl'    },
-  { key: 'adalnctl_status',        label: 'Apps Listener',        icon: '📡', desc: 'adalnctl.sh status — check the EBS TNS apps-tier listener.',                              controlPrefix: 'adalnctl'     },
-  { key: 'adnodemgrctl_status',    label: 'Node Manager',         icon: '🌐', desc: 'adnodemgrctl.sh status — check if WebLogic Node Manager is running.',                     controlPrefix: 'adnodemgrctl' },
-  { key: 'wls_admin_status',       label: 'WLS Admin Server',     icon: '⚙️',  desc: 'adadminsrvctl.sh status — check if WebLogic AdminServer is running (admin host only).',  controlPrefix: 'wls_admin'    },
-  { key: 'oacore_status',          label: 'OACore Servers',       icon: '🟦', desc: 'admanagedsrvctl.sh status per OACore managed server from context file.',                  perServerControl: true        },
-  { key: 'forms_status',           label: 'Forms Servers',        icon: '🟩', desc: 'admanagedsrvctl.sh status per Forms managed server from context file.',                   perServerControl: true        },
-  { key: 'oafm_status',            label: 'OAFM Servers',         icon: '🟨', desc: 'admanagedsrvctl.sh status per OAFM managed server from context file.',                   perServerControl: true        },
-  { key: 'managed_servers_status', label: 'All Managed Servers',  icon: '🖥️',  desc: 'admanagedsrvctl.sh status — all managed servers (OACore + Forms + OAFM).',              perServerControl: true        },
+  { key: 'adapcctl_status',        label: 'Apache / OHS',         icon: '🔧', desc: 'Apache/OHS status, start, and stop via adapcctl.sh — controls the Apache HTTP Server / Oracle HTTP Server on this app tier.',             controlPrefix: 'adapcctl'     },
+  { key: 'adopmnctl_status',       label: 'OPMN',                 icon: '🔁', desc: 'OPMN status, start, and stop via adopmnctl.sh — manages OC4J, HTTP, and other OPMN-controlled components.',             controlPrefix: 'adopmnctl'    },
+  { key: 'adalnctl_status',        label: 'Apps Listener',        icon: '📡', desc: 'Apps Listener (APPS_EBSDB) status, start, and stop via adalnctl.sh — the EBS TNS listener on port 1647 used by Forms and other app-tier services.',                              controlPrefix: 'adalnctl'     },
+  { key: 'adnodemgrctl_status',    label: 'Node Manager',         icon: '🌐', desc: 'WebLogic Node Manager status, start, and stop — required for WLS managed server lifecycle management.',                     controlPrefix: 'adnodemgrctl' },
+  { key: 'wls_admin_status',       label: 'WLS Admin Server',     icon: '⚙️',  desc: 'WebLogic AdminServer status, start, and stop via adadminsrvctl.sh — runs only on the WLS admin host; auto-skipped on other nodes.',  controlPrefix: 'wls_admin'    },
+  { key: 'oacore_status',          label: 'OACore Servers',       icon: '🟦', desc: 'OACore managed server status, start, and stop per server — discovers all OACore servers from the EBS context file.',                  perServerControl: true        },
+  { key: 'forms_status',           label: 'Forms Servers',        icon: '🟩', desc: 'Forms managed server status, start, and stop per server — discovers all Forms servers from the EBS context file.',                   perServerControl: true        },
+  { key: 'oafm_status',            label: 'OAFM Servers',         icon: '🟨', desc: 'OAFM managed server status, start, and stop per server — discovers all OAFM servers from the EBS context file.',                   perServerControl: true        },
+  { key: 'managed_servers_status', label: 'All Managed Servers',  icon: '🖥️',  desc: 'All managed servers (OACore + Forms + OAFM) status, start, and stop — per-server control buttons appear in the result after running.',              perServerControl: true        },
 ];
 
 // ── CM control ops for Concurrent Processing tab ─────────────────────────────
 const CM_CTRL_OPS = [
   { key: 'adcmctl_status', label: 'Concurrent Manager', icon: '🏭',
-    desc: 'adcmctl.sh status/start/stop — controls ALL Concurrent Managers and GSM services. Stop also stops WF Mailer.',
+    desc: 'Concurrent Manager status, start, and stop via adcmctl.sh — controls ALL CM queues and GSM services. Stop also shuts down WF Mailer.',
     controlPrefix: 'adcmctl' },
 ];
 
