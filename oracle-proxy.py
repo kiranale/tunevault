@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.51"  # wf_mailer start/stop/reset: correct fnd_svc_component signature (p_component_id/p_retcode/p_errbuf); no restart_count
+VERSION = "3.20.52"  # fnd_svc_ctrl_start/stop by component_id; wf_mailer_reset: pre-check DEACTIVATED_SYSTEM before UPDATE
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -6242,6 +6242,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 weblogic_pwd = str(params.get("weblogic_pwd", "") or "").strip()
                 apps_pwd     = str(params.get("apps_pwd",     "") or "").strip()
                 server_name  = str(params.get("server_name",  "") or "").strip()
+                component_id_raw = str(params.get("component_id", "") or "").strip()
 
                 _CTRL_ALLOWED = {
                     "adapcctl_status",  "adapcctl_start",  "adapcctl_stop",
@@ -6253,12 +6254,24 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     "managed_server_start", "managed_server_stop",
                     "adcmctl_status", "adcmctl_start", "adcmctl_stop",
                     "wf_mailer_start", "wf_mailer_stop", "wf_mailer_reset",
+                    "fnd_svc_ctrl_start", "fnd_svc_ctrl_stop",
                 }
                 if op in ("managed_server_start", "managed_server_stop"):
                     if not server_name or not re.match(r'^[a-zA-Z0-9_-]{1,64}$', server_name):
                         self.send_json(400, {
                             "success": False,
                             "error": "server_name required for %s and must match ^[a-zA-Z0-9_-]{1,64}$" % op,
+                        })
+                        return
+                if op in ("fnd_svc_ctrl_start", "fnd_svc_ctrl_stop"):
+                    try:
+                        _fnd_comp_id = int(component_id_raw)
+                        if _fnd_comp_id <= 0:
+                            raise ValueError("non-positive")
+                    except (ValueError, TypeError):
+                        self.send_json(400, {
+                            "success": False,
+                            "error": "component_id required for %s and must be a positive integer" % op,
                         })
                         return
                 if op not in _CTRL_ALLOWED:
@@ -6455,8 +6468,9 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     _timeout = 60
 
                 elif op == "wf_mailer_reset":
-                    # Clear DEACTIVATED_SYSTEM state (COMPONENT_STATUS + COMPONENT_STATUS_INFO;
-                    # no restart_count column exists), then start_component with correct signature.
+                    # Check DEACTIVATED_SYSTEM BEFORE the UPDATE — GSM rejects start_component
+                    # in that state even after the status column is cleared. Short-circuit early
+                    # so the UI can guide the user to CM Stop/Start instead.
                     _lines = [
                         "#!/bin/bash",
                         "export APPS_PWD='%s'" % _ap,
@@ -6469,13 +6483,19 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         'SET SERVEROUTPUT ON',
                         'DECLARE',
                         '  l_id     NUMBER;',
+                        '  l_status VARCHAR2(100);',
                         '  l_ret    NUMBER;',
                         '  l_errbuf VARCHAR2(2000);',
                         'BEGIN',
-                        '  SELECT component_id INTO l_id',
+                        '  SELECT component_id, component_status',
+                        '  INTO l_id, l_status',
                         '  FROM fnd_svc_components',
                         "  WHERE component_type = 'WF_MAILER'",
                         '  AND ROWNUM = 1;',
+                        "  IF l_status = 'DEACTIVATED_SYSTEM' THEN",
+                        "    DBMS_OUTPUT.PUT_LINE('WF_MAILER_DEACTIVATED_CANNOT_RESET');",
+                        '    RETURN;',
+                        '  END IF;',
                         '  UPDATE fnd_svc_components',
                         "  SET component_status      = 'STOPPED',",
                         '      component_status_info = NULL,',
@@ -6496,6 +6516,46 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         'EXCEPTION',
                         '  WHEN NO_DATA_FOUND THEN',
                         "    DBMS_OUTPUT.PUT_LINE('WF_MAILER_NOT_FOUND');",
+                        'END;',
+                        '/',
+                        'EXIT;',
+                        'SQLEOF',
+                        'exit $?',
+                    ]
+                    _timeout = 60
+
+                elif op in ("fnd_svc_ctrl_start", "fnd_svc_ctrl_stop"):
+                    # Generic per-component start/stop by component_id from fnd_svc_components.
+                    _proc     = "start_component" if op == "fnd_svc_ctrl_start" else "stop_component"
+                    _sentinel = "FND_SVC_STARTED" if op == "fnd_svc_ctrl_start" else "FND_SVC_STOPPED"
+                    _lines = [
+                        "#!/bin/bash",
+                        "export APPS_PWD='%s'" % _ap,
+                        "source '%s' run >/dev/null 2>&1" % _ef,
+                        'if [ -z "$APPS_PWD" ]; then',
+                        '    echo "NO_APPS_PWD"',
+                        '    exit 0',
+                        'fi',
+                        "timeout 55 sqlplus -s \"apps/$APPS_PWD\" 2>&1 <<'SQLEOF'",
+                        'SET SERVEROUTPUT ON',
+                        'DECLARE',
+                        '  l_ret    NUMBER;',
+                        '  l_errbuf VARCHAR2(2000);',
+                        'BEGIN',
+                        '  fnd_svc_component.%s(' % _proc,
+                        '    p_component_id => %d,' % _fnd_comp_id,
+                        '    p_retcode      => l_ret,',
+                        '    p_errbuf       => l_errbuf',
+                        '  );',
+                        '  COMMIT;',
+                        '  IF l_ret = 0 THEN',
+                        "    DBMS_OUTPUT.PUT_LINE('%s');" % _sentinel,
+                        '  ELSE',
+                        "    DBMS_OUTPUT.PUT_LINE('FND_SVC_ERROR: ' || NVL(l_errbuf,'unknown'));",
+                        '  END IF;',
+                        'EXCEPTION',
+                        '  WHEN OTHERS THEN',
+                        "    DBMS_OUTPUT.PUT_LINE('FND_SVC_ERROR: ' || SQLERRM);",
                         'END;',
                         '/',
                         'EXIT;',
@@ -6616,11 +6676,19 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 elif op in ("wf_mailer_start", "wf_mailer_stop", "wf_mailer_reset"):
                     if "NO_APPS_PWD" in _stdout:
                         _ok = True
-                    elif "WF_MAILER_NOT_FOUND" in _stdout or "WF_MAILER_ERROR" in _stdout:
+                    elif any(kw in _stdout for kw in (
+                            "WF_MAILER_NOT_FOUND", "WF_MAILER_ERROR", "WF_MAILER_DEACTIVATED_CANNOT_RESET")):
                         _ok = False
                     else:
                         _ok = _exit == 0 and any(kw in _stdout for kw in (
                             "WF_MAILER_STARTED", "WF_MAILER_STOPPED", "WF_MAILER_RESET_DONE"))
+                elif op in ("fnd_svc_ctrl_start", "fnd_svc_ctrl_stop"):
+                    if "NO_APPS_PWD" in _stdout:
+                        _ok = True
+                    elif "FND_SVC_ERROR" in _stdout:
+                        _ok = False
+                    else:
+                        _ok = _exit == 0 and any(kw in _stdout for kw in ("FND_SVC_STARTED", "FND_SVC_STOPPED"))
                 elif op in ("oacore_status", "forms_status", "oafm_status", "managed_servers_status"):
                     if "NO_SERVERS_FOUND" in _stdout:
                         _ok = True

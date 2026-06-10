@@ -176,7 +176,7 @@ const EBS_OPS_CATALOG = {
   mailer_status: {
     label: 'WF Mailer Status',
     sql: `SELECT COMPONENT_NAME, COMPONENT_STATUS, STARTUP_MODE,
-               COMPONENT_STATUS_INFO, LAST_UPDATE_DATE
+               COMPONENT_STATUS_INFO, LAST_UPDATE_DATE, COMPONENT_ID
         FROM APPS.FND_SVC_COMPONENTS
         WHERE COMPONENT_TYPE LIKE 'WF%'
         ORDER BY COMPONENT_NAME`,
@@ -452,16 +452,18 @@ const MIDDLEWARE_OPS_CATALOG = {
   wf_mailer_stop:         { label: 'Stop WF Mailer',         proxyOp: 'wf_mailer_stop',         destructive: true },
   wf_mailer_start:        { label: 'Start WF Mailer',        proxyOp: 'wf_mailer_start',        destructive: true },
   wf_mailer_reset:        { label: 'Reset & Restart',        proxyOp: 'wf_mailer_reset',        destructive: true },
+  fnd_svc_ctrl_start:     { label: 'FND SVC Start',          proxyOp: 'fnd_svc_ctrl_start',     destructive: true, requiresComponentId: true },
+  fnd_svc_ctrl_stop:      { label: 'FND SVC Stop',           proxyOp: 'fnd_svc_ctrl_stop',      destructive: true, requiresComponentId: true },
 };
 
 // ── POST /api/ebs-ops/middleware-run ──────────────────────────────────────────
-// Body: { connection_id, op_key, server_name? }
+// Body: { connection_id, op_key, server_name?, component_id? }
 // Routes to the app-tier agent's /api/ebs-ctrl endpoint.
 
 const _SERVER_NAME_RE = /^[a-zA-Z0-9_-]{1,64}$/;
 
 router.post('/api/ebs-ops/middleware-run', requireAuth, async (req, res) => {
-  const { connection_id, op_key, server_name } = req.body || {};
+  const { connection_id, op_key, server_name, component_id } = req.body || {};
   if (!connection_id || !op_key) {
     return res.status(400).json({ error: 'connection_id and op_key required' });
   }
@@ -474,6 +476,13 @@ router.post('/api/ebs-ops/middleware-run', requireAuth, async (req, res) => {
   if (opDef.requiresServerName) {
     if (!server_name || !_SERVER_NAME_RE.test(server_name)) {
       return res.status(400).json({ error: 'server_name required and must match ^[a-zA-Z0-9_-]{1,64}$' });
+    }
+  }
+
+  if (opDef.requiresComponentId) {
+    const cid = parseInt(component_id, 10);
+    if (!component_id || !Number.isFinite(cid) || cid <= 0) {
+      return res.status(400).json({ error: 'component_id required and must be a positive integer' });
     }
   }
 
@@ -512,10 +521,12 @@ router.post('/api/ebs-ops/middleware-run', requireAuth, async (req, res) => {
       managed_server_start: 130000, managed_server_stop: 130000,
       adcmctl_status: 35000,     adcmctl_start: 130000,     adcmctl_stop: 130000,
       wf_mailer_start: 65000,    wf_mailer_stop: 65000,    wf_mailer_reset: 65000,
+      fnd_svc_ctrl_start: 65000, fnd_svc_ctrl_stop: 65000,
     };
     const ctrlTimeout = _ctrlTimeoutMap[op_key] || 40000;
     const proxyBody = { op: opDef.proxyOp, weblogic_pwd: conn.weblogicPwd || '', apps_pwd: conn.appsPwd || '' };
     if (opDef.requiresServerName && server_name) proxyBody.server_name = server_name;
+    if (opDef.requiresComponentId && component_id) proxyBody.component_id = parseInt(component_id, 10);
     const proxyResp = await channel.sendToAgent(conn.id, {
       method: 'POST',
       path: '/api/ebs-ctrl',
