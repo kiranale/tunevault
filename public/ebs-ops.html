@@ -104,13 +104,17 @@
     .status-warn { color: var(--yellow, #e8a838); }
     .server-blocks { display: flex; flex-direction: column; gap: 7px; }
     .server-block { border-radius: 6px; border: 1px solid var(--border); overflow: hidden; }
-    .server-block.server-ok { border-left: 3px solid var(--green); }
-    .server-block.server-err { border-left: 3px solid var(--red); }
+    .server-block.server-ok   { border-left: 3px solid var(--green); }
+    .server-block.server-err  { border-left: 3px solid var(--red); }
+    .server-block.server-warn { border-left: 3px solid var(--yellow, #e8a838); }
+    .server-block.server-na   { border-left: 3px solid var(--border); }
     .server-block-hdr { display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; background: var(--surface-2); }
     .server-name { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
     .server-badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; }
-    .server-badge.ok { background: var(--green-dim); color: var(--green); }
-    .server-badge.err { background: var(--red-dim); color: var(--red); }
+    .server-badge.ok   { background: var(--green-dim); color: var(--green); }
+    .server-badge.err  { background: var(--red-dim);   color: var(--red); }
+    .server-badge.warn { background: var(--yellow-dim, rgba(232,168,56,0.15)); color: var(--yellow, #e8a838); }
+    .server-badge.na   { background: var(--surface-2);  color: var(--text-dim); }
     .server-raw { padding: 4px 12px 8px; }
     .server-raw summary { font-size: 11px; color: var(--text-dim); cursor: pointer; margin-bottom: 4px; }
     .server-raw pre { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text); background: #0d0d10; border: 1px solid var(--border); border-radius: 4px; padding: 8px; white-space: pre-wrap; word-break: break-all; max-height: 180px; overflow-y: auto; margin: 0; }
@@ -595,10 +599,25 @@ function parseServerBlocks(stdout) {
   let cur = null;
   for (const line of lines) {
     if (line.startsWith('TV_SERVER_NAME ')) {
-      cur = { name: line.slice('TV_SERVER_NAME '.length).trim(), output: '', exit: null };
+      cur = { name: line.slice('TV_SERVER_NAME '.length).trim(), output: '', exit: null, state: 'UNKNOWN' };
       blocks.push(cur);
     } else if (line.startsWith('TV_SERVER_EXIT ') && cur) {
       cur.exit = parseInt(line.slice('TV_SERVER_EXIT '.length).trim(), 10);
+      // Classify state from output text, matching oracle-proxy.py lines 5753-5758.
+      // admanagedsrvctl.sh exits 0 for NOT_DEPLOYED and optional-down servers,
+      // so exit code alone is not reliable — output text is authoritative.
+      const out = cur.output.toLowerCase();
+      if (out.includes('invalid server name') || out.includes('invalid managed server')) {
+        cur.state = 'NOT_DEPLOYED';
+      } else if (new RegExp('\\b' + cur.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s+is\\s+running', 'i').test(cur.output)) {
+        cur.state = 'RUNNING';
+      } else if (out.includes('is shutdown') || out.includes('is not running') || out.includes('not running')) {
+        cur.state = 'DOWN';
+      } else if (cur.exit === 0) {
+        cur.state = 'RUNNING'; // exit 0 with no contradicting text → running
+      } else {
+        cur.state = 'UNKNOWN';
+      }
       cur = null;
     } else if (cur) {
       cur.output += (cur.output ? '\n' : '') + line;
@@ -611,9 +630,21 @@ function renderServerBlocks(blocks) {
   if (!blocks.length) return '';
   let html = '<div class="server-blocks">';
   for (const b of blocks) {
-    const ok = b.exit === 0;
-    html += `<div class="server-block ${ok ? 'server-ok' : 'server-err'}">`;
-    html += `<div class="server-block-hdr"><span class="server-name">${escHtml(b.name)}</span><span class="server-badge ${ok ? 'ok' : 'err'}">${ok ? '✓ Running' : '✗ Stopped'}</span></div>`;
+    const isOptional = b.name.toLowerCase().includes('c4ws') || b.name.toLowerCase().includes('oaea');
+    let blockCls, badgeCls, badgeLabel;
+    if (b.state === 'RUNNING') {
+      blockCls = 'server-ok';  badgeCls = 'ok';   badgeLabel = '✓ Running';
+    } else if (b.state === 'NOT_DEPLOYED') {
+      blockCls = 'server-na';  badgeCls = 'na';   badgeLabel = '— Not deployed';
+    } else if (b.state === 'DOWN' && isOptional) {
+      blockCls = 'server-warn'; badgeCls = 'warn'; badgeLabel = '⚠ Optional / not running';
+    } else if (b.state === 'DOWN') {
+      blockCls = 'server-err';  badgeCls = 'err';  badgeLabel = '✗ Stopped';
+    } else {
+      blockCls = 'server-na';  badgeCls = 'na';   badgeLabel = '? Unknown';
+    }
+    html += `<div class="server-block ${blockCls}">`;
+    html += `<div class="server-block-hdr"><span class="server-name">${escHtml(b.name)}</span><span class="server-badge ${badgeCls}">${badgeLabel}</span></div>`;
     if (b.output.trim()) {
       html += `<details class="server-raw"><summary>Raw output</summary><pre>${escHtml(b.output.trim())}</pre></details>`;
     }
