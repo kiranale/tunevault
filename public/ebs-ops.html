@@ -100,6 +100,20 @@
     .result-status { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
     .status-ok { color: var(--green); }
     .status-err { color: var(--red); }
+    .status-na { color: var(--text-dim); }
+    .status-warn { color: var(--yellow, #e8a838); }
+    .server-blocks { display: flex; flex-direction: column; gap: 7px; }
+    .server-block { border-radius: 6px; border: 1px solid var(--border); overflow: hidden; }
+    .server-block.server-ok { border-left: 3px solid var(--green); }
+    .server-block.server-err { border-left: 3px solid var(--red); }
+    .server-block-hdr { display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; background: var(--surface-2); }
+    .server-name { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+    .server-badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; }
+    .server-badge.ok { background: var(--green-dim); color: var(--green); }
+    .server-badge.err { background: var(--red-dim); color: var(--red); }
+    .server-raw { padding: 4px 12px 8px; }
+    .server-raw summary { font-size: 11px; color: var(--text-dim); cursor: pointer; margin-bottom: 4px; }
+    .server-raw pre { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text); background: #0d0d10; border: 1px solid var(--border); border-radius: 4px; padding: 8px; white-space: pre-wrap; word-break: break-all; max-height: 180px; overflow-y: auto; margin: 0; }
     .result-table-wrap { overflow-x: auto; max-width: 100%; }
     .result-table { width: 100%; border-collapse: collapse; font-size: 12px; font-family: 'JetBrains Mono', monospace; }
     .result-table th { text-align: left; padding: 6px 10px; background: var(--surface-2); border-bottom: 1px solid var(--border); color: var(--text-dim); font-size: 11px; white-space: nowrap; }
@@ -458,8 +472,11 @@ const MIDDLEWARE_OPS = [
   { key: 'adopmnctl_status',       label: 'OPMN Status',           icon: '🔁', desc: 'adopmnctl.sh status — check all OPMN-managed components (OC4J, HTTP, etc.).' },
   { key: 'adalnctl_status',        label: 'Apps Listener Status',  icon: '📡', desc: 'adalnctl.sh status — check the EBS TNS apps-tier listener.' },
   { key: 'adnodemgrctl_status',    label: 'Node Manager Status',   icon: '🌐', desc: 'adnodemgrctl.sh status — check if WebLogic Node Manager is running.' },
-  { key: 'wls_admin_status',       label: 'WLS Admin Server',      icon: '⚙️',  desc: 'adadminsrvctl.sh status — check if WebLogic AdminServer is running.' },
-  { key: 'managed_servers_status', label: 'WLS Managed Servers',   icon: '🖥️',  desc: 'admanagedsrvctl.sh status — check OACore, Forms, and OAFM managed servers.' },
+  { key: 'wls_admin_status',       label: 'WLS Admin Server',      icon: '⚙️',  desc: 'adadminsrvctl.sh status — check if WebLogic AdminServer is running (admin host only).' },
+  { key: 'oacore_status',          label: 'OACore Servers',        icon: '🟦', desc: 'admanagedsrvctl.sh status per OACore managed server from context file.' },
+  { key: 'forms_status',           label: 'Forms Servers',         icon: '🟩', desc: 'admanagedsrvctl.sh status per Forms managed server from context file.' },
+  { key: 'oafm_status',            label: 'OAFM Servers',          icon: '🟨', desc: 'admanagedsrvctl.sh status per OAFM managed server from context file.' },
+  { key: 'managed_servers_status', label: 'All Managed Servers',   icon: '🖥️',  desc: 'admanagedsrvctl.sh status — all managed servers (OACore + Forms + OAFM).' },
 ];
 
 // ── Tab 1: Service Status ─────────────────────────────────────────────────────
@@ -584,41 +601,105 @@ async function runMiddlewareOp(opKey) {
   }
 }
 
+function parseServerBlocks(stdout) {
+  const lines = stdout.split('\n');
+  const blocks = [];
+  let cur = null;
+  for (const line of lines) {
+    if (line.startsWith('TV_SERVER_NAME ')) {
+      cur = { name: line.slice('TV_SERVER_NAME '.length).trim(), output: '', exit: null };
+      blocks.push(cur);
+    } else if (line.startsWith('TV_SERVER_EXIT ') && cur) {
+      cur.exit = parseInt(line.slice('TV_SERVER_EXIT '.length).trim(), 10);
+      cur = null;
+    } else if (cur) {
+      cur.output += (cur.output ? '\n' : '') + line;
+    }
+  }
+  return blocks;
+}
+
+function renderServerBlocks(blocks) {
+  if (!blocks.length) return '';
+  let html = '<div class="server-blocks">';
+  for (const b of blocks) {
+    const ok = b.exit === 0;
+    html += `<div class="server-block ${ok ? 'server-ok' : 'server-err'}">`;
+    html += `<div class="server-block-hdr"><span class="server-name">${escHtml(b.name)}</span><span class="server-badge ${ok ? 'ok' : 'err'}">${ok ? '✓ Running' : '✗ Stopped'}</span></div>`;
+    if (b.output.trim()) {
+      html += `<details class="server-raw"><summary>Raw output</summary><pre>${escHtml(b.output.trim())}</pre></details>`;
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
 function storeAndRenderMiddlewareResult(storeKey, data) {
-  const isOk = !!(data.ok);
-  const exitCode = data.exit_code;
+  const isOk     = !!(data.ok);
+  const exitCode  = data.exit_code;
+  const stdout    = (data.stdout || '').trim();
+
+  // Detect sentinel strings emitted by the bash script
+  const isNoPasswords   = !data.error && stdout.includes('NO_PASSWORDS');
+  const isSkipAdmin     = !data.error && stdout.includes('SKIP_ADMIN_HOST');
+  const isNoServers     = !data.error && stdout.includes('NO_SERVERS_FOUND');
+  const isNoWlsPwd      = !data.error && stdout.includes('NO_WLS_PWD');
+
   let summaryText;
   if (data.error) {
     summaryText = '✗ Error';
+  } else if (isNoPasswords || isSkipAdmin) {
+    summaryText = '— Skipped';
+  } else if (isNoServers) {
+    summaryText = '— No servers configured';
+  } else if (isNoWlsPwd) {
+    summaryText = '⚠ WLS password required';
   } else if (isOk) {
     summaryText = '✓ OK' + (data.durationMs ? ' · ' + data.durationMs + 'ms' : '');
   } else {
-    summaryText = '✗ Non-zero exit' + (exitCode !== undefined ? ' (' + exitCode + ')' : '');
+    summaryText = '✗ Not running' + (exitCode !== undefined ? ' (exit ' + exitCode + ')' : '');
   }
 
   let bodyHtml;
   if (data.error) {
     bodyHtml = `<div class="result-status status-err">✗ ${escHtml(friendlyError(data.error))}</div>`;
+  } else if (isNoPasswords) {
+    bodyHtml = `<div class="result-status status-na">WLS password and APPS password required to check Admin Server. Set them in the connection edit form.</div>`;
+  } else if (isSkipAdmin) {
+    const adminHost = (stdout.match(/SKIP_ADMIN_HOST:(\S+)/) || [])[1] || 'another host';
+    bodyHtml = `<div class="result-status status-na">Admin Server runs on <strong>${escHtml(adminHost)}</strong> — auto-skipped on this node.</div>`;
+  } else if (isNoServers) {
+    bodyHtml = `<div class="result-status status-na">No servers of this type found in the EBS context file.</div>`;
+  } else if (isNoWlsPwd) {
+    const known = [...stdout.matchAll(/KNOWN_SERVER (\S+)/g)].map(m => m[1]);
+    bodyHtml = `<div class="result-status status-warn">⚠ WLS password required to check managed servers. Set it in the connection edit form.</div>`;
+    if (known.length) {
+      bodyHtml += `<div class="result-text">Servers in context file: ${escHtml(known.join(', '))}</div>`;
+    }
   } else {
-    const stdout = (data.stdout || '').trim();
-    bodyHtml = `<div class="result-status ${isOk ? 'status-ok' : 'status-err'}">${isOk ? '✓ Running / OK' : '✗ Not running or failed'} (exit ${exitCode !== undefined ? exitCode : '?'})</div>`;
-    if (stdout) {
-      bodyHtml += `<div class="result-text">${escHtml(stdout)}</div>`;
+    const serverBlocks = parseServerBlocks(stdout);
+    if (serverBlocks.length > 0) {
+      bodyHtml = renderServerBlocks(serverBlocks);
+    } else {
+      bodyHtml = `<div class="result-status ${isOk ? 'status-ok' : 'status-err'}">${isOk ? '✓ Running / OK' : '✗ Not running or failed'} (exit ${exitCode !== undefined ? exitCode : '?'})</div>`;
+      if (stdout) bodyHtml += `<div class="result-text">${escHtml(stdout)}</div>`;
     }
   }
 
   const stored = { summaryText, bodyHtml, collapsed: false, isOk: isOk && !data.error };
   resultStore.set(storeKey, stored);
 
-  const opKey   = storeKey.replace(/^mw-/, '');
-  const panel   = document.getElementById('result-mw-' + opKey);
-  const badge   = document.getElementById('result-hdr-badge-mw-' + opKey);
+  const opKey = storeKey.replace(/^mw-/, '');
+  const panel = document.getElementById('result-mw-' + opKey);
+  const badge = document.getElementById('result-hdr-badge-mw-' + opKey);
   if (panel) { panel.classList.add('visible'); panel.innerHTML = buildMiddlewareResultPanelHtml(storeKey, stored); }
   if (badge) {
     badge.textContent = summaryText;
     badge.style.display = '';
-    badge.style.background = stored.isOk ? 'var(--green-dim)' : 'var(--red-dim)';
-    badge.style.color      = stored.isOk ? 'var(--green)' : 'var(--red)';
+    const isNeutral = isNoPasswords || isSkipAdmin || isNoServers;
+    badge.style.background = isNeutral ? 'var(--surface-2)' : (stored.isOk ? 'var(--green-dim)' : 'var(--red-dim)');
+    badge.style.color      = isNeutral ? 'var(--text-dim)'  : (stored.isOk ? 'var(--green)' : 'var(--red)');
   }
   updateClearAllBar();
 }

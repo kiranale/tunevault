@@ -1696,21 +1696,22 @@
             return btn;
         }
 
-        if (exportIsAppTier) {
-            // ── App tier: only Export PDF + Export CSV ──────────────────────────
-            const xpPdf = makeBtn('/api/health-checks/' + reportId + '/export?format=pdf', 'Export PDF',
-                'background:#f0a830;color:#0a0a0c;border:1.5px solid #f0a830;');
-            xpPdf.title = 'Severity-sorted per-check PDF';
-            xpPdf.addEventListener('mouseenter', function() { this.style.background = '#d4921e'; this.style.borderColor = '#d4921e'; this.style.transform = 'translateY(-1px)'; this.style.boxShadow = '0 4px 12px rgba(240,168,48,0.3)'; });
-            xpPdf.addEventListener('mouseleave', function() { this.style.background = '#f0a830'; this.style.borderColor = '#f0a830'; this.style.transform = 'translateY(0)'; this.style.boxShadow = 'none'; });
-            nav.appendChild(xpPdf);
+        if (exportIsAppTier && exportConnectionId) {
+            // ── App tier: EBS PDF + EBS XLSX via /api/reports/:connectionId/ebs ──
+            const base = '/api/reports/' + exportConnectionId;
 
-            const xpCsv = makeBtn('/api/health-checks/' + reportId + '/export?format=csv', 'Export CSV',
-                'background:transparent;color:#f0a830;border:1.5px solid #f0a830;');
-            xpCsv.title = 'CSV: one row per check, severity-sorted';
-            xpCsv.addEventListener('mouseenter', function() { this.style.background = 'rgba(240,168,48,0.15)'; this.style.borderColor = '#ffc040'; this.style.color = '#ffc040'; this.style.transform = 'translateY(-1px)'; });
-            xpCsv.addEventListener('mouseleave', function() { this.style.background = 'transparent'; this.style.borderColor = '#f0a830'; this.style.color = '#f0a830'; this.style.transform = 'translateY(0)'; });
-            nav.appendChild(xpCsv);
+            const appPdf = makeBtn(base + '/ebs?format=pdf', 'App Tier PDF',
+                'background:#2563eb;color:#fff;border:1.5px solid #2563eb;');
+            appPdf.title = 'App Tier PDF — Apache, WLS, CM, EBSapps checks';
+            appPdf.addEventListener('mouseenter', function() { this.style.background = '#1d4ed8'; this.style.borderColor = '#1d4ed8'; this.style.transform = 'translateY(-1px)'; this.style.boxShadow = '0 4px 12px rgba(37,99,235,0.3)'; });
+            appPdf.addEventListener('mouseleave', function() { this.style.background = '#2563eb'; this.style.borderColor = '#2563eb'; this.style.transform = 'translateY(0)'; this.style.boxShadow = 'none'; });
+            nav.appendChild(appPdf);
+
+            const appXlsx = makeBtn(base + '/ebs?format=xlsx', 'App Tier XLSX',
+                'background:transparent;color:#2563eb;border:1.5px solid #2563eb;');
+            appXlsx.addEventListener('mouseenter', function() { this.style.background = 'rgba(37,99,235,0.15)'; this.style.borderColor = '#60a5fa'; this.style.color = '#60a5fa'; this.style.transform = 'translateY(-1px)'; });
+            appXlsx.addEventListener('mouseleave', function() { this.style.background = 'transparent'; this.style.borderColor = '#2563eb'; this.style.color = '#2563eb'; this.style.transform = 'translateY(0)'; });
+            nav.appendChild(appXlsx);
 
         } else if (exportConnectionId) {
             // ── New split report buttons (connection-based, preferred) ──────────

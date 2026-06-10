@@ -329,7 +329,10 @@ const MIDDLEWARE_OPS_CATALOG = {
   adalnctl_status:        { label: 'Apps Listener Status',    proxyOp: 'adalnctl_status'        },
   adnodemgrctl_status:    { label: 'Node Manager Status',     proxyOp: 'adnodemgrctl_status'    },
   wls_admin_status:       { label: 'WLS Admin Server',        proxyOp: 'wls_admin_status'       },
-  managed_servers_status: { label: 'WLS Managed Servers',     proxyOp: 'managed_servers_status' },
+  oacore_status:          { label: 'OACore Servers',          proxyOp: 'oacore_status'          },
+  forms_status:           { label: 'Forms Servers',           proxyOp: 'forms_status'           },
+  oafm_status:            { label: 'OAFM Servers',            proxyOp: 'oafm_status'            },
+  managed_servers_status: { label: 'All Managed Servers',     proxyOp: 'managed_servers_status' },
 };
 
 // ── POST /api/ebs-ops/middleware-run ──────────────────────────────────────────
@@ -371,11 +374,13 @@ router.post('/api/ebs-ops/middleware-run', requireAuth, async (req, res) => {
   }
 
   try {
+    const managedServerOps = new Set(['oacore_status', 'forms_status', 'oafm_status', 'managed_servers_status']);
+    const ctrlTimeout = managedServerOps.has(op_key) ? 130000 : op_key === 'wls_admin_status' ? 75000 : 35000;
     const proxyResp = await channel.sendToAgent(conn.id, {
       method: 'POST',
       path: '/api/ebs-ctrl',
-      body: { op: opDef.proxyOp, weblogic_pwd: conn.weblogicPwd || '' },
-    }, 35000);
+      body: { op: opDef.proxyOp, weblogic_pwd: conn.weblogicPwd || '', apps_pwd: conn.appsPwd || '' },
+    }, ctrlTimeout);
     const body = proxyResp.body || {};
     if (proxyResp.statusCode !== 200 || !body.success) {
       return res.json({ ok: false, error: body.error || `Proxy returned HTTP ${proxyResp.statusCode}` });

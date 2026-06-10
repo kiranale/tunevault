@@ -129,7 +129,6 @@ All Add Connection links in the app MUST point to `/connections/new` — the sin
 ## Known Issues (as of 2026-06-10)
 
 🟡 High:
-- EBS App Tier report — EBS PDF and EBS XLSX export buttons not showing in toolbar
 - apex-lab (192.168.56.101, OEL 8.10, Oracle 23ai) — agent never installed
 
 🟢 Low:
@@ -144,6 +143,10 @@ All Add Connection links in the app MUST point to `/connections/new` — the sin
 
 ## Recent changes
 
+- 2026-06-10: FEAT — oracle-proxy.py 3.20.39: rewrite /api/ebs-ctrl with HC-path commands — proper bash heredoc for adnodemgrctl (WLS_PWD), adadminsrvctl (WLS_PWD+APPS_PWD + admin host guard), per-server admanagedsrvctl loop (WLS_PWD heredoc). Add oacore_status/forms_status/oafm_status ops (grep context file by server type). Accept apps_pwd from request body. Per-op timeouts (20–120s). LATEST_PROXY_VERSION → 3.20.39.
+- 2026-06-10: FEAT — routes/ebs-ops.js: add oacore_status/forms_status/oafm_status to MIDDLEWARE_OPS_CATALOG; rename managed_servers_status label to "All Managed Servers"; pass apps_pwd in body; per-op timeout (35s/75s/130s).
+- 2026-06-10: FEAT — ebs-ops.html: split WLS Managed Servers card into OACore Servers / Forms Servers / OAFM Servers / All Managed Servers. Per-server TV_SERVER_NAME/EXIT parsing; NO_PASSWORDS/SKIP_ADMIN_HOST/NO_SERVERS_FOUND/NO_WLS_PWD sentinel rendering. Server block cards with per-server running/stopped badge.
+- 2026-06-10: FEAT — App Tier PDF/XLSX export: routes/reports.js adds generateAppTierPDF + generateAppTierXLSX (renders findings[]/checks_ok[] arrays from app-tier HC). /ebs endpoint now accepts app-tier connections (server_type='apps') and routes to app-tier generators. report.html exportIsAppTier branch replaced: shows blue "App Tier PDF" + "App Tier XLSX" buttons via /api/reports/:connectionId/ebs.
 - 2026-06-10: FEAT — EBS Ops tab restructure: delete blank Service Status tab; rename "Fusion Middleware & WebLogic" to "Service Status" (tab 1, default). Auto-runs all 6 agent op-cards on load; ↺ Refresh button top-right. Final 4-tab order: Service Status | Concurrent Processing | Patching & ADOP | Reports.
 - 2026-06-10: FIX — ebs-12-2-checks.html: SSH Target dropdown now filters by connection server_type (apps → apps_tier only, db → db_tier only). Auto-selects single matching target. filterSshTargets() runs on init and on connection change.
 - 2026-06-10: FIX — oracle-proxy.py 3.20.38: adalnctl_status ok detection now pure exit-code only (removed TNS- string gating that incorrectly flagged listener as down when exit=0). Added per-op diagnostic print: `[ebs-ctrl] op= exit= ok= stdout=`. LATEST_PROXY_VERSION → 3.20.38.

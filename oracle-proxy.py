@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.38"  # ebs-ctrl: adalnctl exit code is authoritative (no TNS string gating); add per-op diagnostic print
+VERSION = "3.20.39"  # ebs-ctrl: rewrite with HC-path commands — proper heredoc for NM/WLS/Admin; split OACore/Forms/OAFM/All ops; accept apps_pwd
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -6215,10 +6215,13 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"success": False, "error": str(_parse_err)}).encode())
                 return
 
-        # POST /api/ebs-ctrl — run a single whitelisted EBS app-tier admin script.
-        # Sources EBSapps.env and runs as the apps OS user (same pattern as /api/ebs-app-healthcheck).
-        # Accepts: { "op": "adapcctl_status|adopmnctl_status|adalnctl_status|adnodemgrctl_status|wls_admin_status|managed_servers_status",
-        #            "weblogic_pwd": "<optional WLS password for adnodemgrctl>" }
+        # POST /api/ebs-ctrl — run a whitelisted EBS app-tier admin script.
+        # Sources EBSapps.env, runs as apps OS user (same pattern as /api/ebs-app-healthcheck).
+        # Accepts: { "op": "adapcctl_status|adopmnctl_status|adalnctl_status|
+        #             adnodemgrctl_status|wls_admin_status|
+        #             oacore_status|forms_status|oafm_status|managed_servers_status",
+        #            "weblogic_pwd": "<WLS password>",
+        #            "apps_pwd": "<APPS password for admin server check>" }
         # Returns: { "success", "ok", "stdout", "exit_code" }
         if self.path == "/api/ebs-ctrl":
             if not self.check_auth():
@@ -6226,55 +6229,129 @@ class ProxyHandler(BaseHTTPRequestHandler):
             try:
                 body = self.read_body()
                 params = json.loads(body)
-                op = str(params.get("op", "")).strip()
+                op           = str(params.get("op", "")).strip()
                 weblogic_pwd = str(params.get("weblogic_pwd", "") or "").strip()
+                apps_pwd     = str(params.get("apps_pwd",     "") or "").strip()
 
-                _CTRL_OPS = {
-                    "adapcctl_status":        ("$ADMIN_SCRIPTS_HOME/adapcctl.sh",     ["status"]),
-                    "adopmnctl_status":       ("$ADMIN_SCRIPTS_HOME/adopmnctl.sh",    ["status"]),
-                    "adalnctl_status":        ("$ADMIN_SCRIPTS_HOME/adalnctl.sh",     ["status"]),
-                    "adnodemgrctl_status":    ("$ADMIN_SCRIPTS_HOME/adnodemgrctl.sh", ["status"]),
-                    "wls_admin_status":       ("$ADMIN_SCRIPTS_HOME/adadminsrvctl.sh",["status"]),
-                    "managed_servers_status": ("$ADMIN_SCRIPTS_HOME/admanagedsrvctl.sh",["status"]),
+                _CTRL_ALLOWED = {
+                    "adapcctl_status", "adopmnctl_status", "adalnctl_status",
+                    "adnodemgrctl_status", "wls_admin_status",
+                    "oacore_status", "forms_status", "oafm_status", "managed_servers_status",
                 }
-
-                if op not in _CTRL_OPS:
+                if op not in _CTRL_ALLOWED:
                     self.send_json(400, {
                         "success": False,
-                        "error": "Unknown op '%s'. Allowed: %s" % (op, ", ".join(_CTRL_OPS)),
+                        "error": "Unknown op '%s'. Allowed: %s" % (op, ", ".join(sorted(_CTRL_ALLOWED))),
                     })
                     return
 
                 env_file = _APPS_ENV_FILE
                 if not env_file:
                     self.send_json(200, {
-                        "success": True,
-                        "ok": False,
+                        "success": True, "ok": False, "exit_code": 1,
                         "stdout": "APPS_ENV_FILE not configured — reinstall agent with context file path.",
-                        "exit_code": 1,
                     })
                     return
 
-                script_bin, script_args = _CTRL_OPS[op]
-                _ef  = env_file.replace("'", "'\\''")
-                args_str = " ".join('"%s"' % a for a in script_args)
+                def _sh(s):
+                    return s.replace("'", "'\\''")
 
-                # adnodemgrctl.sh status may require WLS password via stdin
-                if op == "adnodemgrctl_status" and weblogic_pwd:
-                    _pwd_esc = weblogic_pwd.replace("'", "'\\''")
-                    _script = (
-                        "#!/bin/bash\n"
-                        "source '%s' run >/dev/null 2>&1\n"
-                        "printf '%%s\\n' '%s' | %s %s 2>&1\n"
-                        "exit \"${PIPESTATUS[1]}\"\n" % (_ef, _pwd_esc, script_bin, args_str)
-                    )
+                _ef  = _sh(env_file)
+                _ctx = _sh(_CONTEXT_FILE or "")
+                _wp  = _sh(weblogic_pwd)
+                _ap  = _sh(apps_pwd)
+
+                # Build bash script matching HC path patterns exactly (lines 5418-5515).
+                if op in ("adapcctl_status", "adopmnctl_status", "adalnctl_status"):
+                    _cmd = {
+                        "adapcctl_status":  '"$ADMIN_SCRIPTS_HOME/adapcctl.sh"  status',
+                        "adopmnctl_status": '"$ADMIN_SCRIPTS_HOME/adopmnctl.sh" status',
+                        "adalnctl_status":  '"$ADMIN_SCRIPTS_HOME/adalnctl.sh"  status',
+                    }[op]
+                    _lines = [
+                        "#!/bin/bash",
+                        "source '%s' run >/dev/null 2>&1" % _ef,
+                        "%s 2>&1" % _cmd,
+                        "exit $?",
+                    ]
+                    _timeout = 20
+
+                elif op == "adnodemgrctl_status":
+                    # Heredoc passes WLS_PWD — same pattern as HC path.
+                    _lines = [
+                        "#!/bin/bash",
+                        "export WLS_PWD='%s'" % _wp,
+                        "source '%s' run >/dev/null 2>&1" % _ef,
+                        '"$ADMIN_SCRIPTS_HOME/adnodemgrctl.sh" status 2>&1 <<NMEOF',
+                        "$WLS_PWD",
+                        "NMEOF",
+                        "exit $?",
+                    ]
+                    _timeout = 35
+
+                elif op == "wls_admin_status":
+                    # Two-line heredoc (WLS_PWD then APPS_PWD) + admin host guard — same as HC path.
+                    _lines = [
+                        "#!/bin/bash",
+                        "export CONTEXT_FILE='%s'" % _ctx,
+                        "export WLS_PWD='%s'" % _wp,
+                        "export APPS_PWD='%s'" % _ap,
+                        "source '%s' run >/dev/null 2>&1" % _ef,
+                        'if [ -z "$WLS_PWD" ] || [ -z "$APPS_PWD" ]; then',
+                        '    echo "NO_PASSWORDS"',
+                        '    exit 0',
+                        'fi',
+                        '_HOST=$(hostname -s)',
+                        '_ADMIN_HOST=$(grep -i \'s_wls_admin_host\\|wls_admin_host\' "$CONTEXT_FILE" 2>/dev/null | sed -E \'s/.*>([^<]*)<.*/\\1/\' | grep -v \'^[[:space:]]*$\' | head -1 | xargs 2>/dev/null)',
+                        'if [ -n "$_ADMIN_HOST" ] && [ "$_HOST" != "$_ADMIN_HOST" ]; then',
+                        '    echo "SKIP_ADMIN_HOST:$_ADMIN_HOST"',
+                        '    exit 0',
+                        'fi',
+                        'timeout 60 "$ADMIN_SCRIPTS_HOME/adadminsrvctl.sh" status 2>&1 <<ADMEOF',
+                        "$WLS_PWD",
+                        "$APPS_PWD",
+                        "ADMEOF",
+                        "exit $?",
+                    ]
+                    _timeout = 70
+
                 else:
-                    _script = (
-                        "#!/bin/bash\n"
-                        "source '%s' run >/dev/null 2>&1\n"
-                        "%s %s 2>&1\n"
-                        "exit $?\n" % (_ef, script_bin, args_str)
-                    )
+                    # oacore_status, forms_status, oafm_status, managed_servers_status:
+                    # Grep context file for server names of the right type, then loop with
+                    # per-server admanagedsrvctl.sh + WLS_PWD heredoc — same as HC path.
+                    _grep = {
+                        "oacore_status":          "grep -i 'oacore'",
+                        "forms_status":           "grep -i 'forms'",
+                        "oafm_status":            "grep -i 'oafm'",
+                        "managed_servers_status": "grep 'managed_server'",
+                    }[op]
+                    _lines = [
+                        "#!/bin/bash",
+                        "export CONTEXT_FILE='%s'" % _ctx,
+                        "export WLS_PWD='%s'" % _wp,
+                        "source '%s' run >/dev/null 2>&1" % _ef,
+                        "SERVERS=( $(grep 'oa_service_name' \"$CONTEXT_FILE\" 2>/dev/null | %s | sed -n 's/.*>\\([a-zA-Z0-9_-]*\\)<.*/\\1/p' | sort -u) )" % _grep,
+                        'if [ ${#SERVERS[@]} -eq 0 ]; then',
+                        '    echo "NO_SERVERS_FOUND"',
+                        '    exit 0',
+                        'fi',
+                        'if [ -z "$WLS_PWD" ]; then',
+                        '    echo "NO_WLS_PWD"',
+                        '    for _sv in "${SERVERS[@]}"; do echo "KNOWN_SERVER $_sv"; done',
+                        '    exit 0',
+                        'fi',
+                        'for _sv in "${SERVERS[@]}"; do',
+                        '    echo "TV_SERVER_NAME $_sv"',
+                        '    timeout 45 "$ADMIN_SCRIPTS_HOME/admanagedsrvctl.sh" status "$_sv" 2>&1 <<WLSEOF',
+                        "$WLS_PWD",
+                        "WLSEOF",
+                        '    echo "TV_SERVER_EXIT $?"',
+                        'done',
+                        "exit 0",
+                    ]
+                    _timeout = 120
+
+                _script = "\n".join(_lines) + "\n"
 
                 import tempfile as _tempfile
                 _tf = None
@@ -6303,10 +6380,10 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         _stdout, _stderr, _exit, _dur = run_os_command(
                             ["su", _apps_user, "-s", "/bin/bash", "-c",
                              "bash %s; rm -f %s 2>/dev/null" % (_tf, _tf)],
-                            timeout=30, max_output=32768)
+                            timeout=_timeout, max_output=32768)
                     else:
                         _stdout, _stderr, _exit, _dur = run_os_command(
-                            ["bash", _tf], timeout=30, max_output=32768)
+                            ["bash", _tf], timeout=_timeout, max_output=32768)
                         try:
                             os.unlink(_tf)
                         except Exception:
@@ -6314,13 +6391,24 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 except Exception as _exc:
                     _stdout, _stderr, _exit, _dur = str(_exc), "", 1, 0
 
-                # Per-op ok: exit code is authoritative for all EBS admin scripts.
-                # adalnctl.sh may print TNS- strings in verbose output even when the
-                # listener is up — do NOT gate on output text; trust the exit code only.
+                # Per-op ok detection — exit code primary; sentinel strings for skip/no-password cases.
                 _ok = _exit == 0
                 if op == "adnodemgrctl_status":
-                    # adnodemgrctl.sh exits 0 but prints this when NM is down
                     _ok = _exit == 0 and "The Node Manager is not up" not in _stdout
+                elif op == "wls_admin_status":
+                    if "NO_PASSWORDS" in _stdout or "SKIP_ADMIN_HOST" in _stdout:
+                        _ok = True
+                    else:
+                        _ok = _exit == 0
+                elif op in ("oacore_status", "forms_status", "oafm_status", "managed_servers_status"):
+                    if "NO_SERVERS_FOUND" in _stdout:
+                        _ok = True
+                    elif "NO_WLS_PWD" in _stdout:
+                        _ok = False
+                    else:
+                        import re as _re_ctrl
+                        _sv_exits = [int(x) for x in _re_ctrl.findall(r"TV_SERVER_EXIT (\d+)", _stdout)]
+                        _ok = bool(_sv_exits) and all(e == 0 for e in _sv_exits)
 
                 print("[ebs-ctrl] op=%s exit=%d ok=%s stdout=%r" % (op, _exit, _ok, _stdout[:200]))
 

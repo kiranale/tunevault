@@ -704,6 +704,152 @@ function generateEbsPDF(data, out) {
   return doc;
 }
 
+function generateAppTierPDF(data, out) {
+  const doc = new PDFDocument({
+    size: 'A4',
+    margins: { top: MG, bottom: MG, left: MG, right: MG },
+    info: {
+      Title: `EBS App Tier Report — ${data.connection_name}`,
+      Author: 'TuneVault', Subject: 'Oracle E-Business Suite App Tier Health Report',
+      Creator: 'TuneVault', Producer: 'TuneVault',
+    },
+    compress: true,
+    bufferPages: true,
+    autoFirstPage: true,
+  });
+  if (out) doc.pipe(out);
+
+  const m = data.metrics || {};
+  const findings = m.findings || [];
+  const checksOk = m.checks_ok || [];
+
+  // Cover page — blue accent for app tier
+  doc.rect(0, 0, PW, 100).fill(C.headerBg);
+  doc.rect(0, 100, PW, 5).fill('#2563EB');
+  doc.rect(MG, 18, 38, 38).fillAndStroke('#2563EB', '#2563EB');
+  doc.font('Helvetica-Bold').fontSize(14).fillColor(C.textLight)
+    .text('APP', MG, 29, { width: 38, align: 'center' });
+  doc.font('Helvetica-Bold').fontSize(20).fillColor(C.textLight)
+    .text('TuneVault', MG + 50, 22);
+  doc.font('Helvetica').fontSize(10).fillColor('#60A5FA')
+    .text('Oracle EBS App Tier Health Report', MG + 50, 46);
+
+  const dateStr = new Date(data.created_at).toLocaleString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', timeZoneName: 'short',
+  });
+  doc.font('Helvetica').fontSize(9).fillColor(C.textDim)
+    .text(dateStr, 0, 36, { width: PW - MG, align: 'right' });
+
+  const subY = 120;
+  doc.font('Helvetica-Bold').fontSize(20).fillColor(C.text)
+    .text(data.connection_name || 'App Tier Report', MG, subY);
+  doc.font('Helvetica').fontSize(11).fillColor(C.textDim)
+    .text(`App Tier  ·  ${data.host || ''}`, MG, subY + 24);
+  doc.moveTo(MG, subY + 48).lineTo(PW - MG, subY + 48)
+    .strokeColor(C.border).lineWidth(1).stroke();
+
+  let y = subY + 68;
+
+  // Summary KV
+  y = pdfSectionTitle(doc, y, 'Summary', '#2563EB');
+  const totals = m.checks_total || (findings.length + checksOk.length);
+  const crits  = findings.filter(f => f.severity === 'critical').length;
+  const warns  = findings.filter(f => f.severity === 'warning').length;
+  [
+    ['Connection',      data.connection_name || '—'],
+    ['Host',            data.host || '—'],
+    ['Total Checks',    String(totals)],
+    ['Checks Passed',   String(checksOk.length)],
+    ['Warnings',        String(warns)],
+    ['Critical Issues', String(crits)],
+  ].forEach(([label, value], i) => { y = pdfKVRow(doc, y, label, value, i % 2 === 1); });
+
+  // Findings section
+  if (findings.length > 0) {
+    doc.addPage(); y = MG;
+    y = pdfSectionTitle(doc, y, 'Findings', '#DC2626');
+    y = pdfTableHeader(doc, y, ['Severity', 'Check', 'Details'], [70, 160, CW - 230]);
+    findings.forEach((f, i) => {
+      y = pdfPageCheck(doc, y, 20);
+      const sev = (f.severity || 'info').toUpperCase();
+      y = pdfTableRow(doc, y, [sev, f.title || f.check_id || '—', f.details || '—'], [70, 160, CW - 230], i % 2 === 1);
+    });
+  }
+
+  // Checks passed section
+  if (checksOk.length > 0) {
+    y = pdfPageCheck(doc, y, 60);
+    y = pdfSectionTitle(doc, y, 'Checks Passed', '#059669');
+    checksOk.forEach((c, i) => {
+      y = pdfPageCheck(doc, y, 20);
+      y = pdfTableRow(doc, y, ['OK', c.title || c.check_id || '—', c.details || '—'], [70, 160, CW - 230], i % 2 === 1);
+    });
+  }
+
+  const range = doc.bufferedPageRange();
+  for (let i = range.start; i < range.start + range.count; i++) {
+    doc.switchToPage(i);
+    pdfFooter(doc, data.connection_name);
+  }
+  doc.end();
+  return doc;
+}
+
+async function generateAppTierXLSX(data, res, filename) {
+  const m = data.metrics || {};
+  const findings = m.findings || [];
+  const checksOk = m.checks_ok || [];
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'TuneVault';
+  wb.created = new Date();
+
+  // Summary sheet
+  const sum = wb.addWorksheet('Summary');
+  sum.columns = [{ header: 'Metric', key: 'k', width: 28 }, { header: 'Value', key: 'v', width: 30 }];
+  xlAddHeaders(sum, ['Metric', 'Value']);
+  const totals = m.checks_total || (findings.length + checksOk.length);
+  [
+    ['Connection', data.connection_name],
+    ['Host', data.host || '—'],
+    ['Total Checks', totals],
+    ['Checks Passed', checksOk.length],
+    ['Warnings', findings.filter(f => f.severity === 'warning').length],
+    ['Critical Issues', findings.filter(f => f.severity === 'critical').length],
+    ['Generated', new Date(data.created_at).toLocaleString()],
+  ].forEach(([k, v]) => sum.addRow({ k, v: String(v ?? '—') }));
+
+  // Findings sheet
+  const findSheet = wb.addWorksheet('Findings');
+  findSheet.columns = [
+    { header: 'Severity', key: 's', width: 12 },
+    { header: 'Check ID', key: 'id', width: 22 },
+    { header: 'Title', key: 't', width: 40 },
+    { header: 'Details', key: 'd', width: 60 },
+  ];
+  xlAddHeaders(findSheet, ['Severity', 'Check ID', 'Title', 'Details']);
+  findings.forEach(f => {
+    const row = findSheet.addRow({ s: f.severity || 'info', id: f.check_id || '—', t: f.title || '—', d: f.details || '—' });
+    const font = f.severity === 'critical' ? XL_CRIT_FONT : f.severity === 'warning' ? XL_WARN_FONT : {};
+    if (font.color) row.getCell('s').font = font;
+  });
+
+  // Checks Passed sheet
+  const okSheet = wb.addWorksheet('Checks Passed');
+  okSheet.columns = [
+    { header: 'Check ID', key: 'id', width: 22 },
+    { header: 'Title', key: 't', width: 40 },
+    { header: 'Details', key: 'd', width: 60 },
+  ];
+  xlAddHeaders(okSheet, ['Check ID', 'Title', 'Details']);
+  checksOk.forEach(c => okSheet.addRow({ id: c.check_id || '—', t: c.title || '—', d: c.details || '—' }));
+
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  await wb.xlsx.write(res);
+  res.end();
+}
+
 function generateCombinedPDF(data, out) {
   const doc = new PDFDocument({
     size: 'A4',
@@ -1178,7 +1324,8 @@ router.get('/:connectionId/ebs', requireAuth, requireRole('junior_dba'), async (
     const { conn, hc } = row;
 
     const m = hc.metrics || {};
-    if (!m.ebs_detected) {
+    const isAppTier = m.server_type === 'apps';
+    if (!isAppTier && !m.ebs_detected) {
       return res.status(404).json({ error: 'EBS not detected on this instance' });
     }
 
@@ -1195,6 +1342,16 @@ router.get('/:connectionId/ebs', requireAuth, requireRole('junior_dba'), async (
 
     const instance = safeName(m.instance?.db_name || conn.name || 'oracle');
     const date = yyyymmdd(hc.completed_at || hc.created_at);
+
+    if (isAppTier) {
+      if (format === 'xlsx') {
+        return generateAppTierXLSX(data, res, `tunevault-apptier-${instance}-${date}.xlsx`);
+      }
+      const filename = `tunevault-apptier-${instance}-${date}.pdf`;
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      return generateAppTierPDF(data, res);
+    }
 
     if (format === 'xlsx') {
       return generateEbsXLSX(data, res, `tunevault-ebs-${instance}-${date}.xlsx`);
