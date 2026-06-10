@@ -669,6 +669,11 @@ function storeAndRenderMiddlewareResult(storeKey, data) {
     const serverBlocks = parseServerBlocks(stdout);
     if (serverBlocks.length > 0) {
       bodyHtml = renderServerBlocks(serverBlocks);
+      // Show TV_SUMMARY line (appended by proxy for managed-server ops)
+      const sumMatch = stdout.match(/^TV_SUMMARY: (.+)$/m);
+      if (sumMatch) {
+        bodyHtml = `<div class="result-status ${isOk ? 'status-ok' : 'status-warn'}" style="font-size:11px;margin-bottom:6px">${escHtml(sumMatch[1])}</div>` + bodyHtml;
+      }
     } else {
       bodyHtml = `<div class="result-status ${isOk ? 'status-ok' : 'status-err'}">${isOk ? '✓ Running / OK' : '✗ Not running or failed'} (exit ${exitCode !== undefined ? exitCode : '?'})</div>`;
       if (stdout) bodyHtml += `<div class="result-text">${escHtml(stdout)}</div>`;

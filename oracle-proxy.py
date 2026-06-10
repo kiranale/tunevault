@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.39"  # ebs-ctrl: rewrite with HC-path commands — proper heredoc for NM/WLS/Admin; split OACore/Forms/OAFM/All ops; accept apps_pwd
+VERSION = "3.20.40"  # ebs-ctrl: HC-path server state parsing for managed ops — c4ws/oaea exempt from critical; TV_SUMMARY line
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -6406,9 +6406,53 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     elif "NO_WLS_PWD" in _stdout:
                         _ok = False
                     else:
-                        import re as _re_ctrl
-                        _sv_exits = [int(x) for x in _re_ctrl.findall(r"TV_SERVER_EXIT (\d+)", _stdout)]
-                        _ok = bool(_sv_exits) and all(e == 0 for e in _sv_exits)
+                        # Replicate HC path parsing (lines 5739-5793): classify each server,
+                        # exempt c4ws/oaea from critical failure (they are optional servers).
+                        _srv_states = []
+                        _cur_sv = None
+                        _sv_lines = []
+                        _sv_exit = 0
+                        for _ml in _stdout.splitlines():
+                            if _ml.startswith("TV_SERVER_NAME "):
+                                _cur_sv = _ml[15:].strip()
+                                _sv_lines = []
+                                _sv_exit = 0
+                            elif _ml.startswith("TV_SERVER_EXIT "):
+                                try:
+                                    _sv_exit = int(_ml[15:].strip())
+                                except ValueError:
+                                    _sv_exit = 0
+                                if _cur_sv is not None:
+                                    _s_raw = "\n".join(_sv_lines)
+                                    if _sv_exit == 124:
+                                        _srv_states.append((_cur_sv, "TIMEOUT", _s_raw))
+                                    elif "invalid server name" in _s_raw.lower() or "invalid managed server" in _s_raw.lower():
+                                        _srv_states.append((_cur_sv, "NOT_DEPLOYED", _s_raw))
+                                    elif re.search(r'\b' + re.escape(_cur_sv) + r'\s+is\s+running', _s_raw, re.IGNORECASE):
+                                        _srv_states.append((_cur_sv, "RUNNING", _s_raw))
+                                    elif any(kw in _s_raw.lower() for kw in ("is shutdown", "is not running", "not running")):
+                                        _srv_states.append((_cur_sv, "DOWN", _s_raw))
+                                    else:
+                                        _srv_states.append((_cur_sv, "UNKNOWN", _s_raw))
+                                    _cur_sv = None
+                            elif _cur_sv is not None:
+                                _sv_lines.append(_ml)
+                        _down = [n for n, st, _ in _srv_states
+                                 if st in ("DOWN", "TIMEOUT")
+                                 and 'c4ws' not in n.lower() and 'oaea' not in n.lower()]
+                        _warn_down = [n for n, st, _ in _srv_states
+                                      if st in ("DOWN", "TIMEOUT")
+                                      and ('c4ws' in n.lower() or 'oaea' in n.lower())]
+                        _ok = bool(_srv_states) and not _down
+                        # Append TV_SUMMARY line for UI display
+                        _sum = []
+                        _run_n = [n for n, st, _ in _srv_states if st == "RUNNING"]
+                        _nd_n  = [n for n, st, _ in _srv_states if st == "NOT_DEPLOYED"]
+                        if _run_n:    _sum.append("Running: %s" % ", ".join(_run_n))
+                        if _nd_n:     _sum.append("Not deployed on this node: %s" % ", ".join(_nd_n))
+                        if _warn_down: _sum.append("Optional not running (c4ws/oaea): %s" % ", ".join(_warn_down))
+                        if _down:     _sum.append("DOWN (critical): %s" % ", ".join(_down))
+                        _stdout = _stdout.rstrip("\n") + "\nTV_SUMMARY: " + (" | ".join(_sum) if _sum else "no server status parsed")
 
                 print("[ebs-ctrl] op=%s exit=%d ok=%s stdout=%r" % (op, _exit, _ok, _stdout[:200]))
 
