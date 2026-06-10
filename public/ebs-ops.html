@@ -1487,52 +1487,85 @@ function friendlyError(msg) {
 
 // Render the WF Mailer status table with inline Start/Stop action buttons.
 // COMPONENT_ID column is hidden but used to pass the id to runFndSvcCtrl.
+// Fixed column order: Name | Status | Action | Mode | Updated | Info
 function buildMailerStatusBodyHtml(data) {
   if (!data.rows || data.rows.length === 0) {
     return '<div style="font-size:12px;color:var(--text-dim);margin-top:4px">No WF Mailer components found.</div>';
   }
   const cols = data.columns || [];
-  const cidIdx = cols.findIndex(c => c.toUpperCase() === 'COMPONENT_ID');
-  const statusIdx = cols.findIndex(c => c.toUpperCase() === 'COMPONENT_STATUS');
-  // Build visible column indices (hide COMPONENT_ID column)
-  const visibleIdxs = cols.map((_, i) => i).filter(i => i !== cidIdx);
+  const ci = name => cols.findIndex(c => c.toUpperCase() === name);
+  const idxName   = ci('COMPONENT_NAME');
+  const idxStatus = ci('COMPONENT_STATUS');
+  const idxMode   = ci('STARTUP_MODE');
+  const idxDate   = ci('LAST_UPDATE_DATE');
+  const idxInfo   = ci('COMPONENT_STATUS_INFO');
+  const idxCid    = ci('COMPONENT_ID');
+
+  const cell = (row, idx) => idx >= 0 ? String(row[idx] ?? '') : '';
+
+  // Fixed header order
+  const headers = [
+    { label: 'Component Name', style: 'min-width:180px;white-space:nowrap' },
+    { label: 'Status',         style: 'min-width:80px' },
+    { label: 'Action',         style: 'min-width:70px;white-space:nowrap' },
+    { label: 'Mode',           style: 'min-width:80px' },
+    { label: 'Updated',        style: 'min-width:130px' },
+    { label: 'Info',           style: 'max-width:200px' },
+  ];
 
   let html = '<div class="result-table-wrap"><table class="result-table"><thead><tr>';
-  visibleIdxs.forEach(i => { html += `<th>${escHtml(cols[i])}</th>`; });
-  html += '<th>Action</th></tr></thead><tbody>';
+  headers.forEach(h => { html += `<th style="${h.style}">${h.label}</th>`; });
+  html += '</tr></thead><tbody>';
 
   data.rows.forEach(row => {
-    const compId   = cidIdx >= 0 ? row[cidIdx] : null;
-    const status   = statusIdx >= 0 ? String(row[statusIdx] ?? '') : '';
+    const compId = idxCid >= 0 ? Number(row[idxCid]) : 0;
+    const status = cell(row, idxStatus);
     html += '<tr>';
-    visibleIdxs.forEach(i => {
-      const cellVal = String(row[i] ?? '');
-      let cellHtml;
-      if (cellVal.length > 80) {
-        const preview = escHtml(cellVal.slice(0, 80));
-        const full    = escHtml(cellVal);
-        cellHtml = `<td><details class="cell-expand"><summary>${preview}…</summary><pre>${full}</pre></details></td>`;
-      } else {
-        // Colour-code the status cell
-        if (i === statusIdx) {
-          const colour = status === 'RUNNING' ? 'var(--green)' : status === 'DEACTIVATED_SYSTEM' ? 'var(--text-dim)' : 'var(--yellow)';
-          cellHtml = `<td style="color:${colour};font-weight:600" title="${escHtml(cellVal)}">${escHtml(cellVal)}</td>`;
-        } else {
-          cellHtml = `<td title="${escHtml(cellVal)}">${escHtml(cellVal)}</td>`;
-        }
-      }
-      html += cellHtml;
-    });
-    // Action column
+
+    // 1 — Component Name
+    const nameVal = cell(row, idxName);
+    html += `<td style="min-width:180px;white-space:nowrap;font-weight:500" title="${escHtml(nameVal)}">${escHtml(nameVal) || '—'}</td>`;
+
+    // 2 — Status (coloured badge)
+    const statusColour = status === 'RUNNING'           ? 'var(--green)'
+                       : status === 'DEACTIVATED_SYSTEM' ? 'var(--text-dim)'
+                       : 'var(--yellow)';
+    html += `<td style="min-width:80px;color:${statusColour};font-weight:600" title="${escHtml(status)}">${escHtml(status) || '—'}</td>`;
+
+    // 3 — Action
+    const btnStyle = 'white-space:nowrap;padding:3px 10px;font-size:11px;min-width:60px';
     if (status === 'RUNNING') {
-      html += `<td><button class="btn-sm btn-danger" onclick="runFndSvcCtrl('fnd_svc_ctrl_stop',${Number(compId)},this)">⏹ Stop</button></td>`;
-    } else if (status === 'STOPPED' || status === 'CRASHED' || status === 'DISABLED') {
-      html += `<td><button class="btn-sm btn-primary" onclick="runFndSvcCtrl('fnd_svc_ctrl_start',${Number(compId)},this)">▶ Start</button></td>`;
+      html += `<td style="min-width:70px;white-space:nowrap"><button class="btn-sm btn-danger" style="${btnStyle}" onclick="runFndSvcCtrl('fnd_svc_ctrl_stop',${compId},this)">⏹ Stop</button></td>`;
     } else if (status === 'DEACTIVATED_SYSTEM') {
-      html += `<td><span style="color:var(--text-dim);font-size:12px">⚠ Deactivated</span></td>`;
+      html += `<td style="min-width:70px;white-space:nowrap"><button class="btn-sm btn-warn" style="${btnStyle};color:var(--yellow);border-color:var(--yellow);background:transparent" onclick="runFndSvcCtrl('fnd_svc_ctrl_start',${compId},this)">▶ Start</button><div style="font-size:10px;color:var(--text-dim);margin-top:2px">⚠ Deactivated</div></td>`;
+    } else if (status) {
+      html += `<td style="min-width:70px;white-space:nowrap"><button class="btn-sm" style="${btnStyle};color:var(--green);border-color:var(--green);background:transparent" onclick="runFndSvcCtrl('fnd_svc_ctrl_start',${compId},this)">▶ Start</button></td>`;
     } else {
       html += `<td>—</td>`;
     }
+
+    // 4 — Mode
+    const modeVal = cell(row, idxMode);
+    html += `<td style="min-width:80px" title="${escHtml(modeVal)}">${escHtml(modeVal) || '—'}</td>`;
+
+    // 5 — Updated
+    const dateVal = cell(row, idxDate);
+    html += `<td style="min-width:130px;white-space:nowrap" title="${escHtml(dateVal)}">${escHtml(dateVal) || '—'}</td>`;
+
+    // 6 — Info (60-char truncation with expandable details)
+    const infoVal = cell(row, idxInfo);
+    let infoHtml;
+    if (!infoVal) {
+      infoHtml = `<td style="max-width:200px;color:var(--text-dim)">—</td>`;
+    } else if (infoVal.length > 60) {
+      const preview = escHtml(infoVal.slice(0, 60));
+      const full    = escHtml(infoVal);
+      infoHtml = `<td style="max-width:200px"><details class="cell-expand"><summary>${preview}…</summary><div style="max-height:120px;overflow-y:auto;white-space:pre-wrap;word-break:break-word;font-size:10px;padding:4px">${full}</div></details></td>`;
+    } else {
+      infoHtml = `<td style="max-width:200px" title="${escHtml(infoVal)}">${escHtml(infoVal)}</td>`;
+    }
+    html += infoHtml;
+
     html += '</tr>';
   });
   html += '</tbody></table></div>';
