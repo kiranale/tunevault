@@ -1938,9 +1938,12 @@ app.get('/api/connections/:id/latest-hc-status', requireAuth, requireConnectionO
       [connId]
     );
     if (!rows[0]) return res.json({ status: 'no_data' });
-    const metrics = rows[0].metrics || {};
+    const rawMetrics = rows[0].metrics;
+    const metrics = typeof rawMetrics === 'string' ? JSON.parse(rawMetrics) : (rawMetrics || {});
     const findings = metrics.findings || [];
     const checksOk = metrics.checks_ok || [];
+    console.log('[latest-hc-status] connId=%d hcStatus=%s serverType=%s findingsLen=%d checksOkLen=%d',
+      connId, rows[0].hc_status, metrics.server_type, findings.length, checksOk.length);
     const components = {};
     findings.forEach(f => {
       const key = f.check_id || f.title;

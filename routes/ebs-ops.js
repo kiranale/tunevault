@@ -127,6 +127,7 @@ async function getConnParams(connectionId, userId) {
 
 async function findPairedDbConn(ebsInstanceName, userId) {
   if (!ebsInstanceName) return null;
+  console.log('[ebs-ops/pair] userId=%s instanceName=%s', userId, ebsInstanceName);
   const { rows } = await pool.query(
     `SELECT id, host, port, service_name
      FROM oracle_connections
@@ -138,6 +139,7 @@ async function findPairedDbConn(ebsInstanceName, userId) {
      LIMIT 1`,
     [ebsInstanceName, userId]
   );
+  console.log('[ebs-ops/pair] result:', rows);
   if (!rows.length) return null;
   const r = rows[0];
   return { id: r.id, host: r.host, port: r.port || 1521, serviceName: r.service_name };
@@ -171,6 +173,7 @@ router.post('/api/ebs-ops/run', requireAuth, async (req, res) => {
     return res.status(500).json({ error: 'Failed to load connection', detail: err.message });
   }
   if (!connParams) return res.status(404).json({ error: 'Connection not found' });
+  console.log('[ebs-ops/run] connId=%d serverType=%s ebsInstanceName=%s', connParams.id, connParams.serverType, connParams.ebsInstanceName);
 
   if (connParams.connectionType !== 'proxy') {
     return res.status(400).json({ error: 'Direct TCP connections are not yet supported for EBS SQL ops. Use a proxy (agent) connection.' });
