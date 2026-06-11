@@ -627,7 +627,7 @@ What to look for:
 
 **Redo size per second > 50 MB**: Heavy write workload. Check for bulk DML without commit batching, or missing direct-path inserts.
 
-**Physical reads per second disproportionate to logical reads**: Buffer cache hit ratio is low. Consider increasing `DB_CACHE_SIZE`.
+**Physical reads per second disproportionate to logical reads**: Buffer cache hit ratio is low. Consider increasing \`DB_CACHE_SIZE\`.
 
 ## Section 3: Top 5 Timed Events — Read These Last
 
@@ -652,7 +652,7 @@ latch: shared pool               12,400   3,600         290.32       4.0%
 
 **db file scattered read (multi-block I/O)**: Full table scans or fast full index scans. High here often matches high logical reads per transaction — look for missing indexes.
 
-**latch: shared pool**: If this appears with high total time, you have hard parse or cursor invalidation issues. Check `cursor_sharing` and look at `v$sql` for statements with high `parse_calls/executions` ratio.
+**latch: shared pool**: If this appears with high total time, you have hard parse or cursor invalidation issues. Check \`cursor_sharing\` and look at \`v$sql\` for statements with high \`parse_calls/executions\` ratio.
 
 ## Section 4: SQL Ordered by CPU and Elapsed Time
 
