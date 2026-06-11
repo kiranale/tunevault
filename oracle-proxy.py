@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.55"  # apps_start_all/apps_stop_all: correct adstpall/adstrtal call — APPS pwd as arg, WLS pwd via stdin, -mode=allnodes
+VERSION = "3.20.56"  # WF Mailer finding: correct restart guidance (TuneVault/OAM/PL/SQL); remove adadminsrvctl.sh wfmail reference
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -5906,7 +5906,17 @@ class ProxyHandler(BaseHTTPRequestHandler):
                                      "(sqlplus exit %d)." % _wf_exit, _wf_out)
                         elif _mailer_row and _mailer_row[1].upper() != "RUNNING":
                             _finding("wf_mailer", "Workflow Mailer Not Running", "critical",
-                                     "%s status: %s. Restart via EBS System Admin → Workflow → Service Components."
+                                     "%s status: %s. "
+                                     "To restart the Workflow Notification Mailer: "
+                                     "Option 1 — TuneVault EBS Ops → WF Mailer tab → Start WF Mailer. "
+                                     "Option 2 — OAM UI: System Administrator → Oracle Applications Manager → Workflow → Service Components → Activate. "
+                                     "Option 3 — PL/SQL (run as APPS): "
+                                     "DECLARE l_id NUMBER; l_ret NUMBER; l_errbuf VARCHAR2(2000); BEGIN "
+                                     "SELECT component_id INTO l_id FROM fnd_svc_components "
+                                     "WHERE component_type = 'WF_MAILER' AND ROWNUM = 1; "
+                                     "fnd_svc_component.start_component(p_component_id => l_id, p_retcode => l_ret, p_errbuf => l_errbuf); "
+                                     "COMMIT; END; / "
+                                     "Do NOT use: adadminsrvctl.sh start wfmail (this command does not exist)."
                                      % (_mailer_row[0], _mailer_row[1]), _comp_table)
                         elif _stuck_count > 50:
                             _finding("wf_mailer", "Stuck Workflow Notifications", "warning",

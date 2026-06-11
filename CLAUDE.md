@@ -151,7 +151,7 @@ All Add Connection links in the app MUST point to `/connections/new` — the sin
   (ebs12212-app-dev) both set to `EBS12212`. EBS Ops SQL routes conn 140 → 
   conn 134 via findPairedDbConn() using this value. APPS password stored in 
   apps_pwd_enc on conn 140. WebLogic password in weblogic_pwd_enc on conn 140.
-- Current proxy version: 3.20.55 on both conn 134 and conn 140
+- Current proxy version: 3.20.56 on both conn 134 and conn 140
 - Render auto-deploy: ON (GitHub webhook active)
 - SKIP_TIER_LIMITS=true in Render env vars
 - APP_URL=https://tunevault.app set in Render env vars
@@ -213,6 +213,12 @@ Start All (adcmctl) to fully restart the GSM framework.
 
 ## Recent changes
 
+- 2026-06-11: FIX — oracle-proxy.py 3.20.56: "Workflow Mailer Not Running" finding
+  remediation text corrected — old text pointed to "EBS System Admin → Workflow →
+  Service Components" with no detail; new text lists 3 options: TuneVault EBS Ops
+  WF Mailer tab, OAM UI path, and PL/SQL fnd_svc_component.start_component snippet.
+  Explicitly notes adadminsrvctl.sh start wfmail does not exist.
+  LATEST_PROXY_VERSION 3.20.56.
 - 2026-06-11: FIX — oracle-proxy.py 3.20.55: adstpall/adstrtal command corrected —
   APPS password is now a slash-joined argument ("APPS/$APPS_PWD"), WLS password
   piped via stdin only, -mode=allnodes added for multi-node support. ebs-ops.html:
