@@ -2683,43 +2683,36 @@
     }
 
     function navigateToCheck(checkId, tabName) {
-        const tabMap = {
-            'EBS Checks':        'tab-appchecks',
-            'Performance':       'tab-performance',
-            'Storage':           'tab-storage',
-            'Backup & Recovery': 'tab-backup',
-            'Config & Sizing':   'tab-config',
-            'Indexes':           'tab-indexes',
-            'OS Stats':          'tab-os',
-            'Housekeeping':      'tab-housekeeping',
-            'Blocking':          'tab-blocking'
-        };
-        const panelId     = tabMap[tabName];
-        const targetPanel = panelId ? document.getElementById(panelId) : null;
-        if (targetPanel) {
-            const container = targetPanel.parentElement;
-            container.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-            targetPanel.classList.add('active');
-            const tabsNav = container.previousElementSibling;
-            if (tabsNav && tabsNav.classList.contains('tabs-nav')) {
-                tabsNav.querySelectorAll('.tab-btn').forEach(b => {
-                    b.classList.remove('active');
-                    const oc = b.getAttribute('onclick') || '';
-                    if (oc.includes(panelId.replace('tab-', ''))) b.classList.add('active');
-                });
-            }
-        }
-        if (checkId) {
-            setTimeout(() => {
-                const el = document.getElementById('check-' + checkId)
-                         || document.querySelector('[id*="' + checkId + '"]');
-                if (el) {
-                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    el.style.outline = '2px solid var(--accent)';
-                    setTimeout(() => el.style.outline = '', 2000);
+        console.log('[nav] checkId:', checkId, 'tabName:', tabName);
+
+        const panelId = 'tab-' + ({'EBS Checks':'appchecks','Performance':'performance','Storage':'storage','Backup & Recovery':'backup','Config & Sizing':'config','Indexes':'indexes','OS Stats':'os','Housekeeping':'housekeeping','Blocking':'blocking'})[tabName];
+        const panel = document.getElementById(panelId);
+        console.log('[nav] panel found:', !!panel, panelId);
+
+        if (panel) {
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            panel.classList.add('active');
+            console.log('[nav] panel made active, display:', window.getComputedStyle(panel).display);
+
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.remove('active');
+                if ((b.getAttribute('onclick') || '').includes('appchecks')) {
+                    b.classList.add('active');
+                    console.log('[nav] activated tab btn:', b.textContent);
                 }
-            }, 100);
+            });
         }
+
+        setTimeout(() => {
+            const el = document.getElementById('check-' + checkId)
+                     || document.querySelector('[id*="' + checkId + '"]');
+            console.log('[nav] scroll target:', el ? el.id : 'NOT FOUND');
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.style.outline = '2px solid var(--accent)';
+                setTimeout(() => el.style.outline = '', 2000);
+            }
+        }, 200);
     }
 
     // ============================================================
