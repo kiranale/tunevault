@@ -2274,7 +2274,7 @@ SELECT name, db_unique_name, open_mode, database_role FROM v$database;
 \`\`\`bash
 # On source DB tier (as oracle user)
 export ORACLE_SID=EBSPROD
-perl $ORACLE_HOME/appsutil/scripts/${ORACLE_SID}_$(hostname)/adpreclone.pl dbTier
+perl $ORACLE_HOME/appsutil/scripts/\${ORACLE_SID}_$(hostname)/adpreclone.pl dbTier
 
 # On source app tier (as applmgr user)
 source /u01/install/APPS/EBSapps.env run
