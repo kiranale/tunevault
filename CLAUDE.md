@@ -130,8 +130,6 @@ All Add Connection links in the app MUST point to `/connections/new` — the sin
 
 🟡 High:
 - apex-lab (192.168.56.101, OEL 8.10, Oracle 23ai) — agent never installed
-- Deep EBS Mode — db/ebs-deep.js getEbsConnections() only finds is_ebs=true;
-  fix: WHERE (is_ebs=true OR server_type IN ('apps','both'))
 - install.sh systemd unit template — tunevault-agent.service needs 
   PrivateTmp=no (or BindPaths=-/var/tmp/.oracle) baked in. Current installs 
   need a manual drop-in: systemctl edit tunevault-agent → [Service] 
