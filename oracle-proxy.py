@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.54"  # apps_start_all/apps_stop_all: adstrtal.sh/adstpall.sh y via agent tunnel
+VERSION = "3.20.55"  # apps_start_all/apps_stop_all: correct adstpall/adstrtal call — APPS pwd as arg, WLS pwd via stdin, -mode=allnodes
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -6566,10 +6566,9 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     _timeout = 60
 
                 elif op in ("apps_stop_all", "apps_start_all"):
-                    # adstpall.sh y / adstrtal.sh y — stops or starts all app-tier services.
-                    # Both scripts prompt for apps password then weblogic password; we pipe
-                    # them via printf so the script runs non-interactively.
-                    # The "y" argument auto-confirms each service without further prompts.
+                    # Correct non-interactive call confirmed by customer AppsStartStop.sh:
+                    #   printf "$WLS_PWD\n" | adstpall.sh "APPS/$APPS_PWD" -mode=allnodes
+                    # APPS password is a slash-joined argument; WLS password piped via stdin.
                     _adscript = "adstpall.sh" if op == "apps_stop_all" else "adstrtal.sh"
                     _tout     = 300          if op == "apps_stop_all" else 600
                     _lines = [
@@ -6581,7 +6580,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         '    echo "NO_PASSWORDS -- set APPS Password and WebLogic Password on the connection to use this op."',
                         '    exit 1',
                         'fi',
-                        'printf "%%s\\n%%s\\n" "$APPS_PWD" "$WLS_PWD" | timeout %d "$ADMIN_SCRIPTS_HOME/%s" y 2>&1' % (_tout, _adscript),
+                        'printf "%%s\\n" "$WLS_PWD" | timeout %d "$ADMIN_SCRIPTS_HOME/%s" "APPS/$APPS_PWD" -mode=allnodes 2>&1' % (_tout, _adscript),
                         '_RC=${PIPESTATUS[1]}',
                         'exit $_RC',
                     ]

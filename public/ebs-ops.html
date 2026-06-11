@@ -828,7 +828,7 @@ function renderFullStackCard(op, container) {
   const noConn = !selectedConn;
   const card = document.createElement('div');
   card.className = 'op-card';
-  card.id = 'fs-card-' + op.key;
+  card.id = 'mw-card-' + op.key;
   card.innerHTML = `
     <div class="op-card-header">
       <div class="op-icon">${op.icon}</div>
@@ -836,17 +836,17 @@ function renderFullStackCard(op, container) {
         <div class="op-title">${escHtml(op.label)}</div>
         <div class="op-meta">EBS · Agent · Full Stack</div>
       </div>
-      <span class="result-hdr-badge" id="result-hdr-badge-fs-${op.key}" style="display:none"></span>
+      <span class="result-hdr-badge" id="result-hdr-badge-mw-${op.key}" style="display:none"></span>
     </div>
     <div class="op-preview">${escHtml(op.desc)}</div>
-    <div class="op-actions" id="op-actions-fs-${op.key}">
+    <div class="op-actions" id="op-actions-mw-${op.key}">
       <button class="btn btn-outline" style="color:${op.color};border-color:${op.borderColor}"
-        id="run-fs-${op.key}"
+        id="run-mw-${op.key}"
         onclick="${noConn ? '' : `showFullStackConfirm('${op.key}','${escHtml(op.label)}','${op.confirmPhrase}','${op.color}')`}"
         ${noConn ? 'disabled' : ''}>${op.icon} ${escHtml(op.label)}</button>
     </div>
     <div id="fs-confirm-${op.key}" style="display:none;margin-top:8px;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;font-size:12px"></div>
-    <div class="result-panel" id="result-fs-${op.key}"></div>`;
+    <div class="result-panel" id="result-mw-${op.key}"></div>`;
   container.appendChild(card);
 }
 
@@ -880,52 +880,24 @@ async function commitFullStackConfirm(opKey, confirmPhrase) {
     return;
   }
   cancelFullStackConfirm(opKey);
-  const resultEl = document.getElementById('result-fs-' + opKey);
-  const badgeEl  = document.getElementById('result-hdr-badge-fs-' + opKey);
-  if (resultEl) {
-    resultEl.innerHTML = `<div class="result-panel-hdr"><span class="result-toggle">▼</span><span style="color:var(--yellow)">⏳ Running…</span></div><div class="result-panel-body" style="padding:10px;font-size:12px;color:var(--text-dim)">This may take several minutes — do not navigate away.</div>`;
-    resultEl.style.display = '';
-  }
-  if (badgeEl) { badgeEl.textContent = '⏳'; badgeEl.style.display = ''; badgeEl.style.background = 'var(--yellow-dim)'; badgeEl.style.color = 'var(--yellow)'; }
-  document.getElementById('run-fs-' + opKey)?.setAttribute('disabled', '');
-  try {
-    const r = await fetch('/api/ebs-ops/middleware-run', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ connection_id: selectedConn.id, op_key: opKey }),
-    });
-    const data = await r.json();
-    const ok  = r.ok && (data.ok !== false);
-    const out = data.stdout || data.error || JSON.stringify(data);
-    if (resultEl) {
-      const col    = ok ? 'var(--green)' : 'var(--red)';
-      const label  = ok ? '✓ Done' : '✗ Error';
-      resultEl.innerHTML = `
-        <div class="result-panel-hdr" onclick="this.parentElement.querySelector('.result-panel-body').style.display=this.parentElement.querySelector('.result-panel-body').style.display==='none'?'':'none'">
-          <span class="result-toggle">▼</span>
-          <span style="color:${col}">${label}</span>
-        </div>
-        <div class="result-panel-body" style="padding:10px">
-          <pre style="font-size:11px;white-space:pre-wrap;word-break:break-all;color:var(--text-dim)">${escHtml(out)}</pre>
-        </div>`;
-    }
-    if (badgeEl) { badgeEl.textContent = ok ? '✓' : '✗'; badgeEl.style.background = ok ? 'var(--green-dim)' : 'var(--red-dim)'; badgeEl.style.color = ok ? 'var(--green)' : 'var(--red)'; }
-    if (ok) {
-      // Refresh all individual service status cards sequentially
-      const statusOps = ['adapcctl_status','adopmnctl_status','adalnctl_status','adnodemgrctl_status','wls_admin_status','oacore_status','forms_status','oafm_status','managed_servers_status'];
-      for (const sOp of statusOps) {
-        const mwCard = MIDDLEWARE_OPS.find(o => o.key === sOp);
-        if (mwCard) {
-          await new Promise(res => setTimeout(res, 400));
-          runMiddlewareOp(sOp).catch(() => {});
-        }
+  // runMiddlewareOp handles spinner, button disable, storeAndRenderMiddlewareResult,
+  // and uses result-mw-{opKey} / result-hdr-badge-mw-{opKey} which our card now has.
+  await runMiddlewareOp(opKey);
+  // runMiddlewareOp resets unknown ops to '▶ Run'; restore the original label
+  const btn = document.getElementById('run-mw-' + opKey);
+  const origLabel = opKey === 'apps_stop_all' ? '⏹ Stop All App Services' : '▶ Start All App Services';
+  if (btn) btn.innerHTML = origLabel;
+  // Refresh all individual service status cards sequentially on success
+  const stored = resultStore.get('mw-' + opKey);
+  if (stored && stored.isOk) {
+    const statusOps = ['adapcctl_status','adopmnctl_status','adalnctl_status','adnodemgrctl_status','wls_admin_status','oacore_status','forms_status','oafm_status','managed_servers_status'];
+    for (const sOp of statusOps) {
+      if (MIDDLEWARE_OPS.find(o => o.key === sOp)) {
+        await new Promise(res => setTimeout(res, 400));
+        runMiddlewareOp(sOp).catch(() => {});
       }
     }
-  } catch (e) {
-    if (resultEl) resultEl.innerHTML = `<div class="result-panel-hdr"><span style="color:var(--red)">✗ Request failed</span></div><div class="result-panel-body" style="padding:10px;font-size:12px;color:var(--red)">${escHtml(e.message)}</div>`;
-    if (badgeEl) { badgeEl.textContent = '✗'; badgeEl.style.background = 'var(--red-dim)'; badgeEl.style.color = 'var(--red)'; }
   }
-  document.getElementById('run-fs-' + opKey)?.removeAttribute('disabled');
 }
 
 
@@ -1099,6 +1071,7 @@ const _MW_TIMEOUTS = {
   adcmctl_start: 135000, adcmctl_stop: 135000,
   wf_mailer_start: 65000,  wf_mailer_stop: 65000,  wf_mailer_reset: 200000,
   fnd_svc_ctrl_start: 65000, fnd_svc_ctrl_stop: 65000,
+  apps_stop_all: 315000,     apps_start_all: 615000,
 };
 
 async function runMiddlewareOp(opKey) {
