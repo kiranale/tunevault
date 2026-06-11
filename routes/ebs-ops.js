@@ -454,6 +454,8 @@ const MIDDLEWARE_OPS_CATALOG = {
   wf_mailer_reset:        { label: 'Reset & Restart',        proxyOp: 'wf_mailer_reset',        destructive: true },
   fnd_svc_ctrl_start:     { label: 'FND SVC Start',          proxyOp: 'fnd_svc_ctrl_start',     destructive: true, requiresComponentId: true },
   fnd_svc_ctrl_stop:      { label: 'FND SVC Stop',           proxyOp: 'fnd_svc_ctrl_stop',      destructive: true, requiresComponentId: true },
+  apps_stop_all:          { label: 'Stop All App Services',  proxyOp: 'apps_stop_all',          destructive: true },
+  apps_start_all:         { label: 'Start All App Services', proxyOp: 'apps_start_all',         destructive: true },
 };
 
 // ── POST /api/ebs-ops/middleware-run ──────────────────────────────────────────
@@ -522,6 +524,7 @@ router.post('/api/ebs-ops/middleware-run', requireAuth, async (req, res) => {
       adcmctl_status: 35000,     adcmctl_start: 130000,     adcmctl_stop: 130000,
       wf_mailer_start: 65000,    wf_mailer_stop: 65000,    wf_mailer_reset: 65000,
       fnd_svc_ctrl_start: 65000, fnd_svc_ctrl_stop: 65000,
+      apps_stop_all: 310000,     apps_start_all: 610000,
     };
     const ctrlTimeout = _ctrlTimeoutMap[op_key] || 40000;
     const proxyBody = { op: opDef.proxyOp, weblogic_pwd: conn.weblogicPwd || '', apps_pwd: conn.appsPwd || '' };

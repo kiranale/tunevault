@@ -151,7 +151,7 @@ All Add Connection links in the app MUST point to `/connections/new` — the sin
   (ebs12212-app-dev) both set to `EBS12212`. EBS Ops SQL routes conn 140 → 
   conn 134 via findPairedDbConn() using this value. APPS password stored in 
   apps_pwd_enc on conn 140. WebLogic password in weblogic_pwd_enc on conn 140.
-- Current proxy version: 3.20.53 on both conn 134 and conn 140
+- Current proxy version: 3.20.54 on both conn 134 and conn 140
 - Render auto-deploy: ON (GitHub webhook active)
 - SKIP_TIER_LIMITS=true in Render env vars
 - APP_URL=https://tunevault.app set in Render env vars
@@ -213,6 +213,13 @@ Start All (adcmctl) to fully restart the GSM framework.
 
 ## Recent changes
 
+- 2026-06-11: FEAT — oracle-proxy.py 3.20.54: apps_start_all/apps_stop_all ops
+  added to /api/ebs-ctrl whitelist. Run adstrtal.sh y / adstpall.sh y via agent
+  tunnel; passwords piped non-interactively via printf. Timeout: 610s start,
+  310s stop. routes/ebs-ops.js: catalog + ctrlTimeoutMap updated. ebs-ops.html:
+  new "Full Stack Control" section at bottom of Service Status tab — two cards
+  with typed confirmation (START-ALL-APPS / STOP-ALL-APPS) and auto-refresh of
+  all individual service status cards on success. LATEST_PROXY_VERSION 3.20.54.
 - 2026-06-11: FIX — oracle-proxy.py 3.20.53: c4ws/oaea managed servers
   (forms-c4ws_server1, oaea_server1) classified as warning when down, not
   critical — these are optional EBS components not deployed on all instances.

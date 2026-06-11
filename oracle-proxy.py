@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.53"  # c4ws/oaea managed servers classified as warning (not critical) when down; fnd_svc_ctrl_start/stop by component_id
+VERSION = "3.20.54"  # apps_start_all/apps_stop_all: adstrtal.sh/adstpall.sh y via agent tunnel
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -6255,6 +6255,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     "adcmctl_status", "adcmctl_start", "adcmctl_stop",
                     "wf_mailer_start", "wf_mailer_stop", "wf_mailer_reset",
                     "fnd_svc_ctrl_start", "fnd_svc_ctrl_stop",
+                    "apps_start_all", "apps_stop_all",
                 }
                 if op in ("managed_server_start", "managed_server_stop"):
                     if not server_name or not re.match(r'^[a-zA-Z0-9_-]{1,64}$', server_name):
@@ -6563,6 +6564,28 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         'exit $?',
                     ]
                     _timeout = 60
+
+                elif op in ("apps_stop_all", "apps_start_all"):
+                    # adstpall.sh y / adstrtal.sh y — stops or starts all app-tier services.
+                    # Both scripts prompt for apps password then weblogic password; we pipe
+                    # them via printf so the script runs non-interactively.
+                    # The "y" argument auto-confirms each service without further prompts.
+                    _adscript = "adstpall.sh" if op == "apps_stop_all" else "adstrtal.sh"
+                    _tout     = 300          if op == "apps_stop_all" else 600
+                    _lines = [
+                        "#!/bin/bash",
+                        "export APPS_PWD='%s'" % _ap,
+                        "export WLS_PWD='%s'" % _wp,
+                        "source '%s' run >/dev/null 2>&1" % _ef,
+                        'if [ -z "$APPS_PWD" ] && [ -z "$WLS_PWD" ]; then',
+                        '    echo "NO_PASSWORDS -- set APPS Password and WebLogic Password on the connection to use this op."',
+                        '    exit 1',
+                        'fi',
+                        'printf "%%s\\n%%s\\n" "$APPS_PWD" "$WLS_PWD" | timeout %d "$ADMIN_SCRIPTS_HOME/%s" y 2>&1' % (_tout, _adscript),
+                        '_RC=${PIPESTATUS[1]}',
+                        'exit $_RC',
+                    ]
+                    _timeout = _tout + 10
 
                 else:
                     # oacore_status, forms_status, oafm_status, managed_servers_status:
