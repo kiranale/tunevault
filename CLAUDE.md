@@ -130,10 +130,6 @@ All Add Connection links in the app MUST point to `/connections/new` — the sin
 
 🟡 High:
 - apex-lab (192.168.56.101, OEL 8.10, Oracle 23ai) — agent never installed
-- install.sh systemd unit template — tunevault-agent.service needs 
-  PrivateTmp=no (or BindPaths=-/var/tmp/.oracle) baked in. Current installs 
-  need a manual drop-in: systemctl edit tunevault-agent → [Service] 
-  PrivateTmp=no. Lab box (ebs12212-app-dev) has this applied manually.
 - WF Notification Mailer — DEACTIVATED_SYSTEM on conn 140 due to mail server
   config error (OUTBOUND_SERVER unreachable). Not a TuneVault bug — needs 
   EBS mail config fix before Start/Reset will work.

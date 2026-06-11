@@ -685,7 +685,8 @@ StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=tunevault-agent
 NoNewPrivileges=yes
-PrivateTmp=yes
+PrivateTmp=no
+BindPaths=-/var/tmp/.oracle -/tmp/.oracle
 
 [Install]
 WantedBy=multi-user.target
