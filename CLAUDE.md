@@ -126,7 +126,7 @@ Node.js + Express, PostgreSQL (Neon), Render deployment. Vanilla JS frontend (no
 
 All Add Connection links in the app MUST point to `/connections/new` — the single canonical v6 wizard (routes/ssh-install.js). `/setup/fresh` is a 301 permanent redirect to it as of 2026-05-22. Adding a new entry point? Verify it points to `/connections/new`, not `/setup/fresh`.
 
-## Known Issues (as of 2026-06-10)
+## Known Issues (as of 2026-06-11)
 
 🟡 High:
 - apex-lab (192.168.56.101, OEL 8.10, Oracle 23ai) — agent never installed
@@ -135,12 +135,7 @@ All Add Connection links in the app MUST point to `/connections/new` — the sin
   EBS mail config fix before Start/Reset will work.
 
 🟢 Low:
-- Blog articles need seeding — run POST /api/admin/seed-blog; 5 stubs remain
-  (adop-patching, rac-troubleshooting, data-guard, ebs-performance-tuning,
-  ebs-oci-cloning)
-- ~20 debug scripts in repo root — move to scripts/debug/ or delete
 - README.md CI badge URLs point to Polsia-Inc/tunevault
-- Privacy Policy + ToS pages not created yet (needed before go-live)
 - Outreach email templates not written yet
 - Result persistence — EBS Ops and DB Ops cards load blank on navigate-back;
   fix: localStorage last-run cache with timestamp, no auto-run
@@ -159,6 +154,8 @@ All Add Connection links in the app MUST point to `/connections/new` — the sin
 - Current proxy version: 3.20.53 on both conn 134 and conn 140
 - Render auto-deploy: ON (GitHub webhook active)
 - SKIP_TIER_LIMITS=true in Render env vars
+- APP_URL=https://tunevault.app set in Render env vars
+- Custom domain: tunevault.app → tunevault-bm8c.onrender.com (Cloudflare CNAME, DNS only)
 
 ## EBS Ops architecture (as of 2026-06-10)
 
