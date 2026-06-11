@@ -2066,7 +2066,7 @@
             const rawHtml = TABLE_CHECKS.has(ch.check_id) ? renderRawAsTable(raw) : renderRaw(raw);
 
             if (ch.isOk) {
-                return `<div style="display:flex;align-items:flex-start;gap:14px;padding:13px 18px;` +
+                return `<div id="check-${ch.check_id || ''}" style="display:flex;align-items:flex-start;gap:14px;padding:13px 18px;` +
                     `border-bottom:1px solid rgba(42,42,48,0.5)">` +
                     `<div style="color:var(--green);font-weight:700;font-size:14px;flex-shrink:0;margin-top:1px;width:18px;text-align:center">✓</div>` +
                     `<div style="flex:1;min-width:0">` +
@@ -2076,7 +2076,7 @@
                     `</div></div>`;
             }
             const sev = ch.severity || 'warning';
-            return `<div style="display:flex;align-items:flex-start;gap:14px;padding:13px 18px;` +
+            return `<div id="check-${ch.check_id || ''}" style="display:flex;align-items:flex-start;gap:14px;padding:13px 18px;` +
                 `background:rgba(${sevBg(sev)},0.05);` +
                 `border-bottom:1px solid rgba(42,42,48,0.5);` +
                 `border-left:3px solid ${sevColor(sev)}">` +
@@ -2679,6 +2679,32 @@
         if (panel) panel.classList.add('active');
     }
 
+    function navigateToCheck(checkId, tabName) {
+        const tabMap = {
+            'EBS Checks': 'appchecks',
+            'Performance': 'performance', 'Storage': 'storage',
+            'Backup & Recovery': 'backup', 'Config & Sizing': 'config',
+            'Indexes': 'indexes', 'OS Stats': 'os', 'Summary': 'summary',
+            'Housekeeping': 'housekeeping', 'Blocking': 'blocking'
+        };
+        const tabId = tabMap[tabName];
+        if (tabId) {
+            const btn = document.querySelector('.tab-btn[onclick*="\'' + tabId + '\'"]');
+            if (btn) btn.click();
+        }
+        if (checkId) {
+            setTimeout(() => {
+                const el = document.getElementById('check-' + checkId)
+                        || document.querySelector('[data-check-id="' + checkId + '"]');
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    el.style.outline = '2px solid var(--accent)';
+                    setTimeout(() => el.style.outline = '', 2000);
+                }
+            }, 300);
+        }
+    }
+
     // ============================================================
     // BUILD FINDINGS (aggregated from metrics)
     // ============================================================
@@ -3073,7 +3099,7 @@
                         <div class="evidence-text">${formatFindingText(r.evidence)}</div>
                     </div>` : ''}
                     ${actionBlock}
-                    ${r.check_tab ? `<div class="rec-tab-link">📋 See full data in: <strong>${esc(r.check_tab)}</strong> tab</div>` : ''}
+                    ${r.check_tab ? `<div class="rec-tab-link"><a href="#" onclick="navigateToCheck(${JSON.stringify(r.check_id || '')}, ${JSON.stringify(r.check_tab || '')}); return false;" style="color:var(--accent);text-decoration:none">📋 See full data in: <strong>${esc(r.check_tab)}</strong> tab →</a></div>` : ''}
                 </div>
             </div>`;
         }
