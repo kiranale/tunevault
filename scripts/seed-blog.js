@@ -1302,19 +1302,1341 @@ The formula: recommended_undo_size = (undo_blocks_per_second × block_size × un
 TuneVault monitors tablespace usage across all your Oracle connections, alerting you when any tablespace exceeds your configured threshold — with 30-day growth trend analysis to predict when you will run out before it becomes an emergency.
 `;
 
+const ADOP_CONTENT = `
+## Before You Start — Checking Session State
+
+Before running \`adop\`, check whether the database is in a clean state from the previous patch cycle.
+
+\`\`\`sql
+SELECT adop_session_id, prepare_status, apply_status, finalize_status,
+       cutover_status, cleanup_status, abort_status, status, node_name
+FROM ad_adop_sessions
+ORDER BY adop_session_id DESC
+FETCH FIRST 5 ROWS ONLY;
+\`\`\`
+
+Status codes: \`N\` = not started, \`R\` = running, \`C\` = complete, \`F\` = failed, \`X\` = not applicable.
+
+A healthy baseline before starting a new cycle: all statuses are \`C\` or \`X\` except abort_status which should be \`N\`. If the previous session shows \`F\` in any phase, investigate before proceeding.
+
+\`\`\`sql
+-- Check for orphaned patch edition objects from a failed session
+SELECT count(*) FROM dba_objects
+WHERE edition_name IS NOT NULL AND status = 'INVALID';
+\`\`\`
+
+Also confirm \`fs_clone\` ran after the last cycle. If it did not, the patch filesystem is out of sync and apply will behave unpredictably. There is no built-in query for this; check your patch log history or compare timestamps under \`$APPL_TOP/../fs1\` and \`$APPL_TOP/../fs2\`.
+
+## Prepare Phase Failures
+
+### Edition Already Exists
+
+The most common prepare failure is:
+
+\`\`\`
+Error: Edition ORA$BASE already exists in an invalid state
+\`\`\`
+
+This happens when a previous prepare phase failed midway and left an orphaned edition. Find and drop it:
+
+\`\`\`sql
+-- Find editions in the database
+SELECT edition_name, usable FROM dba_editions ORDER BY 1;
+
+-- Drop the orphaned patch edition (not ORA$BASE)
+DROP EDITION <patch_edition_name> CASCADE;
+\`\`\`
+
+Then re-run prepare:
+
+\`\`\`bash
+adop phase=prepare
+\`\`\`
+
+### Worker Timeouts During Prepare
+
+Prepare spawns parallel workers that compile code in the patch edition. On large or busy databases, workers can time out:
+
+\`\`\`
+Error: Worker process timed out after 3600 seconds
+\`\`\`
+
+Increase the worker count and bump the timeout:
+
+\`\`\`bash
+adop phase=prepare workers=8 prepare_timeout=7200
+\`\`\`
+
+### Finding Prepare Logs
+
+Prepare log location: \`$APPL_TOP/../log/adop/<session_id>/\`. For database-side errors, query AD_ZD_LOGS:
+
+\`\`\`sql
+SELECT log_sequence, log_type, log_text, log_date
+FROM ad_zd_logs
+WHERE adop_session_id = (SELECT MAX(adop_session_id) FROM ad_adop_sessions)
+  AND log_type = 'E'
+ORDER BY log_date DESC
+FETCH FIRST 20 ROWS ONLY;
+\`\`\`
+
+## Apply Phase Hangs
+
+When apply stops making progress, check worker states:
+
+\`\`\`sql
+SELECT count(*), status
+FROM ad_parallel_workers
+WHERE adop_session_id = (SELECT MAX(adop_session_id) FROM ad_adop_sessions)
+GROUP BY status;
+\`\`\`
+
+A healthy apply shows most workers \`R\` (running) or \`C\` (complete). All workers in \`W\` (waiting) with none running means the job queue is blocked — possibly waiting for a lock held by another session.
+
+Find which jobs are assigned but stuck:
+
+\`\`\`sql
+SELECT worker_id, assigned_job_id, status, start_date
+FROM ad_parallel_workers
+WHERE adop_session_id = (SELECT MAX(adop_session_id) FROM ad_adop_sessions)
+  AND status = 'W'
+ORDER BY start_date;
+\`\`\`
+
+### Restarting Apply Without Losing Progress
+
+ADOP apply is restartable. Kill the hung process and restart with \`restart=yes\`:
+
+\`\`\`bash
+adop phase=apply restart=yes workers=8
+\`\`\`
+
+ADOP skips jobs already marked complete and resumes from where it left off. You will not lose work already done.
+
+### apply-mode=downtime as a Last Resort
+
+For a patch that repeatedly hangs in online mode, switch to downtime mode. This requires taking all application services down and disables the dual-edition mechanism:
+
+\`\`\`bash
+adop phase=apply apply_mode=downtime workers=16
+\`\`\`
+
+Use this only when online mode is blocking the patch indefinitely and you have a maintenance window.
+
+## Cutover Timeout
+
+Cutover is the point of no return in a patch cycle. The default timeout is 30 minutes. On busy systems this can expire before all user sessions drain from the patch edition.
+
+\`\`\`
+Error: Cutover did not complete within the timeout period
+\`\`\`
+
+Increase the timeout:
+
+\`\`\`bash
+adop phase=cutover cutover_timeout=120
+\`\`\`
+
+Before running cutover, find what is holding up session drain:
+
+\`\`\`sql
+SELECT sid, serial#, username, status, program, sql_id,
+       ROUND((SYSDATE - last_call_et / 86400) * 24 * 60, 0) minutes_active
+FROM v$session
+WHERE status = 'ACTIVE'
+  AND username IS NOT NULL
+  AND username != 'SYS'
+ORDER BY last_call_et DESC
+FETCH FIRST 20 ROWS ONLY;
+\`\`\`
+
+Kill stuck sessions that are not real user work, then retry cutover.
+
+## fs_clone Failures
+
+\`fs_clone\` synchronizes the run filesystem from the patch filesystem after a successful cutover. It is the most disk-intensive phase and the one most likely to fail due to space or NFS issues.
+
+### Disk Space Check
+
+The patch filesystem needs roughly 1.3x the run filesystem size. Check all app tier nodes before starting:
+
+\`\`\`bash
+df -h $APPL_TOP $INST_TOP $COMMON_TOP
+\`\`\`
+
+### NFS Mount Issues on Multi-Node
+
+In multi-node configurations, the patch filesystem is typically NFS-shared. A stale mount causes cryptic copy errors. Check on all nodes:
+
+\`\`\`bash
+df -h | grep nfs
+mount | grep $APPL_TOP
+\`\`\`
+
+Remount if needed, then retry:
+
+\`\`\`bash
+adop phase=fs_clone restart=yes
+\`\`\`
+
+## Abort and Full Recovery
+
+### When to Abort
+
+Abort when apply has failed irreversibly and restart is not recovering, or when the patch introduced a regression you cannot fix before cutover:
+
+\`\`\`bash
+adop phase=abort
+\`\`\`
+
+Abort rolls back the patch edition changes and returns the database to the pre-patch state. It does not affect the run filesystem — EBS continues operating normally.
+
+### Full Cleanup
+
+After abort (or after a successful cycle), run cleanup to reclaim disk space used by the patch filesystem:
+
+\`\`\`bash
+adop phase=cleanup cleanup_mode=full_cleanup
+\`\`\`
+
+Verify cleanup completed — every status should be \`C\` or \`X\`:
+
+\`\`\`sql
+SELECT adop_session_id, prepare_status, apply_status, finalize_status,
+       cutover_status, cleanup_status, abort_status
+FROM ad_adop_sessions
+ORDER BY adop_session_id DESC
+FETCH FIRST 3 ROWS ONLY;
+\`\`\`
+
+Any status showing \`F\` after cleanup means cleanup itself failed. Check \`$APPL_TOP/../log/adop/<session>/cleanup/\` for the cause.
+
+## Multi-Node Common Mistakes
+
+### Running adop on the Wrong Node
+
+In multi-node EBS, \`adop\` must be initiated from the master (run) node — the node where the WebLogic AdminServer runs. Running from a secondary node causes inconsistent patch application across nodes.
+
+Identify the master node:
+
+\`\`\`sql
+SELECT node_name, server_address, support_cp, support_web, support_admin, support_db
+FROM fnd_nodes
+WHERE support_admin = 'Y';
+\`\`\`
+
+### SSH Trust Between Nodes
+
+ADOP requires passwordless SSH between all application tier nodes as the applmgr OS user. Test before patching:
+
+\`\`\`bash
+# From master node, as applmgr
+ssh applmgr@<secondary_node_hostname> hostname
+\`\`\`
+
+If this prompts for a password, fix SSH trust before starting a patch cycle. A missing SSH trust discovered mid-apply forces an abort.
+
+### Patch Filesystem Sync After Multi-Node Apply
+
+After fs_clone, the patch filesystem on all nodes should mirror the run filesystem. Verify the patch timestamp matches across nodes:
+
+\`\`\`bash
+ls -lt $APPL_TOP/../fs2/EBSapps/appl/ad/12.0.0/patch/115/ | head -5
+# Run on each node; timestamps should match within seconds
+\`\`\`
+`;
+
+const RAC_CONTENT = `
+## First Commands When RAC Is Behaving Badly
+
+When a RAC cluster is degraded, start at the CRS layer before touching the database.
+
+\`\`\`bash
+# Top-level CRS health
+crsctl check crs
+
+# Individual CRS components
+crsctl check cssd     # cluster synchronization daemon
+crsctl check crsd     # cluster ready services daemon
+crsctl check evmd     # event manager daemon
+
+# Database resource status across all instances
+srvctl status database -d MYDB
+
+# Full resource state table — read this carefully
+crsctl stat res -t
+\`\`\`
+
+In the \`crsctl stat res -t\` output, look for resources in \`INTERMEDIATE\` or \`OFFLINE\` state that should be \`ONLINE\`. A VIP showing \`INTERMEDIATE\` means network failover is in progress or stuck.
+
+## Diagnosing Interconnect Performance
+
+The private interconnect is the most common source of RAC performance problems. In AWR, poor interconnect shows up as \`gc buffer busy acquire\`, \`gc cr request\`, and \`gc current request\` dominating Top Timed Events.
+
+### Verify the Interconnect Interface
+
+\`\`\`bash
+# Which interface is configured for the interconnect?
+oifcfg getif
+# Output: eth1  192.168.10.0  global  cluster_interconnect
+
+# Confirm the interface is actually on the private network
+ip addr show eth1
+\`\`\`
+
+### Measure Interconnect Latency
+
+\`\`\`bash
+# From node 1, ping node 2 private IP with 8KB packets (simulates block transfer)
+ping -I eth1 192.168.10.102 -s 8192 -c 100
+
+# Acceptable: avg round-trip < 0.5ms
+# Investigate: avg round-trip > 1ms
+# Problem:     avg round-trip > 3ms or any packet loss
+\`\`\`
+
+### Global Cache Statistics in SQL
+
+\`\`\`sql
+SELECT name, value
+FROM v$sysstat
+WHERE name IN (
+  'gc cr blocks received',
+  'gc current blocks received',
+  'gc cr block receive time',
+  'gc current block receive time'
+);
+\`\`\`
+
+Calculate average transfer time: \`gc cr block receive time\` / \`gc cr blocks received\` gives milliseconds per block. Under 5ms is normal. Over 15ms indicates interconnect congestion or a hot-block problem between instances.
+
+### Finding Hot Objects Driving Interconnect Traffic
+
+\`\`\`sql
+SELECT o.object_name, o.object_type, o.owner,
+       SUM(s.value) gc_waits
+FROM v$segment_statistics s
+JOIN dba_objects o ON s.obj# = o.object_id
+WHERE s.statistic_name = 'gc buffer busy acquire'
+  AND s.value > 0
+GROUP BY o.object_name, o.object_type, o.owner
+ORDER BY gc_waits DESC
+FETCH FIRST 15 ROWS ONLY;
+\`\`\`
+
+## CRS Not Starting After Reboot
+
+The diagnostic path starts with the CRS trace log:
+
+\`\`\`bash
+# CRS trace log location
+ls -lt /u01/app/grid/diag/crs/$(hostname)/crs/trace/
+
+# Scan recent entries for errors
+grep -i "error\|fatal\|fail" \
+  /u01/app/grid/diag/crs/$(hostname)/crs/trace/ocssd.trc | tail -50
+\`\`\`
+
+### Voting Disk Not Reachable
+
+The most common post-reboot CRS failure is the voting disk timing out:
+
+\`\`\`bash
+# Check voting disk configuration and current accessibility
+crsctl query css votedisk
+
+# Output format:
+# 0.     STATE:Online   LABEL:VOTE1   DGNAME:OCR   DEVPATH:/dev/sdc
+# A state of "Offline" or timeout errors means storage is the problem
+\`\`\`
+
+Fix the storage path (SAN zoning, multipath device, NFS mount) before trying to start CRS again.
+
+### Starting CRS Manually
+
+\`\`\`bash
+# OL7+ (systemd-based)
+systemctl start ohas
+
+# OL6 and earlier (init.d-based)
+/etc/init.d/ohasd start
+
+# Verify CRS started successfully
+crsctl check crs
+\`\`\`
+
+### Disk Timeout Tuning
+
+If your storage has higher latency (SAN over a busy fabric, or cloud block storage), the default disk timeout may be too short:
+
+\`\`\`bash
+# Check current disk timeout (seconds before a node is considered dead)
+crsctl get css disktimeout
+# Default: 200
+
+# Check misscount (seconds a node can miss a heartbeat before eviction)
+crsctl get css misscount
+# Default: 30
+\`\`\`
+
+Increasing these delays eviction — which can be dangerous. Change only with Oracle Support guidance.
+
+## Node Eviction — Why It Happens
+
+Node eviction (a node forcibly rebooted by the cluster) happens because the surviving nodes cannot confirm the evicted node is alive, and a split-brain scenario would risk data corruption. It is not a crash — it is a deliberate safety mechanism.
+
+The root cause is always in \`ocssd.trc\` on the surviving node:
+
+\`\`\`bash
+grep -A 5 "evict\|reconfig\|EVICTION" \
+  /u01/app/grid/diag/crs/$(hostname)/crs/trace/ocssd.trc | tail -100
+\`\`\`
+
+### Network Flap vs Storage Delay
+
+- **Network flap**: ocssd.trc shows missed private-network heartbeats. Check NIC bonding status (\`cat /proc/net/bonding/bond1\`) and switch port error counters (\`ethtool -S eth1 | grep error\`).
+- **Storage delay**: ocssd.trc shows voting disk I/O timing out. Check storage latency (\`iostat -x 2 10\`) and SAN fabric error logs.
+- **Both combined**: storage I/O pressure causing network congestion — common in environments where storage and interconnect share the same physical NICs.
+
+A node that reboots itself shows \`Node is being evicted\` in its own \`ocssd.trc\` just before reboot — it could not reach the voting disk within the disk timeout and self-evicted to prevent corruption.
+
+## Resource Management and srvctl
+
+Use \`srvctl\` for managing database instances and services in RAC. It keeps the CRS resource model consistent. Using \`sqlplus / as sysdba\` to shut down an instance directly bypasses CRS and leaves resources in a stale state.
+
+\`\`\`bash
+# Start a specific instance
+srvctl start instance -d MYDB -i MYDB2
+
+# Stop a specific instance cleanly
+srvctl stop instance -d MYDB -i MYDB1 -o immediate
+
+# Relocate a service from MYDB1 to MYDB2
+srvctl relocate service -d MYDB -s myservice -i MYDB1 -t MYDB2
+
+# Check service status
+srvctl status service -d MYDB -s myservice
+
+# Stop the entire database across all nodes
+srvctl stop database -d MYDB -o immediate
+\`\`\`
+
+Use \`crsctl stop crs\` only when you need to bring down the entire CRS stack for OS maintenance — it also stops ASM, VIPs, and all cluster resources on that node.
+
+## ASM and Disk Group Issues in RAC
+
+\`\`\`sql
+-- Connect to ASM instance: sqlplus / as sysasm
+SELECT name, state, type,
+       ROUND(total_mb/1024, 1) total_gb,
+       ROUND(free_mb/1024, 1) free_gb,
+       ROUND((total_mb - free_mb) * 100.0 / total_mb, 1) pct_used
+FROM v$asm_diskgroup
+ORDER BY name;
+\`\`\`
+
+From the OS on any RAC node:
+
+\`\`\`bash
+# List disk groups and their state
+asmcmd lsdg
+
+# Check individual disk health
+asmcmd lsdsk -G DATA --discovery
+\`\`\`
+
+### Adding a Disk and Rebalancing
+
+\`\`\`sql
+-- Add a disk to the DATA disk group
+ALTER DISKGROUP DATA ADD DISK '/dev/sde' NAME DATA_0004;
+
+-- Rebalance at power level 4 (1=slow, 11=max speed)
+ALTER DISKGROUP DATA REBALANCE POWER 4;
+
+-- Monitor rebalance progress
+SELECT group_number, operation, state, power, sofar, est_work, est_rate, est_minutes
+FROM v$asm_operation
+WHERE operation = 'REBAL';
+\`\`\`
+
+Schedule rebalance for low-usage windows — it competes with I/O from all instances sharing the disk group.
+`;
+
+const DATAGUARD_CONTENT = `
+## Pre-Switchover Checks — Never Skip These
+
+Verify the configuration is healthy on both primary and standby before initiating any role change. A switchover that fails midway is more disruptive than the planned maintenance.
+
+### Check Database Role and Switchover Readiness
+
+\`\`\`sql
+-- Run on primary
+SELECT db_unique_name, database_role, switchover_status,
+       protection_mode, protection_level
+FROM v$database;
+\`\`\`
+
+\`switchover_status\` must be \`TO STANDBY\` before you can proceed. If it shows \`SESSIONS ACTIVE\`, active sessions are blocking the role change — either wait for them to complete or kill them. If it shows \`NOT ALLOWED\`, the standby has not acknowledged the primary's redo transport.
+
+### Verify Redo Apply on the Standby
+
+\`\`\`sql
+-- Run on standby
+SELECT process, status, sequence#, block#, blocks
+FROM v$managed_standby
+WHERE process LIKE 'MRP%';
+\`\`\`
+
+MRP should show \`APPLYING_LOG\`. If it shows \`WAIT_FOR_LOG\`, the standby is waiting for redo that has not arrived — check the transport configuration.
+
+### Check for a Sequence Gap
+
+\`\`\`sql
+-- On primary: last archived sequence
+SELECT MAX(sequence#) last_archived
+FROM v$archived_log
+WHERE dest_id = 1 AND standby_dest = 'NO';
+
+-- On standby: last applied sequence
+SELECT MAX(sequence#) last_applied
+FROM v$archived_log
+WHERE applied = 'YES';
+\`\`\`
+
+A gap of 0–2 is normal (in-flight redo). A larger gap means the standby is behind — let it catch up before switching over.
+
+### DGMGRL Validation
+
+\`\`\`
+dgmgrl /
+DGMGRL> VALIDATE DATABASE VERBOSE <standby_db_unique_name>;
+\`\`\`
+
+Look for \`ERROR\` or \`WARNING\` lines in the output. Any \`WARNING: Apply lag is X minutes\` must be resolved before a clean switchover.
+
+## DGMGRL Switchover (Preferred Method)
+
+\`\`\`bash
+# Connect to DGMGRL on the primary host as oracle OS user
+dgmgrl /
+\`\`\`
+
+\`\`\`
+DGMGRL> SHOW CONFIGURATION;
+-- Verify all databases show SUCCESS or WARNING (not DISABLED or ERROR)
+
+DGMGRL> SWITCHOVER TO <standby_db_unique_name>;
+-- Progress messages:
+-- Performing switchover NOW, please wait...
+-- Operation requires a connection to instance "STANDBY1" on database "STDBY"
+-- Switchover processing complete.
+
+DGMGRL> SHOW CONFIGURATION;
+-- Former standby should now show "Primary database"
+-- Former primary should show "Physical standby database"
+\`\`\`
+
+After switchover completes, applications need to reconnect to the new primary. If using a SCAN listener or service-based connection, this happens automatically.
+
+## SQL Switchover Without Broker
+
+Use this path if you are not using the Data Guard broker (\`dg_broker_start=FALSE\`).
+
+\`\`\`sql
+-- Step 1: On the PRIMARY — commit to standby role
+-- SESSIONS ACTIVE clause lets Oracle drain sessions; WITH SESSION SHUTDOWN
+-- forces immediate session termination if needed
+ALTER DATABASE COMMIT TO SWITCHOVER TO STANDBY WITH SESSION SHUTDOWN;
+\`\`\`
+
+\`\`\`sql
+-- Step 2: On the STANDBY — commit to primary role
+ALTER DATABASE COMMIT TO SWITCHOVER TO PRIMARY WITH SESSION SHUTDOWN;
+
+-- Step 3: Open the new primary
+ALTER DATABASE OPEN;
+\`\`\`
+
+\`\`\`sql
+-- Step 4: Back on the former primary (now the new standby) —
+-- mount it and start redo apply
+SHUTDOWN IMMEDIATE;
+STARTUP MOUNT;
+ALTER DATABASE RECOVER MANAGED STANDBY DATABASE DISCONNECT FROM SESSION;
+\`\`\`
+
+Update \`LOG_ARCHIVE_DEST_n\` in the new primary's spfile to point at the new standby's TNS alias if needed.
+
+## Failover — Primary Is Lost
+
+Failover is a one-way operation: the primary is declared dead and the standby takes over. Do not failover on a network blip. Confirm the primary is genuinely unreachable from at least two independent paths before proceeding.
+
+### DGMGRL Failover
+
+\`\`\`
+DGMGRL> FAILOVER TO <standby_db_unique_name>;
+\`\`\`
+
+Without \`IMMEDIATE\`, DGMGRL tries to flush any unsent redo from the primary first — this minimises data loss but requires the primary to be reachable at the network level.
+
+\`\`\`
+-- If the primary is completely unreachable (accept potential data loss)
+DGMGRL> FAILOVER TO <standby_db_unique_name> IMMEDIATE;
+\`\`\`
+
+### SQL Failover Without Broker
+
+\`\`\`sql
+-- On the standby: finish applying all received redo
+ALTER DATABASE RECOVER MANAGED STANDBY DATABASE FINISH;
+
+-- Verify MRP has stopped (it will stop automatically after FINISH)
+SELECT process, status, sequence# FROM v$managed_standby;
+
+-- Convert to primary
+ALTER DATABASE COMMIT TO SWITCHOVER TO PRIMARY WITH SESSION SHUTDOWN;
+
+-- Open the new primary
+ALTER DATABASE OPEN;
+\`\`\`
+
+## Reinstating the Old Primary as New Standby
+
+If Flashback Database was enabled on the old primary before the failover, you can convert it to a standby rather than rebuilding from scratch.
+
+\`\`\`sql
+-- On the new primary: find the SCN at which the standby became primary
+SELECT standby_became_primary_scn FROM v$database;
+\`\`\`
+
+\`\`\`sql
+-- On the old primary: start in mount mode
+STARTUP MOUNT;
+
+-- Flashback to just before the failover point
+FLASHBACK DATABASE TO SCN <standby_became_primary_scn>;
+
+-- Convert to physical standby
+ALTER DATABASE CONVERT TO PHYSICAL STANDBY;
+
+-- Restart in mount mode and start redo apply
+SHUTDOWN IMMEDIATE;
+STARTUP MOUNT;
+ALTER DATABASE RECOVER MANAGED STANDBY DATABASE DISCONNECT FROM SESSION;
+\`\`\`
+
+The old primary is now a standby receiving redo from the new primary. Optionally re-add it to the broker configuration with \`ADD DATABASE\`.
+
+## Common Switchover and Failover Failures
+
+### ORA-16467: Switchover Target Is Not Synchronized
+
+\`\`\`
+ORA-16467: switchover target is not synchronized with the primary database
+\`\`\`
+
+The standby has an apply lag. Query the lag:
+
+\`\`\`sql
+SELECT name, value, unit, time_computed
+FROM v$dataguard_stats
+WHERE name IN ('apply lag', 'transport lag');
+\`\`\`
+
+Wait for the apply lag to reach zero, or diagnose why the standby cannot catch up (archive log destination full, MRP crashed, network congestion).
+
+### ORA-16472: Flashback Database Required
+
+\`\`\`
+ORA-16472: feature requires Flashback Database to be enabled
+\`\`\`
+
+The broker is configured for automatic reinstatement after failover, which requires Flashback Database. Enable it before the next failover:
+
+\`\`\`sql
+-- On both databases (in mount mode)
+ALTER DATABASE FLASHBACK ON;
+ALTER DATABASE OPEN;
+\`\`\`
+
+### Switchover Hangs at SESSIONS ACTIVE
+
+\`\`\`sql
+-- Find and kill active sessions blocking the switchover
+SELECT sid, serial#, username, status, program, machine
+FROM v$session
+WHERE status = 'ACTIVE'
+  AND username IS NOT NULL
+  AND username NOT IN ('SYS','SYSTEM')
+ORDER BY last_call_et DESC;
+
+ALTER SYSTEM KILL SESSION '<sid>,<serial#>' IMMEDIATE;
+\`\`\`
+
+Then retry the switchover. If a high-volume OLTP application is holding sessions open, coordinate with the application team to drain connections to the primary before initiating the role change.
+`;
+
+const EBS_PERF_CONTENT = `
+## Diagnosing Slow EBS — Where to Start
+
+When EBS is slow, the first split is: database tier or application tier?
+
+Run this on the DB tier to see what SQL is consuming CPU right now:
+
+\`\`\`sql
+SELECT sql_id,
+       ROUND(cpu_time / 1000000, 1) cpu_secs,
+       executions,
+       ROUND(cpu_time / 1000000 / NULLIF(executions, 0), 3) cpu_per_exec,
+       SUBSTR(sql_text, 1, 80) sql_preview
+FROM v$sql
+WHERE executions > 0
+  AND parsing_schema_name IN ('APPS', 'APPLSYS')
+ORDER BY cpu_time DESC
+FETCH FIRST 20 ROWS ONLY;
+\`\`\`
+
+If the top SQL are business-logic queries (AP, AR, GL tables), the problem is in the database. If the DB is idle but EBS is slow, look at WebLogic JVM heap, OHS/OPMN, or the Forms server.
+
+### Concurrent Request Performance Baseline
+
+\`\`\`sql
+SELECT user_concurrent_program_name,
+       ROUND(AVG((actual_completion_date - actual_start_date) * 24 * 60), 1) avg_mins,
+       ROUND(MAX((actual_completion_date - actual_start_date) * 24 * 60), 1) max_mins,
+       COUNT(*) runs
+FROM fnd_concurrent_requests_vl
+WHERE phase_code = 'C' AND status_code = 'C'
+  AND actual_start_date > SYSDATE - 7
+GROUP BY user_concurrent_program_name
+HAVING COUNT(*) > 5
+ORDER BY avg_mins DESC
+FETCH FIRST 20 ROWS ONLY;
+\`\`\`
+
+Run this weekly and store the results. When performance regresses, compare the current numbers against your baseline to identify which specific programs degraded and by how much.
+
+## Concurrent Manager Queue Sizing
+
+Undersized CM queues create a pending backlog: submitted requests sit in PENDING phase while the target queue is saturated at max_processes.
+
+\`\`\`sql
+SELECT concurrent_queue_name, user_concurrent_queue_name,
+       running_processes, max_processes, min_processes, enabled_flag
+FROM fnd_concurrent_queues_vl
+WHERE enabled_flag = 'Y'
+ORDER BY running_processes DESC;
+\`\`\`
+
+If \`running_processes = max_processes\` consistently during peak hours, the queue is the bottleneck. Increase \`max_processes\` via System Administrator → Concurrent → Manager → Define.
+
+Rule of thumb: for the Standard Manager, set \`max_processes\` to (CPU cores / 4), capped at 20. Beyond 20 concurrent workers, lock contention on \`FND_CONCURRENT_REQUESTS\` starts to limit throughput more than worker count helps.
+
+### Dedicated Queues for Heavy Programs
+
+Batch programs that run 30+ minutes (payroll, inventory costing, COGS recognition) should have dedicated queues so they cannot starve interactive concurrent requests:
+
+\`\`\`sql
+-- Find programs running in Standard Manager with long average runtimes
+SELECT r.concurrent_program_name,
+       p.user_concurrent_program_name,
+       COUNT(*) runs,
+       ROUND(AVG((r.actual_completion_date - r.actual_start_date) * 24 * 60), 1) avg_mins
+FROM fnd_concurrent_requests r
+JOIN fnd_concurrent_programs_vl p
+  ON r.concurrent_program_id = p.concurrent_program_id
+WHERE r.actual_start_date > SYSDATE - 30
+  AND r.phase_code = 'C' AND r.status_code = 'C'
+GROUP BY r.concurrent_program_name, p.user_concurrent_program_name
+HAVING AVG((r.actual_completion_date - r.actual_start_date) * 24 * 60) > 30
+ORDER BY avg_mins DESC;
+\`\`\`
+
+## OPP Bottlenecks
+
+The Output Post Processor generates PDF and formatted output after a concurrent request completes. When OPP falls behind, requests appear to complete in the database but users cannot access output — they sit in PENDING phase with \`phase_code = 'C'\` and status_code = \`'R'\` or \`'Z'\`.
+
+\`\`\`sql
+-- Count requests waiting for OPP processing
+SELECT COUNT(*) pending_opp
+FROM fnd_conc_pp_actions
+WHERE status_code = 'P';
+\`\`\`
+
+A count above 50 means OPP is behind. Above 200 means users are noticing.
+
+### OPP JVM Heap Size
+
+Check the current OPP service configuration:
+
+\`\`\`sql
+SELECT manager_type, user_service_name, developer_parameters
+FROM fnd_cp_services
+WHERE manager_type = 'OPP';
+\`\`\`
+
+Look for \`-Xmx\` in \`developer_parameters\`. The default is \`-Xmx256m\`. For EBS instances generating large PDF reports, increase it to \`-Xmx1024m\`. This is changed in System Administrator → Concurrent → Manager → Service → OPP node → edit the JVM arguments.
+
+Also increase the number of OPP instances from 1 to 3–5 by editing the target processes in the OPP manager definition.
+
+### OPP Process Timeout Profile
+
+The profile \`Concurrent: OPP Process Timeout\` controls how long OPP waits for output generation before giving up. The default is 120 seconds. Increase it to 600 for complex BI Publisher reports:
+
+Navigate to System Administrator → Profile → System → search for \`Concurrent: OPP Process Timeout\`.
+
+## Stuck Requests — Safe Diagnosis and Kill
+
+\`\`\`sql
+SELECT request_id, user_concurrent_program_name,
+       phase_code, status_code,
+       ROUND((SYSDATE - actual_start_date) * 24, 1) running_hours,
+       os_process_id, requested_by
+FROM fnd_concurrent_requests_vl
+WHERE phase_code = 'R'
+  AND actual_start_date < SYSDATE - 2/24
+ORDER BY running_hours DESC;
+\`\`\`
+
+Do not kill the OS process directly without first cancelling in FND — the database request record will remain in Running phase, blocking the queue from processing further requests.
+
+Safe cancellation:
+
+\`\`\`sql
+-- Connect as APPS user and cancel the request
+EXEC FND_CONCURRENT.CANCEL_REQUEST(:request_id);
+COMMIT;
+\`\`\`
+
+If the request does not respond to \`CANCEL_REQUEST\` within 5 minutes, kill the OS process using \`os_process_id\` from the query above, then manually close the request record:
+
+\`\`\`sql
+UPDATE fnd_concurrent_requests
+SET phase_code = 'C',
+    status_code = 'D',
+    actual_completion_date = SYSDATE
+WHERE request_id = :request_id;
+COMMIT;
+\`\`\`
+
+## WF Mailer Performance Tuning
+
+A growing WF Notification Mailer backlog manifests as users not receiving workflow notifications. Check the backlog:
+
+\`\`\`sql
+SELECT COUNT(*), mail_status
+FROM wf_notifications
+WHERE status = 'OPEN'
+GROUP BY mail_status;
+\`\`\`
+
+\`MAIL\` status means pending outbound delivery. A count above a few hundred means the mailer is not keeping pace with notification volume.
+
+Tuning parameters in Workflow Administrator → Notification Mailer → Advanced:
+
+- \`PROCESSOR_OUT_THREAD_COUNT\`: default 1; increase to 3–5 for high volume
+- \`PROCESSOR_IN_THREAD_COUNT\`: set to 0 unless using inbound email responses
+- \`PROCESSOR_TIMEOUT\`: time in seconds each thread waits for the mail server; default 30
+
+For a large backlog, temporarily increase out threads to 10, let the queue drain, then return to the steady-state value.
+
+## FND_STATS — When Stale Statistics Kill CM Performance
+
+EBS ships with its own statistics utility, \`FND_STATS\`, which understands Oracle Applications table structures. Stale statistics on \`FND_CONCURRENT_REQUESTS\` — which can contain millions of rows on a busy system — cause the CM dequeue SQL to use full table scans instead of index lookups.
+
+Check freshness:
+
+\`\`\`sql
+SELECT table_name, last_analyzed, num_rows,
+       ROUND(SYSDATE - last_analyzed, 0) days_since_analyze
+FROM dba_tables
+WHERE owner = 'APPS'
+  AND table_name IN (
+    'FND_CONCURRENT_REQUESTS', 'FND_CONCURRENT_PROCESSES',
+    'FND_CONCURRENT_QUEUES', 'WF_NOTIFICATIONS',
+    'WF_NOTIFICATION_ATTRIBUTES', 'WF_ITEMS'
+  )
+ORDER BY days_since_analyze DESC NULLS LAST;
+\`\`\`
+
+Anything older than 14 days on a busy EBS instance is a performance risk. Gather stats on the critical tables:
+
+\`\`\`sql
+EXEC FND_STATS.GATHER_TABLE_STATS('APPS', 'FND_CONCURRENT_REQUESTS');
+EXEC FND_STATS.GATHER_TABLE_STATS('APPS', 'WF_NOTIFICATIONS');
+\`\`\`
+
+Schedule the \`Gather Schema Statistics\` concurrent program weekly via the EBS concurrent manager, targeting the APPS schema with ESTIMATE_PERCENT=15. Running it at 100% on multi-million-row tables takes far longer without meaningfully better statistics.
+`;
+
+const EBS_OCI_CONTENT = `
+## ZDM vs Traditional Rapid Clone — Which to Use
+
+For the database tier, you have two options when moving EBS 12.2 to OCI:
+
+**ZDM (Zero Downtime Migration)**: Best for databases over 2TB or when the maintenance window is under 4 hours. ZDM automates Data Guard setup, redo transport, and the switchover. It requires a dedicated ZDM service host, OCI CLI configured on both source and target, and a more complex setup that takes a day to prepare.
+
+**RMAN to Object Storage**: Right for databases under 500GB, for teams doing their first OCI migration, or when you have a 6–12 hour maintenance window. Full control, no extra software, same process as any RMAN restore.
+
+For the application tier, use rapid clone (\`adpreclone\` + \`adcfgclone\`) in both cases. ZDM handles the database only.
+
+## OCI Prerequisites Specific to EBS
+
+### VCN and Subnet Design
+
+EBS on OCI requires three subnets at minimum:
+
+| Subnet | Type | Key Inbound Ports |
+|--------|------|-------------------|
+| DB subnet | Private | 1521 (listener), 1526 (RAC secondary) |
+| App tier subnet | Private | 7001–7002 (WLS), 8000–8021 (EBS HTTP), 1647 (apps listener), 6701 (OPMN) |
+| Load balancer subnet | Public | 443, 80 |
+
+Security list rules must allow the app tier subnet to reach the DB subnet on port 1521. A common mistake is creating the DB system first and adding the security list rule only after the app tier is already deployed and failing to connect.
+
+### Shape Selection
+
+- DB tier: \`VM.Standard2.8\` (16 OCPU, 120GB RAM) as a minimum for databases under 1TB. For I/O-heavy OLTP, \`VM.DenseIO2.8\` provides local NVMe with lower latency.
+- App tier: \`VM.Standard2.8\` minimum for EBS 12.2. WebLogic heap alone needs 8–16GB; with OHS, OPMN, Forms, and the concurrent tier all on one node, 120GB RAM fills up quickly.
+
+### Object Storage Bucket
+
+Create the bucket before starting the RMAN backup:
+
+\`\`\`bash
+# Create bucket in the correct compartment
+oci os bucket create \
+  --compartment-id <compartment_ocid> \
+  --name ebs-migration-rman \
+  --namespace <namespace>
+\`\`\`
+
+## DB Tier Migration — RMAN to Object Storage
+
+### Install and Configure OCI CLI on Source
+
+\`\`\`bash
+# Install OCI CLI
+bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)"
+
+# Configure credentials
+oci setup config
+# Enter: user OCID, tenancy OCID, region, path to API signing key
+\`\`\`
+
+### Run RMAN Backup and Upload
+
+\`\`\`bash
+# Take a compressed backup to local staging area
+rman target / << RMAN
+CONFIGURE DEVICE TYPE DISK PARALLELISM 4 BACKUP TYPE TO COMPRESSED BACKUPSET;
+BACKUP AS COMPRESSED BACKUPSET DATABASE PLUS ARCHIVELOG
+  FORMAT '/backup/rman/ebs_%U.bkp';
+RMAN
+
+# Upload to Object Storage (parallel, 10 concurrent uploads)
+oci os object bulk-upload \
+  --bucket-name ebs-migration-rman \
+  --src-dir /backup/rman \
+  --parallel-upload-count 10 \
+  --namespace <namespace>
+\`\`\`
+
+### Restore on the OCI DB System
+
+\`\`\`bash
+# Download backup from Object Storage to OCI DB System
+oci os object bulk-download \
+  --bucket-name ebs-migration-rman \
+  --dest-dir /backup/rman \
+  --parallel-download-count 10 \
+  --namespace <namespace>
+
+# Restore and recover
+rman target / << RMAN
+RESTORE DATABASE FROM '/backup/rman/';
+RECOVER DATABASE;
+ALTER DATABASE OPEN RESETLOGS;
+RMAN
+\`\`\`
+
+\`\`\`sql
+-- Verify the restored database
+SELECT name, db_unique_name, open_mode, database_role FROM v$database;
+-- open_mode should be READ WRITE
+\`\`\`
+
+## App Tier Migration
+
+### Prepare Source App Tier for Clone
+
+\`\`\`bash
+# On source DB tier (as oracle user)
+export ORACLE_SID=EBSPROD
+perl $ORACLE_HOME/appsutil/scripts/${ORACLE_SID}_$(hostname)/adpreclone.pl dbTier
+
+# On source app tier (as applmgr user)
+source /u01/install/APPS/EBSapps.env run
+perl $AD_TOP/bin/adpreclone.pl appsTier
+\`\`\`
+
+### Archive and Transfer to OCI
+
+\`\`\`bash
+# Create archive (skip logs and temp files to reduce size)
+tar -czf /backup/apps_$(date +%Y%m%d).tar.gz \
+  --exclude='*.log' \
+  --exclude='*.out' \
+  --exclude='$APPL_TOP/*/log' \
+  $APPL_TOP $INST_TOP $COMMON_TOP
+
+# Upload to Object Storage
+oci os object put \
+  --bucket-name ebs-migration-rman \
+  --file /backup/apps_$(date +%Y%m%d).tar.gz \
+  --name apps_$(date +%Y%m%d).tar.gz
+
+# On OCI compute: download and extract
+oci os object get \
+  --bucket-name ebs-migration-rman \
+  --name apps_$(date +%Y%m%d).tar.gz \
+  --file /backup/apps.tar.gz
+
+tar -xzf /backup/apps.tar.gz -C /
+\`\`\`
+
+### Run adcfgclone on OCI Compute
+
+\`\`\`bash
+cd $COMMON_TOP/clone/bin
+perl adcfgclone.pl appsTier
+# Runs 30–60 minutes
+# Prompts for new app tier hostname, DB connection string, ports
+\`\`\`
+
+## Post-Clone Autoconfig for OCI Hostnames
+
+Every EBS service uses hostnames pulled from the context file. After a clone to OCI, all the old source hostnames need to be replaced.
+
+### Update the Context File
+
+Open \`$CONTEXT_FILE\` (found by running \`echo $CONTEXT_FILE\` as applmgr) and update:
+
+- \`s_webentryhost\`: the OCI compute public IP or load balancer hostname
+- \`s_webentryurlport\`: 443 for SSL, 8000 for non-SSL
+- \`s_login_page\`: full URL to the EBS login page
+- \`s_dbhost\`: the OCI DB system private IP or hostname
+
+Then run autoconfig:
+
+\`\`\`bash
+perl $AD_TOP/bin/adautocfg.pl
+\`\`\`
+
+### Update FND_NODES
+
+\`\`\`sql
+-- Check what node names are registered
+SELECT node_name, server_address, support_cp, support_web, support_admin
+FROM fnd_nodes ORDER BY node_name;
+
+-- Update app tier node to the new OCI compute hostname
+UPDATE fnd_nodes
+SET node_name = UPPER('<new_oci_compute_hostname>'),
+    server_address = '<new_oci_private_ip>'
+WHERE node_name = UPPER('<old_source_hostname>');
+COMMIT;
+\`\`\`
+
+### Bounce All Services and Verify
+
+\`\`\`bash
+$ADMIN_SCRIPTS_HOME/adstopall.sh
+$ADMIN_SCRIPTS_HOME/adstartall.sh
+
+# Verify EBS login page responds
+curl -sk https://<new_hostname>/OA_HTML/AppsLocalLogin.jsp | grep -i "login\|oracle"
+\`\`\`
+
+## Common Post-Clone Failures on OCI
+
+### SSL Certificate Errors in OHS
+
+The old SSL wallet references the source hostname. After cloning, regenerate the wallet using Oracle Wallet Manager (\`owm\`), or set \`s_ssl_enabled\` to \`false\` in the context file and re-run autoconfig for a plain HTTP test environment.
+
+### FNDSM Not Starting
+
+FNDSM startup failure after autoconfig almost always means the apps listener hostname in tnsnames.ora still references the old hostname. Check:
+
+\`\`\`bash
+grep -i $(hostname) $TNS_ADMIN/tnsnames.ora
+# Should show the new OCI hostname; if not, re-run autoconfig after
+# verifying s_dbhost and s_appservnode in the context file
+\`\`\`
+
+### Reports Servlet 404
+
+Check \`s_reportsserver\` in the context file — it must match the new OCI compute hostname. Update it, re-run autoconfig, and bounce the Reports Server in the WebLogic console.
+
+### WebLogic Managed Servers Not Starting
+
+OCI Security Lists block all inbound ports by default. After migration, verify that the following ports are open within the app tier Security List: 7001 (AdminServer), 7201–7210 (managed servers), 5556 (Node Manager). Without Node Manager connectivity, the AdminServer cannot start managed servers remotely.
+`;
+
+const SECURITY_CONTENT = `
+## DEFAULT Profile — What Auditors Check First
+
+The DEFAULT profile applies to every user that does not have a custom profile assigned. In most Oracle installations the DEFAULT profile has unlimited or very permissive settings. Auditors always check this first.
+
+\`\`\`sql
+SELECT resource_name, limit
+FROM dba_profiles
+WHERE profile = 'DEFAULT'
+ORDER BY resource_name;
+\`\`\`
+
+Production minimum settings:
+
+| Parameter | Recommended Value | Why |
+|-----------|------------------|-----|
+| PASSWORD_LIFE_TIME | 90 | Force quarterly rotation |
+| FAILED_LOGIN_ATTEMPTS | 5 | Lock after 5 failures |
+| PASSWORD_LOCK_TIME | 1/24 | Lock for 1 hour |
+| PASSWORD_REUSE_TIME | 365 | Cannot reuse within 1 year |
+| PASSWORD_REUSE_MAX | 10 | Cannot reuse last 10 passwords |
+| PASSWORD_GRACE_TIME | 7 | 7-day warning before expiry |
+
+Apply them:
+
+\`\`\`sql
+ALTER PROFILE DEFAULT LIMIT
+  PASSWORD_LIFE_TIME       90
+  FAILED_LOGIN_ATTEMPTS    5
+  PASSWORD_LOCK_TIME       1/24
+  PASSWORD_REUSE_TIME      365
+  PASSWORD_REUSE_MAX       10
+  PASSWORD_GRACE_TIME      7;
+\`\`\`
+
+Leave \`SESSIONS_PER_USER\` as \`UNLIMITED\` for application schema owners (APPS, HR, etc.) — connection pools open many sessions under the same database user and a hard cap will break the application.
+
+## Locking Unused Default Accounts
+
+Oracle ships with dozens of default accounts. Any account that is unlocked and not actively managed is a potential entry point — default passwords are documented in Oracle's own manuals.
+
+\`\`\`sql
+SELECT username, account_status, last_login, created
+FROM dba_users
+WHERE account_status NOT LIKE '%LOCKED%'
+  AND username NOT IN (
+    'SYS', 'SYSTEM', 'DBSNMP', 'DBSFWUSER',
+    'APPQOSSYS', 'GSMADMIN_INTERNAL',
+    'APPS', 'APPLSYS', 'APPLTMP'
+  )
+ORDER BY last_login DESC NULLS LAST;
+\`\`\`
+
+Lock and expire any account not needed for your application:
+
+\`\`\`sql
+ALTER USER OUTLN        ACCOUNT LOCK PASSWORD EXPIRE;
+ALTER USER ANONYMOUS    ACCOUNT LOCK PASSWORD EXPIRE;
+ALTER USER SCOTT        ACCOUNT LOCK PASSWORD EXPIRE;
+ALTER USER MDDATA       ACCOUNT LOCK PASSWORD EXPIRE;
+ALTER USER SPATIAL_WFS_ADMIN_USR ACCOUNT LOCK PASSWORD EXPIRE;
+\`\`\`
+
+Do not lock SYS or SYSTEM directly — Oracle does not support that. Ensure SYS only connects \`AS SYSDBA\` and that \`REMOTE_LOGIN_PASSWORDFILE\` is set to \`EXCLUSIVE\` or \`SHARED\`, not \`NONE\`.
+
+## Privilege Review — Queries Auditors Always Run
+
+### Excessive System Privileges
+
+\`\`\`sql
+SELECT grantee, privilege, admin_option
+FROM dba_sys_privs
+WHERE privilege IN (
+  'CREATE ANY TABLE',   'DROP ANY TABLE',   'ALTER ANY TABLE',
+  'EXECUTE ANY PROCEDURE', 'SELECT ANY TABLE', 'DELETE ANY TABLE',
+  'CREATE ANY PROCEDURE', 'DROP ANY PROCEDURE', 'ALTER ANY PROCEDURE',
+  'BECOME USER', 'ALTER SYSTEM', 'ALTER DATABASE'
+)
+  AND grantee NOT IN (
+    'SYS', 'SYSTEM', 'DBA', 'IMP_FULL_DATABASE',
+    'EXP_FULL_DATABASE', 'DATAPUMP_IMP_FULL_DATABASE',
+    'DATAPUMP_EXP_FULL_DATABASE', 'ORACLE_OCM'
+  )
+ORDER BY grantee, privilege;
+\`\`\`
+
+Any non-DBA application user holding \`SELECT ANY TABLE\` can read SYS.USER$ and every business table in the database. This should exist nowhere on a production system.
+
+### PUBLIC Grants (Frequently Overlooked)
+
+\`\`\`sql
+SELECT owner, table_name, privilege, grantable
+FROM dba_tab_privs
+WHERE grantee = 'PUBLIC'
+  AND owner NOT IN ('SYS', 'PUBLIC', 'XDB')
+ORDER BY owner, table_name;
+\`\`\`
+
+Every current and future database user inherits grants to PUBLIC. An EXECUTE grant on a business application procedure granted to PUBLIC is almost certainly a mistake — every DBA, developer, and read-only monitoring user gains that privilege automatically.
+
+### Users with DBA Role
+
+\`\`\`sql
+SELECT grantee, admin_option, default_role
+FROM dba_role_privs
+WHERE granted_role = 'DBA'
+  AND grantee NOT IN ('SYS', 'SYSTEM')
+ORDER BY grantee;
+\`\`\`
+
+The DBA role grants nearly unlimited database access. In most production databases, only SYS and SYSTEM should have it. Application schema owners should hold specific object privileges, not the DBA role.
+
+## Unified Auditing (12c+)
+
+### Check If Unified Auditing Is Active
+
+\`\`\`sql
+SELECT value FROM v$option WHERE parameter = 'Unified Auditing';
+-- TRUE  = pure unified or mixed mode (12c+ with recompile)
+-- FALSE = traditional audit tables only (pre-12c behavior)
+\`\`\`
+
+In 12c mixed mode, both traditional (\`aud$\`) and unified audit records are written. Pure unified auditing requires recompiling the Oracle binary — most sites stay in mixed mode.
+
+### Create and Enable an Audit Policy
+
+\`\`\`sql
+-- Audit DDL on privileged operations and DML on sensitive tables
+CREATE AUDIT POLICY prod_security_ops
+  ACTIONS
+    DELETE ON hr.employees,
+    UPDATE ON hr.employees,
+    DELETE ON ar.ra_customer_trx_all
+  PRIVILEGES
+    CREATE USER, DROP USER, ALTER USER,
+    CREATE ROLE, DROP ROLE,
+    GRANT ANY PRIVILEGE, REVOKE ANY PRIVILEGE;
+
+AUDIT POLICY prod_security_ops;
+\`\`\`
+
+To limit noise, audit only specific users rather than all sessions:
+
+\`\`\`sql
+AUDIT POLICY prod_security_ops BY dba_admin, hr_super_user;
+\`\`\`
+
+### Query the Unified Audit Trail
+
+\`\`\`sql
+SELECT dbusername, action_name, object_schema, object_name,
+       sql_text,
+       TO_CHAR(event_timestamp AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') event_utc,
+       unified_audit_policies
+FROM unified_audit_trail
+WHERE event_timestamp > SYSTIMESTAMP - INTERVAL '1' DAY
+  AND dbusername NOT IN ('SYS', 'DBSNMP')
+ORDER BY event_timestamp DESC
+FETCH FIRST 50 ROWS ONLY;
+\`\`\`
+
+Purge the audit trail using \`DBMS_AUDIT_MGMT\` — do not delete from \`UNIFIED_AUDIT_TRAIL\` directly, it is a view over a secured LOB in the AUDSYS schema.
+
+## Network Encryption
+
+Without network encryption, credentials and query results travel in plaintext over the network. Configure both server and client \`sqlnet.ora\`:
+
+\`\`\`
+# $ORACLE_HOME/network/admin/sqlnet.ora (server-side)
+SQLNET.ENCRYPTION_SERVER = REQUIRED
+SQLNET.ENCRYPTION_TYPES_SERVER = (AES256, AES192, AES128)
+SQLNET.CRYPTO_CHECKSUM_SERVER = REQUIRED
+SQLNET.CRYPTO_CHECKSUM_TYPES_SERVER = (SHA256)
+\`\`\`
+
+Setting \`REQUIRED\` on the server means any client that does not support encryption will be refused. Use \`REQUESTED\` if you have legacy clients you cannot update yet.
+
+Verify a session is encrypted after connecting:
+
+\`\`\`sql
+SELECT network_service_banner
+FROM v$session_connect_info
+WHERE sid = SYS_CONTEXT('USERENV', 'SID')
+  AND network_service_banner LIKE '%Encryption%';
+\`\`\`
+
+If this query returns no rows, the connection is not encrypted. The client \`sqlnet.ora\` is either missing or has \`SQLNET.ENCRYPTION_CLIENT = REJECTED\`.
+
+## Password Verification Function
+
+Without a verification function, Oracle does not enforce password complexity. A user can set their password to \`password1\` and the database accepts it.
+
+Assign Oracle's built-in strong verification function:
+
+\`\`\`sql
+ALTER PROFILE DEFAULT LIMIT
+  PASSWORD_VERIFY_FUNCTION ora12c_strong_verify_function;
+\`\`\`
+
+\`ora12c_strong_verify_function\` (defined in \`$ORACLE_HOME/rdbms/admin/utlpwdmg.sql\`) enforces: minimum 8 characters, at least one letter and one digit, differs from username, differs from old password by at least 3 characters.
+
+For stricter requirements, create a custom function:
+
+\`\`\`sql
+CREATE OR REPLACE FUNCTION custom_pwd_verify(
+  username     VARCHAR2,
+  password     VARCHAR2,
+  old_password VARCHAR2
+) RETURN BOOLEAN AS
+BEGIN
+  IF LENGTH(password) < 12 THEN
+    RAISE_APPLICATION_ERROR(-20001, 'Password must be at least 12 characters');
+  END IF;
+  IF REGEXP_INSTR(password, '[A-Z]') = 0 THEN
+    RAISE_APPLICATION_ERROR(-20002, 'Password must contain at least one uppercase letter');
+  END IF;
+  IF REGEXP_INSTR(password, '[0-9]') = 0 THEN
+    RAISE_APPLICATION_ERROR(-20003, 'Password must contain at least one digit');
+  END IF;
+  IF REGEXP_INSTR(password, '[^A-Za-z0-9]') = 0 THEN
+    RAISE_APPLICATION_ERROR(-20004, 'Password must contain at least one special character');
+  END IF;
+  RETURN TRUE;
+END;
+/
+
+ALTER PROFILE DEFAULT LIMIT PASSWORD_VERIFY_FUNCTION custom_pwd_verify;
+\`\`\`
+
+Test after applying:
+
+\`\`\`sql
+-- This should raise ORA-28003 with your custom message
+ALTER USER testuser IDENTIFIED BY short;
+
+-- This should succeed
+ALTER USER testuser IDENTIFIED BY "Str0ng!Pass#2026";
+\`\`\`
+`;
+
 const ARTICLES = [
   { title: 'Oracle ZDM — Zero Downtime Migration: Architecture, Setup, and Execution', slug: 'oracle-zdm-zero-downtime-migration', excerpt: 'A production-tested guide to Oracle ZDM: architecture overview, prerequisites, response file parameters, migration phases, monitoring with zdmcli, and the fixes for the failures you will actually encounter.', content: ZDM_CONTENT.trim(), published_at: '2025-05-10', read_time_minutes: 18, coming_soon: false },
   { title: 'Oracle Database Performance Crisis: Triage, Analysis, and Resolution', slug: 'oracle-database-performance-crisis', excerpt: 'Load average 120, 247 active sessions, users calling. A step-by-step methodology for diagnosing and resolving an Oracle performance crisis — from first OS command to root cause analysis.', content: PERF_CRISIS_CONTENT.trim(), published_at: '2024-04-22', read_time_minutes: 16, coming_soon: false },
   { title: 'EBS 12.2 Cloning Procedure — Complete Steps with Commands', slug: 'ebs-122-cloning-procedure', excerpt: 'The complete EBS 12.2 cloning procedure: pre-clone on both tiers, adcfgclone configuration, post-clone validation, and fixes for the failures that actually happen in practice.', content: EBS_CLONE_CONTENT.trim(), published_at: '2017-08-15', read_time_minutes: 14, coming_soon: false },
-  { title: 'EBS 12.2 ADOP Patching — Common Failures and How to Fix Them', slug: 'ebs-12-2-adop-patching-failures', excerpt: 'The ADOP patch cycle failures you will hit in EBS 12.2: cutover timeouts, prepare phase hangs, session cleanup errors, and how to recover from each without starting over.', content: stubContent(['adop phase=prepare', 'cutover timeouts', 'session cleanup', 'fs_clone', 'adop phase=abort', 'recovery procedures']), published_at: '2026-01-15', read_time_minutes: 14, coming_soon: true },
-  { title: 'Oracle RAC Troubleshooting — Interconnect, Voting Disk, and CRS', slug: 'oracle-rac-troubleshooting', excerpt: 'Diagnosing Oracle RAC issues: interconnect performance problems, voting disk failures, CRS evictions, and the OS-level tools that actually tell you what is happening.', content: stubContent(['cluster interconnect diagnosis', 'ocrcheck', 'crsctl commands', 'voting disk recovery', 'node eviction analysis']), published_at: '2026-02-01', read_time_minutes: 15, coming_soon: true },
-  { title: 'Oracle Data Guard — Switchover and Failover Procedures', slug: 'oracle-data-guard-switchover-failover', excerpt: 'Step-by-step Data Guard switchover and failover procedures with the DGMGRL commands and SQL, verification steps, and how to recover when the switchover does not complete cleanly.', content: stubContent(['dgmgrl commands', 'switchover procedure', 'failover procedure', 'verify after switchover', 'flashback database recovery']), published_at: '2026-02-15', read_time_minutes: 13, coming_soon: true },
-  { title: 'EBS Performance Tuning — CM Queue Management, OPP, and WF Mailer', slug: 'ebs-performance-tuning-cm-opp-wf', excerpt: 'The practical EBS performance levers that actually matter: sizing Concurrent Manager queues, diagnosing OPP bottlenecks, fixing stuck WF Mailer, and SQL tuning for FND tables.', content: stubContent(['FND_CONCURRENT_QUEUES tuning', 'OPP configuration', 'WF_MAILER diagnosis', 'FND_STATS gather']), published_at: '2026-03-01', read_time_minutes: 12, coming_soon: true },
+  { title: 'EBS 12.2 ADOP Patching — Common Failures and How to Fix Them', slug: 'ebs-12-2-adop-patching-failures', excerpt: 'The ADOP patch cycle failures you will hit in EBS 12.2: cutover timeouts, prepare phase hangs, session cleanup errors, and how to recover from each without starting over.', content: ADOP_CONTENT.trim(), published_at: '2026-01-15', read_time_minutes: 14, coming_soon: false },
+  { title: 'Oracle RAC Troubleshooting — Interconnect, Voting Disk, and CRS', slug: 'oracle-rac-troubleshooting', excerpt: 'Diagnosing Oracle RAC issues: interconnect performance problems, voting disk failures, CRS evictions, and the OS-level tools that actually tell you what is happening.', content: RAC_CONTENT.trim(), published_at: '2026-02-01', read_time_minutes: 15, coming_soon: false },
+  { title: 'Oracle Data Guard — Switchover and Failover Procedures', slug: 'oracle-data-guard-switchover-failover', excerpt: 'Step-by-step Data Guard switchover and failover procedures with the DGMGRL commands and SQL, verification steps, and how to recover when the switchover does not complete cleanly.', content: DATAGUARD_CONTENT.trim(), published_at: '2026-02-15', read_time_minutes: 13, coming_soon: false },
+  { title: 'EBS Performance Tuning — CM Queue Management, OPP, and WF Mailer', slug: 'ebs-performance-tuning-cm-opp-wf', excerpt: 'The practical EBS performance levers that actually matter: sizing Concurrent Manager queues, diagnosing OPP bottlenecks, fixing stuck WF Mailer, and SQL tuning for FND tables.', content: EBS_PERF_CONTENT.trim(), published_at: '2026-03-01', read_time_minutes: 12, coming_soon: false },
   { title: 'Oracle Tablespace Management — Autoextend, Monitoring, and Alerts', slug: 'oracle-tablespace-management', excerpt: 'When to use autoextend vs fixed-size datafiles, how to monitor tablespace growth trends, and the SQL scripts to alert before you hit a full tablespace in production.', content: TABLESPACE_MGMT_CONTENT.trim(), published_at: '2026-03-15', read_time_minutes: 12, coming_soon: false },
   { title: 'Oracle AWR and ASH — Reading Reports Like a Senior DBA', slug: 'oracle-awr-ash-analysis', excerpt: 'How to read an AWR report without getting lost in the noise: the six sections that matter, what DB Time tells you, how to interpret top wait events, and using ASH to drill into a specific window.', content: AWR_ASH_CONTENT.trim(), published_at: '2026-04-01', read_time_minutes: 14, coming_soon: false },
-  { title: 'EBS Cloning to OCI — Lift and Shift with ZDM and Rapid Clone', slug: 'ebs-cloning-to-oci', excerpt: 'Moving EBS 12.2 to Oracle Cloud Infrastructure: choosing between ZDM physical migration and traditional clone, the networking prerequisites, and the EBS-specific post-migration steps.', content: stubContent(['ZDM vs manual clone', 'OCI DB provisioning', 'VCN and subnet setup', 'EBS autoconfig for cloud hostnames']), published_at: '2026-04-15', read_time_minutes: 16, coming_soon: true },
+  { title: 'EBS Cloning to OCI — Lift and Shift with ZDM and Rapid Clone', slug: 'ebs-cloning-to-oci', excerpt: 'Moving EBS 12.2 to Oracle Cloud Infrastructure: choosing between ZDM physical migration and traditional clone, the networking prerequisites, and the EBS-specific post-migration steps.', content: EBS_OCI_CONTENT.trim(), published_at: '2026-04-15', read_time_minutes: 16, coming_soon: false },
   { title: 'Oracle 19c Upgrade from 12c — Step by Step', slug: 'oracle-19c-upgrade-from-12c', excerpt: 'The complete Oracle 12.1/12.2 to 19c upgrade path: pre-upgrade checks, AutoUpgrade tool, post-upgrade tasks, and the compatibility issues to anticipate before you start.', content: UPGRADE_19C_CONTENT.trim(), published_at: '2026-05-01', read_time_minutes: 15, coming_soon: false },
-  { title: 'Oracle Security Hardening — Profiles, Auditing, and Privilege Reviews', slug: 'oracle-security-hardening', excerpt: 'Production Oracle security hardening: configuring the DEFAULT profile, implementing unified auditing, reviewing excessive privileges with DBA_SYS_PRIVS, and the checks auditors always ask for.', content: stubContent(['DEFAULT profile settings', 'unified auditing', 'DBA_SYS_PRIVS review', 'PUBLIC privilege cleanup', 'password policies']), published_at: '2026-05-15', read_time_minutes: 12, coming_soon: true },
+  { title: 'Oracle Security Hardening — Profiles, Auditing, and Privilege Reviews', slug: 'oracle-security-hardening', excerpt: 'Production Oracle security hardening: configuring the DEFAULT profile, implementing unified auditing, reviewing excessive privileges with DBA_SYS_PRIVS, and the checks auditors always ask for.', content: SECURITY_CONTENT.trim(), published_at: '2026-05-15', read_time_minutes: 12, coming_soon: false },
 ];
 
 async function run() {
