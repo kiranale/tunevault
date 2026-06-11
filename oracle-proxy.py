@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.52"  # fnd_svc_ctrl_start/stop by component_id; wf_mailer_reset: pre-check DEACTIVATED_SYSTEM before UPDATE
+VERSION = "3.20.53"  # c4ws/oaea managed servers classified as warning (not critical) when down; fnd_svc_ctrl_start/stop by component_id
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.

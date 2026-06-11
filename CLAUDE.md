@@ -130,8 +130,6 @@ All Add Connection links in the app MUST point to `/connections/new` — the sin
 
 🟡 High:
 - apex-lab (192.168.56.101, OEL 8.10, Oracle 23ai) — agent never installed
-- EBS App Tier report — EBS PDF/XLSX export buttons not showing in toolbar
-  on report-ebs.html (injectToolbarExportButtons() / #toolbar-export-slot)
 - Deep EBS Mode — db/ebs-deep.js getEbsConnections() only finds is_ebs=true;
   fix: WHERE (is_ebs=true OR server_type IN ('apps','both'))
 - install.sh systemd unit template — tunevault-agent.service needs 
@@ -164,7 +162,7 @@ All Add Connection links in the app MUST point to `/connections/new` — the sin
   (ebs12212-app-dev) both set to `EBS12212`. EBS Ops SQL routes conn 140 → 
   conn 134 via findPairedDbConn() using this value. APPS password stored in 
   apps_pwd_enc on conn 140. WebLogic password in weblogic_pwd_enc on conn 140.
-- Current proxy version: 3.20.52 on both conn 134 and conn 140
+- Current proxy version: 3.20.53 on both conn 134 and conn 140
 - Render auto-deploy: ON (GitHub webhook active)
 - SKIP_TIER_LIMITS=true in Render env vars
 
@@ -224,6 +222,13 @@ Start All (adcmctl) to fully restart the GSM framework.
 
 ## Recent changes
 
+- 2026-06-11: FIX — oracle-proxy.py 3.20.53: c4ws/oaea managed servers
+  (forms-c4ws_server1, oaea_server1) classified as warning when down, not
+  critical — these are optional EBS components not deployed on all instances.
+  LATEST_PROXY_VERSION bumped to 3.20.53.
+- 2026-06-11: FIX — report.html: EBS App Tier export buttons now inject as
+  soon as report renders (status=analyzing + server_type=apps); explicit
+  injectExportButtons() fallback added on poll completion.
 - 2026-06-10: docs — rewrote all EBS Ops card descriptions to plain English
 - 2026-06-10: FEAT — oracle-proxy.py 3.20.52: fnd_svc_ctrl_start/stop ops 
   (start/stop any GSM component by component_id); wf_mailer_reset pre-checks 
