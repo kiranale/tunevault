@@ -3452,7 +3452,7 @@
             if ((!parsedRecs || parsedRecs.length === 0) && findings && findings.length > 0) {
                 parsedRecs = findings.filter(f => f.severity === 'critical' || f.severity === 'warning').slice(0, 12).map((f, i) => ({
                     id: 'rec_' + String(i + 1).padStart(3, '0'),
-                    title: (f.metric || f.title || 'Finding') + (f.value || f.details ? ' — ' + (f.value || f.details) : ''),
+                    title: f.metric || f.title || 'Finding',
                     severity: f.severity,
                     confidence: 'high',
                     evidence: f.recommendation || f.details || f.value || '',
