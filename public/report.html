@@ -2683,36 +2683,39 @@
     }
 
     function navigateToCheck(checkId, tabName) {
-        console.log('[nav] checkId:', checkId, 'tabName:', tabName);
-
-        const panelId = 'tab-' + ({'EBS Checks':'appchecks','Performance':'performance','Storage':'storage','Backup & Recovery':'backup','Config & Sizing':'config','Indexes':'indexes','OS Stats':'os','Housekeeping':'housekeeping','Blocking':'blocking'})[tabName];
-        const panel = document.getElementById(panelId);
-        console.log('[nav] panel found:', !!panel, panelId);
-
-        if (panel) {
-            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-            panel.classList.add('active');
-            console.log('[nav] panel made active, display:', window.getComputedStyle(panel).display);
-
-            document.querySelectorAll('.tab-btn').forEach(b => {
-                b.classList.remove('active');
-                if ((b.getAttribute('onclick') || '').includes('appchecks')) {
-                    b.classList.add('active');
-                    console.log('[nav] activated tab btn:', b.textContent);
+        var tabMap = {
+            'EBS Checks': 'appchecks',
+            'Performance': 'performance',
+            'Storage': 'storage',
+            'Backup & Recovery': 'backup',
+            'Config & Sizing': 'config',
+            'Indexes': 'indexes',
+            'OS Stats': 'os',
+            'Housekeeping': 'housekeeping',
+            'Blocking': 'blocking'
+        };
+        var tabId = tabMap[tabName];
+        if (!tabId) return;
+        var panel = document.getElementById('tab-' + tabId);
+        if (!panel) return;
+        document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+        panel.classList.add('active');
+        document.querySelectorAll('.tab-btn').forEach(function(b) {
+            b.classList.remove('active');
+            var oc = b.getAttribute('onclick') || '';
+            if (oc.indexOf("'" + tabId + "'") > -1) b.classList.add('active');
+        });
+        if (checkId) {
+            setTimeout(function() {
+                var el = document.getElementById('check-' + checkId)
+                      || document.querySelector('[id*="' + checkId + '"]');
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    el.style.outline = '2px solid var(--accent)';
+                    setTimeout(function() { el.style.outline = ''; }, 2000);
                 }
-            });
+            }, 200);
         }
-
-        setTimeout(() => {
-            const el = document.getElementById('check-' + checkId)
-                     || document.querySelector('[id*="' + checkId + '"]');
-            console.log('[nav] scroll target:', el ? el.id : 'NOT FOUND');
-            if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                el.style.outline = '2px solid var(--accent)';
-                setTimeout(() => el.style.outline = '', 2000);
-            }
-        }, 200);
     }
 
     // ============================================================
@@ -3109,7 +3112,7 @@
                         <div class="evidence-text">${formatFindingText(r.evidence)}</div>
                     </div>` : ''}
                     ${actionBlock}
-                    ${r.check_tab ? `<div class="rec-tab-link"><a href="javascript:void(0)" onclick="event.stopPropagation(); navigateToCheck(${JSON.stringify(r.check_id || '')}, ${JSON.stringify(r.check_tab || '')});" style="color:var(--accent);text-decoration:none">📋 See full data in: <strong>${esc(r.check_tab)}</strong> tab →</a></div>` : ''}
+                    ${r.check_tab ? `<div class="rec-tab-link">📋 See full data in: <a href="javascript:void(0)" style="color:var(--accent);text-decoration:none" onclick="event.stopPropagation();navigateToCheck(${JSON.stringify(r.check_id||'')},${JSON.stringify(r.check_tab||'')})"><strong>${esc(r.check_tab)}</strong> tab →</a></div>` : ''}
                 </div>
             </div>`;
         }
