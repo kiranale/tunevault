@@ -2714,7 +2714,7 @@
                     el.style.outline = '2px solid var(--accent)';
                     setTimeout(() => el.style.outline = '', 2000);
                 }
-            }, 300);
+            }, 500);
         }
     }
 
@@ -3112,7 +3112,7 @@
                         <div class="evidence-text">${formatFindingText(r.evidence)}</div>
                     </div>` : ''}
                     ${actionBlock}
-                    ${r.check_tab ? `<div class="rec-tab-link"><a href="javascript:void(0)" onclick="navigateToCheck(${JSON.stringify(r.check_id || '')}, ${JSON.stringify(r.check_tab || '')});" style="color:var(--accent);text-decoration:none">📋 See full data in: <strong>${esc(r.check_tab)}</strong> tab →</a></div>` : ''}
+                    ${r.check_tab ? `<div class="rec-tab-link"><a href="javascript:void(0)" onclick="event.stopPropagation(); navigateToCheck(${JSON.stringify(r.check_id || '')}, ${JSON.stringify(r.check_tab || '')});" style="color:var(--accent);text-decoration:none">📋 See full data in: <strong>${esc(r.check_tab)}</strong> tab →</a></div>` : ''}
                 </div>
             </div>`;
         }
