@@ -2969,6 +2969,38 @@
         return `<span class="confidence-badge ${c.cls}">${c.icon} ${c.label}</span>`;
     }
 
+    function formatFindingText(rawText) {
+        if (!rawText) return '';
+        let t = esc(rawText);
+        // Inline code: `...` → styled <code>
+        t = t.replace(/`([^`\n]{1,120})`/g,
+            '<code style="font-family:monospace;background:var(--surface-2);padding:1px 4px;border-radius:3px">$1</code>');
+        // Option labels: insert line break before each "Option N —" and bold it
+        t = t.replace(/(Option\s+\d+\s+[—–-]+)/g, '<br><strong>$1</strong>');
+        // Remaining literal \n → <br>
+        t = t.replace(/\n/g, '<br>');
+        // Code blocks: consecutive <br>-separated lines that begin with SQL/shell keywords
+        const CODE_KW = /^[ \t]*(SELECT|INSERT|UPDATE|DELETE|DECLARE|BEGIN\b|END\b|COMMIT\b|ROLLBACK\b|fnd_|sqlplus|adop|@\?|\/)/i;
+        const parts = t.split('<br>');
+        const out = [];
+        let buf = [];
+        for (const part of parts) {
+            if (CODE_KW.test(part)) {
+                buf.push(part);
+            } else {
+                if (buf.length) {
+                    out.push('<pre style="background:var(--surface-2);padding:8px 12px;border-radius:6px;font-size:11px;overflow-x:auto;white-space:pre-wrap;margin:6px 0">' + buf.join('\n') + '</pre>');
+                    buf = [];
+                }
+                out.push(part);
+            }
+        }
+        if (buf.length) {
+            out.push('<pre style="background:var(--surface-2);padding:8px 12px;border-radius:6px;font-size:11px;overflow-x:auto;white-space:pre-wrap;margin:6px 0">' + buf.join('\n') + '</pre>');
+        }
+        return out.join('<br>');
+    }
+
     function renderStructuredRecommendations(recs, rawAnalysis, opts) {
         opts = opts || {};
         // Defensive: ensure recs is a valid array of objects
@@ -3018,6 +3050,12 @@
                     <div class="rec-fix-code rec-fix-code-diag">${esc(r.diagnostic_sql)}</div>
                 </div>`;
             }
+            const evidenceTrimmed = (r.evidence || '').trim();
+            const titleTrimmed   = (r.title   || '').trim();
+            const showEvidence   = evidenceTrimmed &&
+                evidenceTrimmed !== titleTrimmed &&
+                !titleTrimmed.includes(evidenceTrimmed) &&
+                !evidenceTrimmed.includes(titleTrimmed);
             return `<div class="rec-item sev-${r.severity}${bodyVisible}" onclick="toggleRec(this)">
                 <div class="rec-header">
                     <div class="rec-header-main">
@@ -3025,15 +3063,15 @@
                             <span class="sev-mini-badge ${sevCls[r.severity] || 'sev-mini-info'}">${sevLabel[r.severity] || r.severity.toUpperCase()}</span>
                             ${renderConfidenceBadge(r.confidence)}
                         </div>
-                        <div class="rec-title">${esc(r.title)}</div>
+                        <div class="rec-title">${formatFindingText(r.title)}</div>
                     </div>
                     <span class="rec-toggle">&#9660;</span>
                 </div>
                 <div class="rec-body">
-                    <div class="evidence-block">
+                    ${showEvidence ? `<div class="evidence-block">
                         <div class="evidence-label">Evidence</div>
-                        <div class="evidence-text">${esc(r.evidence)}</div>
-                    </div>
+                        <div class="evidence-text">${formatFindingText(r.evidence)}</div>
+                    </div>` : ''}
                     ${actionBlock}
                     ${r.check_tab ? `<div class="rec-tab-link">📋 See full data in: <strong>${esc(r.check_tab)}</strong> tab</div>` : ''}
                 </div>
