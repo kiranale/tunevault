@@ -1527,6 +1527,10 @@
             } else {
                 stopElapsedTicker();
                 reportLoadedAt = new Date();
+                // Fallback: ensure export buttons are present when polling settles on
+                // 'completed'. injectExportButtons() is idempotent — no-ops if buttons
+                // were already injected during the 'analyzing' phase for app-tier reports.
+                injectExportButtons();
                 // If report is completed but AI summary or EBS summary hasn't arrived yet,
                 // start a lightweight poller that only updates the summary cards.
                 // EBS case: ebs_summary may still be null if the fire-and-forget
@@ -2657,7 +2661,9 @@
             exportConnectionId = data.connection_id;
         }
 
-        if (data.status === 'completed') {
+        if (data.status === 'completed' ||
+            (data.status === 'analyzing' && data.metrics &&
+             data.metrics.server_type === 'apps')) {
             showDownloadButton(data);
         }
     }
