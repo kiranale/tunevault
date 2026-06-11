@@ -2682,15 +2682,8 @@
         if (panel) panel.classList.add('active');
     }
 
-    function findTabBtn(tabId) {
-        const btns = document.querySelectorAll('.tab-btn');
-        for (const b of btns) {
-            if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + tabId + "'")) return b;
-        }
-        return null;
-    }
-
-    function navigateToCheck(checkId, tabName) {
+    function navigateToCheck(checkId, tabName, event) {
+        if (event) event.stopPropagation();
         const tabMap = {
             'EBS Checks': 'appchecks',
             'Performance': 'performance', 'Storage': 'storage',
@@ -2700,21 +2693,31 @@
         };
         const tabId = tabMap[tabName];
         if (tabId) {
-            const btn = findTabBtn(tabId);
-            if (btn) btn.click();
+            const allBtns = document.querySelectorAll('.tab-btn');
+            let targetBtn = null;
+            for (const b of allBtns) {
+                const oc = b.getAttribute('onclick') || '';
+                if (oc.includes("'" + tabId + "'")) { targetBtn = b; break; }
+            }
+            if (targetBtn && !targetBtn.classList.contains('active')) targetBtn.click();
         }
         if (checkId) {
-            setTimeout(() => {
+            const tryScroll = (attempts) => {
                 const el = document.getElementById('check-' + checkId)
-                        || document.getElementById(checkId)
-                        || document.querySelector('[id*="' + checkId + '"]')
-                        || document.querySelector('[id*="' + checkId.replace(/_/g, '-') + '"]');
+                         || document.getElementById(checkId)
+                         || document.querySelector('[id*="' + checkId + '"]');
                 if (el) {
-                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    el.style.outline = '2px solid var(--accent)';
-                    setTimeout(() => el.style.outline = '', 2000);
+                    const rect = el.getBoundingClientRect();
+                    if (rect.width > 0 || rect.height > 0) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        el.style.outline = '2px solid var(--accent)';
+                        setTimeout(() => el.style.outline = '', 2000);
+                    } else if (attempts > 0) {
+                        requestAnimationFrame(() => tryScroll(attempts - 1));
+                    }
                 }
-            }, 500);
+            };
+            requestAnimationFrame(() => tryScroll(10));
         }
     }
 
@@ -3112,7 +3115,7 @@
                         <div class="evidence-text">${formatFindingText(r.evidence)}</div>
                     </div>` : ''}
                     ${actionBlock}
-                    ${r.check_tab ? `<div class="rec-tab-link"><a href="javascript:void(0)" onclick="event.stopPropagation(); navigateToCheck(${JSON.stringify(r.check_id || '')}, ${JSON.stringify(r.check_tab || '')});" style="color:var(--accent);text-decoration:none">📋 See full data in: <strong>${esc(r.check_tab)}</strong> tab →</a></div>` : ''}
+                    ${r.check_tab ? `<div class="rec-tab-link"><a href="javascript:void(0)" onclick="navigateToCheck(${JSON.stringify(r.check_id || '')}, ${JSON.stringify(r.check_tab || '')}, event);" style="color:var(--accent);text-decoration:none">📋 See full data in: <strong>${esc(r.check_tab)}</strong> tab →</a></div>` : ''}
                 </div>
             </div>`;
         }
