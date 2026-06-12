@@ -7936,6 +7936,30 @@ app.use((err, req, res, next) => {
 // Idempotent startup fixes — column guards + one-time data patches.
 // Runs before app.listen() so requests never see missing columns.
 async function ensureColumns() {
+  // ebs_jobs — fire-and-poll job tracker for long-running EBS full-stack ops.
+  // Also created by migrations/1749733200000_ebs_jobs.js; this ensures the table
+  // exists at startup even when Render's build command doesn't include npm run migrate.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ebs_jobs (
+      id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      connection_id INTEGER NOT NULL REFERENCES oracle_connections(id) ON DELETE CASCADE,
+      op_key        VARCHAR(64) NOT NULL,
+      status        TEXT NOT NULL DEFAULT 'queued'
+                      CHECK (status IN ('queued','running','done','failed','timeout')),
+      ok            BOOLEAN,
+      stdout        TEXT,
+      exit_code     INTEGER,
+      duration_ms   INTEGER,
+      created_by    INTEGER REFERENCES users(id),
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      started_at    TIMESTAMPTZ,
+      finished_at   TIMESTAMPTZ
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS ebs_jobs_connection_status ON ebs_jobs (connection_id, status)
+  `);
+
   await pool.query(`
     ALTER TABLE oracle_connections
       ADD COLUMN IF NOT EXISTS apps_pwd_enc      TEXT,
