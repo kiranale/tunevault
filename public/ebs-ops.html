@@ -766,37 +766,7 @@ const CM_CTRL_OPS = [
 function renderMiddlewareTab(container) {
   const connParam = selectedConn ? '?conn=' + selectedConn.id : '';
 
-  // ── Section header with Refresh button ───────────────────────────────────
-  const tabHdr = document.createElement('div');
-  tabHdr.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border)';
-  tabHdr.innerHTML = `
-    <div class="sub-header-icon" style="background:var(--blue-dim);color:var(--blue)">⚡</div>
-    <span style="font-size:14px;font-weight:600;flex:1">Component Status</span>
-    <span style="font-size:12px;color:var(--text-dim)">runs via agent tunnel, no SSH required</span>
-`;
-  container.appendChild(tabHdr);
-
-  const grid = document.createElement('div');
-  grid.className = 'ops-grid';
-  MIDDLEWARE_OPS.forEach(op => renderMiddlewareOpCard(op, grid));
-  container.appendChild(grid);
-
-  // ── Advanced Operations (SSH-gated) ──────────────────────────────────────
-  const linksHdr = document.createElement('div');
-  linksHdr.className = 'sub-header';
-  linksHdr.innerHTML = `
-    <div class="sub-header-icon" style="background:var(--purple-dim);color:var(--purple)">🔗</div>
-    <span class="sub-header-label">Advanced Operations</span>
-    <span class="sub-header-desc">— requires SSH access configured in Settings → SSH Targets</span>`;
-  container.appendChild(linksHdr);
-
-  const linkCards = [
-    { title: 'EBS 12.2 Deep Checks', desc: '30 SSH-based checks: topology, JVM heap, OS metrics, AD/TXK code levels, ETCC validation. Requires SSH target configured.', icon: '🔬', bg: 'var(--purple-dim)', href: '/ebs-12-2-checks' + connParam, tag: 'SSH · EBS 12.2' },
-    { title: 'Post-Bounce Sanity', desc: 'Verify all services came back after a bounce — TNS, EBS HTTP, DB connectivity, file ownership. Requires SSH target configured.', icon: '✅', bg: 'var(--green-dim)', href: '/sanity-check' + connParam, tag: 'SSH · SQL' },
-  ];
-  renderLinkGrid(container, linkCards);
-
-  // ── Full Stack Control ───────────────────────────────────────────────────
+  // ── Full Stack Control (top) ───────────────────────────────────────────────
   const fullStackHdr = document.createElement('div');
   fullStackHdr.className = 'sub-header';
   fullStackHdr.innerHTML = `
@@ -821,6 +791,35 @@ function renderMiddlewareTab(container) {
       confirmPhrase: 'START-ALL-APPS', color: 'var(--green)',  borderColor: 'rgba(52,211,153,0.4)' },
   ].forEach(op => renderFullStackCard(op, fullStackGrid));
   container.appendChild(fullStackGrid);
+
+  // ── Individual Services ───────────────────────────────────────────────────
+  const indivHdr = document.createElement('div');
+  indivHdr.className = 'sub-header';
+  indivHdr.innerHTML = `
+    <div class="sub-header-icon" style="background:var(--blue-dim);color:var(--blue)">⚡</div>
+    <span class="sub-header-label">Individual Services</span>
+    <span class="sub-header-desc">— status, start, stop per component</span>`;
+  container.appendChild(indivHdr);
+
+  const grid = document.createElement('div');
+  grid.className = 'ops-grid';
+  MIDDLEWARE_OPS.forEach(op => renderMiddlewareOpCard(op, grid));
+  container.appendChild(grid);
+
+  // ── Advanced Operations (SSH-gated) ──────────────────────────────────────
+  const linksHdr = document.createElement('div');
+  linksHdr.className = 'sub-header';
+  linksHdr.innerHTML = `
+    <div class="sub-header-icon" style="background:var(--purple-dim);color:var(--purple)">🔗</div>
+    <span class="sub-header-label">Advanced Operations</span>
+    <span class="sub-header-desc">— requires SSH access configured in Settings → SSH Targets</span>`;
+  container.appendChild(linksHdr);
+
+  const linkCards = [
+    { title: 'EBS 12.2 Deep Checks', desc: '30 SSH-based checks: topology, JVM heap, OS metrics, AD/TXK code levels, ETCC validation. Requires SSH target configured.', icon: '🔬', bg: 'var(--purple-dim)', href: '/ebs-12-2-checks' + connParam, tag: 'SSH · EBS 12.2' },
+    { title: 'Post-Bounce Sanity', desc: 'Verify all services came back after a bounce — TNS, EBS HTTP, DB connectivity, file ownership. Requires SSH target configured.', icon: '✅', bg: 'var(--green-dim)', href: '/sanity-check' + connParam, tag: 'SSH · SQL' },
+  ];
+  renderLinkGrid(container, linkCards);
 }
 
 // ── Full Stack Control card (Stop All / Start All) ────────────────────────────
@@ -1071,7 +1070,7 @@ const _MW_TIMEOUTS = {
   adcmctl_start: 135000, adcmctl_stop: 135000,
   wf_mailer_start: 65000,  wf_mailer_stop: 65000,  wf_mailer_reset: 200000,
   fnd_svc_ctrl_start: 65000, fnd_svc_ctrl_stop: 65000,
-  apps_stop_all: 625000,     apps_start_all: 1225000,
+  apps_stop_all: 655000,     apps_start_all: 1250000,
 };
 
 async function runMiddlewareOp(opKey) {

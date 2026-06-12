@@ -524,7 +524,7 @@ router.post('/api/ebs-ops/middleware-run', requireAuth, async (req, res) => {
       adcmctl_status: 35000,     adcmctl_start: 130000,     adcmctl_stop: 130000,
       wf_mailer_start: 65000,    wf_mailer_stop: 65000,    wf_mailer_reset: 65000,
       fnd_svc_ctrl_start: 65000, fnd_svc_ctrl_stop: 65000,
-      apps_stop_all: 620000,     apps_start_all: 1220000,
+      apps_stop_all: 650000,     apps_start_all: 1245000,
     };
     const ctrlTimeout = _ctrlTimeoutMap[op_key] || 40000;
     const proxyBody = { op: opDef.proxyOp, weblogic_pwd: conn.weblogicPwd || '', apps_pwd: conn.appsPwd || '' };

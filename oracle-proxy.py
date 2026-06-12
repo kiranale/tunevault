@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.58"  # apps_stop_all/apps_start_all: OS process verification block after adstpall/adstrtal
+VERSION = "3.20.59"  # apps_stop_all/apps_start_all: grace-period sleep + RemoteCommand exclusion in process check
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -6580,9 +6580,12 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     #   printf "$WLS_PWD\n" | adstpall.sh "APPS/$APPS_PWD" -mode=allnodes
                     # APPS password is a slash-joined argument; WLS password piped via stdin.
                     _adscript    = "adstpall.sh" if op == "apps_stop_all" else "adstrtal.sh"
-                    _tout        = 600         if op == "apps_stop_all" else 1200
+                    _tout        = 630         if op == "apps_stop_all" else 1225
                     _action_verb = "stopping"  if op == "apps_stop_all" else "starting"
                     _done_verb   = "stopped"   if op == "apps_stop_all" else "started"
+                    _sleep_sec   = 20          if op == "apps_stop_all" else 15
+                    _sleep_msg   = ("Waiting 20s for remaining processes to exit..." if op == "apps_stop_all"
+                                    else "Waiting 15s for services to initialise...")
                     _lines = [
                         "#!/bin/bash",
                         "export APPS_PWD='%s'" % _ap,
@@ -6602,12 +6605,23 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         'else',
                         '    echo "TV_PROGRESS: %s exited with code $_RC"' % _adscript,
                         'fi',
+                        'echo "TV_PROGRESS: %s"' % _sleep_msg,
+                        'sleep %d' % _sleep_sec,
                         'echo ""',
                         'echo "=== OS_PROCESS_CHECK ==="',
                         'echo "%s"' % ("Remaining EBS processes (should be empty or only this check itself):" if op == "apps_stop_all" else "Running EBS processes (Apache, WLS, CM, listener should all appear):"),
-                        'ps -u "$(whoami)" -o pid,etime,comm,args --sort=comm 2>/dev/null \\',
-                        '  | grep -Ei "httpd|java|tnslsnr|FNDLIBR|FNDSM|opmn|frmweb|f60|OPMN" \\',
-                        '  | grep -v grep || echo "  (none found — clean shutdown)"',
+                    ] + (
+                        [
+                            'ps -u "$(whoami)" -o pid,etime,comm,args --sort=comm 2>/dev/null \\',
+                            '  | grep -Ei "httpd|java|tnslsnr|FNDLIBR|FNDSM|opmn|frmweb|f60|OPMN" \\',
+                            '  | grep -v "RemoteCommand.*kill" \\',
+                            '  | grep -v grep || echo "  (none found — clean shutdown)"',
+                        ] if op == "apps_stop_all" else [
+                            'ps -u "$(whoami)" -o pid,etime,comm,args --sort=comm 2>/dev/null \\',
+                            '  | grep -Ei "httpd|java|tnslsnr|FNDLIBR|FNDSM|opmn|frmweb|f60|OPMN" \\',
+                            '  | grep -v grep || echo "  (none found — clean shutdown)"',
+                        ]
+                    ) + [
                         'echo "=== OS_PROCESS_CHECK_END ==="',
                         'exit $_RC',
                     ]
