@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>EBS Ops — TuneVault</title>
   <meta name="robots" content="noindex, nofollow">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta name="tv-build" content="2026-06-12-fullstack-v2">
   <link rel="canonical" href="https://tunevault.app/ebs-ops">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="apple-touch-icon" href="/favicon.svg">
@@ -266,6 +268,7 @@
 </script>
 <script src="/nav-component.js"></script>
 <script>
+console.log('[TuneVault] ebs-ops.html build: 2026-06-12-fullstack-v2');
 window.tvNav.init('ebs-ops');
 
 // ── State ────────────────────────────────────────────────────────────────────
@@ -1214,7 +1217,7 @@ function storeAndRenderMiddlewareResult(storeKey, data) {
   const _baseKey  = storeKey.replace(/^mw-/, '');
 
   const isFullStackTimeout = (_baseKey === 'apps_stop_all' || _baseKey === 'apps_start_all')
-    && !!data.error && (data.error || '').startsWith('Request timed out');
+    && !!data.error && /time|abort|network|fail/i.test(data.error);
 
   // Detect sentinel strings emitted by the bash script
   const isNoPasswords        = !data.error && stdout.includes('NO_PASSWORDS');
