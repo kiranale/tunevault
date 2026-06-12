@@ -291,9 +291,33 @@ async function emitQueueMetrics() {
   }
 }
 
+/**
+ * Enqueue a command to a proxy agent without waiting for the result.
+ * Use for long-running ops (apps_stop_all, apps_start_all) where holding
+ * an HTTP connection would exceed load-balancer timeouts.
+ *
+ * @param {number} connectionId
+ * @param {object} request  — { method, path, body, headers }
+ * @param {object} meta     — extra payload fields stored at the top level (e.g. { job_id })
+ * @returns {Promise<{ requestId: string }>}
+ */
+async function enqueueCommand(connectionId, request, meta = {}) {
+  console.log('[agent-channel] enqueueCommand conn=%d path=%s', connectionId, request.path);
+  const { requestId } = await db.enqueueCommand(connectionId, {
+    method: request.method || 'POST',
+    path: request.path || '/',
+    body: request.body || {},
+    headers: request.headers || {},
+    ...meta,
+  });
+  await db.notifyAgentCmd(connectionId, requestId);
+  return { requestId };
+}
+
 module.exports = {
   isAgentConnected,
   sendToAgent,
+  enqueueCommand,
   waitForWork,
   deliverResult,
   removeChannel,

@@ -44,6 +44,8 @@ const { requireAuth } = require('../middleware/auth');
 const { encrypt, decrypt } = require('../crypto-utils');
 const { enforceConnectionCap } = require('../middleware/tier-enforce');
 const channel = require('../services/agent-channel');
+const agentCmdQueueDb = require('../db/agent-command-queue');
+const ebsJobsDb = require('../db/ebs-jobs');
 
 const adminAgentsDb = require('../db/admin-agents');
 const restartEventsDb = require('../db/agent-restart-events');
@@ -880,6 +882,13 @@ router.post('/poll', async (req, res) => {
     // Wait for work (holds connection up to 25s)
     const work = await channel.waitForWork(parsedConnectionId, 25);
 
+    // Mark ebs_job as running when agent first claims it (fire-and-forget)
+    if (work && work.job_id) {
+      ebsJobsDb.startJob(work.job_id).catch(err =>
+        console.error('[agent/poll] ebs_jobs startJob:', err.message)
+      );
+    }
+
     // Include proxy_upgrade_available in poll response so 3.20.6+ proxies can also
     // react immediately without waiting for the work item to be dequeued.
     const proxyUpgradeAvailable = proxy_version
@@ -924,6 +933,25 @@ router.post('/respond', async (req, res) => {
     });
 
     res.json({ ok: delivered });
+
+    // Write result to ebs_jobs if this was a fire-and-forget long op (job_id in payload)
+    setImmediate(async () => {
+      try {
+        const cmdRow = await agentCmdQueueDb.findByRequestId(request_id, parsedConnId);
+        const jobId = cmdRow?.payload?.job_id;
+        if (!jobId) return;
+        const proxyBody = body || {};
+        const isOk = (status_code === 200) && (proxyBody.success !== false) && (proxyBody.ok !== false);
+        await ebsJobsDb.completeJob(jobId, {
+          ok: isOk,
+          stdout: proxyBody.stdout || '',
+          exit_code: proxyBody.exit_code ?? null,
+          duration_ms: proxyBody.duration_ms ?? null,
+        });
+      } catch (err) {
+        console.error('[agent/respond] ebs_jobs completeJob error:', err.message);
+      }
+    });
   } catch (err) {
     console.error('[agent] respond error:', err.message);
     res.status(500).json({ error: 'Respond failed' });

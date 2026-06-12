@@ -14,6 +14,7 @@ const path    = require('path');
 const pool    = require('../db/index');
 const { decrypt } = require('../crypto-utils');
 const channel = require('../services/agent-channel');
+const ebsJobsDb = require('../db/ebs-jobs');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -511,6 +512,26 @@ router.post('/api/ebs-ops/middleware-run', requireAuth, async (req, res) => {
     return res.status(503).json({ error: 'App-tier agent is not connected. Wait for the agent to check in, then retry.' });
   }
 
+  // Long-running ops (>10 min): fire-and-forget — return 202 with job_id immediately.
+  // The agent executes in the background; frontend polls GET /api/ebs-ops/jobs/:id.
+  const LONG_OPS = new Set(['apps_stop_all', 'apps_start_all']);
+
+  if (LONG_OPS.has(op_key)) {
+    try {
+      const job = await ebsJobsDb.createJob(conn.id, op_key, req.user.id);
+      const proxyBody = { op: opDef.proxyOp, weblogic_pwd: conn.weblogicPwd || '', apps_pwd: conn.appsPwd || '' };
+      await channel.enqueueCommand(conn.id, {
+        method: 'POST',
+        path: '/api/ebs-ctrl',
+        body: proxyBody,
+      }, { job_id: job.id });
+      return res.status(202).json({ job_id: job.id });
+    } catch (err) {
+      console.error('[ebs-ops/middleware-run] long-op enqueue error:', err.message);
+      return res.status(500).json({ error: 'Failed to enqueue long op', detail: err.message });
+    }
+  }
+
   try {
     const _ctrlTimeoutMap = {
       adapcctl_status: 25000,    adapcctl_start: 65000,     adapcctl_stop: 65000,
@@ -524,7 +545,6 @@ router.post('/api/ebs-ops/middleware-run', requireAuth, async (req, res) => {
       adcmctl_status: 35000,     adcmctl_start: 130000,     adcmctl_stop: 130000,
       wf_mailer_start: 65000,    wf_mailer_stop: 65000,    wf_mailer_reset: 65000,
       fnd_svc_ctrl_start: 65000, fnd_svc_ctrl_stop: 65000,
-      apps_stop_all: 650000,     apps_start_all: 1820000,
     };
     const ctrlTimeout = _ctrlTimeoutMap[op_key] || 40000;
     const proxyBody = { op: opDef.proxyOp, weblogic_pwd: conn.weblogicPwd || '', apps_pwd: conn.appsPwd || '' };
@@ -548,6 +568,38 @@ router.post('/api/ebs-ops/middleware-run', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[ebs-ops/middleware-run] error:', err.message);
     return res.status(500).json({ error: 'Middleware run failed', detail: err.message });
+  }
+});
+
+// ── GET /api/ebs-ops/jobs/:id ─────────────────────────────────────────────────
+// Poll endpoint for fire-and-forget long ops (apps_stop_all, apps_start_all).
+// Returns:
+//   queued/running  → { status, started_at }
+//   done            → { ok, stdout, exit_code, durationMs }
+//   timeout         → { ok: false, error: 'timed out' }
+
+router.get('/api/ebs-ops/jobs/:id', requireAuth, async (req, res) => {
+  try {
+    const job = await ebsJobsDb.getJob(req.params.id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    if (job.user_id !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
+
+    if (job.status === 'queued' || job.status === 'running') {
+      return res.json({ status: job.status, started_at: job.started_at });
+    }
+    if (job.status === 'timeout') {
+      return res.json({ ok: false, error: 'timed out' });
+    }
+    // done or failed
+    return res.json({
+      ok:         job.ok,
+      stdout:     job.stdout || '',
+      exit_code:  job.exit_code,
+      durationMs: job.duration_ms,
+    });
+  } catch (err) {
+    console.error('[ebs-ops/jobs] poll error:', err.message);
+    res.status(500).json({ error: 'Job poll failed' });
   }
 });
 

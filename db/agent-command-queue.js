@@ -220,7 +220,7 @@ async function getOldestPendingAgeSec() {
  */
 async function findByRequestId(requestId, agentId) {
   const { rows } = await pool.query(
-    `SELECT id, status, result FROM agent_command_queue
+    `SELECT id, status, result, payload FROM agent_command_queue
      WHERE agent_id = $1
        AND payload->>'request_id' = $2
      ORDER BY enqueued_at DESC

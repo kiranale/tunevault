@@ -6,7 +6,7 @@
   <title>EBS Ops — TuneVault</title>
   <meta name="robots" content="noindex, nofollow">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta name="tv-build" content="2026-06-12-fullstack-v2">
+  <meta name="tv-build" content="2026-06-12-fire-and-poll-v1">
   <link rel="canonical" href="https://tunevault.app/ebs-ops">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="apple-touch-icon" href="/favicon.svg">
@@ -823,6 +823,9 @@ function renderMiddlewareTab(container) {
     { title: 'Post-Bounce Sanity', desc: 'Verify all services came back after a bounce — TNS, EBS HTTP, DB connectivity, file ownership. Requires SSH target configured.', icon: '✅', bg: 'var(--green-dim)', href: '/sanity-check' + connParam, tag: 'SSH · SQL' },
   ];
   renderLinkGrid(container, linkCards);
+
+  // Resume any in-progress fire-and-forget jobs that survived a page reload
+  setTimeout(resumeFullStackJobs, 0);
 }
 
 // ── Full Stack Control card (Stop All / Start All) ────────────────────────────
@@ -1080,6 +1083,84 @@ const _MW_TIMEOUTS = {
   apps_stop_all: 655000,     apps_start_all: 1825000,
 };
 
+// Poll a fire-and-forget ebs_job until it finishes, then render the result.
+async function pollJob(jobId, opKey, storeKey) {
+  const btn = document.getElementById('run-mw-' + opKey);
+  const resultEl = document.getElementById('result-mw-' + opKey);
+  const _start = Date.now();
+
+  const updateSpinner = () => {
+    const sec = Math.round((Date.now() - _start) / 1000);
+    if (btn && btn.disabled) btn.innerHTML = '<div class="spinner"></div> Running… ' + sec + 's';
+    if (resultEl) resultEl.innerHTML = '<div class="result-panel-hdr"><span class="result-hdr-summary ok" style="opacity:.5">Running… ' + sec + 's elapsed — polling every 5s</span></div>';
+  };
+
+  updateSpinner();
+  const interval = setInterval(updateSpinner, 5000);
+
+  const MAX_POLLS = 720; // 60 min at 5s intervals — server watchdog fires at 45 min
+  let pollCount = 0;
+  try {
+    while (pollCount++ < MAX_POLLS) {
+      await new Promise(res => setTimeout(res, 5000));
+      let resp;
+      try {
+        const r = await fetch('/api/ebs-ops/jobs/' + jobId, { credentials: 'include' });
+        resp = await r.json();
+      } catch (_) { continue; } // network hiccup — keep polling
+      if (resp.status === 'queued' || resp.status === 'running') continue;
+      // done, timeout, or failed
+      clearInterval(interval);
+      storeAndRenderMiddlewareResult(storeKey, resp);
+      return;
+    }
+    // Exceeded max polls — treat as timeout
+    clearInterval(interval);
+    storeAndRenderMiddlewareResult(storeKey, { ok: false, error: 'timed out' });
+  } catch (err) {
+    clearInterval(interval);
+    storeAndRenderMiddlewareResult(storeKey, { ok: false, error: err.message });
+  }
+}
+
+// On page load, resume any in-progress fire-and-forget jobs that survived a reload.
+async function resumeFullStackJobs() {
+  if (!selectedConn) return;
+  for (const opKey of ['apps_stop_all', 'apps_start_all']) {
+    const storageKey = 'ebs_job_' + opKey + '_' + selectedConn.id;
+    const jobId = localStorage.getItem(storageKey);
+    if (!jobId) continue;
+
+    let resp;
+    try {
+      const r = await fetch('/api/ebs-ops/jobs/' + jobId, { credentials: 'include' });
+      if (!r.ok) { localStorage.removeItem(storageKey); continue; }
+      resp = await r.json();
+    } catch (_) { continue; }
+
+    const storeKey = 'mw-' + opKey;
+    if (resp.status !== 'queued' && resp.status !== 'running') {
+      // Already done — render and clear
+      storeAndRenderMiddlewareResult(storeKey, resp);
+      localStorage.removeItem(storageKey);
+      continue;
+    }
+
+    // Still running — resume polling
+    const btn = document.getElementById('run-mw-' + opKey);
+    const resultEl = document.getElementById('result-mw-' + opKey);
+    if (btn) { btn.disabled = true; }
+    if (resultEl) { resultEl.classList.add('visible'); }
+
+    pollJob(jobId, opKey, storeKey).finally(() => {
+      localStorage.removeItem(storageKey);
+      const origLabel = opKey === 'apps_stop_all' ? '⏹ Stop All App Services' : '▶ Start All App Services';
+      const b = document.getElementById('run-mw-' + opKey);
+      if (b) { b.disabled = false; b.innerHTML = origLabel; }
+    });
+  }
+}
+
 async function runMiddlewareOp(opKey) {
   if (!selectedConn) return;
   // For control ops, the "status" run btn still shows ▶ Status; for others, ▶ Run
@@ -1096,15 +1177,6 @@ async function runMiddlewareOp(opKey) {
   }
 
   const isFullStackOp = opKey === 'apps_stop_all' || opKey === 'apps_start_all';
-  let elapsedInterval = null;
-  if (isFullStackOp) {
-    const _fsStart = Date.now();
-    elapsedInterval = setInterval(() => {
-      const _sec = Math.round((Date.now() - _fsStart) / 1000);
-      if (btn && btn.disabled) btn.innerHTML = '<div class="spinner"></div> Running… ' + _sec + 's';
-      if (resultEl) resultEl.innerHTML = '<div class="result-panel-hdr"><span class="result-hdr-summary ok" style="opacity:.5">Running… ' + _sec + 's elapsed</span></div>';
-    }, 5000);
-  }
 
   const timeoutMs = _MW_TIMEOUTS[opKey] || 38000;
   const ctrl  = new AbortController();
@@ -1117,6 +1189,15 @@ async function runMiddlewareOp(opKey) {
       signal: ctrl.signal,
     });
     clearTimeout(timer);
+
+    // Fire-and-forget path: server returned 202 with job_id — switch to polling
+    if (r.status === 202 && isFullStackOp) {
+      const { job_id } = await r.json();
+      localStorage.setItem('ebs_job_' + opKey + '_' + selectedConn.id, job_id);
+      await pollJob(job_id, opKey, storeKey);
+      return;
+    }
+
     const data = await r.json();
     if (data.ok !== undefined) {
       storeAndRenderMiddlewareResult(storeKey, data);
@@ -1128,7 +1209,6 @@ async function runMiddlewareOp(opKey) {
     const msg = err.name === 'AbortError' ? 'Request timed out (' + Math.round(timeoutMs / 1000) + 's)' : err.message;
     storeAndRenderMiddlewareResult(storeKey, { ok: false, error: msg });
   } finally {
-    if (elapsedInterval) clearInterval(elapsedInterval);
     if (btn) {
       btn.disabled = false;
       const mwOp = MIDDLEWARE_OPS.find(o => o.key === (isCtrlOp ? statusKey : opKey)) || CM_CTRL_OPS.find(o => o.key === (isCtrlOp ? statusKey : opKey));

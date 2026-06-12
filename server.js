@@ -7873,6 +7873,17 @@ function startHealthSweeper() {
     runCrashLoopEmailSweep().catch(err => console.error('[crash-sweep] tick error:', err.message));
   });
   console.log('[health-sweeper] Started — probing live agents every 5 minutes');
+
+  // ebs_jobs stale-job watchdog — mark queued/running jobs older than 45 min as timeout
+  cron.schedule('*/5 * * * *', async () => {
+    try {
+      const ebsJobsDb = require('./db/ebs-jobs');
+      const n = await ebsJobsDb.timeoutStaleJobs();
+      if (n > 0) console.log(`[ebs-jobs-watchdog] Timed out ${n} stale job(s)`);
+    } catch (err) {
+      console.error('[ebs-jobs-watchdog] error:', err.message);
+    }
+  });
 }
 
 // ── Failure bundle retention cron — purge bundles older than 30 days ──────────
