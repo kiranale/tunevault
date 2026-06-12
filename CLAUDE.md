@@ -213,6 +213,14 @@ Start All (adcmctl) to fully restart the GSM framework.
 
 ## Recent changes
 
+- 2026-06-12: FIX — oracle-proxy.py 3.20.57: apps_stop_all/apps_start_all timeouts doubled
+  (stop: 300→600s, start: 600→1200s). TV_PROGRESS echo markers added to bash script so
+  result panel shows step summary (start, success/timeout/exit code) after the op completes.
+  routes/ebs-ops.js ctrlTimeout: 310→620s / 610→1220s. ebs-ops.html: _MW_TIMEOUTS 315→625s /
+  615→1225s; runMiddlewareOp gains 5s setInterval elapsed counter for full-stack ops;
+  storeAndRenderMiddlewareResult parses TV_PROGRESS lines and renders them prominently before
+  raw stdout. report.html build tag updated to 2026-06-11-ebs-ops-v1.
+  LATEST_PROXY_VERSION 3.20.57.
 - 2026-06-11: FIX — oracle-proxy.py 3.20.56: "Workflow Mailer Not Running" finding
   remediation text corrected — old text pointed to "EBS System Admin → Workflow →
   Service Components" with no detail; new text lists 3 options: TuneVault EBS Ops

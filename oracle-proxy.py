@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.56"  # WF Mailer finding: correct restart guidance (TuneVault/OAM/PL/SQL); remove adadminsrvctl.sh wfmail reference
+VERSION = "3.20.57"  # apps_stop_all/apps_start_all: 2x timeouts (600s/1200s), TV_PROGRESS echo markers
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -6579,8 +6579,10 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     # Correct non-interactive call confirmed by customer AppsStartStop.sh:
                     #   printf "$WLS_PWD\n" | adstpall.sh "APPS/$APPS_PWD" -mode=allnodes
                     # APPS password is a slash-joined argument; WLS password piped via stdin.
-                    _adscript = "adstpall.sh" if op == "apps_stop_all" else "adstrtal.sh"
-                    _tout     = 300          if op == "apps_stop_all" else 600
+                    _adscript    = "adstpall.sh" if op == "apps_stop_all" else "adstrtal.sh"
+                    _tout        = 600         if op == "apps_stop_all" else 1200
+                    _action_verb = "stopping"  if op == "apps_stop_all" else "starting"
+                    _done_verb   = "stopped"   if op == "apps_stop_all" else "started"
                     _lines = [
                         "#!/bin/bash",
                         "export APPS_PWD='%s'" % _ap,
@@ -6590,8 +6592,16 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         '    echo "NO_PASSWORDS -- set APPS Password and WebLogic Password on the connection to use this op."',
                         '    exit 1',
                         'fi',
+                        'echo "TV_PROGRESS: Starting %s — %s all EBS services..."' % (_adscript, _action_verb),
                         'printf "%%s\\n" "$WLS_PWD" | timeout %d "$ADMIN_SCRIPTS_HOME/%s" "APPS/$APPS_PWD" -mode=allnodes 2>&1' % (_tout, _adscript),
                         '_RC=${PIPESTATUS[1]}',
+                        'if [ $_RC -eq 0 ]; then',
+                        '    echo "TV_PROGRESS: All services %s successfully"' % _done_verb,
+                        'elif [ $_RC -eq 124 ]; then',
+                        '    echo "TV_PROGRESS: Command timed out — services may still be %s in background"' % _action_verb,
+                        'else',
+                        '    echo "TV_PROGRESS: %s exited with code $_RC"' % _adscript,
+                        'fi',
                         'exit $_RC',
                     ]
                     _timeout = _tout + 10

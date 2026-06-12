@@ -1071,7 +1071,7 @@ const _MW_TIMEOUTS = {
   adcmctl_start: 135000, adcmctl_stop: 135000,
   wf_mailer_start: 65000,  wf_mailer_stop: 65000,  wf_mailer_reset: 200000,
   fnd_svc_ctrl_start: 65000, fnd_svc_ctrl_stop: 65000,
-  apps_stop_all: 315000,     apps_start_all: 615000,
+  apps_stop_all: 625000,     apps_start_all: 1225000,
 };
 
 async function runMiddlewareOp(opKey) {
@@ -1087,6 +1087,17 @@ async function runMiddlewareOp(opKey) {
   if (resultEl) {
     resultEl.classList.add('visible');
     resultEl.innerHTML = '<div class="result-panel-hdr"><span class="result-hdr-summary ok" style="opacity:.5">Running…</span></div>';
+  }
+
+  const isFullStackOp = opKey === 'apps_stop_all' || opKey === 'apps_start_all';
+  let elapsedInterval = null;
+  if (isFullStackOp) {
+    const _fsStart = Date.now();
+    elapsedInterval = setInterval(() => {
+      const _sec = Math.round((Date.now() - _fsStart) / 1000);
+      if (btn && btn.disabled) btn.innerHTML = '<div class="spinner"></div> Running… ' + _sec + 's';
+      if (resultEl) resultEl.innerHTML = '<div class="result-panel-hdr"><span class="result-hdr-summary ok" style="opacity:.5">Running… ' + _sec + 's elapsed</span></div>';
+    }, 5000);
   }
 
   const timeoutMs = _MW_TIMEOUTS[opKey] || 38000;
@@ -1111,6 +1122,7 @@ async function runMiddlewareOp(opKey) {
     const msg = err.name === 'AbortError' ? 'Request timed out (' + Math.round(timeoutMs / 1000) + 's)' : err.message;
     storeAndRenderMiddlewareResult(storeKey, { ok: false, error: msg });
   } finally {
+    if (elapsedInterval) clearInterval(elapsedInterval);
     if (btn) {
       btn.disabled = false;
       const mwOp = MIDDLEWARE_OPS.find(o => o.key === (isCtrlOp ? statusKey : opKey)) || CM_CTRL_OPS.find(o => o.key === (isCtrlOp ? statusKey : opKey));
@@ -1259,6 +1271,15 @@ function storeAndRenderMiddlewareResult(storeKey, data) {
           const procPart = stdout.slice(sep + '=== CM_PROCESSES ==='.length);
           if (cmOut) bodyHtml += `<div class="result-text">${escHtml(cmOut)}</div>`;
           bodyHtml += renderCmProcessTable(procPart);
+        } else if ((_baseKey === 'apps_stop_all' || _baseKey === 'apps_start_all') && stdout.includes('TV_PROGRESS:')) {
+          const progressLines = [...stdout.matchAll(/^TV_PROGRESS: (.+)$/gm)].map(m => m[1]);
+          const cleanStdout = stdout.replace(/^TV_PROGRESS: .+$/gm, '').trim();
+          if (progressLines.length) {
+            bodyHtml += progressLines.map(l =>
+              `<div class="result-status ${isOk ? 'status-ok' : 'status-warn'}" style="font-size:11px;margin-bottom:4px">▶ ${escHtml(l)}</div>`
+            ).join('');
+          }
+          if (cleanStdout) bodyHtml += `<div class="result-text">${escHtml(cleanStdout)}</div>`;
         } else {
           bodyHtml += `<div class="result-text">${escHtml(stdout)}</div>`;
         }
