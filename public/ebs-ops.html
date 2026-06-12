@@ -807,17 +807,17 @@ function renderMiddlewareTab(container) {
 
   const fullStackWarn = document.createElement('div');
   fullStackWarn.style.cssText = 'margin-bottom:14px;padding:10px 14px;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.3);border-radius:8px;font-size:12px;color:var(--text-dim)';
-  fullStackWarn.innerHTML = '<strong style="color:var(--red)">⚠ Destructive:</strong> These ops run <code>adstpall.sh y</code> / <code>adstrtal.sh y</code> which affects <strong>ALL app-tier nodes and ALL services</strong> on the selected connection. APPS Password and WebLogic Password must be set on the connection. Type the confirmation phrase exactly to proceed.';
+  fullStackWarn.innerHTML = '<strong style="color:var(--red)">⚠ Destructive:</strong> These ops run <code>adstpall.sh -mode=allnodes</code> / <code>adstrtal.sh -mode=allnodes</code> which affects <strong>ALL app-tier nodes and ALL services</strong> on the selected connection. APPS Password and WebLogic Password must be set on the connection. Type the confirmation phrase exactly to proceed.';
   container.appendChild(fullStackWarn);
 
   const fullStackGrid = document.createElement('div');
   fullStackGrid.className = 'ops-grid';
   [
     { key: 'apps_stop_all',  label: 'Stop All App Services',  icon: '⏹',
-      desc: 'Runs adstpall.sh y — stops Apache/OHS, OPMN, Apps Listener, Node Manager, WLS Admin, all managed servers, and Concurrent Managers in one shot. Use before planned downtime.',
+      desc: 'Runs adstpall.sh -mode=allnodes — stops Apache/OHS, OPMN, Apps Listener, Node Manager, WLS Admin, all managed servers, and Concurrent Managers on all app-tier nodes. Includes OS process verification after completion.',
       confirmPhrase: 'STOP-ALL-APPS',  color: 'var(--red)',    borderColor: 'rgba(248,113,113,0.4)' },
     { key: 'apps_start_all', label: 'Start All App Services', icon: '▶',
-      desc: 'Runs adstrtal.sh y — starts all app-tier services in the correct EBS start sequence: Concurrent Managers, WLS Admin, managed servers, OPMN, Apache/OHS, and Apps Listener.',
+      desc: 'Runs adstrtal.sh -mode=allnodes — starts all app-tier services in the correct EBS sequence on all nodes. Includes OS process verification after completion.',
       confirmPhrase: 'START-ALL-APPS', color: 'var(--green)',  borderColor: 'rgba(52,211,153,0.4)' },
   ].forEach(op => renderFullStackCard(op, fullStackGrid));
   container.appendChild(fullStackGrid);
@@ -1273,13 +1273,29 @@ function storeAndRenderMiddlewareResult(storeKey, data) {
           bodyHtml += renderCmProcessTable(procPart);
         } else if ((_baseKey === 'apps_stop_all' || _baseKey === 'apps_start_all') && stdout.includes('TV_PROGRESS:')) {
           const progressLines = [...stdout.matchAll(/^TV_PROGRESS: (.+)$/gm)].map(m => m[1]);
-          const cleanStdout = stdout.replace(/^TV_PROGRESS: .+$/gm, '').trim();
+          // Strip TV_PROGRESS lines; split at OS_PROCESS_CHECK sentinel
+          let mainOut = stdout.replace(/^TV_PROGRESS: .+$/gm, '');
+          let procOut = '';
+          const osCheckStart = mainOut.indexOf('=== OS_PROCESS_CHECK ===');
+          const osCheckEnd   = mainOut.indexOf('=== OS_PROCESS_CHECK_END ===');
+          if (osCheckStart !== -1) {
+            const osBody = osCheckEnd !== -1
+              ? mainOut.slice(osCheckStart + '=== OS_PROCESS_CHECK ==='.length, osCheckEnd)
+              : mainOut.slice(osCheckStart + '=== OS_PROCESS_CHECK ==='.length);
+            procOut  = osBody.trim();
+            mainOut  = mainOut.slice(0, osCheckStart);
+          }
+          mainOut = mainOut.trim();
           if (progressLines.length) {
             bodyHtml += progressLines.map(l =>
               `<div class="result-status ${isOk ? 'status-ok' : 'status-warn'}" style="font-size:11px;margin-bottom:4px">▶ ${escHtml(l)}</div>`
             ).join('');
           }
-          if (cleanStdout) bodyHtml += `<div class="result-text">${escHtml(cleanStdout)}</div>`;
+          if (mainOut) bodyHtml += `<div class="result-text">${escHtml(mainOut)}</div>`;
+          if (procOut !== '') {
+            bodyHtml += `<div style="margin-top:10px;font-size:11px;font-weight:600;color:var(--text-dim)">🔍 OS Process Verification</div>`;
+            bodyHtml += `<pre style="margin:4px 0 0;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;font-size:11px;overflow-x:auto;white-space:pre">${escHtml(procOut)}</pre>`;
+          }
         } else {
           bodyHtml += `<div class="result-text">${escHtml(stdout)}</div>`;
         }

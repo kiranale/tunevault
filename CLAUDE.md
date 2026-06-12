@@ -213,6 +213,12 @@ Start All (adcmctl) to fully restart the GSM framework.
 
 ## Recent changes
 
+- 2026-06-12: FEAT — oracle-proxy.py 3.20.58: apps_stop_all/apps_start_all append OS process
+  verification block after adstpall/adstrtal — ps filtered for httpd/java/tnslsnr/FNDLIBR/
+  FNDSM/opmn/frmweb/f60; "none found" message on clean stop. ebs-ops.html: card descs
+  corrected (adstpall.sh y → -mode=allnodes); warning banner updated; storeAndRenderMiddlewareResult
+  parses OS_PROCESS_CHECK sentinel and renders "🔍 OS Process Verification" sub-header with
+  monospace pre block. LATEST_PROXY_VERSION 3.20.58.
 - 2026-06-12: FIX — oracle-proxy.py 3.20.57: apps_stop_all/apps_start_all timeouts doubled
   (stop: 300→600s, start: 600→1200s). TV_PROGRESS echo markers added to bash script so
   result panel shows step summary (start, success/timeout/exit code) after the op completes.

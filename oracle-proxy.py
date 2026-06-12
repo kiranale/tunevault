@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.57"  # apps_stop_all/apps_start_all: 2x timeouts (600s/1200s), TV_PROGRESS echo markers
+VERSION = "3.20.58"  # apps_stop_all/apps_start_all: OS process verification block after adstpall/adstrtal
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -6602,6 +6602,13 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         'else',
                         '    echo "TV_PROGRESS: %s exited with code $_RC"' % _adscript,
                         'fi',
+                        'echo ""',
+                        'echo "=== OS_PROCESS_CHECK ==="',
+                        'echo "%s"' % ("Remaining EBS processes (should be empty or only this check itself):" if op == "apps_stop_all" else "Running EBS processes (Apache, WLS, CM, listener should all appear):"),
+                        'ps -u "$(whoami)" -o pid,etime,comm,args --sort=comm 2>/dev/null \\',
+                        '  | grep -Ei "httpd|java|tnslsnr|FNDLIBR|FNDSM|opmn|frmweb|f60|OPMN" \\',
+                        '  | grep -v grep || echo "  (none found — clean shutdown)"',
+                        'echo "=== OS_PROCESS_CHECK_END ==="',
                         'exit $_RC',
                     ]
                     _timeout = _tout + 10
