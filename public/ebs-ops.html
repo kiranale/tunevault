@@ -872,6 +872,16 @@ function cancelFullStackConfirm(opKey) {
   if (el) { el.style.display = 'none'; el.innerHTML = ''; }
 }
 
+async function refreshAllServiceStatus() {
+  const statusOps = ['adapcctl_status','adopmnctl_status','adalnctl_status','adnodemgrctl_status','wls_admin_status','oacore_status','forms_status','oafm_status','managed_servers_status'];
+  for (const sOp of statusOps) {
+    if (MIDDLEWARE_OPS.find(o => o.key === sOp)) {
+      await new Promise(res => setTimeout(res, 400));
+      runMiddlewareOp(sOp).catch(() => {});
+    }
+  }
+}
+
 async function commitFullStackConfirm(opKey, confirmPhrase) {
   const inp = document.getElementById('fs-inp-' + opKey);
   if (!inp || inp.value.trim() !== confirmPhrase) {
@@ -889,13 +899,7 @@ async function commitFullStackConfirm(opKey, confirmPhrase) {
   // Refresh all individual service status cards sequentially on success
   const stored = resultStore.get('mw-' + opKey);
   if (stored && stored.isOk) {
-    const statusOps = ['adapcctl_status','adopmnctl_status','adalnctl_status','adnodemgrctl_status','wls_admin_status','oacore_status','forms_status','oafm_status','managed_servers_status'];
-    for (const sOp of statusOps) {
-      if (MIDDLEWARE_OPS.find(o => o.key === sOp)) {
-        await new Promise(res => setTimeout(res, 400));
-        runMiddlewareOp(sOp).catch(() => {});
-      }
-    }
+    await refreshAllServiceStatus();
   }
 }
 
@@ -1070,7 +1074,7 @@ const _MW_TIMEOUTS = {
   adcmctl_start: 135000, adcmctl_stop: 135000,
   wf_mailer_start: 65000,  wf_mailer_stop: 65000,  wf_mailer_reset: 200000,
   fnd_svc_ctrl_start: 65000, fnd_svc_ctrl_stop: 65000,
-  apps_stop_all: 655000,     apps_start_all: 1250000,
+  apps_stop_all: 655000,     apps_start_all: 1825000,
 };
 
 async function runMiddlewareOp(opKey) {
@@ -1207,6 +1211,10 @@ function storeAndRenderMiddlewareResult(storeKey, data) {
   const isOk     = !!(data.ok);
   const exitCode  = data.exit_code;
   const stdout    = (data.stdout || '').trim();
+  const _baseKey  = storeKey.replace(/^mw-/, '');
+
+  const isFullStackTimeout = (_baseKey === 'apps_stop_all' || _baseKey === 'apps_start_all')
+    && !!data.error && (data.error || '').startsWith('Request timed out');
 
   // Detect sentinel strings emitted by the bash script
   const isNoPasswords        = !data.error && stdout.includes('NO_PASSWORDS');
@@ -1215,7 +1223,9 @@ function storeAndRenderMiddlewareResult(storeKey, data) {
   const isNoWlsPwd           = !data.error && stdout.includes('NO_WLS_PWD');
   const isDeactivatedNoReset = !data.error && stdout.includes('WF_MAILER_DEACTIVATED_CANNOT_RESET');
   let summaryText;
-  if (data.error) {
+  if (isFullStackTimeout) {
+    summaryText = '⚠ Still running';
+  } else if (data.error) {
     summaryText = '✗ Error';
   } else if (isNoPasswords || isSkipAdmin) {
     summaryText = '— Skipped';
@@ -1232,7 +1242,12 @@ function storeAndRenderMiddlewareResult(storeKey, data) {
   }
 
   let bodyHtml;
-  if (data.error) {
+  if (isFullStackTimeout) {
+    const _scriptName = _baseKey === 'apps_stop_all' ? 'adstpall.sh' : 'adstrtal.sh';
+    const _actionDir  = _baseKey === 'apps_stop_all' ? 'coming down' : 'coming up';
+    bodyHtml  = `<div class="result-status status-warn">⚠ The operation exceeded TuneVault's wait window but ${escHtml(_scriptName)} continues running on the server. Services typically finish ${escHtml(_actionDir)} within a few more minutes. Click ▶ Status on the individual service cards below to verify current state.</div>`;
+    bodyHtml += `<button class="btn btn-outline" style="margin-top:8px" onclick="refreshAllServiceStatus()">↻ Check Services Now</button>`;
+  } else if (data.error) {
     bodyHtml = `<div class="result-status status-err">✗ ${escHtml(friendlyError(data.error))}</div>`;
   } else if (isNoPasswords) {
     bodyHtml = `<div class="result-status status-na">WLS password and APPS password required to check Admin Server. Set them in the connection edit form.</div>`;
@@ -1250,7 +1265,6 @@ function storeAndRenderMiddlewareResult(storeKey, data) {
   } else if (isDeactivatedNoReset) {
     bodyHtml = `<div class="result-status status-warn">⚠ Component is <strong>DEACTIVATED_SYSTEM</strong> — the UPDATE was skipped because GSM would reject start_component in this state. To reset, use <strong>CM Stop All + CM Start All</strong> on the Concurrent Processing tab, which fully restarts the GSM framework.</div>`;
   } else {
-    const _baseKey = storeKey.replace(/^mw-/, '');
     const _srcOp = MIDDLEWARE_OPS.find(o => o.key === _baseKey) || CM_CTRL_OPS.find(o => o.key === _baseKey);
     const _parentKey = (_srcOp && _srcOp.perServerControl) ? _srcOp.key : null;
     const serverBlocks = parseServerBlocks(stdout);

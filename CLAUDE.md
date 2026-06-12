@@ -213,6 +213,11 @@ Start All (adcmctl) to fully restart the GSM framework.
 
 ## Recent changes
 
+- 2026-06-12: FIX — oracle-proxy.py 3.20.61: apps_start_all proxy timeout 1225→1800s (30 min);
+  route 1820000ms; frontend 1825000ms. ebs-ops.html: full-stack timeout no longer shows ✗ error —
+  detected via "Request timed out" prefix on storeKey apps_stop/start_all, renders "⚠ Still running"
+  badge + guidance text + "↻ Check Services Now" button (calls extracted refreshAllServiceStatus()).
+  LATEST_PROXY_VERSION 3.20.61.
 - 2026-06-12: FIX — oracle-proxy.py 3.20.59: apps_stop_all adds sleep 20 + TV_PROGRESS before
   OS process check (grace period for processes to exit); apps_start_all adds sleep 15.
   Stop op grep chain gains `| grep -v "RemoteCommand.*kill"` to exclude JTF shutdown process.

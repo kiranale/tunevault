@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.60"  # version bump to trigger agent pickup of wording/delay/reorder changes
+VERSION = "3.20.61"  # apps_start_all timeout 1225→1800s; timeout shown as "still running" guidance in UI
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
@@ -6580,7 +6580,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     #   printf "$WLS_PWD\n" | adstpall.sh "APPS/$APPS_PWD" -mode=allnodes
                     # APPS password is a slash-joined argument; WLS password piped via stdin.
                     _adscript    = "adstpall.sh" if op == "apps_stop_all" else "adstrtal.sh"
-                    _tout        = 630         if op == "apps_stop_all" else 1225
+                    _tout        = 630         if op == "apps_stop_all" else 1800
                     _action_verb = "stopping"  if op == "apps_stop_all" else "starting"
                     _done_verb   = "stopped"   if op == "apps_stop_all" else "started"
                     _sleep_sec   = 20          if op == "apps_stop_all" else 15
