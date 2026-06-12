@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.59"  # apps_stop_all/apps_start_all: grace-period sleep + RemoteCommand exclusion in process check
+VERSION = "3.20.60"  # version bump to trigger agent pickup of wording/delay/reorder changes
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
