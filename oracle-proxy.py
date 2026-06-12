@@ -354,7 +354,7 @@ VALID_KEYS = frozenset(
 API_KEYS = VALID_KEYS
 API_KEY = next(iter(VALID_KEYS), "")
 
-VERSION = "3.20.61"  # apps_start_all timeout 1225→1800s; timeout shown as "still running" guidance in UI
+VERSION = "3.20.62"  # version bump to trigger agent pickup
 
 # ── Proxy metadata (read from /etc/tunevault/proxy.env if present) ──────────
 # Sent on every outbound poll so the server can persist version info.
