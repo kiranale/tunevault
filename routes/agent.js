@@ -945,7 +945,13 @@ router.post('/respond', async (req, res) => {
         console.log('[agent/respond] ebs_jobs jobId=%s req=%s',
           jobId || 'null', (request_id||'').slice(0,8));
         if (!jobId) return;
+        console.log('[agent/respond] body type:', typeof body,
+          'keys:', body ? Object.keys(body) : 'null');
         const proxyBody = body || {};
+        console.log('[agent/respond] proxyBody keys:',
+          Object.keys(proxyBody), 'ok:', proxyBody.ok,
+          'exit_code:', proxyBody.exit_code,
+          'stdout_len:', (proxyBody.stdout||'').length);
         const isOk = (status_code === 200) && (proxyBody.success !== false) && (proxyBody.ok !== false);
         await ebsJobsDb.completeJob(jobId, {
           ok: isOk,
