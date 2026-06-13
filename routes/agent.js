@@ -938,7 +938,12 @@ router.post('/respond', async (req, res) => {
     setImmediate(async () => {
       try {
         const cmdRow = await agentCmdQueueDb.findByRequestIdOnly(request_id);
-        const jobId = cmdRow?.payload?.job_id;
+        const rawPayload = cmdRow?.payload;
+        const parsedPayload = typeof rawPayload === 'string'
+          ? JSON.parse(rawPayload) : (rawPayload || {});
+        const jobId = parsedPayload?.job_id;
+        console.log('[agent/respond] ebs_jobs jobId=%s req=%s',
+          jobId || 'null', (request_id||'').slice(0,8));
         if (!jobId) return;
         const proxyBody = body || {};
         const isOk = (status_code === 200) && (proxyBody.success !== false) && (proxyBody.ok !== false);
