@@ -937,7 +937,7 @@ router.post('/respond', async (req, res) => {
     // Write result to ebs_jobs if this was a fire-and-forget long op (job_id in payload)
     setImmediate(async () => {
       try {
-        const cmdRow = await agentCmdQueueDb.findByRequestId(request_id, parsedConnId);
+        const cmdRow = await agentCmdQueueDb.findByRequestIdOnly(request_id);
         const jobId = cmdRow?.payload?.job_id;
         if (!jobId) return;
         const proxyBody = body || {};

@@ -211,8 +211,8 @@ async function getOldestPendingAgeSec() {
 // ── Lookup by request_id ──────────────────────────────────────────────────────
 
 /**
- * Find a completed/failed command by its embedded request_id (for deliverResult).
- * The request_id is stored inside the payload JSONB field.
+ * Find a command by its embedded request_id (for deliverResult).
+ * Filters by agent_id to keep the query index-efficient.
  *
  * @param {string} requestId
  * @param {number} agentId
@@ -226,6 +226,25 @@ async function findByRequestId(requestId, agentId) {
      ORDER BY enqueued_at DESC
      LIMIT 1`,
     [agentId, requestId]
+  );
+  return rows[0] || null;
+}
+
+/**
+ * Find a command by request_id alone — no agent_id filter.
+ * Used by the ebs_jobs completeJob path where we only have request_id
+ * and need to read job_id out of payload (agent_id cast mismatch avoided).
+ *
+ * @param {string} requestId
+ * @returns {Promise<object|null>}
+ */
+async function findByRequestIdOnly(requestId) {
+  const { rows } = await pool.query(
+    `SELECT id, status, result, payload FROM agent_command_queue
+     WHERE payload->>'request_id' = $1
+     ORDER BY enqueued_at DESC
+     LIMIT 1`,
+    [requestId]
   );
   return rows[0] || null;
 }
@@ -286,6 +305,7 @@ module.exports = {
   getQueueDepth,
   getOldestPendingAgeSec,
   findByRequestId,
+  findByRequestIdOnly,
   notifyAgentCmd,
   notifyAgentResult,
   getCompletedResult,
